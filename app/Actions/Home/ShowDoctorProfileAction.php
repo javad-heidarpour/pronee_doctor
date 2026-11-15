@@ -7,7 +7,6 @@ use App\Models\Doctor;
 use App\Models\DoctorImage;
 use App\Models\VisitReason;
 use App\Models\DoctorWorkingHour;
-use App\Actions\Blog\Listing\BlogIndexAction;
 use Carbon\Carbon;
 use Morilog\Jalali\Jalalian;
 
@@ -54,13 +53,7 @@ class ShowDoctorProfileAction
             ->firstOrFail();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Blog
-        |--------------------------------------------------------------------------
-        */
 
-        $blogData = app(BlogIndexAction::class)->handle();
 
 
         /*
@@ -356,7 +349,6 @@ class ShowDoctorProfileAction
                     'visitReasons' => $visitReasons,
                     'clinics_with_slots' => $clinicsWithSlots,
                     'working_hours' => $finalWorkingHours,
-                    'blog' => $blogData,
                     'reviews' => $reviews,
                     'reviews_stats' => $reviewsStats,
                     'gallery_images' => $galleryImages,

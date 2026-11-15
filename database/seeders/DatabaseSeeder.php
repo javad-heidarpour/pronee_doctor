@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Appointment;
-use App\Models\BlogPost;
 use App\Models\Contact;
 use App\Models\Doctor;
 use App\Models\HonorBadge;
@@ -84,12 +83,7 @@ class DatabaseSeeder extends Seeder
             ['title' => 'تزریق چربی صورت و بدن', 'slug' => 'fat-grafting-face-body', 'excerpt' => 'مزایا و عوارض تزریق چربی خودی...', 'published_at' => now()->subDays(8)],
         ];
 
-        foreach ($mainPosts as $post) {
-            BlogPost::firstOrCreate(
-                ['doctor_id' => $mainDoctor->id, 'slug' => $post['slug']],
-                array_merge($post, ['is_published' => true])
-            );
-        }
+        
 
         // 6️⃣ افتخارات
         $mainBadges = [
@@ -113,7 +107,7 @@ class DatabaseSeeder extends Seeder
                 ->has(Contact::factory())
                 ->has(Specialty::factory()->count(5))
                 ->has(Testimonial::factory()->count(6))
-                ->has(BlogPost::factory()->count(4))
+             
                 ->has(HonorBadge::factory()->count(4))
                 ->create();
         }

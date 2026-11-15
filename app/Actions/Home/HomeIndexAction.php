@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Actions\Home;
-use App\Actions\Blog\Listing\BlogIndexAction;
-use App\Http\Controllers\BlogController;
 use App\Models\City;
 use App\Models\Doctor;
 use App\Models\Specialty;
@@ -14,7 +12,6 @@ class HomeIndexAction
 {
     public function handle(Request $request): Response
     {
-        $blogData = app(BlogIndexAction::class)->handle();
 
         $cityId = $request->input('city');
         $specialtyId = $request->input('specialty');
@@ -48,7 +45,6 @@ class HomeIndexAction
                 'workingHours.clinic',
 
             ]),
-            'blog' => $blogData,
         ]);
     }
 }

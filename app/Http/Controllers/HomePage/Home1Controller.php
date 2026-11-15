@@ -17,7 +17,6 @@ use App\Models\MedicalService;
 use App\Models\SurgicalProcedure;
 use App\Models\DoctorImage;
 use App\Models\DoctorWorkingHour;
-use App\Actions\Blog\Listing\BlogIndexAction;
 
 class Home1Controller extends Controller
 {
@@ -196,10 +195,8 @@ class Home1Controller extends Controller
         $doctor = Doctor::with('address')->findOrFail(1);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
-        $blogData = app(BlogIndexAction::class)->handle();
         return Inertia::render('HomePage/Home1/tips', [
             'doctor' => $doctor,
-            'blog' => $blogData,
 
         ]);
     }

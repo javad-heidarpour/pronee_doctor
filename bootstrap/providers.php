@@ -10,7 +10,5 @@ return [
     AppServiceProvider::class,
     AuthServiceProvider::class,
     RepositoryServiceProvider::class,
-    PostServiceProvider::class,
-
 
 ];
