@@ -1,0 +1,93 @@
+<?php
+
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request; // 🔴 این خط حیاتی اضافه شد
+use Inertia\Inertia;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__ . '/../routes/web.php',
+        commands: __DIR__ . '/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(append: [
+            \App\Http\Middleware\HandleInertiaRequests::class,
+            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->alias([
+            'portal.auth' => \App\Http\Middleware\DoctorAuth::class,
+        ]);
+
+        $middleware->redirectGuestsTo(fn() => route('portal.login'));
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+
+        // 🔴 این ۵ خط را دقیقاً همین اول اضافه کنید (موقتی است)
+        $exceptions->render(function (\Throwable $e) {
+    
+            dd(
+                'نوع خطا: ' . get_class($e),
+                'پیام: ' . $e->getMessage(),
+                'فایل: ' . $e->getFile(),
+                'خط: ' . $e->getLine()
+    
+
+            );
+    
+        });
+    
+        // 🔴 مدیریت خطای حجم فایل (حالا درست کار می‌کند)
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, Request $request) {
+            return back()->withErrors([
+                'featured_image' => 'حجم فایل انتخابی بیش از حد مجاز است. لطفاً فایل کوچکتری انتخاب کنید.',
+            ]);
+        });
+
+        // مدیریت خطای 429
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'تعداد ارسال نظر بیش از حد مجاز است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.'
+                ], 429);
+            }
+        });
+
+        // مدیریت خطای 404
+        $exceptions->render(function (NotFoundHttpException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'منبع مورد نظر یافت نشد'], 404);
+            }
+            return Inertia::render('Errors/NotFound')
+                ->toResponse($request)
+                ->setStatusCode(404);
+        });
+
+        // مدیریت خطای 403
+        $exceptions->render(function (AccessDeniedHttpException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'دسترسی غیرمجاز'], 403);
+            }
+            return Inertia::render('Errors/Forbidden')
+                ->toResponse($request)
+                ->setStatusCode(403);
+        });
+
+        // مدیریت خطای 500
+        $exceptions->render(function (\Throwable $e, $request) {
+            if (!config('app.debug') && !$request->expectsJson()) {
+                return Inertia::render('Errors/ServerError')
+                    ->toResponse($request)
+                    ->setStatusCode(500);
+            }
+        });
+
+
+
+    })
+    ->create();
