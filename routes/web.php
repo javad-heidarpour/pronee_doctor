@@ -14,16 +14,11 @@ require __DIR__ . '/payment.php';
 |--------------------------------------------------------------------------
 */
 
-// صفحه اصلی - قالب جدید Home1
-// قالب قبلی پزشک
-Route::get('/dr-farhad-vafaei', [HomeController::class, 'showDoctor'])
-    ->name('home1');
-
-// قالب جدید پزشک
-Route::get('/', [HomeController::class, 'Home1'])
+Route::get('/', [HomeController::class, 'Home'])
     ->name('home');
 
-
+Route::get('/{doctor:slug}', [HomeController::class, 'showDoctor'])
+    ->name('home1');
 
 /*
 |--------------------------------------------------------------------------

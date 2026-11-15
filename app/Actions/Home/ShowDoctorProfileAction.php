@@ -15,15 +15,15 @@ class ShowDoctorProfileAction
     /**
      * نمایش صفحه اصلی فعلی
      */
-    public function handle(string $slug)
-    {
-        return $this->renderDoctorPage($slug, 'HomePage');
-    }
+    // public function handle(string $slug)
+    // {
+    //     return $this->renderDoctorPage($slug, 'HomePage');
+    // }
 
     /**
      * نمایش قالب جدید Home1
      */
-    public function handleHome1(string $slug)
+    public function handle(string $slug)
     {
         return $this->renderDoctorPage($slug, 'HomePage/Home1/Index');
     }
