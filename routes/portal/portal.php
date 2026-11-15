@@ -18,13 +18,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         DashboardController::class,
         'selectDoctor'
     ])->name('select-doctor');
-    /*
-    |--------------------------------------------------------------------------
-    | مدیریت نظرات مقالات
-    |--------------------------------------------------------------------------
-    */
+   
 
-    require __DIR__ . '/post-comments.php';
 
 
     /*
@@ -128,9 +123,6 @@ Route::prefix('portal')->name('portal.')->group(function () {
         // نظرات پزشک
         require __DIR__ . '/doctor-reviews.php';
 
-
-        // مقالات
-        require __DIR__ . '/post.php';
 
 
         // تعرفه‌ها

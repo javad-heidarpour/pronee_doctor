@@ -2,7 +2,6 @@
 
 namespace App\Actions\Blog\Search;
 
-use App\Models\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

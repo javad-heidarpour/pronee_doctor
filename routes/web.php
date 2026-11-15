@@ -32,7 +32,6 @@ Route::get('/', [HomeController::class, 'Home1'])
 */
 
 require __DIR__ . '/appointment.php';
-require __DIR__ . '/blog.php';
 require __DIR__ . '/doctor.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/review.php';

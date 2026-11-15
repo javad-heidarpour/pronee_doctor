@@ -2,7 +2,6 @@
 
 namespace App\Actions\Blog\Tag;
 
-use App\Models\Post;
 use App\Models\Doctor;
 use App\Models\Tag;
 use Inertia\Inertia;

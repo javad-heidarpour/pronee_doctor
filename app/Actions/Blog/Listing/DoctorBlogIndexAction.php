@@ -3,7 +3,6 @@
 namespace App\Actions\Blog\Listing;
 
 use App\Models\Doctor;
-use App\Models\Post;
 use Inertia\Inertia;
 use Inertia\Response;
 

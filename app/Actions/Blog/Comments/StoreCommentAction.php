@@ -3,7 +3,6 @@
 namespace App\Actions\Blog\Comments;
 
 use App\Http\Requests\StoreCommentRequest;
-use App\Models\Post;
 use App\Models\PostComment;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;

@@ -3,7 +3,6 @@
 namespace App\Actions\Blog\Listing;
 
 use App\Models\Category;
-use App\Models\Post;
 
 class BlogIndexAction
 {

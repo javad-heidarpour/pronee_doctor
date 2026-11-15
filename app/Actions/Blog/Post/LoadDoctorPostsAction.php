@@ -2,7 +2,6 @@
 
 namespace App\Actions\Blog\Post;
 
-use App\Models\Post;
 use Illuminate\Database\Eloquent\Collection;
 
 class LoadDoctorPostsAction

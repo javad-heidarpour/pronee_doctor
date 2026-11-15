@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsTo; // ✅ این خط باید وجود داشته باشد
 use Illuminate\Support\Facades\Hash;
-use App\Models\Post;
 use App\Models\City;
 use App\Models\Specialty;
 use App\Models\Address;
@@ -144,12 +143,6 @@ class Doctor extends Model
 
 
 
-    public function publishedBlogPosts(): HasMany
-    {
-        return $this->hasMany(BlogPost::class)
-            ->where('is_published', true)
-            ->orderByDesc('published_at');
-    }
 
     public function honorBadges(): HasMany
     {
@@ -237,13 +230,7 @@ class Doctor extends Model
     /**
      * مقالات پزشک
      */
-    public function posts(): HasMany
-    {
-        return $this->hasMany(Post::class)
-            ->where('is_published', true)
-            ->where('published_at', '<=', now())
-            ->orderByDesc('published_at');
-    }
+
     public function blogPosts(): HasMany
     {
         return $this->hasMany(BlogPost::class)->orderByDesc('published_at');
