@@ -5,12 +5,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('Fees')
     ->name('Fees.')
+    ->controller(FeesController::class)
     ->group(function () {
-
-        Route::get('/', [FeesController::class, 'index'])
-            ->name('index');
-
-        Route::put('/', [FeesController::class, 'updateFee'])
-            ->name('update');
-
+        Route::get('/', 'index')->name('index');
+        Route::put('/', 'updateFee')->name('update');
     });

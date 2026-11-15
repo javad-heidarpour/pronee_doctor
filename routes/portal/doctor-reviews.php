@@ -11,21 +11,12 @@ use App\Http\Controllers\Portal\DoctorReviewController;
 | بنابراین در فایل اصلی داخل middleware('portal.auth') include می‌شوند.
 */
 
-Route::prefix('doctor-reviews')->name('doctor-reviews.')->group(function () {
+Route::prefix('doctor-reviews')->name('doctor-reviews.')
+    ->controller(DoctorReviewController::class)
+    ->group(function () {
 
-    Route::get(
-        '/',
-        [DoctorReviewController::class, 'index']
-    )->name('index');
+        Route::get('/', 'index')->name('index');
+        Route::put('/{review}/toggle', 'toggle')->name('toggle');
+        Route::put('/{review}/reply', 'reply')->name('reply');
 
-    Route::put(
-        '/{review}/toggle',
-        [DoctorReviewController::class, 'toggle']
-    )->name('toggle');
-
-    Route::put(
-        '/{review}/reply',
-        [DoctorReviewController::class, 'reply']
-    )->name('reply');
-
-});
+    });

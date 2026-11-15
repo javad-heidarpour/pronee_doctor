@@ -3,9 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Portal\ClinicController;
 
-Route::prefix('clinics')->name('clinics.')->group(function () {
-    Route::get('/', [ClinicController::class, 'index'])->name('index');
-    Route::post('/', [ClinicController::class, 'store'])->name('store');
-    Route::put('/{clinic}', [ClinicController::class, 'update'])->name('update');
-    Route::delete('/{clinic}', [ClinicController::class, 'destroy'])->name('destroy');
-});
+Route::prefix('clinics')->name('clinics.')
+    ->controller(ClinicController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::put('/{clinic}', 'update')->name('update');
+        Route::delete('/{clinic}', 'destroy')->name('destroy');
+    });

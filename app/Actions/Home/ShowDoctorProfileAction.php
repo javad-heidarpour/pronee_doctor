@@ -25,6 +25,8 @@ class ShowDoctorProfileAction
      */
     public function handle(string $slug)
     {
+        // dd($slug);
+
         return $this->renderDoctorPage($slug, 'HomePage/Home1/Index');
     }
 

@@ -14,7 +14,7 @@ class HomeController extends Controller
     public function Home()
     {
 
-    
+
         $doctors = Doctor::query()
             ->where('is_active', 1)
             ->select([
@@ -39,14 +39,13 @@ class HomeController extends Controller
     ) {
 
         $doctor = Doctor::where('slug', $slug)->first();
-
         if (!$doctor) {
             return Inertia::render('Errors/DoctorNotFound')
                 ->toResponse(request())
                 ->setStatusCode(404);
         }
 
-        return $action->handle($doctor);
+        return $action->handle($doctor->slug);
     }
 
     /**

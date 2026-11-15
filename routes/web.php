@@ -26,6 +26,7 @@ Route::get('/{doctor:slug}', [HomeController::class, 'showDoctor'])
 |--------------------------------------------------------------------------
 */
 
+require __DIR__ . '/DoctorRegister.php';
 require __DIR__ . '/appointment.php';
 require __DIR__ . '/doctor.php';
 require __DIR__ . '/auth.php';

@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomePage\Home1Controller;
 
-Route::prefix('/dr-vafaei')->controller(Home1Controller::class)->group(function () {
+Route::prefix('/{slug}')->controller(Home1Controller::class)->group(function () {
 
     Route::get('/booking', 'booking')->name('booking');
     Route::get('/services', 'services')->name('services');
