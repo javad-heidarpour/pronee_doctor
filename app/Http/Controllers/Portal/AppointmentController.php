@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Portal\\Appointment\\CreatePortalAppointmentAction;
-use App\\Actions\\Portal\\Appointment\\ListAvailableSlotsAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Http\\Requests\\Portal\\AvailableSlotsRequest;
-use App\\Http\\Requests\\Portal\\StorePortalAppointmentRequest;
+use App\Actions\Portal\Appointment\CreatePortalAppointmentAction;
+use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\AvailableSlotsRequest;
+use App\Http\Requests\Portal\StorePortalAppointmentRequest;
 
 class AppointmentController extends Controller
 {
