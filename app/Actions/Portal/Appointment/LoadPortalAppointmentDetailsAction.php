@@ -6,7 +6,7 @@ use App\Models\Appointment;
 
 class LoadPortalAppointmentDetailsAction
 {
-    public function handle(Appointment $appointment): Appointment
+    public function handle(Appointment $appointment, array $accessibleClinicIds): Appointment
     {
         $appointment->load([
             'user',
@@ -26,6 +26,7 @@ class LoadPortalAppointmentDetailsAction
         if ($nationalCode !== '' || $phone !== '') {
             $history = Appointment::query()
                 ->where('doctor_id', $appointment->doctor_id)
+                ->whereIn('clinic_id', $accessibleClinicIds)
                 ->where('id', '!=', $appointment->id)
                 ->whereNotIn('status', ['cancelled'])
                 ->where(function ($query) use ($appointment) {
