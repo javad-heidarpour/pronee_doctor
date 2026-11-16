@@ -19,14 +19,20 @@ class DoctorReviewController extends Controller
         ListDoctorReviewsRequest $request,
         ListDoctorReviewsAction $action
     ) {
-        return $action->handle($request->validated(), $this->currentDoctor());
+        $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
+
+        return $action->handle($request->validated(), $doctor);
     }
 
     public function toggle(
         Review $review,
         ToggleDoctorReviewAction $action
     ) {
-        return $action->handle($this->currentDoctor(), $review);
+        $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
+
+        return $action->handle($doctor, $review);
     }
 
     public function reply(
@@ -34,8 +40,11 @@ class DoctorReviewController extends Controller
         Review $review,
         ReplyDoctorReviewAction $action
     ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
+
         return $action->handle(
-            $this->currentDoctor(),
+            $doctor,
             $review,
             $request->validated('doctor_reply')
         );
