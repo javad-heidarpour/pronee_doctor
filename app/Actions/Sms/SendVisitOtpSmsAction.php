@@ -1,0 +1,95 @@
+<?php
+
+namespace App\Actions\Sms;
+
+use App\Models\Appointment;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Throwable;
+
+class SendVisitOtpSmsAction
+{
+    public function handle(int $visitNumber): JsonResponse
+    {
+        $appointment = Appointment::query()->whereKey($visitNumber)->first();
+
+        if (!$appointment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'نوبت موردنظر پیدا نشد.',
+            ], 404);
+        }
+
+        $mobile = $appointment->patient_phone;
+
+        if (!$mobile || !preg_match('/^09\d{9}$/', $mobile)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'شماره موبایل بیمار معتبر نیست.',
+            ], 422);
+        }
+
+        $clientReferenceId = 'otp-' . $visitNumber;
+        $cacheKey = 'otp-sms-lock:' . $visitNumber;
+
+        if (Cache::has($cacheKey)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'پیامک قبلاً ارسال شده است. لطفاً ۳ دقیقه صبر کنید.',
+                'visit_number' => $visitNumber,
+            ], 429);
+        }
+
+        Cache::put($cacheKey, true, now()->addMinutes(3));
+
+        try {
+            $response = Http::withHeaders([
+                'ApiKey' => config('services.ghasedak.api_key'),
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+            ])->post(
+                'https://gateway.ghasedak.me/rest/api/v1/WebService/SendOtpSMS',
+                [
+                    'sendDate' => null,
+                    'receptors' => [[
+                        'mobile' => $mobile,
+                        'clientReferenceId' => $clientReferenceId,
+                    ]],
+                    'templateName' => 'Visit',
+                    'inputs' => [[
+                        'param' => 'Code',
+                        'value' => trim((string) $visitNumber),
+                    ]],
+                    'isVoice' => false,
+                ]
+            );
+
+            if (!$response->successful()) {
+                Cache::forget($cacheKey);
+
+                return response()->json([
+                    'success' => false,
+                    'status' => $response->status(),
+                    'error' => $response->json(),
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'پیامک ارسال شد. تا ۳ دقیقه امکان ارسال مجدد وجود ندارد.',
+                'visit_number' => $visitNumber,
+                'clientReferenceId' => $clientReferenceId,
+                'data' => $response->json('data'),
+            ]);
+        } catch (Throwable $exception) {
+            Cache::forget($cacheKey);
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در ارسال پیامک. لطفاً مجدداً تلاش کنید.',
+            ], 500);
+        }
+    }
+}
