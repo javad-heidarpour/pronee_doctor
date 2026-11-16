@@ -24,7 +24,8 @@ class UpdateFeeAction
                 return false;
             }
 
-            Fee::where('is_active', true)
+            Fee::where('created_by', $doctorId)
+                ->where('is_active', true)
                 ->get()
                 ->each(function (Fee $fee) {
                     $fee->is_active = false;
