@@ -6,6 +6,7 @@ use App\Actions\Payments\InitiateAppointmentPaymentAction;
 use App\Actions\Payments\VerifyAndSettleSepPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Actions\Payments\ProcessLocalSepPaymentTestAction;
+use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
@@ -23,7 +24,8 @@ class AppointmentPaymentController extends Controller
     public function pay(
         int $visit_number,
         SepPaymentService $sep,
-        InitiateAppointmentPaymentAction $action
+        InitiateAppointmentPaymentAction $action,
+        ValidateAppointmentPaymentPhoneAction $phoneAction
     ): \Symfony\Component\HttpFoundation\Response {
         $appointment = Appointment::query()->findOrFail($visit_number);
 
@@ -37,27 +39,7 @@ class AppointmentPaymentController extends Controller
                 'status' => $appointment->status,
             ]);
 
-            if (!in_array($appointment->status, ['pending', 'confirmed'], true)) {
-                return $visitUrl()->withErrors([
-                    'payment' => 'این نوبت امکان پرداخت ندارد.',
-                ]);
-            }
-
-            $amount = (int) $appointment->fee_rial;
-
-            if ($amount <= 0) {
-                return $visitUrl()->withErrors([
-                    'payment' => 'مبلغ ویزیت معتبر نیست.',
-                ]);
-            }
-
-            $cellNumber = trim((string) $appointment->patient_phone);
-
-            if (!preg_match('/^09\d{9}$/', $cellNumber)) {
-                return $visitUrl()->withErrors([
-                    'payment' => 'شماره موبایل بیمار معتبر نیست.',
-                ]);
-            }
+            $cellNumber = $phoneAction->handle($appointment);
 
             $token = $action->handle($appointment, $cellNumber, $sep);
 
