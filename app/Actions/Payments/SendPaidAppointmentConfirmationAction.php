@@ -15,21 +15,29 @@ class SendPaidAppointmentConfirmationAction
 
     /**
      * Notify the patient after SEP confirms payment.
-     *
      * SMS failures must never turn a successful payment into a failed callback.
      */
     public function handle(int $appointmentId): void
     {
         try {
-            $this->smsAction->handle($appointmentId);
+            $response = $this->smsAction->handle($appointmentId);
 
-            Log::info('APPOINTMENT CONFIRMATION SMS TRIGGERED', [
+            if ($response->getStatusCode() >= 400) {
+                Log::warning('Paid appointment SMS was not delivered', [
+                    'appointment_id' => $appointmentId,
+                    'http_status' => $response->getStatusCode(),
+                ]);
+
+                return;
+            }
+
+            Log::info('Paid appointment confirmation SMS sent', [
                 'appointment_id' => $appointmentId,
             ]);
         } catch (Throwable $exception) {
-            Log::error('APPOINTMENT CONFIRMATION SMS FAILED', [
+            Log::error('Paid appointment confirmation SMS failed', [
                 'appointment_id' => $appointmentId,
-                'exception' => $exception->getMessage(),
+                'exception' => get_class($exception),
             ]);
         }
     }
