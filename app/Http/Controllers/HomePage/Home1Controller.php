@@ -1,23 +1,20 @@
 <?php
 
-namespace App\\Http\\Controllers\\HomePage;
+namespace App\Http\Controllers\HomePage;
 
-use App\\Actions\\Home\\BuildPublicDoctorBookingPageAction;
-use App\\Actions\\Home\\BuildPublicDoctorGalleryPageAction;
-use App\\Actions\\Home\\BuildPublicDoctorReviewsPageAction;
-use App\\Actions\\Home\\BuildPublicWorkingHoursAction;
-use App\\Actions\\Home\\FindPublicDoctorBySlugAction;
-use App\\Actions\\Home\\ListPublicMedicalServicesAction;
-use App\\Actions\\Home\\ListPublicSurgicalProceduresAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\Doctor;
-use Inertia\\Inertia;
+use App\Actions\Home\BuildPublicDoctorBookingPageAction;
+use App\Actions\Home\BuildPublicDoctorGalleryPageAction;
+use App\Actions\Home\BuildPublicDoctorReviewsPageAction;
+use App\Actions\Home\BuildPublicWorkingHoursAction;
+use App\Actions\Home\FindPublicDoctorBySlugAction;
+use App\Actions\Home\ListPublicMedicalServicesAction;
+use App\Actions\Home\ListPublicSurgicalProceduresAction;
+use App\Http\Controllers\Controller;
+use App\Models\Doctor;
+use Inertia\Inertia;
 
 class Home1Controller extends Controller
 {
-    /**
-     * Resolve the public doctor context through a dedicated query action.
-     */
     private function findDoctor(
         string $slug,
         FindPublicDoctorBySlugAction $action
