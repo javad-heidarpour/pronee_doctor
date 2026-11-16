@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Requests\Portal\UpdateFeeRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,15 +27,11 @@ class FeesController extends Controller
         UpdateFeeAction $action
     ): RedirectResponse {
         // حتی عملیات تغییر تعرفه نیز باید در زمینه پزشک فعال انجام شود.
-        $this->currentDoctor();
-
-        $user = Auth::guard('web')->user();
-
-        abort_unless($user, 401);
+        $doctor = $this->currentDoctor();
 
         $changed = $action->handle(
             (int) $request->validated()['fee_rial'],
-            (int) $user->id
+            (int) $doctor->id
         );
 
         if (!$changed) {
