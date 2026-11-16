@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Actions\\Portal\\Dashboard;
+namespace App\Actions\Portal\Dashboard;
 
-use App\\Models\\Doctor;
-use App\\Models\\User;
+use App\Models\Doctor;
+use App\Models\User;
 
 class SelectActiveDoctorAction
 {
