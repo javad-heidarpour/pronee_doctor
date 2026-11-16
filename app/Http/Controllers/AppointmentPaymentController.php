@@ -11,7 +11,7 @@ use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Actions\Payments\ValidateSepCallbackTerminalAction;
 use App\Actions\Payments\RecordSepCallbackFailureAction;
 use App\Models\Appointment;
-use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
+use App\Actions\Payments\SendPaidAppointmentConfirmationAction;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Throwable;
