@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
+use App\Actions\Portal\Appointment\ListAvailableDatesAction;
+use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentDescriptionAction;
 use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
@@ -12,7 +14,6 @@ use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\SurgeryType;
-use App\Models\TimeSlot;
 use App\Models\VisitReason;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 
@@ -20,7 +21,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 
