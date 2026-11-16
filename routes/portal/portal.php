@@ -6,11 +6,6 @@ use App\Http\Controllers\Portal\AuthController;
 use App\Http\Controllers\Portal\DashboardController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
-    Route::post('/select-doctor/{doctor}', [
-        DashboardController::class,
-        'selectDoctor'
-    ])->name('select-doctor');
-
     Route::get('/', function () {
         if (auth('web')->check()) {
             return redirect()->route('portal.dashboard');
@@ -38,6 +33,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
     });
 
     Route::middleware('portal.auth')->group(function () {
+        Route::post('/select-doctor/{doctor}', [
+            DashboardController::class,
+            'selectDoctor'
+        ])->name('select-doctor');
+
         Route::post('/logout', [
             AuthController::class,
             'logout'
