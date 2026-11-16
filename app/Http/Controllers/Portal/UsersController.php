@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Models\Doctor;
 use App\Actions\Portal\Users\UpdateSecretaryAssignmentsAction;
 use App\Actions\Portal\Users\CreateManagedUserAction;
+use App\Actions\Portal\Users\UpdateManagedUserAction;
+use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
+use App\Actions\Portal\Users\RestoreOrDeleteManagedUserAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -412,21 +415,27 @@ class UsersController extends Controller
         ]);
     }
 
-    public function update(Request $request, User $user)
-    {
+    public function update(
+        Request $request,
+        User $user,
+        UpdateManagedUserAction $action
+    ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
         $validated = $this->validateUser($request, $user);
-        $user->update($this->hashPassword($validated));
+        $action->handle($user, $validated);
 
         return redirect()
             ->route('portal.users.index')
             ->with('success', 'اطلاعات کاربر با موفقیت ویرایش شد.');
     }
 
-    public function status(Request $request, User $user)
-    {
+    public function status(
+        Request $request,
+        User $user,
+        ChangeManagedUserStatusAction $action
+    ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
@@ -434,33 +443,32 @@ class UsersController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
 
-        $user->update($validated);
+        $updatedUser = $action->handle($user, (bool) $validated['is_active']);
 
         return back()->with(
             'success',
-            $user->is_active
+            $updatedUser->is_active
                 ? 'حساب کاربر با موفقیت فعال شد.'
                 : 'حساب کاربر با موفقیت غیرفعال شد.'
         );
     }
 
-    public function destroy(User $user)
-    {
+    public function destroy(
+        User $user,
+        RestoreOrDeleteManagedUserAction $action
+    ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
-        if ($user->trashed()) {
-            $user->restore();
-
-            return redirect()
-                ->route('portal.users.index')
-                ->with('success', 'کاربر با موفقیت بازیابی شد.');
-        }
-
-        $user->delete();
+        $restored = $action->handle($user);
 
         return redirect()
             ->route('portal.users.index')
-            ->with('success', 'کاربر با موفقیت حذف شد.');
+            ->with(
+                'success',
+                $restored
+                    ? 'کاربر با موفقیت بازیابی شد.'
+                    : 'کاربر با موفقیت حذف شد.'
+            );
     }
 }
