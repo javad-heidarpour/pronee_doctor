@@ -49,6 +49,32 @@ class CreatePortalAppointmentAction
                 ]);
             }
 
+            // منشی فقط می‌تواند در مطب‌هایی نوبت ثبت کند که صریحاً
+            // در ارتباط همان پزشک با حساب منشی تخصیص داده شده‌اند.
+            $user = Auth::guard('web')->user();
+
+            if ($user && $user->role === 'secretary') {
+                $assignment = $user->doctors()
+                    ->where('doctors.id', $doctor->id)
+                    ->first();
+
+                $allowedClinicIds = $assignment?->pivot?->clinic_ids ?? [];
+
+                if (is_string($allowedClinicIds)) {
+                    $allowedClinicIds = json_decode($allowedClinicIds, true) ?: [];
+                }
+
+                $allowedClinicIds = is_array($allowedClinicIds)
+                    ? array_map('intval', $allowedClinicIds)
+                    : [];
+
+                if (!in_array((int) $timeSlot->clinic_id, $allowedClinicIds, true)) {
+                    throw ValidationException::withMessages([
+                        'time_slot_id' => 'شما اجازه ثبت نوبت در این مطب را ندارید.',
+                    ]);
+                }
+            }
+
             // ساعت باید آزاد باشد و نوبت فعال دیگری نداشته باشد
             $alreadyBooked = Appointment::query()
                 ->where('time_slot_id', $timeSlot->id)
