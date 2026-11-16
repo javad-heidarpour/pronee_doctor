@@ -34,6 +34,12 @@ class DoctorAuth
             ]);
         }
 
+        // انتخاب پزشک باید پس از احراز هویت و بررسی فعال بودن حساب مجاز باشد،
+        // اما نباید به انتخاب قبلی پزشک وابسته شود.
+        if ($request->routeIs('portal.select-doctor')) {
+            return $next($request);
+        }
+
         // پزشک و مدیر در این مرحله محدودیت دسترسی منشی را ندارند.
         if ($user->role !== 'secretary') {
             return $next($request);
