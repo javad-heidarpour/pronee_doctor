@@ -7,6 +7,8 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\User;
 use App\Models\Doctor;
 use App\Actions\Portal\Users\UpdateSecretaryAssignmentsAction;
+use App\Actions\Portal\Users\ListManagedUserPermissionsAction;
+use App\Actions\Portal\Users\ListManagedUserRolesAction;
 use App\Actions\Portal\Users\CreateManagedUserAction;
 use App\Actions\Portal\Users\UpdateManagedUserAction;
 use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
@@ -20,22 +22,6 @@ use Inertia\Response;
 class UsersController extends Controller
 {
     use HasActiveDoctor;
-
-    private function availablePermissions(): array
-    {
-        return [
-            'appointments.view' => 'مشاهده نوبت‌ها',
-            'appointments.manage' => 'مدیریت نوبت‌ها',
-            'patients.view' => 'مشاهده بیماران',
-            'patients.manage' => 'مدیریت بیماران',
-            'clinics.view' => 'مشاهده مطب‌ها',
-            'clinics.manage' => 'مدیریت مطب‌ها',
-            'shifts.view' => 'مشاهده شیفت‌ها',
-            'shifts.manage' => 'مدیریت شیفت‌ها',
-            'working-hours.view' => 'مشاهده ساعات کاری',
-            'working-hours.manage' => 'مدیریت ساعات کاری',
-        ];
-    }
 
     /**
      * مدیر می‌تواند کاربران را مدیریت کند؛ پزشک فقط منشی مرتبط با
@@ -67,45 +53,6 @@ class UsersController extends Controller
         }
 
         return $doctor;
-    }
-
-    private function roles(): array
-    {
-        $authUser = Auth::guard('web')->user();
-
-        $roles = [
-            [
-                'value' => 'doctor',
-                'label' => 'پزشک',
-                'icon' => '⚕️',
-                'description' => 'دسترسی به پنل پزشک',
-            ],
-            [
-                'value' => 'secretary',
-                'label' => 'منشی',
-                'icon' => '🗂️',
-                'description' => 'مدیریت نوبت‌ها و مراجعان',
-            ],
-            [
-                'value' => 'admin',
-                'label' => 'مدیر',
-                'icon' => '🛡️',
-                'description' => 'مدیریت سیستم',
-            ],
-            [
-                'value' => 'user',
-                'label' => 'کاربر عادی',
-                'icon' => '👤',
-                'description' => 'دسترسی عمومی',
-            ],
-        ];
-
-        return $authUser?->role === 'admin'
-            ? $roles
-            : array_values(array_filter(
-                $roles,
-                fn ($role) => $role['value'] === 'secretary'
-            ));
     }
 
     private function validateUser(Request $request, ?User $user = null): array
@@ -159,7 +106,7 @@ class UsersController extends Controller
         );
     }
 
-    public function assignments(User $user): Response
+    public function assignments(User $user, ListManagedUserPermissionsAction $permissionsAction): Response
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement($user);
@@ -214,14 +161,15 @@ class UsersController extends Controller
                     'clinic_ids' => array_map('intval', is_array($clinicIds) ? $clinicIds : []),
                 ];
             })->values(),
-            'permissions' => $this->availablePermissions(),
+            'permissions' => $permissionsAction->handle(),
         ]);
     }
 
     public function updateAssignments(
         Request $request,
         User $user,
-        UpdateSecretaryAssignmentsAction $action
+        UpdateSecretaryAssignmentsAction $action,
+        ListManagedUserPermissionsAction $permissionsAction
     )
     {
         $authUser = Auth::guard('web')->user();
@@ -229,7 +177,7 @@ class UsersController extends Controller
 
         abort_unless($user->role === 'secretary', 404);
 
-        $availablePermissions = array_keys($this->availablePermissions());
+        $availablePermissions = array_keys($permissionsAction->handle());
 
         $validated = $request->validate([
             'doctors' => ['present', 'array'],
@@ -336,7 +284,7 @@ class UsersController extends Controller
             ->with('success', 'ارتباط پزشکان و سطح دسترسی منشی با موفقیت ذخیره شد.');
     }
 
-    public function index(): Response
+    public function index(ListManagedUserRolesAction $rolesAction): Response
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement();
@@ -352,18 +300,18 @@ class UsersController extends Controller
 
         return Inertia::render('Portal/Users/Index', [
             'doctor' => $activeDoctor ?? $authUser->doctorProfile,
-            'roles' => $this->roles(),
+            'roles' => $rolesAction->handle($authUser),
             'users' => $usersQuery->get(),
         ]);
     }
 
-    public function create(): Response
+    public function create(ListManagedUserRolesAction $rolesAction): Response
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement();
 
         $roles = array_values(array_filter(
-            $this->roles(),
+            $rolesAction->handle($authUser),
             fn ($role) => $role['value'] !== 'doctor'
         ));
 
