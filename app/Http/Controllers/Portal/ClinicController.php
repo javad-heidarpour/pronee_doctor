@@ -19,6 +19,7 @@ class ClinicController extends Controller
     public function index(ListClinicsAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('clinics.view', $doctor);
 
         return Inertia::render('Portal/Clinics', $action->handle($doctor, $this->accessibleClinicIds($doctor)));
     }
