@@ -10,7 +10,7 @@ class UpdateManagedUserAction
     /**
      * به‌روزرسانی حساب کاربر با حفظ یکپارچگی ارتباط‌های منشی.
      */
-    public function handle(User $user, array $validated): User
+    public function handle(\n        User $user,\n        array $validated,\n        ?RecordSecurityAuditEventAction $audit = null\n    ): User
     {
         return DB::transaction(function () use ($user, $validated) {
             $lockedUser = User::withTrashed()
@@ -33,7 +33,7 @@ class UpdateManagedUserAction
             $lockedUser->fill($validated);
             $lockedUser->save();
 
-            return $lockedUser->refresh();
+            $updated = $lockedUser->refresh();\n\n            $audit?->handle('managed_user.updated', $updated, [\n                'role' => $updated->role,\n                'is_active' => (bool) $updated->is_active,\n            ]);\n\n            return $updated;
         });
     }
 }
