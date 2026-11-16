@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Actions\\Portal\\Gallery;
+namespace App\Actions\Portal\Gallery;
 
-use App\\Models\\Doctor;
-use App\\Models\\DoctorImage;
-use Illuminate\\Http\\UploadedFile;
+use App\Models\Doctor;
+use App\Models\DoctorImage;
+use Illuminate\Http\UploadedFile;
 
 class StoreGalleryImagesAction
 {
