@@ -130,7 +130,7 @@ const props = defineProps({
 const doctorPhoto = computed(() => {
   const photo = props.doctor.photo;
   if (!photo) return null;
-  if (/^https?:\\/\\//i.test(photo)) return photo;
+  if (photo.startsWith("http://") || photo.startsWith("https://")) return photo;
   if (photo.startsWith("/")) return photo;
   if (photo.startsWith("storage/")) return `/${photo}`;
   return `/storage/${photo}`;
