@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Actions\\Home;
+namespace App\Actions\Home;
 
-use App\\Models\\Doctor;
-use Morilog\\Jalali\\Jalalian;
+use App\Models\Doctor;
+use Morilog\Jalali\Jalalian;
 
 class BuildPublicDoctorReviewsPageAction
 {
     /**
      * Build the public reviews payload for a doctor.
      *
-     * @return array{Reviews: \\Illuminate\\Support\\Collection, reviewsStats: array}
+     * @return array{Reviews: \Illuminate\Support\Collection, reviewsStats: array}
      */
     public function handle(Doctor $doctor): array
     {
