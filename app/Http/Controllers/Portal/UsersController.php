@@ -170,7 +170,8 @@ class UsersController extends Controller
         abort_unless($user->role === 'secretary', 404);
 
         $doctorsQuery = Doctor::query()
-            ->with(['user', 'address'])
+            ->with(['user', 'address' => fn ($query) => $query->where('is_active', true)])
+            ->where('doctors.is_active', true)
             ->whereHas('user', function ($query) {
                 $query->where('role', 'doctor')
                     ->where('is_active', true);
