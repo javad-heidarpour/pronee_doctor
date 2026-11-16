@@ -11,6 +11,8 @@ class CreateTimeSlotAction
     public function handle(Doctor $doctor, array $data): bool
     {
         return DB::transaction(function () use ($doctor, $data) {
+            Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
+
             $overlap = TimeSlot::query()
                 ->overlapping((int) $doctor->id, $data['date'], $data['start_time'], $data['end_time'])
                 ->lockForUpdate()
