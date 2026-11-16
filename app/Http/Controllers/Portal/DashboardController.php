@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\Dashboard\BuildDashboardAction;
+use App\Actions\Portal\Dashboard\BuildDoctorSelectionOptionsAction;
 use App\Actions\Portal\Dashboard\ResolveActiveDoctorAction;
 use App\Actions\Portal\Dashboard\SelectActiveDoctorAction;
 use App\Http\Controllers\Controller;
@@ -24,7 +25,8 @@ class DashboardController extends Controller
 
     public function index(
         ResolveActiveDoctorAction $resolveDoctor,
-        BuildDashboardAction $buildDashboard
+        BuildDashboardAction $buildDashboard,
+        BuildDoctorSelectionOptionsAction $selectionOptions
     ) {
         $user = Auth::guard('web')->user();
 
@@ -36,14 +38,7 @@ class DashboardController extends Controller
         // اگر چند پزشک وجود دارد و هنوز انتخاب نشده
         if (!$activeDoctorId) {
             return Inertia::render('Portal/SelectDoctor', [
-                'doctors' => $doctors->map(fn ($doctor) => [
-                    'id' => $doctor->id,
-                    'name' => $doctor->name,
-                    'family' => $doctor->family,
-                    'caption' => $doctor->caption,
-                    'photo' => $doctor->photo,
-                    'specialty_title' => $doctor->specialty_title,
-                ])->values(),
+                'doctors' => $selectionOptions->handle($doctors),
             ]);
         }
 
