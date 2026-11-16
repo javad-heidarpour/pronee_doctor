@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentDescriptionAction;
+use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
 use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\Appointment;
@@ -31,139 +33,19 @@ class PatientController extends Controller
 
 
 
-    public function index(Request $request)
-    {
-        $user = Auth::guard('web')->user();
+    public function index(
+        ListPortalAppointmentsRequest $request,
+        ListPortalAppointmentsAction $action
+    ) {
         $doctor = $this->currentDoctor();
-        $clinicIds = $this->accessibleClinicIds($doctor);
+        $filters = $request->validated();
 
-        $query = Appointment::query()
-            ->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)
-            ->with([
-                'user',
-                'timeSlot',
-                'clinic.city',
-                'visitReason',
-                'surgeryType',
-                'latestPayment',
-            ])
-            ->withCount('payments')
-            ->orderBy('appointment_date', 'desc')
-            ->orderBy('appointment_time', 'desc');
+        $result = $action->handle(
+            $doctor,
+            $this->accessibleClinicIds($doctor),
+            $filters
+        );
 
-        /*
-        |--------------------------------------------------------------------------
-        | فیلتر وضعیت نوبت
-        |--------------------------------------------------------------------------
-        | این فیلتر مربوط به appointments.status است، نه وضعیت پرداخت.
-        */
-        // فیلتر وضعیت نوبت
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // فیلتر وضعیت پرداخت بر اساس آخرین پرداخت
-        if ($request->filled('payment_status')) {
-            $query->whereHas('latestPayment', function ($q) use ($request) {
-                $q->where('status', $request->payment_status);
-            });
-        }
-        /*
-        |--------------------------------------------------------------------------
-        | فیلتر تاریخ
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('date_from')) {
-            $query->whereDate('appointment_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('appointment_date', '<=', $request->date_to);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | جستجوی بیمار
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('search')) {
-            $search = trim($request->search);
-
-            $query->where(function ($q) use ($search) {
-                $q->where('patient_name', 'like', "%{$search}%")
-                    ->orWhere('patient_phone', 'like', "%{$search}%")
-                    ->orWhere('patient_national_code', 'like', "%{$search}%");
-            });
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | دریافت نوبت‌ها
-        |--------------------------------------------------------------------------
-        */
-        $appointments = $query->paginate(20)->withQueryString();
-
-        /*
-        |--------------------------------------------------------------------------
-        | افزودن وضعیت پرداخت به خروجی فرانت
-        |--------------------------------------------------------------------------
-        | status اصلی نوبت دست‌نخورده باقی می‌ماند.
-        | payment_status وضعیت آخرین پرداخت است.
-        */
-        $appointments->getCollection()->transform(function ($appointment) {
-
-            $paymentStatus = $appointment->latestPayment?->status;
-
-            $paymentLabels = [
-                'pending' => 'در انتظار پرداخت',
-                'paid' => 'پرداخت شده',
-                'cancelled' => 'لغو شده',
-                'failed' => 'پرداخت ناموفق',
-                'refunded' => 'مبلغ مسترد شده',
-            ];
-
-            $appointment->payment_status = $paymentStatus;
-            $appointment->payment_status_label = $paymentLabels[$paymentStatus]
-                ?? ($paymentStatus ? 'نامشخص' : 'عملیات پرداخت شروع نشده');
-
-            return $appointment;
-        });
-
-        /*
-        |--------------------------------------------------------------------------
-        | آمار وضعیت نوبت‌ها
-        |--------------------------------------------------------------------------
-        */
-        $stats = [
-            'total' => Appointment::where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)->count(),
-
-            'pending' => Appointment::where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $clinicIds)
-                ->where('status', 'pending')
-                ->count(),
-
-            'confirmed' => Appointment::where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $clinicIds)
-                ->where('status', 'confirmed')
-                ->count(),
-
-            'cancelled' => Appointment::where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $clinicIds)
-                ->where('status', 'cancelled')
-                ->count(),
-
-            'visited' => Appointment::where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $clinicIds)
-                ->where('status', 'visited')
-                ->count(),
-        ];
-
-        /*
-        |--------------------------------------------------------------------------
-        | اطلاعات مورد نیاز فرم‌ها
-        |--------------------------------------------------------------------------
-        */
         $clinics = $this->accessibleClinicsQuery($doctor)
             ->select('addresses.id', 'addresses.name')
             ->get();
@@ -180,20 +62,12 @@ class PatientController extends Controller
 
         return Inertia::render('Portal/Patients/Index', [
             'doctor' => $doctor,
-            'appointments' => $appointments,
-            'stats' => $stats,
+            'appointments' => $result['appointments'],
+            'stats' => $result['stats'],
             'clinics' => $clinics,
             'visitReasons' => $visitReasons,
             'surgeryTypes' => $surgeryTypes,
-
-
-            'filters' => $request->only([
-                'status',
-                'payment_status',
-                'date_from',
-                'date_to',
-                'search',
-            ]),
+            'filters' => $filters,
         ]);
     }
 
