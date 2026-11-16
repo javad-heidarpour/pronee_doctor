@@ -2,100 +2,38 @@
 
 namespace App\Http\Controllers\Portal;
 
+use App\Actions\Portal\WorkingHours\DeleteWorkingHourAction;
+use App\Actions\Portal\WorkingHours\ListWorkingHoursAction;
+use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
+use App\Actions\Portal\WorkingHours\ToggleWorkingHourAction;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
-use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+
 class WorkingHourController extends Controller
 {
     use HasActiveDoctor;
 
-
     /**
-     * نمایش ساعات کاری پزشک
+     * نمایش ساعات کاری پزشک فعال.
      */
-    public function index(Request $request)
+    public function index(Request $request, ListWorkingHoursAction $action)
     {
         $doctor = $this->currentDoctor();
 
-        $clinics = $doctor->address()
-            ->with('city')
-            ->get();
-
-        $query = DoctorWorkingHour::query()
-            ->where('doctor_id', $doctor->id)
-            ->with('clinic.city');
-
-        if ($request->filled('clinic_id')) {
-            $query->where('clinic_id', $request->input('clinic_id'));
-        }
-
-        if ($request->filled('is_active')) {
-            $query->where(
-                'is_active',
-                $request->input('is_active') === 'true'
-            );
-        }
-
-        if ($request->filled('search')) {
-            $search = trim($request->input('search'));
-
-            $query->whereHas('clinic', function ($clinicQuery) use ($search) {
-                $clinicQuery->where('name', 'LIKE', "%{$search}%")
-                    ->orWhereHas('city', function ($cityQuery) use ($search) {
-                        $cityQuery->where('name', 'LIKE', "%{$search}%");
-                    });
-            });
-        }
-
-        $allowedSortColumns = [
-            'day_of_week',
-            'start_time',
-            'end_time',
-            'duration_minutes',
-            'is_active',
-            'clinic_id',
-            'created_at',
-        ];
-
-        $sortBy = $request->input('sort_by', 'day_of_week');
-
-        if (!in_array($sortBy, $allowedSortColumns, true)) {
-            $sortBy = 'day_of_week';
-        }
-
-        $sortDir = strtolower($request->input('sort_dir', 'asc'));
-
-        if (!in_array($sortDir, ['asc', 'desc'], true)) {
-            $sortDir = 'asc';
-        }
-
-        $workingHours = $query
-            ->orderBy($sortBy, $sortDir)
-            ->orderBy('start_time')
-            ->paginate(20)
-            ->withQueryString();
-
-        return Inertia::render('Portal/WorkingHours', [
-            'doctor' => $doctor,
-            'clinics' => $clinics,
-            'workingHours' => $workingHours,
-            'filters' => $request->only([
-                'clinic_id',
-                'is_active',
-                'search',
-                'sort_by',
-                'sort_dir',
-            ]),
-        ]);
+        return Inertia::render(
+            'Portal/WorkingHours',
+            $action->handle($doctor, $request)
+        );
     }
 
     /**
-     * ایجاد بازه کاری جدید
+     * ایجاد بازه کاری جدید.
      */
-    public function store(Request $request)
+    public function store(Request $request, SaveWorkingHourAction $action)
     {
         $doctor = $this->currentDoctor();
 
@@ -104,178 +42,98 @@ class WorkingHourController extends Controller
             'day_of_week' => ['required', 'integer', 'between:0,6'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => [
-                'required',
-                'date_format:H:i',
-                'after:start_time',
-            ],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ]);
 
-        $clinicExists = $doctor->address()
-            ->whereKey($validated['clinic_id'])
-            ->exists();
-
-        if (!$clinicExists) {
+        if (!$this->clinicBelongsToDoctor($doctor, (int) $validated['clinic_id'])) {
             return back()
-                ->withErrors([
-                    'clinic_id' => __('working_hours.invalid_clinic'),
-                ])
+                ->withErrors(['clinic_id' => __('working_hours.invalid_clinic')])
                 ->withInput();
         }
 
-        $duplicate = $this->findOverlappingHour(
-            $doctor->id,
-            $validated['day_of_week'],
-            $validated['start_time'],
-            $validated['end_time']
-        );
+        $result = $action->handle($doctor, $validated);
 
-        if ($duplicate) {
+        if (!$result['saved']) {
             return back()
-                ->withErrors([
-                    'duplicate' => $this->overlapMessage($duplicate),
-                ])
+                ->withErrors(['duplicate' => $this->overlapMessage($result['duplicate'])])
                 ->withInput();
         }
 
-        DoctorWorkingHour::create([
-            'doctor_id' => $doctor->id,
-            'clinic_id' => $validated['clinic_id'],
-            'day_of_week' => $validated['day_of_week'],
-            'duration_minutes' => $validated['duration_minutes'],
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'is_active' => true,
-        ]);
-
-        return back()->with(
-            'success',
-            __('working_hours.created')
-        );
+        return back()->with('success', __('working_hours.created'));
     }
 
     /**
-     * ویرایش بازه کاری
+     * ویرایش بازه کاری.
      */
     public function update(
         Request $request,
-        DoctorWorkingHour $workingHour
+        DoctorWorkingHour $workingHour,
+        SaveWorkingHourAction $action
     ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeOwnership($workingHour, $doctor->id);
+        $this->authorizeOwnership($workingHour, (int) $doctor->id);
 
         $validated = $request->validate([
             'clinic_id' => ['required', 'integer', 'exists:addresses,id'],
             'day_of_week' => ['required', 'integer', 'between:0,6'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => [
-                'required',
-                'date_format:H:i',
-                'after:start_time',
-            ],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ]);
 
-        $clinicExists = $doctor->address()
-            ->whereKey($validated['clinic_id'])
-            ->exists();
-
-        if (!$clinicExists) {
+        if (!$this->clinicBelongsToDoctor($doctor, (int) $validated['clinic_id'])) {
             return back()
-                ->withErrors([
-                    'clinic_id' => __('working_hours.invalid_clinic'),
-                ])
+                ->withErrors(['clinic_id' => __('working_hours.invalid_clinic')])
                 ->withInput();
         }
 
-        $duplicate = $this->findOverlappingHour(
-            $doctor->id,
-            $validated['day_of_week'],
-            $validated['start_time'],
-            $validated['end_time'],
-            $workingHour->id
-        );
+        $result = $action->handle($doctor, $validated, $workingHour);
 
-        if ($duplicate) {
+        if (!$result['saved']) {
             return back()
-                ->withErrors([
-                    'duplicate' => $this->overlapMessage($duplicate),
-                ])
+                ->withErrors(['duplicate' => $this->overlapMessage($result['duplicate'])])
                 ->withInput();
         }
 
-        $workingHour->update($validated);
-
-        return back()->with(
-            'success',
-            __('working_hours.updated')
-        );
+        return back()->with('success', __('working_hours.updated'));
     }
 
     /**
-     * فعال یا غیرفعال کردن بازه کاری
+     * فعال یا غیرفعال کردن بازه کاری.
      */
-    public function toggle(DoctorWorkingHour $workingHour)
-    {
+    public function toggle(
+        DoctorWorkingHour $workingHour,
+        ToggleWorkingHourAction $action
+    ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeOwnership($workingHour, $doctor->id);
+        $this->authorizeOwnership($workingHour, (int) $doctor->id);
+        $action->handle($workingHour);
 
-        $workingHour->update([
-            'is_active' => !$workingHour->is_active,
-        ]);
-
-        return back()->with(
-            'success',
-            __('working_hours.status_changed')
-        );
+        return back()->with('success', __('working_hours.status_changed'));
     }
 
     /**
-     * حذف بازه کاری
+     * حذف بازه کاری.
      */
-    public function destroy(DoctorWorkingHour $workingHour)
-    {
+    public function destroy(
+        DoctorWorkingHour $workingHour,
+        DeleteWorkingHourAction $action
+    ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeOwnership($workingHour, $doctor->id);
+        $this->authorizeOwnership($workingHour, (int) $doctor->id);
+        $action->handle($workingHour);
 
-        $workingHour->delete();
-
-        return back()->with(
-            'success',
-            __('working_hours.deleted')
-        );
+        return back()->with('success', __('working_hours.deleted'));
     }
 
-    /**
-     * پیدا کردن بازه هم‌پوشان در همان روز
-     */
-    private function findOverlappingHour(
-        int $doctorId,
-        int $dayOfWeek,
-        string $startTime,
-        string $endTime,
-        ?int $excludeId = null
-    ): ?DoctorWorkingHour {
-        $query = DoctorWorkingHour::query()
-            ->where('doctor_id', $doctorId)
-            ->where('day_of_week', $dayOfWeek)
-            ->where('start_time', '<', $endTime)
-            ->where('end_time', '>', $startTime)
-            ->with('clinic');
-
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
-
-        return $query->first();
+    private function clinicBelongsToDoctor(Doctor $doctor, int $clinicId): bool
+    {
+        return $doctor->address()->whereKey($clinicId)->exists();
     }
 
-    /**
-     * پیام بازه هم‌پوشان
-     */
     private function overlapMessage(DoctorWorkingHour $duplicate): string
     {
         return __('working_hours.duplicate', [
@@ -285,9 +143,6 @@ class WorkingHourController extends Controller
         ]);
     }
 
-    /**
-     * بررسی مالکیت بازه کاری
-     */
     private function authorizeOwnership(
         DoctorWorkingHour $workingHour,
         int $doctorId
