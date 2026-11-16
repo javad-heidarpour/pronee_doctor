@@ -22,7 +22,7 @@ class ShiftController extends Controller
     private function authorizeClinic(Doctor $doctor, int $clinicId): void
     {
         abort_unless(
-            $doctor->address()->whereKey($clinicId)->exists(),
+            in_array($clinicId, $this->accessibleClinicIds($doctor), true),
             403,
             'شما به این مطب دسترسی ندارید.'
         );
@@ -31,7 +31,7 @@ class ShiftController extends Controller
     private function authorizeSlot(TimeSlot $slot, int $doctorId): void
     {
         abort_unless(
-            (int) $slot->doctor_id === $doctorId,
+            (int) $slot->doctor_id === $doctorId &&\n            in_array((int) $slot->clinic_id, $this->accessibleClinicIds(), true),
             403,
             'دسترسی غیرمجاز'
         );
@@ -43,7 +43,7 @@ class ShiftController extends Controller
 
         return Inertia::render(
             'Portal/Shifts/Index',
-            $action->handle($doctor, $request)
+            $action->handle($doctor, $request, $this->accessibleClinicIds($doctor))
         );
     }
 
