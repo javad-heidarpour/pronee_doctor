@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Actions\\Profile;
+namespace App\Actions\Profile;
 
-use App\\Models\\Doctor;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Facades\\Log;
+use App\Models\Doctor;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class ChangeProfilePasswordAction
