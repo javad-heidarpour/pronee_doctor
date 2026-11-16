@@ -32,6 +32,7 @@ class PatientController extends Controller
         BuildPatientIndexOptionsAction $optionsAction
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('appointments.view', $doctor);
         $filters = $request->validated();
 
         $clinicIds = $this->accessibleClinicIds($doctor);
@@ -60,6 +61,7 @@ class PatientController extends Controller
         $doctor = $this->currentDoctor();
         $clinicId = (int) $validated['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
+        $this->authorizeSecretaryPermission('shifts.view', $doctor);
 
         return response()->json([
             'success' => true,
@@ -76,6 +78,7 @@ class PatientController extends Controller
         $doctor = $this->currentDoctor();
         $clinicId = (int) $validated['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
+        $this->authorizeSecretaryPermission('shifts.view', $doctor);
 
         $slots = $action->handle($doctor, $clinicId);
 
@@ -98,6 +101,7 @@ class PatientController extends Controller
         $this->authorizeAppointment($appointment);
 
         $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.view', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $appointment = $action->handle($appointment, $clinicIds);
 
@@ -113,6 +117,7 @@ class PatientController extends Controller
         UpdateAppointmentStatusAction $action
     ) {
         $this->authorizeAppointment($appointment);
+        $this->authorizeSecretaryPermission('appointments.manage');
 
         try {
             $result = $action->handle(
@@ -153,6 +158,7 @@ class PatientController extends Controller
         UpdateAppointmentDescriptionAction $action
     ) {
         $this->authorizeAppointment($appointment);
+        $this->authorizeSecretaryPermission('patients.manage');
 
         $updated = $action->handle($appointment, $request->validated());
 
