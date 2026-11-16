@@ -54,7 +54,7 @@ trait HasActiveDoctor
         }
 
         if (in_array($user->role, ['admin', 'doctor'], true)) {
-            return $doctor->address()->pluck('addresses.id')
+            return $doctor->address()->where('addresses.is_active', true)->pluck('addresses.id')
                 ->map(fn ($id) => (int) $id)->all();
         }
 
