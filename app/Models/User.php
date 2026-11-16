@@ -91,7 +91,7 @@ class User extends Authenticatable
             'doctor_user',
             'user_id',
             'doctor_id'
-        )->withPivot('permissions')->withTimestamps();
+        )->withPivot('permissions', 'clinic_ids')->withTimestamps();
     }
 
     public function ownedDoctorProfiles(): HasMany
@@ -113,10 +113,37 @@ class User extends Authenticatable
      */
     public function accessibleClinics(): Builder
     {
-        return Address::query()->whereIn(
-            'addresses.doctor_id',
-            $this->accessibleDoctors()->select('doctors.id')
-        );
+        if ($this->role === 'admin' || $this->role === 'doctor') {
+            return Address::query()->whereIn(
+                'addresses.doctor_id',
+                $this->accessibleDoctors()->select('doctors.id')
+            );
+        }
+
+        if ($this->role !== 'secretary') {
+            return Address::query()->whereRaw('1 = 0');
+        }
+
+        $clinicIds = $this->doctors()
+            ->where('doctors.id', session('active_doctor_id'))
+            ->get()
+            ->flatMap(function ($doctor) {
+                $ids = $doctor->pivot?->clinic_ids ?? [];
+
+                if (is_string($ids)) {
+                    $ids = json_decode($ids, true) ?: [];
+                }
+
+                return is_array($ids) ? $ids : [];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return Address::query()
+            ->whereIn('addresses.doctor_id', $this->accessibleDoctors()->select('doctors.id'))
+            ->whereIn('addresses.id', $clinicIds);
     }
 
     public function isAdmin(): bool
