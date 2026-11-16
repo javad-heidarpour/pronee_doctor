@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal\\Concerns;
+namespace App\Http\Controllers\Portal\Concerns;
 
-use App\\Models\\Doctor;
-use App\\Models\\DoctorWorkingHour;
-use App\\Models\\TimeSlot;
+use App\Models\Doctor;
+use App\Models\DoctorWorkingHour;
+use App\Models\TimeSlot;
 
 trait AuthorizesPortalSchedules
 {
