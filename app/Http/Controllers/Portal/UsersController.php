@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveManagedUserRequest;
 use App\Http\Requests\Portal\UpdateManagedUserStatusRequest;
 use App\Http\Requests\Portal\UpdateSecretaryAssignmentsRequest;
-use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Controllers\Portal\Concerns\AuthorizesManagedUsers;
 use App\Models\User;
 use App\Models\Doctor;
 use App\Actions\Portal\Users\UpdateSecretaryAssignmentsAction;
 use App\Actions\Portal\Users\BuildSecretaryAssignmentsDataAction;
+use App\Actions\Portal\Users\BuildManagedUserAssignmentsPageAction;
 use App\Actions\Portal\Users\ListManagedUserPermissionsAction;
 use App\Actions\Portal\Users\ListManagedUserRolesAction;
 use App\Actions\Portal\Users\CreateManagedUserAction;
@@ -23,106 +24,21 @@ use Inertia\Response;
 
 class UsersController extends Controller
 {
-    use HasActiveDoctor;
+    use AuthorizesManagedUsers;
 
-    /**
-     * مدیر می‌تواند کاربران را مدیریت کند؛ پزشک فقط منشی مرتبط با
-     * پزشک فعال خودش را. منشی اجازه مدیریت کاربران را ندارد.
-     */
-    private function authorizeUserManagement(?User $target = null): ?Doctor
-    {
-        $authUser = Auth::guard('web')->user();
-
-        abort_unless(
-            $authUser && in_array($authUser->role, ['doctor', 'admin'], true),
-            403,
-            'دسترسی به مدیریت کاربران مجاز نیست.'
-        );
-
-        if ($authUser->role === 'admin') {
-            return null;
-        }
-
-        $doctor = $this->currentDoctor();
-
-        if ($target) {
-            abort_unless(
-                $target->role === 'secretary' &&
-                $target->doctors()->whereKey($doctor->id)->exists(),
-                403,
-                'این منشی به پرونده پزشک فعال شما متصل نیست.'
-            );
-        }
-
-        return $doctor;
-    }
-
-    private function preventSelfModification(User $user): void
-    {
-        abort_if(
-            (int) Auth::guard('web')->id() === (int) $user->id,
-            403,
-            'امکان تغییر حساب کاربری خودتان از این بخش وجود ندارد.'
-        );
-    }
-
-    public function assignments(User $user, ListManagedUserPermissionsAction $permissionsAction): Response
-    {
+    public function assignments(
+        User $user,
+        BuildManagedUserAssignmentsPageAction $pageAction
+    ): Response {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement($user);
 
         abort_unless($user->role === 'secretary', 404);
 
-        $doctorsQuery = Doctor::query()
-            ->with(['user', 'address' => fn ($query) => $query->where('is_active', true)])
-            ->where('doctors.is_active', true)
-            ->whereHas('user', function ($query) {
-                $query->where('role', 'doctor')
-                    ->where('is_active', true);
-            });
-
-        if ($authUser->role === 'doctor') {
-            $doctorsQuery->whereKey($activeDoctor->id);
-        }
-
-        $doctors = $doctorsQuery->orderBy('name')->get();
-
-        $assigned = $user->doctors()->get()->keyBy('id');
-
-        return Inertia::render('Portal/Users/Assignments', [
-            'doctor' => $activeDoctor ?? $authUser->doctorProfile,
-            'user' => $user->only(['id', 'name', 'family', 'phone', 'role']),
-            'doctors' => $doctors->map(function ($doctor) use ($assigned) {
-                $relation = $assigned->get($doctor->id);
-                $permissions = $relation?->pivot?->permissions ?? [];
-                $clinicIds = $relation?->pivot?->clinic_ids ?? [];
-
-                if (is_string($permissions)) {
-                    $permissions = json_decode($permissions, true) ?: [];
-                }
-
-                if (is_string($clinicIds)) {
-                    $clinicIds = json_decode($clinicIds, true) ?: [];
-                }
-
-                return [
-                    'id' => $doctor->id,
-                    'name' => $doctor->name ?: $doctor->user?->name,
-                    'family' => $doctor->family ?: $doctor->user?->family,
-                    'phone' => $doctor->phone ?: $doctor->user?->phone,
-                    'specialty_title' => $doctor->specialty_title,
-                    'assigned' => (bool) $relation,
-                    'permissions' => $permissions,
-                    'clinics' => $doctor->address->map(fn ($clinic) => [
-                        'id' => $clinic->id,
-                        'name' => $clinic->name,
-                        'is_active' => (bool) $clinic->is_active,
-                    ])->values(),
-                    'clinic_ids' => array_map('intval', is_array($clinicIds) ? $clinicIds : []),
-                ];
-            })->values(),
-            'permissions' => $permissionsAction->handle(),
-        ]);
+        return Inertia::render(
+            'Portal/Users/Assignments',
+            $pageAction->handle($user, $authUser, $activeDoctor)
+        );
     }
 
     public function updateAssignments(
