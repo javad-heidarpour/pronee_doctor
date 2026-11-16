@@ -92,7 +92,8 @@ class AppointmentPaymentController extends Controller
     public function callback(
         Request $request,
         SepPaymentService $sep,
-        CancelFailedAppointmentAction $cancelFailedAppointment
+        CancelFailedAppointmentAction $cancelFailedAppointment,
+        VerifyAndSettleSepPaymentAction $settlementAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
         $refNum = trim((string) $request->input('RefNum', ''));
@@ -301,7 +302,7 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            $settlement = app(VerifyAndSettleSepPaymentAction::class)->handle(
+            $settlement = $settlementAction->handle(
                 $payment,
                 $appointment,
                 $refNum,
