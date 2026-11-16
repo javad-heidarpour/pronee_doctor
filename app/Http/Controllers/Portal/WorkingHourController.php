@@ -114,7 +114,7 @@ class WorkingHourController extends Controller
     ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeOwnership($workingHour, (int) $doctor->id);
+        $this->authorizeWorkingHour($workingHour, $doctor);
         $action->handle($workingHour);
 
         return back()->with('success', __('working_hours.deleted'));
