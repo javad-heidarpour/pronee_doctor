@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Users;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -20,14 +21,16 @@ class UpdateSecretaryAssignmentsAction
         array $syncData,
         string $actorRole,
         ?Doctor $activeDoctor,
-        array $submittedDoctorIds
+        array $submittedDoctorIds,
+        RecordSecurityAuditEventAction $audit
     ): void {
         DB::transaction(function () use (
             $secretary,
             $syncData,
             $actorRole,
             $activeDoctor,
-            $submittedDoctorIds
+            $submittedDoctorIds,
+            $audit
         ) {
             $lockedSecretary = User::query()
                 ->whereKey($secretary->id)
@@ -48,6 +51,16 @@ class UpdateSecretaryAssignmentsAction
                 }
 
                 $lockedSecretary->doctors()->sync($syncData);
+                $audit->handle('secretary.assignments_updated', $lockedSecretary, [
+                    'clinic_count' => collect($syncData)->sum(function ($pivot) {
+                        $ids = json_decode($pivot['clinic_ids'] ?? '[]', true);
+                        return is_array($ids) ? count($ids) : 0;
+                    }),
+                    'permission_count' => collect($syncData)->sum(function ($pivot) {
+                        $permissions = json_decode($pivot['permissions'] ?? '[]', true);
+                        return is_array($permissions) ? count($permissions) : 0;
+                    }),
+                ]);
                 return;
             }
 
@@ -94,6 +107,15 @@ class UpdateSecretaryAssignmentsAction
             if (!in_array($activeDoctor->id, $submittedDoctorIds, true)) {
                 $lockedSecretary->doctors()->detach($activeDoctor->id);
             }
+
+            $audit->handle('secretary.assignments_updated', $lockedSecretary, [
+                'doctor_id' => $activeDoctor->id,
+                'clinic_count' => $currentDoctorClinicCount,
+                'permission_count' => count(json_decode(
+                    $syncData[$activeDoctor->id]['permissions'] ?? '[]',
+                    true
+                ) ?: []),
+            ]);
         });
     }
 }
