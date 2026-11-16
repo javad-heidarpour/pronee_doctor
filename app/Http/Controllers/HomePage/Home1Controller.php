@@ -10,37 +10,20 @@ use App\Actions\Home\ListPublicMedicalServicesAction;
 use App\Actions\Home\ListPublicSurgicalProceduresAction;
 use App\Actions\Home\BuildPublicDoctorBookingPageAction;
 use Inertia\Inertia;
-use App\Models\Doctor;
+use App\Actions\Home\FindPublicDoctorBySlugAction;
 
 class Home1Controller extends Controller
 {
-    /**
-     * Public pages are scoped to the doctor identified by the route slug.
-     * Never fall back to a fixed doctor ID.
-     */
-    private function findDoctor(string $slug): Doctor
+    private function findDoctor(string $slug, FindPublicDoctorBySlugAction $action): \\App\\Models\\Doctor
     {
-        return Doctor::query()
-            ->with([
-                'city',
-                'reviews',
-                'specialty',
-                'user',
-                'address',
-                'address.city',
-                'timeSlots',
-                'socials.platform',
-            ])
-            ->where('slug', $slug)
-            ->where('is_active', true)
-            ->firstOrFail();
+        return $action->handle($slug);
     }
 
     public function WorkingHours(
         string $slug,
         BuildPublicWorkingHoursAction $action
-    ) {
-        $doctor = $this->findDoctor($slug);
+    , FindPublicDoctorBySlugAction $doctorAction) {
+        $doctor = $this->findDoctor($slug, $doctorAction);
 
         return Inertia::render('HomePage/Home1/WorkingHours', [
             'doctor' => $doctor,
@@ -50,7 +33,7 @@ class Home1Controller extends Controller
 
     public function About(string $slug)
     {
-        $doctor = $this->findDoctor($slug);
+        $doctor = $this->findDoctor($slug, $doctorAction);
 
         return Inertia::render('HomePage/Home1/About', [
             'doctor' => $doctor,
@@ -61,8 +44,8 @@ class Home1Controller extends Controller
     public function Reviews(
         string $slug,
         BuildPublicDoctorReviewsPageAction $action
-    ) {
-        $doctor = $this->findDoctor($slug);
+    , FindPublicDoctorBySlugAction $doctorAction) {
+        $doctor = $this->findDoctor($slug, $doctorAction);
         $reviewsPage = $action->handle($doctor);
 
         return Inertia::render('HomePage/Home1/Reviews', [
@@ -74,7 +57,7 @@ class Home1Controller extends Controller
 
     public function tips(string $slug)
     {
-        $doctor = $this->findDoctor($slug);
+        $doctor = $this->findDoctor($slug, $doctorAction);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
         return Inertia::render('HomePage/Home1/tips', [
@@ -85,8 +68,8 @@ class Home1Controller extends Controller
     public function galleries(
         string $slug,
         BuildPublicDoctorGalleryPageAction $action
-    ) {
-        $doctor = $this->findDoctor($slug);
+    , FindPublicDoctorBySlugAction $doctorAction) {
+        $doctor = $this->findDoctor($slug, $doctorAction);
         $galleryPage = $action->handle($doctor);
 
         return Inertia::render('HomePage/Home1/galleries', [
@@ -98,7 +81,7 @@ class Home1Controller extends Controller
 
     public function contact(string $slug)
     {
-        $doctor = $this->findDoctor($slug);
+        $doctor = $this->findDoctor($slug, $doctorAction);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
 
@@ -112,8 +95,8 @@ class Home1Controller extends Controller
     public function Surgeries(
         string $slug,
         ListPublicSurgicalProceduresAction $action
-    ) {
-        $doctor = $this->findDoctor($slug);
+    , FindPublicDoctorBySlugAction $doctorAction) {
+        $doctor = $this->findDoctor($slug, $doctorAction);
         $procedures = $action->handle();
 
         return Inertia::render('HomePage/Home1/Surgeries', [
@@ -125,8 +108,8 @@ class Home1Controller extends Controller
     public function services(
         string $slug,
         ListPublicMedicalServicesAction $action
-    ) {
-        $doctor = $this->findDoctor($slug);
+    , FindPublicDoctorBySlugAction $doctorAction) {
+        $doctor = $this->findDoctor($slug, $doctorAction);
         $services = $action->handle();
 
         return Inertia::render('HomePage/Home1/Services', [
@@ -138,9 +121,10 @@ class Home1Controller extends Controller
     public function booking(
         string $slug,
         BuildPublicDoctorBookingPageAction $action,
+        FindPublicDoctorBySlugAction $doctorAction,
         $clinic = null
     ) {
-        $doctor = $this->findDoctor($slug);
+        $doctor = $this->findDoctor($slug, $doctorAction);
         $bookingPage = $action->handle($doctor);
         $clinicsWithSlots = $bookingPage['clinicsWithSlots'];
 
