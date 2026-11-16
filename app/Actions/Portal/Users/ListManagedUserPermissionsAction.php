@@ -12,7 +12,6 @@ class ListManagedUserPermissionsAction
             'patients.view' => 'مشاهده بیماران',
             'patients.manage' => 'مدیریت بیماران',
             'clinics.view' => 'مشاهده مطب‌ها',
-            'clinics.manage' => 'مدیریت مطب‌ها',
             'shifts.view' => 'مشاهده شیفت‌ها',
             'shifts.manage' => 'مدیریت شیفت‌ها',
             'working-hours.view' => 'مشاهده ساعات کاری',
