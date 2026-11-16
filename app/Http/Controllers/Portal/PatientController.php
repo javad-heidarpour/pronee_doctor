@@ -18,6 +18,7 @@ use App\Models\Appointment;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PatientController extends Controller
@@ -133,6 +134,8 @@ class PatientController extends Controller
             }
 
             return back()->with('success', 'وضعیت نوبت با موفقیت تغییر کرد.');
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 
