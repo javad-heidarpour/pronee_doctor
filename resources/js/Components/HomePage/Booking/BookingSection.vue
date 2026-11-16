@@ -35,6 +35,33 @@
         لطفاً مطب موردنظر خود را انتخاب کنید
       </p>
 
+      <div
+        v-if="nearestAvailable && !isClinicSelected"
+        class="mb-5 flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-l from-emerald-50 via-white to-teal-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex items-start gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-xl shadow-sm">✨</span>
+          <div>
+            <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold text-emerald-800">پیشنهاد پرونیکس</span>
+            <p class="mt-2 text-sm font-extrabold text-slate-900">نزدیک‌ترین نوبت آزاد</p>
+            <p class="mt-1 text-xs leading-6 text-slate-600">
+              {{ nearestAvailable.clinic.name }} ·
+              {{ getPersianDayName(nearestAvailable.date) }}
+              {{ getPersianDayNumber(nearestAvailable.date) }}
+              {{ getPersianMonthName(nearestAvailable.date) }}
+              · ساعت {{ formatTime(nearestAvailable.slot.start_time) }}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          @click="selectRecommendedSlot"
+          class="shrink-0 rounded-xl bg-emerald-700 px-4 py-3 text-xs font-extrabold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+        >
+          انتخاب این نوبت
+        </button>
+      </div>
+
       <div class="flex flex-col items-center gap-3">
         <button
           v-for="(clinicData, index) in doctor.clinics_with_slots"
@@ -477,6 +504,43 @@ const selectClinic = (index) => {
     checkTimeScrollPosition();
   });
 };
+const nearestAvailable = computed(() => {
+  const options = [];
+
+  (props.doctor.clinics_with_slots || []).forEach((clinicData, clinicIndex) => {
+    (clinicData.dates || []).forEach((dateData, dateIndex) => {
+      (dateData.slots || []).forEach((slot) => {
+        if (slot.status === "available") {
+          options.push({
+            clinicIndex,
+            dateIndex,
+            clinic: clinicData.clinic,
+            date: dateData.date,
+            slot,
+          });
+        }
+      });
+    });
+  });
+
+  options.sort((a, b) => {
+    const first = `${a.date} ${a.slot.start_time}`;
+    const second = `${b.date} ${b.slot.start_time}`;
+    return first.localeCompare(second);
+  });
+
+  return options[0] || null;
+});
+
+const selectRecommendedSlot = () => {
+  const recommendation = nearestAvailable.value;
+  if (!recommendation) return;
+
+  selectClinic(recommendation.clinicIndex);
+  selectedDateIndex.value = recommendation.dateIndex;
+  selectedSlot.value = recommendation.slot;
+};
+
 const selectedClinic = computed(() => {
   return currentClinicData.value?.clinic ?? null;
 });
