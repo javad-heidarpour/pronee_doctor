@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Actions\\Portal\\Appointment;
+namespace App\Actions\Portal\Appointment;
 
-use App\\Models\\Appointment;
-use App\\Models\\TimeSlot;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
+use App\Models\Appointment;
+use App\Models\TimeSlot;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class UpdateAppointmentStatusAction
 {
