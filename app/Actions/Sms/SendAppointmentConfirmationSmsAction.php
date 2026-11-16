@@ -14,61 +14,61 @@ class SendAppointmentConfirmationSmsAction
 {
     public function handle(int $visitNumber): JsonResponse
     {
-        try {
-            $ipResponse = Http::timeout(5)->get('https://api.ipify.org');
-            $serverIp = $ipResponse->successful()
-                ? trim($ipResponse->body())
-                : 'دریافت نشد';
-        } catch (Throwable $exception) {
-            $serverIp = 'دریافت نشد';
-        }
-
-        $appointment = Appointment::find($visitNumber);
+        $appointment = Appointment::query()
+            ->with('clinic.city')
+            ->find($visitNumber);
 
         if (!$appointment) {
             return response()->json([
-                'server_outbound_ip' => $serverIp,
                 'success' => false,
                 'message' => 'نوبت موردنظر پیدا نشد.',
             ], 404);
+        }
+
+        if (in_array($appointment->status, ['cancelled'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'برای نوبت لغوشده امکان ارسال پیامک تأیید وجود ندارد.',
+            ], 422);
         }
 
         $mobile = trim((string) $appointment->patient_phone);
 
         if (!preg_match('/^09\d{9}$/', $mobile)) {
             return response()->json([
-                'server_outbound_ip' => $serverIp,
                 'success' => false,
                 'message' => 'شماره موبایل بیمار معتبر نیست.',
             ], 422);
         }
 
-        $patientName = trim(
-            ($appointment->patient_name ?? '') . ' ' .
-            ($appointment->patient_family ?? '')
-        );
-
-        $date = Jalalian::fromDateTime($appointment->appointment_date)
-            ->format('j F Y');
+        $patientName = trim((string) $appointment->patient_name) ?: 'مراجع گرامی';
+        $date = Jalalian::fromDateTime($appointment->appointment_date)->format('j F Y');
         $time = substr((string) $appointment->appointment_time, 0, 5);
         $appointmentDateTime = $date . ' ساعت ' . $time;
 
-        $clinicAddress = 'مشهد، میدان تقی آباد، خیابان کوسنگی، خیابان پرستار';
+        $clinic = $appointment->clinic;
+        $clinicAddress = trim(implode('، ', array_filter([
+            $clinic?->city?->name,
+            $clinic?->full_address,
+        ])));
+
+        if ($clinicAddress === '') {
+            $clinicAddress = $clinic?->name ?: 'اطلاعات مطب در دسترس نیست';
+        }
+
         $cacheKey = 'appointment-confirmation-sms:' . $visitNumber;
 
-        if (Cache::has($cacheKey)) {
+        // قفل اتمیک برای جلوگیری از ارسال هم‌زمان و تکراری.
+        if (!Cache::add($cacheKey, true, now()->addMinutes(3))) {
             return response()->json([
-                'server_outbound_ip' => $serverIp,
                 'success' => false,
-                'message' => 'پیامک قبلاً ارسال شده است. لطفاً ۳ دقیقه صبر کنید.',
+                'message' => 'پیامک اخیراً ارسال شده است. لطفاً ۳ دقیقه صبر کنید.',
                 'visit_number' => $visitNumber,
             ], 429);
         }
 
-        Cache::put($cacheKey, true, now()->addMinutes(3));
-
         try {
-            $response = Http::withHeaders([
+            $response = Http::timeout(15)->withHeaders([
                 'ApiKey' => config('services.ghasedak.api_key'),
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
@@ -93,12 +93,14 @@ class SendAppointmentConfirmationSmsAction
             if (!$response->successful()) {
                 Cache::forget($cacheKey);
 
+                Log::warning('Appointment confirmation SMS rejected by provider', [
+                    'appointment_id' => $visitNumber,
+                    'http_status' => $response->status(),
+                ]);
+
                 return response()->json([
-                    'server_outbound_ip' => $serverIp,
                     'success' => false,
-                    'message' => 'ارسال پیامک ناموفق بود.',
-                    'status' => $response->status(),
-                    'error' => $response->json(),
+                    'message' => 'ارسال پیامک ناموفق بود. لطفاً بعداً تلاش کنید.',
                 ], 422);
             }
 
@@ -106,24 +108,18 @@ class SendAppointmentConfirmationSmsAction
                 'success' => true,
                 'message' => 'پیامک تأیید نوبت با موفقیت ارسال شد.',
                 'visit_number' => $visitNumber,
-                'data' => $response->json('data'),
             ]);
         } catch (Throwable $exception) {
             Cache::forget($cacheKey);
 
-            Log::error('Appointment SMS Exception', [
-                'visit_number' => $visitNumber,
+            Log::error('Appointment confirmation SMS exception', [
+                'appointment_id' => $visitNumber,
                 'exception' => get_class($exception),
-                'message' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
             ]);
 
             return response()->json([
-                'server_outbound_ip' => $serverIp,
                 'success' => false,
-                'message' => 'خطا در ارسال پیامک.',
-                'debug_message' => $exception->getMessage(),
+                'message' => 'خطا در ارسال پیامک. لطفاً مجدداً تلاش کنید.',
             ], 500);
         }
     }
