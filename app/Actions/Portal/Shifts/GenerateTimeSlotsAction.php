@@ -37,6 +37,8 @@ class GenerateTimeSlotsAction
             $workingHours, $weeksCount, $baseDate, $doctor,
             &$generatedCount, &$skippedCount
         ) {
+            Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
+
             for ($week = 0; $week < $weeksCount; $week++) {
                 $currentWeekStart = $baseDate->copy()->addWeeks($week);
 
