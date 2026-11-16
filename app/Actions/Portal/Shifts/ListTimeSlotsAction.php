@@ -8,12 +8,13 @@ use Illuminate\Http\Request;
 
 class ListTimeSlotsAction
 {
-    public function handle(Doctor $doctor, Request $request): array
+    public function handle(Doctor $doctor, Request $request, ?array $allowedClinicIds = null): array
     {
-        $clinics = $doctor->address()->with('city')->get();
+        $clinics = $doctor->address()->whereIn('addresses.id', $allowedClinicIds ?? $doctor->address()->pluck('addresses.id'))->with('city')->get();
 
         $query = TimeSlot::query()
             ->where('doctor_id', $doctor->id)
+            ->when($allowedClinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $allowedClinicIds))
             ->with('clinic.city');
 
         if ($request->filled('clinic_id')) {
@@ -61,7 +62,8 @@ class ListTimeSlotsAction
             ->paginate(20)
             ->withQueryString();
 
-        $statsQuery = TimeSlot::query()->where('doctor_id', $doctor->id);
+        $statsQuery = TimeSlot::query()->where('doctor_id', $doctor->id)
+            ->when($allowedClinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $allowedClinicIds));
 
         $stats = [
             'total' => (clone $statsQuery)->count(),
