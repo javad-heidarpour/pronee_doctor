@@ -40,6 +40,8 @@ const form = useForm({
         phone: doctor.phone,
         assigned: doctor.assigned,
         permissions: [...(doctor.permissions || [])],
+        clinics: [...(doctor.clinics || [])],
+        clinic_ids: [...(doctor.clinic_ids || []).map(Number)],
     })),
 });
 
@@ -69,6 +71,7 @@ const save = () => {
             .map((doctor) => ({
                 id: doctor.id,
                 permissions: doctor.permissions,
+                clinic_ids: doctor.clinic_ids,
             })),
     })).put(
         route("portal.users.assignments.update", props.user.id),
@@ -193,6 +196,46 @@ const save = () => {
                         v-if="doctorItem.assigned"
                         class="border-t border-slate-100 bg-slate-50/70 p-5"
                     >
+                        <div class="mb-6">
+                            <h3 class="font-bold text-slate-700">
+                                مطب‌های مجاز
+                            </h3>
+                            <p class="mt-1 text-xs text-slate-500">
+                                منشی فقط در مطب‌های انتخاب‌شده امکان مشاهده و انجام عملیات را خواهد داشت.
+                            </p>
+
+                            <div v-if="doctorItem.clinics.length" class="mt-3 grid gap-2 sm:grid-cols-2">
+                                <label
+                                    v-for="clinic in doctorItem.clinics"
+                                    :key="clinic.id"
+                                    class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"
+                                >
+                                    <input
+                                        v-model="doctorItem.clinic_ids"
+                                        type="checkbox"
+                                        :value="clinic.id"
+                                        :disabled="!clinic.is_active"
+                                        class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span class="text-sm font-medium text-slate-700">
+                                        {{ clinic.name }}
+                                        <span v-if="!clinic.is_active" class="text-xs text-rose-500">
+                                            (غیرفعال)
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-rose-600">
+                                برای این پزشک مطب فعالی تعریف نشده است.
+                            </p>
+                            <p
+                                v-if="doctorItem.assigned && doctorItem.clinic_ids.length === 0"
+                                class="mt-2 text-xs text-rose-600"
+                            >
+                                برای اتصال منشی، حداقل یک مطب انتخاب کنید.
+                            </p>
+                        </div>
+
                         <div class="mb-4">
                             <h3 class="font-bold text-slate-700">
                                 سطح دسترسی این منشی
