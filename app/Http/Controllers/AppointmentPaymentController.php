@@ -5,10 +5,9 @@ namespace App\Http\Controllers;
 use App\Actions\Payments\InitiateAppointmentPaymentAction;
 use App\Actions\Payments\VerifyAndSettleSepPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
-use App\Actions\Payments\ProcessLocalSepPaymentTestAction;
+use App\Actions\Payments\ProcessLocalSepPaymentCallbackAction;
 use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Models\Appointment;
-use App\Models\AppointmentPayment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
@@ -74,8 +73,7 @@ class AppointmentPaymentController extends Controller
     public function callback(
         Request $request,
         SepPaymentService $sep,
-        ProcessLocalSepPaymentTestAction $localTestAction,
-        CancelFailedAppointmentAction $cancelFailedAppointment,
+        ProcessLocalSepPaymentCallbackAction $localCallbackAction,
         VerifyAndSettleSepPaymentAction $settlementAction,
         SendAppointmentConfirmationSmsAction $smsAction
     ): RedirectResponse {
@@ -117,75 +115,53 @@ class AppointmentPaymentController extends Controller
                     ]);
                 }
 
-                $payment = AppointmentPayment::query()
-                    ->where('payment_uuid', $resNum)
-                    ->where('gateway_name', 'sep')
-                    ->first();
+                $localResult = $localCallbackAction->handle($resNum, $testResult);
 
-                if (!$payment) {
+                if ($localResult['status'] === 'payment_not_found') {
                     return redirect()->route('home')->withErrors([
                         'payment' => 'رکورد پرداخت پیدا نشد.',
                     ]);
                 }
 
-                $appointment = Appointment::find($payment->appointment_id);
-
-                if (!$appointment) {
+                if ($localResult['status'] === 'appointment_not_found') {
                     return redirect()->route('home')->withErrors([
                         'payment' => 'نوبت مرتبط با پرداخت پیدا نشد.',
                     ]);
                 }
 
-                $testStatus = $localTestAction->handle(
-                    $payment,
-                    $appointment,
-                    $testResult
-                );
+                $appointmentId = (int) $localResult['appointment_id'];
 
-                if ($testStatus === 'already_paid') {
-                    return $visitRedirect($appointment->id)->withErrors([
-                        'payment' => 'این پرداخت قبلاً ثبت شده است.',
-                    ]);
+                if ($localResult['status'] === 'already_paid') {
+                    return $visitRedirect($appointmentId)->with(
+                        'payment_result',
+                        [
+                            'status' => 'success',
+                            'message' => 'برای این نوبت یک پرداخت موفق ثبت شده است.',
+                        ]
+                    );
                 }
 
-                if ($testStatus === 'reservation_not_payable') {
-                    return $visitRedirect($appointment->id)->withErrors([
+                if ($localResult['status'] === 'reservation_not_payable') {
+                    return $visitRedirect($appointmentId)->withErrors([
                         'payment' => 'این رزرو یا تلاش پرداخت دیگر امکان تغییر وضعیت در تست را ندارد.',
                     ]);
                 }
 
-                // تست ناموفق باید وضعیت رزرو و آزادسازی اسلات را نیز شبیه‌سازی کند.
-                if ($testResult === 'fail') {
-                    $cancelResult = $cancelFailedAppointment->handle($payment);
-
-                    if ($cancelResult === 'already_paid') {
-                        return $visitRedirect($appointment->id)->with(
-                            'payment_result',
-                            [
-                                'status' => 'success',
-                                'message' => 'برای این نوبت یک پرداخت موفق ثبت شده است.',
-                            ]
-                        );
-                    }
-
-                    if ($cancelResult === 'waiting') {
-                        return $visitRedirect($appointment->id)->with(
-                            'payment_result',
-                            [
-                                'status' => 'pending',
-                                'message' => 'یک تلاش پرداخت دیگر هنوز تعیین‌تکلیف نشده است؛ رزرو آزاد نشد.',
-                            ]
-                        );
-                    }
+                if ($localResult['status'] === 'waiting') {
+                    return $visitRedirect($appointmentId)->with(
+                        'payment_result',
+                        [
+                            'status' => 'pending',
+                            'message' => 'یک تلاش پرداخت دیگر هنوز تعیین‌تکلیف نشده است؛ رزرو آزاد نشد.',
+                        ]
+                    );
                 }
 
-                return $visitRedirect($appointment->id)->with(
+                return $visitRedirect($appointmentId)->with(
                     'payment_result',
                     [
-                        'status' => $testResult === 'success'
-                            ? 'success'
-                            : 'failed',
-                        'message' => $testResult === 'success'
+                        'status' => $localResult['status'],
+                        'message' => $localResult['status'] === 'success'
                             ? 'تست محلی موفق بود؛ پرداخت واقعی نیست.'
                             : 'تست محلی ناموفق بود؛ پرداخت واقعی نیست.',
                     ]
