@@ -42,6 +42,7 @@ class Appointment extends Model
         'contacted_at' => 'datetime',
         'appointment_date' => 'date:Y-m-d',
         'surgery_date' => 'date:Y-m-d',
+        'reservation_expires_at' => 'datetime',
 
     ];
 
