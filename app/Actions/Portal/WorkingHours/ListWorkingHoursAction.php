@@ -16,11 +16,11 @@ class ListWorkingHoursAction
             ->when($allowedClinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $allowedClinicIds))
             ->with('clinic.city');
 
-        if (array_key_exists('clinic_id', $filters) && $filters['clinic_id'] !== '') {
+        if (array_key_exists('clinic_id', $filters) && $filters['clinic_id'] !== null && $filters['clinic_id'] !== '') {
             $query->where('clinic_id', $filters['clinic_id']);
         }
 
-        if (array_key_exists('is_active', $filters) && $filters['is_active'] !== '') {
+        if (array_key_exists('is_active', $filters) && $filters['is_active'] !== null && $filters['is_active'] !== '') {
             $query->where('is_active', in_array($filters['is_active'], [true, 1, '1', 'true'], true));
         }
 
