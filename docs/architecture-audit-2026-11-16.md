@@ -116,3 +116,5 @@ Next implementation targets:
 3. Secure and refactor SMS endpoints after confirming all frontend and external callers.
 4. Decompose payment callback and doctor registration without changing gateway/OTP semantics.
 5. Continue the remaining controller inventory and resolve duplicate review flows after route usage is verified.
+
+- `916fb01`, `e29743e`, `be26163`, `2437f66`, `2b11b41`: extract portal appointment listing/filter/statistics into `ListPortalAppointmentsAction` and `ListPortalAppointmentsRequest`; the controller retains only page composition and accessible reference-data loading.
