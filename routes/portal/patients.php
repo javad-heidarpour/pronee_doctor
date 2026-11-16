@@ -33,7 +33,8 @@ Route::prefix('patients')->name('patients.')->group(function () {
     Route::post('/store', [AppointmentController::class, 'store'])
         ->name('store');
 
-    // این مسیر باید آخر باشد
-    // فعلا از لیست بیمارن برداشته شد
-    // Route::get('/{appointment}', [PatientController::class, 'show'])->name('show');
+    // جزئیات نوبت پس از تعریف مسیرهای ثابت
+    Route::get('/{appointment}', [PatientController::class, 'show'])
+        ->whereNumber('appointment')
+        ->name('show');
 });
