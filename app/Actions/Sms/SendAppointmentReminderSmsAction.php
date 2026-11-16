@@ -21,7 +21,7 @@ class SendAppointmentReminderSmsAction
     {
         $template = trim((string) config('services.ghasedak.appointment_reminder_template'));
 
-        if ($template === '' || $appointment->status !== 'confirmed') {
+        if ($template === '' || !config('services.ghasedak.api_key') || $appointment->status !== 'confirmed') {
             return 'skipped';
         }
 
