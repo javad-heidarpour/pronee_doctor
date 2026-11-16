@@ -17,26 +17,31 @@ class BuildDashboardAction
 
         abort_unless($doctor, 403, 'دسترسی به پزشک انتخاب‌شده مجاز نیست.');
 
+        $activeClinicIds = $doctor->address()
+            ->where('is_active', true)
+            ->pluck('addresses.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         if ($user->role === 'secretary') {
             $assignment = $user->doctors()
                 ->where('doctors.id', $doctor->id)
                 ->first();
 
-            $clinicIds = $assignment?->pivot?->clinic_ids ?? [];
+            $assignedClinicIds = $assignment?->pivot?->clinic_ids ?? [];
 
-            if (is_string($clinicIds)) {
-                $clinicIds = json_decode($clinicIds, true) ?: [];
+            if (is_string($assignedClinicIds)) {
+                $assignedClinicIds = json_decode($assignedClinicIds, true) ?: [];
             }
 
-            $clinicIds = is_array($clinicIds)
-                ? array_values(array_unique(array_filter(array_map('intval', $clinicIds))))
+            $assignedClinicIds = is_array($assignedClinicIds)
+                ? array_values(array_unique(array_filter(array_map('intval', $assignedClinicIds))))
                 : [];
+
+            // منشی فقط به مطب‌های فعال همان پزشک دسترسی داشبوردی دارد.
+            $clinicIds = array_values(array_intersect($assignedClinicIds, $activeClinicIds));
         } else {
-            $clinicIds = $doctor->address()
-                ->where('is_active', true)
-                ->pluck('addresses.id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
+            $clinicIds = $activeClinicIds;
         }
 
         $today = now()->toDateString();
