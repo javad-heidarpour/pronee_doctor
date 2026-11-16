@@ -26,11 +26,7 @@ class GenerateTimeSlotsAction
         $workingHours = $query->get();
 
         if ($workingHours->isEmpty()) {
-            return [
-                'generated' => 0,
-                'skipped' => 0,
-                'has_working_hours' => false,
-            ];
+            return ['generated' => 0, 'skipped' => 0, 'has_working_hours' => false];
         }
 
         $generatedCount = 0;
@@ -38,64 +34,50 @@ class GenerateTimeSlotsAction
         $baseDate = Carbon::now()->startOfWeek(Carbon::SATURDAY);
 
         DB::transaction(function () use (
-            $workingHours,
-            $weeksCount,
-            $baseDate,
-            $doctor,
-            &$generatedCount,
-            &$skippedCount
+            $workingHours, $weeksCount, $baseDate, $doctor,
+            &$generatedCount, &$skippedCount
         ) {
             for ($week = 0; $week < $weeksCount; $week++) {
                 $currentWeekStart = $baseDate->copy()->addWeeks($week);
 
                 foreach ($workingHours as $workingHour) {
-                    $targetDate = $currentWeekStart
-                        ->copy()
-                        ->addDays($workingHour->day_of_week);
+                    $targetDate = $currentWeekStart->copy()->addDays($workingHour->day_of_week);
 
                     if ($targetDate->isBefore(Carbon::today())) {
                         continue;
                     }
 
-                    $startTime = Carbon::parse(
-                        $targetDate->format('Y-m-d') . ' ' . $workingHour->start_time
-                    );
-                    $endTime = Carbon::parse(
-                        $targetDate->format('Y-m-d') . ' ' . $workingHour->end_time
-                    );
+                    $date = $targetDate->format('Y-m-d');
+                    $start = Carbon::parse($date . ' ' . $workingHour->start_time);
+                    $end = Carbon::parse($date . ' ' . $workingHour->end_time);
                     $duration = (int) $workingHour->duration_minutes;
-                    $currentSlotTime = $startTime->copy();
+                    $cursor = $start->copy();
 
-                    while (
-                        $currentSlotTime->copy()
-                            ->addMinutes($duration)
-                            ->lte($endTime)
-                    ) {
-                        $slotEndTime = $currentSlotTime->copy()->addMinutes($duration);
+                    while ($cursor->copy()->addMinutes($duration)->lte($end)) {
+                        $slotEnd = $cursor->copy()->addMinutes($duration);
+                        $startValue = $cursor->format('H:i:s');
+                        $endValue = $slotEnd->format('H:i:s');
 
-                        $exists = TimeSlot::query()
-                            ->where('doctor_id', $doctor->id)
-                            ->where('clinic_id', $workingHour->clinic_id)
-                            ->where('date', $targetDate->format('Y-m-d'))
-                            ->where('start_time', $currentSlotTime->format('H:i:s'))
+                        $overlap = TimeSlot::query()
+                            ->overlapping((int) $doctor->id, $date, $startValue, $endValue)
+                            ->lockForUpdate()
                             ->exists();
 
-                        if ($exists) {
+                        if ($overlap) {
                             $skippedCount++;
                         } else {
                             TimeSlot::create([
                                 'doctor_id' => $doctor->id,
                                 'clinic_id' => $workingHour->clinic_id,
-                                'date' => $targetDate->format('Y-m-d'),
-                                'start_time' => $currentSlotTime->format('H:i:s'),
-                                'end_time' => $slotEndTime->format('H:i:s'),
+                                'date' => $date,
+                                'start_time' => $startValue,
+                                'end_time' => $endValue,
                                 'status' => 'available',
                             ]);
-
                             $generatedCount++;
                         }
 
-                        $currentSlotTime->addMinutes($duration);
+                        $cursor->addMinutes($duration);
                     }
                 }
             }
