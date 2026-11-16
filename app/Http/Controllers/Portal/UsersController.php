@@ -11,7 +11,8 @@ use App\Models\User;
 use App\Actions\Portal\Users\UpdateSecretaryAssignmentsAction;
 use App\Actions\Portal\Users\BuildSecretaryAssignmentsDataAction;
 use App\Actions\Portal\Users\BuildManagedUserAssignmentsPageAction;
-use App\Actions\Portal\Users\ListManagedUserRolesAction;
+use App\Actions\Portal\Users\BuildManagedUsersIndexPageAction;
+use App\Actions\Portal\Users\BuildManagedUserCreatePageAction;
 use App\Actions\Portal\Users\CreateManagedUserAction;
 use App\Actions\Portal\Users\UpdateManagedUserAction;
 use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
@@ -75,41 +76,26 @@ class UsersController extends Controller
             ->with('success', 'ارتباط پزشکان و سطح دسترسی منشی با موفقیت ذخیره شد.');
     }
 
-    public function index(ListManagedUserRolesAction $rolesAction): Response
+    public function index(BuildManagedUsersIndexPageAction $action): Response
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement();
 
-        $usersQuery = User::withTrashed()->latest();
-
-        if ($authUser->role === 'doctor') {
-            $usersQuery->where('role', 'secretary')
-                ->whereHas('doctors', function ($query) use ($activeDoctor) {
-                    $query->where('doctors.id', $activeDoctor->id);
-                });
-        }
-
-        return Inertia::render('Portal/Users/Index', [
-            'doctor' => $activeDoctor ?? $authUser->doctorProfile,
-            'roles' => $rolesAction->handle($authUser),
-            'users' => $usersQuery->get(),
-        ]);
+        return Inertia::render(
+            'Portal/Users/Index',
+            $action->handle($authUser, $activeDoctor)
+        );
     }
 
-    public function create(ListManagedUserRolesAction $rolesAction): Response
+    public function create(BuildManagedUserCreatePageAction $action): Response
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement();
 
-        $roles = array_values(array_filter(
-            $rolesAction->handle($authUser),
-            fn ($role) => $role['value'] !== 'doctor'
-        ));
-
-        return Inertia::render('Portal/Users/Create', [
-            'doctor' => $activeDoctor ?? $authUser->doctorProfile,
-            'roles' => $roles,
-        ]);
+        return Inertia::render(
+            'Portal/Users/Create',
+            $action->handle($authUser, $activeDoctor)
+        );
     }
 
     public function store(
