@@ -104,10 +104,19 @@ class User extends Authenticatable
         return $this->hasMany(Appointment::class, 'user_id');
     }
 
-    public function clinics()
+    /**
+     * مطب‌های متعلق به پزشکانی که این حساب به آن‌ها دسترسی دارد.
+     *
+     * در ساختار فعلی پروژه، مطب‌ها در جدول addresses نگهداری می‌شوند
+     * و هر مطب با doctor_id به یک پزشک متصل است؛ مدل Clinic و جدول
+     * clinic_user در مخزن پروژه تعریف نشده‌اند.
+     */
+    public function accessibleClinics(): Builder
     {
-        return $this->belongsToMany(Clinic::class, 'clinic_user')
-            ->withPivot('is_active');
+        return Address::query()->whereIn(
+            'addresses.doctor_id',
+            $this->accessibleDoctors()->select('doctors.id')
+        );
     }
 
     public function isAdmin(): bool
