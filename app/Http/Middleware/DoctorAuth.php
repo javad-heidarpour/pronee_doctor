@@ -106,6 +106,12 @@ class DoctorAuth
 
     private function requiredPermission(string $routeName, string $method): ?string
     {
+        // صفحه بیماران در این پنل، فهرست نوبت‌ها را نمایش می‌دهد؛
+        // بنابراین مشاهده آن باید با مجوز مشاهده نوبت‌ها کنترل شود.
+        if ($routeName === 'portal.patients.index') {
+            return 'appointments.view';
+        }
+
         // ثبت نوبت از فرم بیماران، از نظر سطح دسترسی یک عملیات نوبت‌دهی است؛
         // نه مدیریت اطلاعات پایه بیمار.
         if ($routeName === 'portal.patients.store') {
