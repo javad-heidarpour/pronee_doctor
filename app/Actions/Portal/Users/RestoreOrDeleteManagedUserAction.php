@@ -26,10 +26,18 @@ class RestoreOrDeleteManagedUserAction
 
             if ($lockedUser->trashed()) {
                 $lockedUser->restore();
+                $audit->handle('managed_user.restored', $lockedUser, [
+                    'role' => $lockedUser->role,
+                    'restored' => true,
+                ]);
 
                 return true;
             }
 
+            $audit->handle('managed_user.deleted', $lockedUser, [
+                'role' => $lockedUser->role,
+                'restored' => false,
+            ]);
             $lockedUser->delete();
 
             return false;
