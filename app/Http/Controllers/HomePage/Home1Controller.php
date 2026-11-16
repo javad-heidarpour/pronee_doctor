@@ -4,6 +4,7 @@ namespace App\Http\Controllers\HomePage;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Home\BuildPublicWorkingHoursAction;
+use App\Actions\Home\BuildPublicDoctorReviewsPageAction;
 use Morilog\Jalali\Jalalian;
 use Inertia\Inertia;
 use App\Models\Doctor;
@@ -11,7 +12,6 @@ use App\Models\Appointment;
 use App\Models\VisitReason;
 use App\Models\MedicalService;
 use App\Models\SurgicalProcedure;
-use App\Models\DoctorImage;
 
 class Home1Controller extends Controller
 {
@@ -83,59 +83,20 @@ class Home1Controller extends Controller
 
         ]);
     }
-    public function galleries(string $slug)
-    {
+    public function galleries(
+        string $slug,
+        BuildPublicDoctorGalleryPageAction $action
+    ) {
         $doctor = $this->findDoctor($slug);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Gallery
-        |--------------------------------------------------------------------------
-        */
-
-        $galleryImages = $doctor->activeImages()
-            ->orderBy('sort_order')
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(function ($image) {
-
-                return [
-                    'id' => $image->id,
-                    'image_url' => $image->full_image_url,
-                    'caption' => $image->caption,
-                    'category' => $image->category,
-                    'category_name' => $image->category_name,
-                    'sort_order' => $image->sort_order,
-                ];
-            });
-
-
-        $galleryCategories = $doctor->activeImages()
-            ->selectRaw('category, COUNT(*) as count')
-            ->groupBy('category')
-            ->get()
-            ->map(function ($item) {
-
-                return [
-                    'value' => $item->category,
-
-                    'label' => DoctorImage::CATEGORIES[$item->category] ?? 'سایر',
-
-                    'count' => $item->count,
-                ];
-            })
-            ->sortBy('label')
-            ->values();
-
+        $galleryPage = $action->handle($doctor);
 
         return Inertia::render('HomePage/Home1/galleries', [
             'doctor' => $doctor,
-            'galleryCategories' => $galleryCategories,
-            'galleryImages' => $galleryImages,
-
-
+            'galleryCategories' => $galleryPage['galleryCategories'],
+            'galleryImages' => $galleryPage['galleryImages'],
         ]);
     }
+
     public function contact(string $slug)
     {
         $doctor = $this->findDoctor($slug);
