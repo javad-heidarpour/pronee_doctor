@@ -7,8 +7,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
-use RuntimeException;
 
 class RegisterDoctorAction
 {
@@ -36,7 +34,7 @@ class RegisterDoctorAction
                 'name' => $data['name'],
                 'family' => $data['family'],
                 'username' => $phone,
-                'email' => $data['email'] ?: null,
+                'email' => $data['email'] ?? null,
                 'phone' => $phone,
                 'password' => Hash::make($temporaryPassword),
                 'role' => 'doctor',
