@@ -658,7 +658,7 @@ const getStatusBadgeClasses = (status) => {
 const getStatusLabel = (status) => {
   const labels = {
     pending: "⏳ در انتظار",
-    confirmed: "✅ پرداخت شده",
+    confirmed: "✓ تأیید شده",
     cancelled: "❌ لغو شده",
     visited: "✔️ ویزیت شده",
   };
