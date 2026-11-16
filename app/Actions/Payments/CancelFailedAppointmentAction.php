@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\Schema;
 class CancelFailedAppointmentAction
 {
     /**
-     * لغو اتمیک رزرو پس از اعلام قطعی ناموفق بودن پرداخت.
+     * Mark one payment attempt failed without cancelling a reservation that
+     * has another successful or unresolved payment attempt.
      *
-     * @return bool false اگر پرداخت هم‌زمان قبلاً موفق شده باشد.
+     * @return string cancelled|already_paid|waiting|not_cancellable
      */
-    public function handle(AppointmentPayment $payment): bool
+    public function handle(AppointmentPayment $payment): string
     {
         return DB::transaction(function () use ($payment) {
             $lockedPayment = AppointmentPayment::query()
@@ -23,21 +24,54 @@ class CancelFailedAppointmentAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedPayment->status === 'paid') {
-                return false;
-            }
-
             $appointment = Appointment::query()
                 ->whereKey($lockedPayment->appointment_id)
                 ->lockForUpdate()
                 ->first();
 
-            $lockedPayment->update([
-                'status' => 'failed',
-            ]);
+            if ($lockedPayment->status === 'paid') {
+                return 'already_paid';
+            }
 
             if (!$appointment) {
-                return true;
+                $lockedPayment->update(['status' => 'failed']);
+                return 'not_cancellable';
+            }
+
+            $lockedPayment->update(['status' => 'failed']);
+
+            $otherPayments = AppointmentPayment::query()
+                ->where('appointment_id', $appointment->id)
+                ->where('id', '!=', $lockedPayment->id)
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($otherPayments->contains(fn ($item) => $item->status === 'paid')) {
+                $appointment->status = 'confirmed';
+                $appointment->reservation_expires_at = null;
+
+                if (Schema::hasColumn('appointments', 'payment_status')) {
+                    $appointment->payment_status = 'paid';
+                }
+
+                $appointment->save();
+
+                return 'already_paid';
+            }
+
+            $hasUnresolvedPayment = $otherPayments->contains(
+                fn ($item) => in_array($item->status, ['pending', 'initiated'], true)
+            );
+
+            if ($hasUnresolvedPayment) {
+                return 'waiting';
+            }
+
+            // Do not cancel a manually confirmed appointment just because one
+            // payment attempt failed.
+            if ($appointment->status !== 'pending') {
+                return 'not_cancellable';
             }
 
             $appointment->status = 'cancelled';
@@ -50,7 +84,7 @@ class CancelFailedAppointmentAction
             $appointment->save();
 
             if (!$appointment->time_slot_id) {
-                return true;
+                return 'cancelled';
             }
 
             $timeSlot = TimeSlot::query()
@@ -58,21 +92,19 @@ class CancelFailedAppointmentAction
                 ->lockForUpdate()
                 ->first();
 
-            if (!$timeSlot || $timeSlot->status !== 'booked') {
-                return true;
+            if ($timeSlot && $timeSlot->status === 'booked') {
+                $hasOtherActiveAppointment = Appointment::query()
+                    ->where('time_slot_id', $timeSlot->id)
+                    ->whereIn('status', ['pending', 'confirmed'])
+                    ->exists();
+
+                if (!$hasOtherActiveAppointment) {
+                    $timeSlot->status = 'available';
+                    $timeSlot->save();
+                }
             }
 
-            $hasOtherActiveAppointment = Appointment::query()
-                ->where('time_slot_id', $timeSlot->id)
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->exists();
-
-            if (!$hasOtherActiveAppointment) {
-                $timeSlot->status = 'available';
-                $timeSlot->save();
-            }
-
-            return true;
+            return 'cancelled';
         });
     }
 }
