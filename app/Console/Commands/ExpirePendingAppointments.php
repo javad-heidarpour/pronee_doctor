@@ -34,18 +34,18 @@ class ExpirePendingAppointments extends Command
         foreach ($appointmentIds as $appointmentId) {
             try {
                 $result = DB::transaction(function () use ($appointmentId) {
-                    // Lock payment rows before the appointment, matching the
-                    // payment callback lock order and reducing deadlock risk.
+                    // Use the global payment lifecycle lock order:
+                    // appointment first, then its payment attempts.
+                    $appointment = Appointment::query()
+                        ->whereKey($appointmentId)
+                        ->lockForUpdate()
+                        ->first();
+
                     $payments = AppointmentPayment::query()
                         ->where('appointment_id', $appointmentId)
                         ->orderBy('id')
                         ->lockForUpdate()
                         ->get();
-
-                    $appointment = Appointment::query()
-                        ->whereKey($appointmentId)
-                        ->lockForUpdate()
-                        ->first();
 
                     if (
                         !$appointment ||
