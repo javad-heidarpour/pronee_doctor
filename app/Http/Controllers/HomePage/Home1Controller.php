@@ -8,11 +8,10 @@ use App\Actions\Home\BuildPublicDoctorReviewsPageAction;
 use App\Actions\Home\BuildPublicDoctorGalleryPageAction;
 use App\Actions\Home\ListPublicMedicalServicesAction;
 use App\Actions\Home\ListPublicSurgicalProceduresAction;
+use App\Actions\Home\BuildPublicDoctorBookingPageAction;
 use Morilog\Jalali\Jalalian;
 use Inertia\Inertia;
 use App\Models\Doctor;
-use App\Models\Appointment;
-use App\Models\VisitReason;
 
 class Home1Controller extends Controller
 {
@@ -137,98 +136,26 @@ class Home1Controller extends Controller
         ]);
     }
 
-    public function booking(string $slug, $clinic = null)
-    {
+    public function booking(
+        string $slug,
+        BuildPublicDoctorBookingPageAction $action,
+        $clinic = null
+    ) {
         $doctor = $this->findDoctor($slug);
-        // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
+        $bookingPage = $action->handle($doctor);
+        $clinicsWithSlots = $bookingPage['clinicsWithSlots'];
 
-        $today = now()->toDateString();
-        $oneHourLater = now()->addHour();
-        $visitReasons = VisitReason::query()
-            ->select('id', 'title')
-            ->orderBy('title')
-            ->get();
-        $clinicsWithSlots = $doctor->address
-
-            ->map(function ($clinic) use ($doctor, $today, $oneHourLater) {
-
-                $slots = $doctor->timeSlots()
-
-                    ->where('clinic_id', $clinic->id)
-
-                    ->whereIn('status', ['available', 'booked'])
-
-                    ->where(function ($query) use ($today, $oneHourLater) {
-
-                        $query
-                            ->where('date', '>', $today)
-
-                            ->orWhere(function ($q) use ($today, $oneHourLater) {
-
-                                $q
-                                    ->where('date', $today)
-                                    ->where(
-                                        'start_time',
-                                        '>=',
-                                        $oneHourLater->format('H:i:s')
-                                    );
-                            });
-                    })
-
-                    ->orderBy('date')
-                    ->orderBy('start_time')
-                    ->get();
-
-                return [
-                    'clinic' => $clinic,
-
-                    'dates' => $slots
-
-                        ->groupBy('date')
-
-                        ->map(function ($daySlots) {
-
-                            return [
-                                'date' => $daySlots->first()->date->format('Y-m-d'),
-
-                                'slots' => $daySlots->map(function ($slot) {
-
-                                    $booked = Appointment::where(
-                                        'time_slot_id',
-                                        $slot->id
-                                    )
-                                        ->whereIn('status', [
-                                            'pending',
-                                            'confirmed'
-                                        ])
-                                        ->exists();
-
-                                    return [
-                                        'id' => $slot->id,
-                                        'start_time' => substr($slot->start_time, 0, 5),
-                                        'status' => $booked ? 'booked' : 'available',
-                                    ];
-                                })->values(),
-                            ];
-                        })
-                        ->values(),
-                ];
-            })
-
-            ->filter(function ($clinic) {
-                return $clinic['dates']->isNotEmpty();
-            })
-            ->values();
         $doctor->setAttribute(
             'clinics_with_slots',
             $clinicsWithSlots
         );
+
         return Inertia::render('HomePage/Home1/Booking', [
             'doctor' => $doctor,
             'clinicsWithSlots' => $clinicsWithSlots,
             'selectedClinic' => $clinic,
-            'visitReasons' => $visitReasons,
-
+            'visitReasons' => $bookingPage['visitReasons'],
         ]);
     }
+}
 }
