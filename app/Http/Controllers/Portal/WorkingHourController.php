@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Portal;
 
+use App\Actions\Portal\WorkingHours\BuildWorkingHourConflictMessageAction;
 use App\Actions\Portal\WorkingHours\DeleteWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ListWorkingHoursAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
@@ -10,7 +11,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
-use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,23 +36,23 @@ class WorkingHourController extends Controller
     /**
      * ایجاد بازه کاری جدید.
      */
-    public function store(SaveWorkingHourRequest $request, SaveWorkingHourAction $action)
+    public function store(
+        SaveWorkingHourRequest $request,
+        SaveWorkingHourAction $action,
+        BuildWorkingHourConflictMessageAction $messageAction
+    )
     {
         $doctor = $this->currentDoctor();
 
         $validated = $request->validated();
 
-        if (!in_array((int) $validated['clinic_id'], $this->accessibleClinicIds($doctor), true)) {
-            return back()
-                ->withErrors(['clinic_id' => __('working_hours.invalid_clinic')])
-                ->withInput();
-        }
+        $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
 
         $result = $action->handle($doctor, $validated);
 
         if (!$result['saved']) {
             return back()
-                ->withErrors(['duplicate' => $this->overlapMessage($result['duplicate'])])
+                ->withErrors(['duplicate' => $messageAction->handle($result['duplicate'])])
                 ->withInput();
         }
 
@@ -65,7 +65,8 @@ class WorkingHourController extends Controller
     public function update(
         SaveWorkingHourRequest $request,
         DoctorWorkingHour $workingHour,
-        SaveWorkingHourAction $action
+        SaveWorkingHourAction $action,
+        BuildWorkingHourConflictMessageAction $messageAction
     ) {
         $doctor = $this->currentDoctor();
 
@@ -73,17 +74,13 @@ class WorkingHourController extends Controller
 
         $validated = $request->validated();
 
-        if (!in_array((int) $validated['clinic_id'], $this->accessibleClinicIds($doctor), true)) {
-            return back()
-                ->withErrors(['clinic_id' => __('working_hours.invalid_clinic')])
-                ->withInput();
-        }
+        $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
 
         $result = $action->handle($doctor, $validated, $workingHour);
 
         if (!$result['saved']) {
             return back()
-                ->withErrors(['duplicate' => $this->overlapMessage($result['duplicate'])])
+                ->withErrors(['duplicate' => $messageAction->handle($result['duplicate'])])
                 ->withInput();
         }
 
@@ -118,16 +115,6 @@ class WorkingHourController extends Controller
         $action->handle($workingHour);
 
         return back()->with('success', __('working_hours.deleted'));
-    }
-
-
-    private function overlapMessage(DoctorWorkingHour $duplicate): string
-    {
-        return __('working_hours.duplicate', [
-            'day' => __('working_hours.days.' . $duplicate->day_of_week),
-            'clinic' => $duplicate->clinic?->name
-                ?? __('working_hours.unknown_clinic'),
-        ]);
     }
 
 }
