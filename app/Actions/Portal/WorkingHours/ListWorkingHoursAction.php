@@ -4,11 +4,10 @@ namespace App\Actions\Portal\WorkingHours;
 
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
-use Illuminate\Http\Request;
 
 class ListWorkingHoursAction
 {
-    public function handle(Doctor $doctor, Request $request, ?array $allowedClinicIds = null): array
+    public function handle(Doctor $doctor, array $filters = [], ?array $allowedClinicIds = null): array
     {
         $clinics = $doctor->address()->whereIn('addresses.id', $allowedClinicIds ?? $doctor->address()->pluck('addresses.id'))->with('city')->get();
 
@@ -17,16 +16,16 @@ class ListWorkingHoursAction
             ->when($allowedClinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $allowedClinicIds))
             ->with('clinic.city');
 
-        if ($request->filled('clinic_id')) {
-            $query->where('clinic_id', $request->input('clinic_id'));
+        if (array_key_exists('clinic_id', $filters) && $filters['clinic_id'] !== '') {
+            $query->where('clinic_id', $filters['clinic_id']);
         }
 
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->input('is_active') === 'true');
+        if (array_key_exists('is_active', $filters) && $filters['is_active'] !== '') {
+            $query->where('is_active', in_array($filters['is_active'], [true, 1, '1', 'true'], true));
         }
 
-        if ($request->filled('search')) {
-            $search = trim($request->input('search'));
+        if (!empty($filters['search'])) {
+            $search = trim($filters['search']);
 
             $query->whereHas('clinic', function ($clinicQuery) use ($search) {
                 $clinicQuery->where('name', 'LIKE', "%{$search}%")
@@ -41,12 +40,12 @@ class ListWorkingHoursAction
             'is_active', 'clinic_id', 'created_at',
         ];
 
-        $sortBy = $request->input('sort_by', 'day_of_week');
+        $sortBy = $filters['sort_by'] ?? 'day_of_week';
         if (!in_array($sortBy, $allowedSortColumns, true)) {
             $sortBy = 'day_of_week';
         }
 
-        $sortDir = strtolower($request->input('sort_dir', 'asc'));
+        $sortDir = strtolower($filters['sort_dir'] ?? 'asc');
         if (!in_array($sortDir, ['asc', 'desc'], true)) {
             $sortDir = 'asc';
         }
@@ -61,9 +60,9 @@ class ListWorkingHoursAction
             'doctor' => $doctor,
             'clinics' => $clinics,
             'workingHours' => $workingHours,
-            'filters' => $request->only([
+            'filters' => array_intersect_key($filters, array_flip([
                 'clinic_id', 'is_active', 'search', 'sort_by', 'sort_dir',
-            ]),
+            ])),
         ];
     }
 }
