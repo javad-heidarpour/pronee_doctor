@@ -101,7 +101,8 @@ class CreatePortalAppointmentAction
                 ])->id;
             }
 
-            $fee = Fee::where('is_active', true)
+            $fee = Fee::where('created_by', $timeSlot->doctor_id)
+                    ->where('is_active', true)
                 ->orderByDesc('id')
                 ->first();
 
