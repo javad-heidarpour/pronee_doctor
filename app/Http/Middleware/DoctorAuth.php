@@ -107,7 +107,7 @@ class DoctorAuth
     private function requiredPermission(string $routeName, string $method): ?string
     {
         $map = [
-            'portal.patients.' => 'appointments',
+            'portal.patients.' => 'patients',
             'portal.appointments.' => 'appointments',
             'portal.clinics.' => 'clinics',
             'portal.shifts.' => 'shifts',
