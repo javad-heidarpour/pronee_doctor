@@ -2,7 +2,6 @@
 
 namespace App\Actions\Home;
 
-use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\VisitReason;
 
@@ -19,8 +18,13 @@ class BuildPublicDoctorBookingPageAction
             ->get();
 
         $clinicsWithSlots = $doctor->address
+            ->where('is_active', true)
             ->map(function ($clinic) use ($doctor, $today, $oneHourLater) {
                 $slots = $doctor->timeSlots()
+                    ->with([
+                        'appointment' => fn ($query) => $query
+                            ->whereIn('status', ['pending', 'confirmed']),
+                    ])
                     ->where('clinic_id', $clinic->id)
                     ->whereIn('status', ['available', 'booked'])
                     ->where(function ($query) use ($today, $oneHourLater) {
@@ -48,17 +52,10 @@ class BuildPublicDoctorBookingPageAction
                             return [
                                 'date' => $daySlots->first()->date->format('Y-m-d'),
                                 'slots' => $daySlots->map(function ($slot) {
-                                    $booked = Appointment::where(
-                                        'time_slot_id',
-                                        $slot->id
-                                    )
-                                        ->whereIn('status', ['pending', 'confirmed'])
-                                        ->exists();
-
                                     return [
                                         'id' => $slot->id,
                                         'start_time' => substr($slot->start_time, 0, 5),
-                                        'status' => $booked ? 'booked' : 'available',
+                                        'status' => $slot->appointment ? 'booked' : 'available',
                                     ];
                                 })->values(),
                             ];
