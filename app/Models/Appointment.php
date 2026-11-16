@@ -54,8 +54,9 @@ class Appointment extends Model
         return self::query()
             ->where('doctor_id', $doctorId)
             ->where('status', 'pending')
-            ->whereDoesntHave('latestPayment', function ($query) {
-                $query->where('status', 'paid');
+            // پرداخت‌های در حال انجام یا موفق نباید با تعرفه جدید دست‌کاری شوند.
+            ->whereDoesntHave('payments', function ($query) {
+                $query->whereIn('status', ['pending', 'initiated', 'paid']);
             })
             ->update([
                 'fee_rial' => $newFee,
