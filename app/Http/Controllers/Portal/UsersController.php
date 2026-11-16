@@ -126,110 +126,27 @@ class UsersController extends Controller
     }
 
     public function updateAssignments(
-        Request $request,
+        UpdateSecretaryAssignmentsRequest $request,
         User $user,
         UpdateSecretaryAssignmentsAction $action,
-        ListManagedUserPermissionsAction $permissionsAction
-    )
-    {
+        BuildSecretaryAssignmentsDataAction $dataAction
+    ) {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement($user);
 
         abort_unless($user->role === 'secretary', 404);
 
-        $availablePermissions = array_keys($permissionsAction->handle());
-
-        $validated = $request->validate([
-            'doctors' => ['present', 'array'],
-            'doctors.*.id' => [
-                'required',
-                'integer',
-                'distinct',
-                Rule::exists('doctors', 'id'),
-            ],
-            'doctors.*.permissions' => ['required', 'array'],
-            'doctors.*.clinic_ids' => ['required', 'array', 'min:1'],
-            'doctors.*.clinic_ids.*' => [
-                'required',
-                'integer',
-                'distinct',
-                Rule::exists('addresses', 'id'),
-            ],
-            'doctors.*.permissions.*' => [
-                'required',
-                'string',
-                'distinct',
-                Rule::in($availablePermissions),
-            ],
-        ]);
-
+        $validated = $request->validated();
         $doctorIds = collect($validated['doctors'])
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        if ($authUser->role === 'doctor') {
-            abort_unless(
-                count(array_diff($doctorIds, [$activeDoctor->id])) === 0,
-                403,
-                'شما فقط مجاز به اتصال منشی به پزشک فعال خودتان هستید.'
-            );
-        }
-
-        $doctors = Doctor::query()
-            ->with('user')
-            ->whereIn('id', $doctorIds)
-            ->get()
-            ->keyBy('id');
-
-        foreach ($doctorIds as $doctorId) {
-            $doctor = $doctors->get($doctorId);
-
-            abort_unless(
-                $doctor &&
-                $doctor->user &&
-                $doctor->user->role === 'doctor' &&
-                $doctor->user->is_active &&
-                $doctor->is_active,
-                422,
-                'یکی از پزشکان انتخاب‌شده معتبر یا فعال نیست.'
-            );
-        }
-
-        foreach ($validated['doctors'] as $item) {
-            $validClinicIds = $doctors->get((int) $item['id'])
-                ->address()
-                ->where('addresses.is_active', true)
-                ->whereIn('addresses.id', $item['clinic_ids'])
-                ->pluck('addresses.id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-
-            abort_unless(
-                count($validClinicIds) === count($item['clinic_ids']),
-                422,
-                'یکی از مطب‌های انتخاب‌شده متعلق به پزشک مربوطه نیست.'
-            );
-
-            if (count($validClinicIds) === 0) {
-                abort(422, 'برای هر پزشک متصل، حداقل یک مطب انتخاب کنید.');
-            }
-        }
-
-        $syncData = [];
-
-        foreach ($validated['doctors'] as $item) {
-            $syncData[$item['id']] = [
-                'permissions' => json_encode(
-                    $item['permissions'],
-                    JSON_UNESCAPED_UNICODE
-                ),
-                'clinic_ids' => json_encode(
-                    array_values(array_map('intval', $item['clinic_ids'])),
-                    JSON_UNESCAPED_UNICODE
-                ),
-            ];
-        }
+        $syncData = $dataAction->handle(
+            $validated,
+            $authUser->role,
+            $activeDoctor
+        );
 
         $action->handle(
             $user,
