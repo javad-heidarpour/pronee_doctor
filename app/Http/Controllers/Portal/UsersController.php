@@ -13,6 +13,7 @@ use App\Actions\Portal\Users\BuildSecretaryAssignmentsDataAction;
 use App\Actions\Portal\Users\BuildManagedUserAssignmentsPageAction;
 use App\Actions\Portal\Users\BuildManagedUsersIndexPageAction;
 use App\Actions\Portal\Users\BuildManagedUserCreatePageAction;
+use App\Actions\Portal\Users\BuildManagedUserEditPageAction;
 use App\Actions\Portal\Users\CreateManagedUserAction;
 use App\Actions\Portal\Users\UpdateManagedUserAction;
 use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
@@ -116,13 +117,16 @@ class UsersController extends Controller
         );
     }
 
-    public function edit(User $user): Response
-    {
+    public function edit(
+        User $user,
+        BuildManagedUserEditPageAction $pageAction
+    ): Response {
         $this->authorizeUserManagement($user);
 
-        return Inertia::render('Portal/Users/Edit', [
-            'user' => $user,
-        ]);
+        return Inertia::render(
+            'Portal/Users/Edit',
+            $pageAction->handle($user)
+        );
     }
 
     public function update(
