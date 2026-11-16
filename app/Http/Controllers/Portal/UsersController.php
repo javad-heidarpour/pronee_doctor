@@ -349,9 +349,16 @@ class UsersController extends Controller
             return $secretary;
         });
 
-        return redirect()
-            ->route('portal.users.assignments', $secretary->id)
-            ->with('success', 'منشی ایجاد شد؛ اکنون سطح دسترسی او را تعیین کنید.');
+        $redirect = $secretary->role === 'secretary'
+            ? redirect()->route('portal.users.assignments', $secretary->id)
+            : redirect()->route('portal.users.index');
+
+        return $redirect->with(
+            'success',
+            $secretary->role === 'secretary'
+                ? 'منشی ایجاد شد؛ اکنون سطح دسترسی او را تعیین کنید.'
+                : 'کاربر جدید با موفقیت ایجاد شد.'
+        );
     }
 
     public function edit(User $user): Response
