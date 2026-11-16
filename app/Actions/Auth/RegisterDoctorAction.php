@@ -17,17 +17,30 @@ class RegisterDoctorAction
         string $temporaryPassword
     ): ?Doctor {
         $tokenKey = $this->registrationTokenKey($registrationToken);
-        $verifiedPhone = Cache::get($tokenKey);
 
-        if (! $verifiedPhone || $verifiedPhone !== $phone) {
+        // توکن ثبت‌نام فقط یک بار و در یک درخواست هم‌زمان قابل استفاده است.
+        $registrationLock = Cache::lock(
+            'doctor-registration-consume:' . hash('sha256', $registrationToken),
+            30
+        );
+
+        if (!$registrationLock->get()) {
             return null;
         }
 
-        if (User::where('phone', $phone)->exists()) {
-            return null;
-        }
+        try {
+            $verifiedPhone = Cache::get($tokenKey);
 
-        $doctor = DB::transaction(function () use ($data, $phone, $temporaryPassword) {
+            if (!$verifiedPhone || !hash_equals((string) $verifiedPhone, $phone)) {
+                return null;
+            }
+
+            if (User::where('phone', $phone)->exists()) {
+                Cache::forget($tokenKey);
+                return null;
+            }
+
+            $doctor = DB::transaction(function () use ($data, $phone, $temporaryPassword) {
             $user = new User();
 
             $user->forceFill([
@@ -75,11 +88,14 @@ class RegisterDoctorAction
             ]);
 
             return $doctor;
-        });
+            });
 
-        Cache::forget($tokenKey);
+            Cache::forget($tokenKey);
 
-        return $doctor;
+            return $doctor;
+        } finally {
+            $registrationLock->release();
+        }
     }
 
     private function registrationTokenKey(string $token): string
