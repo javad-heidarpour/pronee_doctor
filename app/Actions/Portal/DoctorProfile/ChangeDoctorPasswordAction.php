@@ -1,26 +1,28 @@
 <?php
 
-namespace App\Actions\Portal\DoctorProfile;
+namespace App\\Actions\\Portal\\DoctorProfile;
 
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use App\\Models\\User;
+use Illuminate\\Support\\Facades\\Hash;
 
 class ChangeDoctorPasswordAction
 {
     /**
+     * رمز عبور حساب کاربری واردشده را تغییر می‌دهد.
+     *
      * @return bool false اگر رمز فعلی اشتباه باشد.
      */
-    public function handle(string $currentPassword, string $newPassword): bool
-    {
-        $doctor = Auth::guard('web')->user()->doctorProfile;
-
-        if (!Hash::check($currentPassword, $doctor->password)) {
+    public function handle(
+        User $user,
+        string $currentPassword,
+        string $newPassword
+    ): bool {
+        if (!Hash::check($currentPassword, $user->password)) {
             return false;
         }
 
-        $doctor->update([
-            'password' => Hash::make($newPassword),
-        ]);
+        $user->password = $newPassword;
+        $user->save();
 
         return true;
     }
