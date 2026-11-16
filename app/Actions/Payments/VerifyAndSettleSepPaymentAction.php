@@ -90,10 +90,15 @@ class VerifyAndSettleSepPaymentAction
                 'result_message' => $resultMessage,
             ]);
 
-            $cancelled = $cancelFailedAppointment->handle($payment);
+            $cancelResult = $cancelFailedAppointment->handle($payment);
 
             return [
-                'status' => $cancelled ? 'failed' : 'already_paid',
+                'status' => match ($cancelResult) {
+                    'cancelled' => 'failed',
+                    'already_paid' => 'already_paid',
+                    'waiting' => 'waiting',
+                    default => 'conflict',
+                },
             ];
         }
 
