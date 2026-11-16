@@ -18,9 +18,10 @@ class AuthController extends Controller
 
     public function login(
         PortalLoginRequest $request,
-        AuthenticatePortalUserAction $action
+        AuthenticatePortalUserAction $action,
+        LogoutPortalUserAction $logoutAction
     ) {
-        $action->handle($request, app(LogoutPortalUserAction::class));
+        $action->handle($request, $logoutAction);
 
         return redirect()->intended(route('portal.dashboard'));
     }
