@@ -29,6 +29,7 @@ class ExpirePendingAppointments extends Command
         $cancelled = 0;
         $confirmed = 0;
         $waiting = 0;
+        $stalePayments = 0;
 
         foreach ($appointmentIds as $appointmentId) {
             try {
@@ -78,6 +79,26 @@ class ExpirePendingAppointments extends Command
                     );
 
                     if ($hasUnresolvedPayment) {
+                        $stalePaymentIds = $payments
+                            ->filter(function ($payment) {
+                                return in_array($payment->status, ['pending', 'initiated'], true)
+                                    && $payment->updated_at
+                                    && $payment->updated_at->lte(now()->subMinutes(15));
+                            })
+                            ->pluck('id')
+                            ->values()
+                            ->all();
+
+                        if ($stalePaymentIds !== []) {
+                            Log::warning('Expired reservation has stale unresolved SEP payment', [
+                                'appointment_id' => $appointment->id,
+                                'payment_ids' => $stalePaymentIds,
+                                'threshold_minutes' => 15,
+                            ]);
+
+                            return 'stale_waiting';
+                        }
+
                         return 'waiting';
                     }
 
@@ -118,6 +139,9 @@ class ExpirePendingAppointments extends Command
                     $confirmed++;
                 } elseif ($result === 'waiting') {
                     $waiting++;
+                } elseif ($result === 'stale_waiting') {
+                    $waiting++;
+                    $stalePayments++;
                 }
             } catch (\Throwable $e) {
                 Log::error('Expire pending appointment failed', [
@@ -128,10 +152,11 @@ class ExpirePendingAppointments extends Command
         }
 
         $summary = sprintf(
-            'Expired appointment check completed. Cancelled: %d, confirmed: %d, awaiting payment verification: %d.',
+            'Expired appointment check completed. Cancelled: %d, confirmed: %d, awaiting payment verification: %d, stale payments requiring review: %d.',
             $cancelled,
             $confirmed,
-            $waiting
+            $waiting,
+            $stalePayments
         );
 
         $this->info($summary);
