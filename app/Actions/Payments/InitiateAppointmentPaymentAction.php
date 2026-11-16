@@ -134,13 +134,14 @@ class InitiateAppointmentPaymentAction
             }
 
             $saved = DB::transaction(function () use ($payment, $token) {
-                $lockedPayment = AppointmentPayment::query()
-                    ->whereKey($payment->id)
+                // Keep lock order consistent: appointment before payment.
+                $lockedAppointment = Appointment::query()
+                    ->whereKey($payment->appointment_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $lockedAppointment = Appointment::query()
-                    ->whereKey($lockedPayment->appointment_id)
+                $lockedPayment = AppointmentPayment::query()
+                    ->whereKey($payment->id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
@@ -175,6 +176,13 @@ class InitiateAppointmentPaymentAction
             return $token;
         } catch (Throwable $e) {
             DB::transaction(function () use ($payment) {
+                // Lock the appointment first, matching every other payment
+                // lifecycle transaction and preventing lock-order inversions.
+                Appointment::query()
+                    ->whereKey($payment->appointment_id)
+                    ->lockForUpdate()
+                    ->first();
+
                 $lockedPayment = AppointmentPayment::query()
                     ->whereKey($payment->id)
                     ->lockForUpdate()
