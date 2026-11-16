@@ -44,7 +44,7 @@ class WorkingHourController extends Controller
     )
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
 
         $validated = $request->validated();
 
@@ -71,7 +71,7 @@ class WorkingHourController extends Controller
         BuildWorkingHourConflictMessageAction $messageAction
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
 
         $this->authorizeWorkingHour($workingHour, $doctor);
 
@@ -98,7 +98,7 @@ class WorkingHourController extends Controller
         ToggleWorkingHourAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
 
         $this->authorizeWorkingHour($workingHour, $doctor);
         $action->handle($workingHour);
@@ -114,7 +114,7 @@ class WorkingHourController extends Controller
         DeleteWorkingHourAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
 
         $this->authorizeWorkingHour($workingHour, $doctor);
         $action->handle($workingHour);
