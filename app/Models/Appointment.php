@@ -127,6 +127,11 @@ class Appointment extends Model
             'appointment_id'
         )->latestOfMany();
     }
+
+    public function smsLogs(): HasMany
+    {
+        return $this->hasMany(SmsLog::class)->latest();
+    }
     public function surgeryType(): BelongsTo
     {
         return $this->belongsTo(SurgeryType::class);
