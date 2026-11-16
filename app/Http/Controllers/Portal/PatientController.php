@@ -10,13 +10,13 @@ use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentDescriptionAction;
 use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
+use App\Http\Requests\Portal\AvailableClinicRequest;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
 use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\Appointment;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 use Illuminate\Validation\ValidationException;
@@ -64,11 +64,9 @@ class PatientController extends Controller
     /**
      * دریافت تاریخ‌ها و ساعت‌های آزاد مطب‌های قابل دسترس.
      */
-    public function availableDates(Request $request, ListAvailableDatesAction $action)
+    public function availableDates(AvailableClinicRequest $request, ListAvailableDatesAction $action)
     {
-        $validated = $request->validate([
-            'clinic_id' => ['required', 'integer'],
-        ]);
+        $validated = $request->validated();
 
         $doctor = $this->currentDoctor();
         $clinicId = (int) $validated['clinic_id'];
@@ -81,12 +79,10 @@ class PatientController extends Controller
     }
 
     public function availableSlots(
-        Request $request,
+        AvailableClinicRequest $request,
         ListAvailableSlotsAction $action
     ) {
-        $validated = $request->validate([
-            'clinic_id' => ['required', 'integer'],
-        ]);
+        $validated = $request->validated();
 
         $doctor = $this->currentDoctor();
         $clinicId = (int) $validated['clinic_id'];
