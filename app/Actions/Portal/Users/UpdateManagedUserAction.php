@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Users;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -10,9 +11,13 @@ class UpdateManagedUserAction
     /**
      * به‌روزرسانی حساب کاربر با حفظ یکپارچگی ارتباط‌های منشی.
      */
-    public function handle(\n        User $user,\n        array $validated,\n        ?RecordSecurityAuditEventAction $audit = null\n    ): User
+    public function handle(
+        User $user,
+        array $validated,
+        RecordSecurityAuditEventAction $audit
+    ): User
     {
-        return DB::transaction(function () use ($user, $validated) {
+        return DB::transaction(function () use ($user, $validated, $audit) {
             $lockedUser = User::withTrashed()
                 ->whereKey($user->id)
                 ->lockForUpdate()
@@ -33,7 +38,14 @@ class UpdateManagedUserAction
             $lockedUser->fill($validated);
             $lockedUser->save();
 
-            $updated = $lockedUser->refresh();\n\n            $audit?->handle('managed_user.updated', $updated, [\n                'role' => $updated->role,\n                'is_active' => (bool) $updated->is_active,\n            ]);\n\n            return $updated;
+            $updated = $lockedUser->refresh();
+
+            $audit?->handle('managed_user.updated', $updated, [
+                'role' => $updated->role,
+                'is_active' => (bool) $updated->is_active,
+            ]);
+
+            return $updated;
         });
     }
 }
