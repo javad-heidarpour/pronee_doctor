@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Actions\\Portal\\Clinic;
+namespace App\Actions\Portal\Clinic;
 
-use App\\Models\\Address;
-use App\\Models\\Doctor;
+use App\Models\Address;
+use App\Models\Doctor;
 
 class StoreClinicAction
 {
