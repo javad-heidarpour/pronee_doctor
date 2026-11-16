@@ -1,18 +1,18 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Portal\\Gallery\\DeleteGalleryImageAction;
-use App\\Actions\\Portal\\Gallery\\ListGalleryImagesAction;
-use App\\Actions\\Portal\\Gallery\\StoreGalleryImagesAction;
-use App\\Actions\\Portal\\Gallery\\UpdateGalleryImageAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Http\\Requests\\Portal\\StoreGalleryImagesRequest;
-use App\\Http\\Requests\\Portal\\UpdateGalleryImageRequest;
-use App\\Models\\Doctor;
-use App\\Models\\DoctorImage;
-use Inertia\\Inertia;
+use App\Actions\Portal\Gallery\DeleteGalleryImageAction;
+use App\Actions\Portal\Gallery\ListGalleryImagesAction;
+use App\Actions\Portal\Gallery\StoreGalleryImagesAction;
+use App\Actions\Portal\Gallery\UpdateGalleryImageAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\StoreGalleryImagesRequest;
+use App\Http\Requests\Portal\UpdateGalleryImageRequest;
+use App\Models\Doctor;
+use App\Models\DoctorImage;
+use Inertia\Inertia;
 
 class GalleryController extends Controller
 {
