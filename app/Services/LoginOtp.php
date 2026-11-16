@@ -126,8 +126,9 @@ class LoginOtp
             throw new RuntimeException('کلید API قاصدک تنظیم نشده است.');
         }
 
+        // Use the host's configured CA bundle; do not depend on a
+        // developer-specific Windows certificate path in production.
         $response = Http::withOptions([
-            'verify' => 'C:/php-8.5.9/extras/ssl/cacert.pem',
             'timeout' => 20,
         ])->withHeaders([
                     'ApiKey' => $apiKey,
@@ -153,6 +154,18 @@ class LoginOtp
             );
         }
 
-        return $response->json() ?? [];
+        $payload = $response->json() ?? [];
+
+        if (
+            is_array($payload) &&
+            array_key_exists('IsSuccess', $payload) &&
+            $payload['IsSuccess'] === false
+        ) {
+            throw new RuntimeException(
+                'ارسال پیامک توسط سرویس‌دهنده تأیید نشد.'
+            );
+        }
+
+        return is_array($payload) ? $payload : [];
     }
 }
