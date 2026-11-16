@@ -1,13 +1,21 @@
 <script setup>
-import { computed } from "vue";
-import { Head, Link } from "@inertiajs/vue3";
+import { computed, reactive } from "vue";
+import { Head, Link, router } from "@inertiajs/vue3";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 
 const props = defineProps({
   logs: { type: Object, default: () => ({ data: [], links: [] }) },
+  filters: { type: Object, default: () => ({}) },
+  events: { type: Array, default: () => [] },
 });
 
 const rows = computed(() => props.logs?.data ?? []);
+const form = reactive({
+  event: props.filters?.event ?? "",
+  actor_id: props.filters?.actor_id ?? "",
+  from: props.filters?.from ?? "",
+  to: props.filters?.to ?? "",
+});
 
 const eventLabels = {
   "managed_user.created": "ایجاد حساب کاربری",
@@ -20,6 +28,19 @@ const eventLabels = {
   "auth.login_failed": "تلاش ناموفق برای ورود",
   "auth.logout": "خروج از پنل",
   "auth.login_rejected": "ورود ردشده به پنل",
+};
+
+const applyFilters = () => {
+  router.get(route("portal.security.audit-logs"), form, {
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  });
+};
+
+const clearFilters = () => {
+  Object.assign(form, { event: "", actor_id: "", from: "", to: "" });
+  applyFilters();
 };
 
 const formatDate = (value) => {
@@ -63,9 +84,36 @@ const metadataLabel = (metadata = {}) => {
         </span>
       </header>
 
+      <form @submit.prevent="applyFilters" class="mb-5 grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <label class="text-xs font-bold text-slate-600">
+          نوع رویداد
+          <select v-model="form.event" class="mt-2 w-full rounded-xl border-slate-200 text-sm">
+            <option value="">همه رویدادها</option>
+            <option v-for="event in events" :key="event" :value="event">{{ eventLabels[event] || event }}</option>
+          </select>
+        </label>
+        <label class="text-xs font-bold text-slate-600">
+          شناسه کاربر
+          <input v-model="form.actor_id" type="number" min="1" inputmode="numeric" class="mt-2 w-full rounded-xl border-slate-200 text-sm" placeholder="شناسه انجام‌دهنده" />
+        </label>
+        <label class="text-xs font-bold text-slate-600">
+          از تاریخ
+          <input v-model="form.from" type="date" class="mt-2 w-full rounded-xl border-slate-200 text-sm" />
+        </label>
+        <label class="text-xs font-bold text-slate-600">
+          تا تاریخ
+          <input v-model="form.to" type="date" class="mt-2 w-full rounded-xl border-slate-200 text-sm" />
+        </label>
+        <div class="flex items-end gap-2">
+          <button type="submit" class="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700">اعمال فیلتر</button>
+          <button type="button" @click="clearFilters" class="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200">پاک‌کردن</button>
+        </div>
+        <p v-if="form.from && form.to && form.to < form.from" class="text-xs text-rose-600 sm:col-span-2 lg:col-span-5">تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد.</p>
+      </form>
+
       <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div v-if="!rows.length" class="p-10 text-center text-sm text-slate-500">
-          هنوز رویدادی برای نمایش ثبت نشده است.
+          برای فیلترهای انتخاب‌شده رویدادی یافت نشد.
         </div>
         <div v-else class="overflow-x-auto">
           <table class="w-full min-w-[850px] text-right text-sm">
@@ -85,7 +133,7 @@ const metadataLabel = (metadata = {}) => {
                 <td class="px-4 py-4 font-bold text-slate-800">{{ eventLabels[log.event] || log.event }}</td>
                 <td class="px-4 py-4">
                   <div class="font-semibold">{{ log.actor?.name || "حساب حذف‌شده / سیستمی" }}</div>
-                  <div class="mt-1 text-xs text-slate-400">{{ roleLabel(log.actor?.role) }}</div>
+                  <div class="mt-1 text-xs text-slate-400">{{ roleLabel(log.actor?.role) }} <span v-if="log.actor_id">#{{ log.actor_id }}</span></div>
                 </td>
                 <td class="px-4 py-4 text-slate-600">{{ log.subject_type?.split("\\").pop() || "—" }} #{{ log.subject_id || "—" }}</td>
                 <td class="max-w-sm px-4 py-4 text-xs leading-6 text-slate-500">{{ metadataLabel(log.metadata) }}</td>
