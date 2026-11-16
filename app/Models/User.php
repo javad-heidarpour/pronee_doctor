@@ -143,7 +143,8 @@ class User extends Authenticatable
 
         return Address::query()
             ->whereIn('addresses.doctor_id', $this->accessibleDoctors()->select('doctors.id'))
-            ->whereIn('addresses.id', $clinicIds);
+            ->whereIn('addresses.id', $clinicIds)
+            ->where('addresses.is_active', true);
     }
 
     public function isAdmin(): bool
