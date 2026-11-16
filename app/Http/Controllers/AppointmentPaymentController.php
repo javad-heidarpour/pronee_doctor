@@ -333,6 +333,12 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
+            if (!in_array($settlement['status'], ['success', 'already_paid'], true)) {
+                return $visitRedirect($appointment->id)->withErrors([
+                    'payment' => 'وضعیت پرداخت با وضعیت رزرو همخوانی ندارد و نیازمند بررسی است. لطفاً پرداخت مجدد انجام ندهید.',
+                ]);
+            }
+
             $alreadyPaid = $settlement['status'] === 'already_paid';
 
             // ارسال پیامک فقط پس از تأیید موفق پرداخت
