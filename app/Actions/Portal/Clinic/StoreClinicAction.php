@@ -1,16 +1,14 @@
 <?php
 
-namespace App\Actions\Portal\Clinic;
+namespace App\\Actions\\Portal\\Clinic;
 
-use App\Models\Address;
-use Illuminate\Support\Facades\Auth;
+use App\\Models\\Address;
+use App\\Models\\Doctor;
 
 class StoreClinicAction
 {
-    public function handle(array $data): Address
+    public function handle(Doctor $doctor, array $data): Address
     {
-        $doctor = Auth::guard('web')->user()->doctorProfile;
-
         $data['doctor_id'] = $doctor->id;
 
         return Address::create($data);
