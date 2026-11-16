@@ -62,7 +62,13 @@ class User extends Authenticatable
                 }
 
                 if ($this->role === 'doctor') {
-                    $query->where('doctors.user_id', $this->id);
+                    $query->where(function (Builder $access) {
+                        $access->where('doctors.user_id', $this->id)
+                            ->orWhereIn(
+                                'doctors.id',
+                                $this->doctors()->select('doctors.id')
+                            );
+                    });
                     return;
                 }
 
