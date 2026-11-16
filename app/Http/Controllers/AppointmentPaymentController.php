@@ -9,6 +9,7 @@ use App\Actions\Payments\FindSepCallbackPaymentAction;
 use App\Actions\Payments\ProcessLocalSepPaymentCallbackAction;
 use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Actions\Payments\ValidateSepCallbackTerminalAction;
+use App\Actions\Payments\RecordSepCallbackFailureAction;
 use App\Models\Appointment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
@@ -80,7 +81,8 @@ class AppointmentPaymentController extends Controller
         CancelFailedAppointmentAction $cancelFailedAppointment,
         FindSepCallbackPaymentAction $lookupAction,
         ValidateSepCallbackTerminalAction $terminalAction,
-        SendAppointmentConfirmationSmsAction $smsAction
+        SendAppointmentConfirmationSmsAction $smsAction,
+        RecordSepCallbackFailureAction $failureAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
         $refNum = trim((string) $request->input('RefNum', ''));
@@ -298,27 +300,7 @@ class AppointmentPaymentController extends Controller
             );
 
         } catch (Throwable $e) {
-            Log::error('SEP callback exception', [
-                'payment_id' => $payment?->id,
-                'res_num' => $resNum,
-                'ref_num' => $refNum,
-                'exception_class' => get_class($e),
-                'exception' => $e->getMessage(),
-            ]);
-
-            if ($payment && $payment->status !== 'paid') {
-                try {
-                    $payment->update([
-                        'gateway_result_message' =>
-                            'خطا در بررسی تراکنش؛ وضعیت نیازمند بررسی است.',
-                    ]);
-                } catch (Throwable $updateException) {
-                    Log::error('SEP payment error update failed', [
-                        'payment_id' => $payment->id,
-                        'exception' => $updateException->getMessage(),
-                    ]);
-                }
-            }
+            $failureAction->handle($payment, $resNum, $refNum, $e);
 
             if ($appointment) {
                 return $visitRedirect($appointment->id)->withErrors([
