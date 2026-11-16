@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
+use App\Actions\Portal\Appointment\BuildPatientIndexOptionsAction;
 use App\Actions\Portal\Appointment\ListAvailableDatesAction;
 use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
@@ -12,13 +13,10 @@ use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
 use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\Appointment;
-use App\Models\Doctor;
-use App\Models\SurgeryType;
-use App\Models\VisitReason;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 use Illuminate\Validation\ValidationException;
@@ -29,6 +27,7 @@ use Illuminate\Validation\ValidationException;
 class PatientController extends Controller
 {
     use HasActiveDoctor;
+    use AuthorizesPortalAppointments;
 
 
 
@@ -45,27 +44,18 @@ class PatientController extends Controller
             $filters
         );
 
-        $clinics = $this->accessibleClinicsQuery($doctor)
-            ->select('addresses.id', 'addresses.name')
-            ->get();
-
-        $visitReasons = VisitReason::query()
-            ->select('id', 'title')
-            ->orderBy('title')
-            ->get();
-
-        $surgeryTypes = SurgeryType::query()
-            ->select('id', 'title')
-            ->orderBy('title')
-            ->get();
+        $options = app(BuildPatientIndexOptionsAction::class)->handle(
+            $doctor,
+            $this->accessibleClinicIds($doctor)
+        );
 
         return Inertia::render('Portal/Patients/Index', [
             'doctor' => $doctor,
             'appointments' => $result['appointments'],
             'stats' => $result['stats'],
-            'clinics' => $clinics,
-            'visitReasons' => $visitReasons,
-            'surgeryTypes' => $surgeryTypes,
+            'clinics' => $options['clinics'],
+            'visitReasons' => $options['visitReasons'],
+            'surgeryTypes' => $options['surgeryTypes'],
             'filters' => $filters,
         ]);
     }
@@ -166,26 +156,6 @@ class PatientController extends Controller
                 'در تغییر وضعیت نوبت مشکلی رخ داد. لطفاً مجدداً تلاش کنید.'
             );
         }
-    }
-
-    private function authorizeAppointment(Appointment $appointment)
-    {
-        $user = Auth::guard('web')->user();
-
-        abort_unless($user, 401, 'کاربر وارد نشده است.');
-
-        $doctor = $this->currentDoctor();
-
-        abort_unless($doctor, 403, 'پروفایل پزشک یافت نشد.');
-
-        abort_unless(
-            (int) $appointment->doctor_id === (int) $doctor->id &&
-            in_array((int) $appointment->clinic_id, $this->accessibleClinicIds($doctor), true),
-            403,
-            'شما اجازه دسترسی به این نوبت را ندارید.'
-        );
-
-        return true;
     }
 
     public function updateDescription(
