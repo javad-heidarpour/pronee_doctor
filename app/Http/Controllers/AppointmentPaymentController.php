@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
-use App\Models\TimeSlot;
+use App\Http\Controllers\SmsController;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -633,13 +633,8 @@ class AppointmentPaymentController extends Controller
             // ارسال پیامک فقط پس از تأیید موفق پرداخت
             if (!$alreadyPaid) {
                 try {
-                    // نام AppointmentController را با نام کنترلر واقعی
-                    // حاوی متد AppointmentConfirmationSMS جایگزین کن.
-                    $smsResponse = app(
-                        \App\Http\Controllers\AppointmentController::class
-                    )->AppointmentConfirmationSMS(
-                            (int) $appointment->id
-                        );
+                    $smsResponse = app(SmsController::class)
+                        ->AppointmentConfirmationSMS((int) $appointment->id);
 
                     Log::info('APPOINTMENT CONFIRMATION SMS TRIGGERED', [
                         'appointment_id' => $appointment->id,
