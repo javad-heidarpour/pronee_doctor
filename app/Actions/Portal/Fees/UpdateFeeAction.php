@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Actions\\Portal\\Fees;
+namespace App\Actions\Portal\Fees;
 
-use App\\Models\\Appointment;
-use App\\Models\\Fee;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\Appointment;
+use App\Models\Fee;
+use Illuminate\Support\Facades\DB;
 
 class UpdateFeeAction
 {
