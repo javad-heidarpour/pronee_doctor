@@ -1,4 +1,7 @@
 <script setup>
+import { computed } from "vue";
+import { Head } from "@inertiajs/vue3";
+
 import teamImg from "../../../assets/team.png";
 import plantImg from "../../../assets/plant.jpg";
 
@@ -6,12 +9,42 @@ import SiteDrawer from "./SiteDrawer.vue";
 import Features from "./Features.vue";
 import MainMenu from "./MainMenu.vue";
 
-defineProps({
+import AboutDoctor from "@/Components/HomePage/AboutDoctor.vue";
+import BookingSection from "@/Components/HomePage/Booking/BookingSection.vue";
+import WorkingHoursPanel from "@/Components/HomePage/Booking/WorkingHoursPanel.vue";
+import ClinicLocation from "@/Components/HomePage/ClinicLocation.vue";
+import GallerySection from "@/Components/HomePage/GallerySection.vue";
+import ReviewsSection from "@/Components/HomePage/Reviews/ReviewsSection.vue";
+import SocialsSection from "@/Components/HomePage/SocialsSection.vue";
+
+const props = defineProps({
   doctor: {
     type: Object,
     required: true,
   },
 });
+
+const doctorFullName = computed(() =>
+  [props.doctor.caption, props.doctor.name, props.doctor.family]
+    .filter(Boolean)
+    .join(" ")
+);
+
+const pageTitle = computed(() =>
+  props.doctor.meta_title ||
+  `${doctorFullName.value} | ${props.doctor.specialty_title || "پزشک"} | پرونیکس`
+);
+
+const pageDescription = computed(() =>
+  props.doctor.meta_description ||
+  (props.doctor.description || `دریافت نوبت آنلاین از ${doctorFullName.value} در پرونیکس.`).slice(0, 160)
+);
+
+const reviewStatsFallback = {
+  average: 0,
+  count: 0,
+  distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+};
 </script>
 
 <template>
@@ -87,7 +120,82 @@ defineProps({
       </svg>
     </section>
 
-    <!-- FEATURES -->
+    <!-- Public doctor profile -->
+    <main
+      dir="rtl"
+      class="relative mx-auto w-full max-w-7xl space-y-7 px-4 pb-24 pt-8 sm:space-y-9 sm:px-6 sm:pt-12 lg:px-8"
+    >
+      <Head :title="pageTitle">
+        <meta name="description" :content="pageDescription" />
+        <meta property="og:type" content="profile" />
+        <meta property="og:title" :content="pageTitle" />
+        <meta property="og:description" :content="pageDescription" />
+      </Head>
+
+      <section class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div id="about-doctor">
+          <AboutDoctor :doctor="doctor" />
+        </div>
+        <div v-if="doctor.working_hours?.length">
+          <WorkingHoursPanel :working_hours="doctor.working_hours" />
+        </div>
+      </section>
+
+      <section id="booking-section" class="scroll-mt-24">
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <span class="text-xs font-bold text-emerald-700">رزرو آنلاین</span>
+            <h2 class="mt-1 text-xl font-black text-slate-900 sm:text-2xl">دریافت نوبت ویزیت</h2>
+            <p class="mt-1 text-sm text-slate-500">مطب و زمان مناسب خود را انتخاب کنید.</p>
+          </div>
+          <span class="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+            نوبت‌دهی مستقیم
+          </span>
+        </div>
+        <BookingSection :doctor="doctor" />
+      </section>
+
+      <section v-if="doctor.address?.length" id="clinic-locations" class="scroll-mt-24">
+        <ClinicLocation :doctor="doctor" />
+      </section>
+
+      <section v-if="doctor.gallery_images?.length" id="doctor-gallery" class="scroll-mt-24">
+        <GallerySection
+          :images="doctor.gallery_images"
+          :categories="doctor.gallery_categories || []"
+        />
+      </section>
+
+      <section id="patient-reviews" class="scroll-mt-24">
+        <div class="mb-4">
+          <span class="text-xs font-bold text-amber-700">تجربه مراجعان</span>
+          <h2 class="mt-1 text-xl font-black text-slate-900 sm:text-2xl">نظرات بیماران</h2>
+        </div>
+        <ReviewsSection
+          :doctor="doctor"
+          :reviews="doctor.reviews || []"
+          :stats="doctor.reviews_stats || reviewStatsFallback"
+        />
+      </section>
+
+      <section v-if="doctor.socials?.length" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="mb-3">
+          <h2 class="text-base font-black text-slate-900">راه‌های ارتباطی</h2>
+          <p class="mt-1 text-xs text-slate-500">شبکه‌های اجتماعی و مسیرهای ارتباط با پزشک</p>
+        </div>
+        <SocialsSection :doctor="doctor" />
+      </section>
+    </main>
+
+    <a
+      href="#booking-section"
+      class="fixed bottom-4 left-4 right-4 z-40 flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3.5 text-sm font-extrabold text-white shadow-xl shadow-emerald-900/20 transition hover:bg-emerald-800 sm:left-auto sm:right-6 sm:w-auto md:hidden"
+    >
+      <span>📅</span>
+      دریافت نوبت آنلاین
+    </a>
+
+    <!-- Trust footer -->
     <Features :plantImg="plantImg" />
   </div>
 </template>
