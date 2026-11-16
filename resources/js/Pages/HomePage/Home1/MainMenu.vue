@@ -118,7 +118,6 @@ function select(id) {
       <!-- Contact -->
       <Link
           :href="route('contact')"
-        href="#contact"
         class="menu__item"
         :class="{ 'is-active': activeItem === 'contact' }"
         @click="select('contact')"
