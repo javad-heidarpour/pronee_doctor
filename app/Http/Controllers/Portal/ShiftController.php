@@ -19,9 +19,6 @@ class ShiftController extends Controller
 {
     use HasActiveDoctor;
 
-    /**
-     * بررسی تعلق مطب به پزشک فعال.
-     */
     private function authorizeClinic(Doctor $doctor, int $clinicId): void
     {
         abort_unless(
@@ -31,9 +28,6 @@ class ShiftController extends Controller
         );
     }
 
-    /**
-     * بررسی مالکیت نوبت.
-     */
     private function authorizeSlot(TimeSlot $slot, int $doctorId): void
     {
         abort_unless(
@@ -43,9 +37,6 @@ class ShiftController extends Controller
         );
     }
 
-    /**
-     * نمایش فهرست نوبت‌ها.
-     */
     public function index(Request $request, ListTimeSlotsAction $action)
     {
         $doctor = $this->currentDoctor();
@@ -56,9 +47,6 @@ class ShiftController extends Controller
         );
     }
 
-    /**
-     * ایجاد نوبت تکی.
-     */
     public function store(Request $request, CreateTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
@@ -81,26 +69,22 @@ class ShiftController extends Controller
 
         if (!$action->handle($doctor, $validated)) {
             return back()->withErrors([
-                'duplicate' => 'این نوبت قبلاً برای این تاریخ و ساعت ایجاد شده است.',
+                'duplicate' => 'این بازه زمانی با یک نوبت دیگر تداخل دارد یا قبلاً ایجاد شده است.',
             ])->withInput();
         }
 
         return back()->with('success', 'نوبت با موفقیت ایجاد شد.');
     }
 
-    /**
-     * ویرایش نوبت.
-     */
     public function update(
         Request $request,
         TimeSlot $slot,
         UpdateTimeSlotAction $action
     ) {
         $doctor = $this->currentDoctor();
-
         $this->authorizeSlot($slot, (int) $doctor->id);
 
-        if ($slot->status === 'booked') {
+        if ($slot->isBooked()) {
             return back()->withErrors([
                 'error' => 'نوبت رزرو شده قابل ویرایش نیست.',
             ]);
@@ -117,29 +101,31 @@ class ShiftController extends Controller
 
         if (!$action->handle($doctor, $slot, $validated)) {
             return back()->withErrors([
-                'duplicate' => 'این نوبت قبلاً وجود دارد.',
+                'duplicate' => 'این بازه زمانی با نوبت دیگری تداخل دارد یا قابل ویرایش نیست.',
             ]);
         }
 
         return back()->with('success', 'نوبت بروزرسانی شد.');
     }
 
-    /**
-     * تغییر وضعیت نوبت.
-     */
     public function toggle(TimeSlot $slot, ToggleTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-
         $this->authorizeSlot($slot, (int) $doctor->id);
 
-        if ($slot->status === 'booked') {
+        if ($slot->isBooked()) {
             return back()->withErrors([
                 'error' => 'نوبت رزرو شده قابل لغو نیست.',
             ]);
         }
 
         $newStatus = $action->handle($slot);
+
+        if ($newStatus === null) {
+            return back()->withErrors([
+                'error' => 'وضعیت نوبت تغییر نکرد؛ ممکن است نوبت رزرو شده یا با بازه دیگری تداخل داشته باشد.',
+            ]);
+        }
 
         $message = $newStatus === 'available'
             ? 'نوبت فعال شد.'
@@ -148,16 +134,12 @@ class ShiftController extends Controller
         return back()->with('success', $message);
     }
 
-    /**
-     * حذف نوبت.
-     */
     public function destroy(TimeSlot $slot, DeleteTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-
         $this->authorizeSlot($slot, (int) $doctor->id);
 
-        if ($slot->status === 'booked') {
+        if ($slot->isBooked()) {
             return back()->withErrors([
                 'error' => 'نوبت رزرو شده قابل حذف نیست.',
             ]);
@@ -168,9 +150,6 @@ class ShiftController extends Controller
         return back()->with('success', 'نوبت حذف شد.');
     }
 
-    /**
-     * تولید گروهی نوبت‌ها بر اساس الگوی ساعات کاری.
-     */
     public function generateSlots(
         Request $request,
         GenerateTimeSlotsAction $action
@@ -209,7 +188,7 @@ class ShiftController extends Controller
         $message = "با موفقیت {$result['generated']} نوبت جدید برای {$validated['weeks_count']} هفته آینده ایجاد شد.";
 
         if ($result['skipped'] > 0) {
-            $message .= " ({$result['skipped']} نوبت تکراری رد شد)";
+            $message .= " ({$result['skipped']} نوبت تکراری یا دارای تداخل رد شد)";
         }
 
         return back()->with('success', $message);
