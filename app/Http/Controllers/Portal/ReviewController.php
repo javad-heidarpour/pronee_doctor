@@ -44,7 +44,9 @@ class ReviewController extends Controller
         Review $review,
         DeletePortalReviewAction $action
     ) {
-        $action->handle($this->currentDoctor(), $review);
+        $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
+        $action->handle($doctor, $review);
 
         return back()->with('success', 'نظر حذف شد.');
     }
