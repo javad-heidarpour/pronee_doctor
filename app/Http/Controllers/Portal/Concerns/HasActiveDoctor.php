@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Portal\Concerns;
 
-use App\Models\Doctor;
+use App\Models\Doctor;\nuse App\Models\Address;
 use Illuminate\Support\Facades\Auth;
 
 trait HasActiveDoctor
@@ -43,4 +43,58 @@ trait HasActiveDoctor
 
         return $doctor;
     }
+    protected function accessibleClinicIds(?Doctor $doctor = null): array
+    {
+        $user = Auth::guard('web')->user();
+        $doctor ??= $this->currentDoctor();
+
+        if (!$user) {
+            return [];
+        }
+
+        if (in_array($user->role, ['admin', 'doctor'], true)) {
+            return $doctor->address()->pluck('addresses.id')
+                ->map(fn ($id) => (int) $id)->all();
+        }
+
+        $assignment = $user->doctors()
+            ->where('doctors.id', $doctor->id)
+            ->first();
+
+        $ids = $assignment?->pivot?->clinic_ids ?? [];
+
+        if (is_string($ids)) {
+            $ids = json_decode($ids, true) ?: [];
+        }
+
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        return $doctor->address()
+            ->whereIn('addresses.id', $ids)
+            ->where('addresses.is_active', true)
+            ->pluck('addresses.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    protected function authorizeClinicAccess(int $clinicId, ?Doctor $doctor = null): void
+    {
+        abort_unless(
+            in_array($clinicId, $this->accessibleClinicIds($doctor), true),
+            403,
+            'شما به این مطب دسترسی ندارید.'
+        );
+    }
+
+    protected function accessibleClinicsQuery(?Doctor $doctor = null)
+    {
+        $doctor ??= $this->currentDoctor();
+
+        return Address::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('id', $this->accessibleClinicIds($doctor));
+    }
+
 }
