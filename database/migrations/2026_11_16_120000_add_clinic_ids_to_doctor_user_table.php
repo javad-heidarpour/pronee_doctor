@@ -15,29 +15,43 @@ return new class extends Migration
             });
         }
 
-        // Preserve existing secretary access by assigning up to two active
-        // addresses belonging to each already-linked doctor.
-        $assignments = DB::table('doctor_user')
-            ->select('id', 'doctor_id')
+        // Preserve existing access while respecting the global maximum of
+        // two clinics per secretary, even when a secretary is linked to
+        // multiple doctors.
+        $assignmentsBySecretary = DB::table('doctor_user')
+            ->select('id', 'user_id', 'doctor_id')
             ->whereNull('clinic_ids')
-            ->get();
+            ->orderBy('user_id')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('user_id');
 
-        foreach ($assignments as $assignment) {
-            $clinicIds = DB::table('addresses')
-                ->where('doctor_id', $assignment->doctor_id)
-                ->where('is_active', true)
-                ->whereNull('deleted_at')
-                ->orderBy('id')
-                ->limit(2)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
+        foreach ($assignmentsBySecretary as $assignments) {
+            $remainingClinicSlots = 2;
 
-            DB::table('doctor_user')
-                ->where('id', $assignment->id)
-                ->update([
-                    'clinic_ids' => json_encode($clinicIds),
-                ]);
+            foreach ($assignments as $assignment) {
+                $clinicIds = [];
+
+                if ($remainingClinicSlots > 0) {
+                    $clinicIds = DB::table('addresses')
+                        ->where('doctor_id', $assignment->doctor_id)
+                        ->where('is_active', true)
+                        ->whereNull('deleted_at')
+                        ->orderBy('id')
+                        ->limit($remainingClinicSlots)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                }
+
+                DB::table('doctor_user')
+                    ->where('id', $assignment->id)
+                    ->update([
+                        'clinic_ids' => json_encode($clinicIds),
+                    ]);
+
+                $remainingClinicSlots -= count($clinicIds);
+            }
         }
     }
 
