@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\Auth\AuthenticatePortalUserAction;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Actions\Portal\Auth\LogoutPortalUserAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\PortalLoginRequest;
@@ -19,9 +20,10 @@ class AuthController extends Controller
     public function login(
         PortalLoginRequest $request,
         AuthenticatePortalUserAction $action,
-        LogoutPortalUserAction $logoutAction
+        LogoutPortalUserAction $logoutAction,
+        RecordSecurityAuditEventAction $audit
     ) {
-        $action->handle($request, $logoutAction);
+        $action->handle($request, $logoutAction, $audit);
 
         return redirect()->intended(route('portal.dashboard'));
     }
