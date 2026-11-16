@@ -16,6 +16,7 @@ use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Throwable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Log;
 
 class AppointmentPaymentController extends Controller
@@ -31,9 +32,12 @@ class AppointmentPaymentController extends Controller
     ): \Symfony\Component\HttpFoundation\Response {
         $appointment = Appointment::query()->findOrFail($visit_number);
 
-        $visitUrl = fn () => redirect()->route('visit.show', [
-            'visit_number' => $appointment->id,
-        ]);
+        // صفحه جزئیات نوبت شامل نام بیمار است؛ لینک آن باید امضاشده و زمان‌دار باشد.
+        $visitUrl = fn () => redirect()->to(URL::temporarySignedRoute(
+            'visit.show',
+            now()->addMinutes(30),
+            ['visit_number' => $appointment->id]
+        ));
 
         try {
             Log::info('PAY METHOD ENTERED', [
