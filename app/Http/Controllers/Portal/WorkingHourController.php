@@ -43,6 +43,7 @@ class WorkingHourController extends Controller
     )
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         $validated = $request->validated();
 
@@ -69,6 +70,7 @@ class WorkingHourController extends Controller
         BuildWorkingHourConflictMessageAction $messageAction
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         $this->authorizeWorkingHour($workingHour, $doctor);
 
