@@ -8,6 +8,7 @@ use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Actions\Payments\FindSepCallbackPaymentAction;
 use App\Actions\Payments\ProcessLocalSepPaymentCallbackAction;
 use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
+use App\Actions\Payments\ValidateSepCallbackTerminalAction;
 use App\Models\Appointment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
@@ -78,6 +79,7 @@ class AppointmentPaymentController extends Controller
         VerifyAndSettleSepPaymentAction $settlementAction,
         CancelFailedAppointmentAction $cancelFailedAppointment,
         FindSepCallbackPaymentAction $lookupAction,
+        ValidateSepCallbackTerminalAction $terminalAction,
         SendAppointmentConfirmationSmsAction $smsAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
@@ -189,14 +191,7 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            $configuredTerminalId = trim(
-                (string) config('services.sep.terminal_id', '')
-            );
-
-            if (
-                $configuredTerminalId === '' ||
-                !hash_equals($configuredTerminalId, $terminalId)
-            ) {
+            if (! $terminalAction->handle($terminalId)) {
                 Log::error('SEP callback terminal mismatch', [
                     'res_num' => $resNum,
                     'callback_terminal' => $terminalId,
