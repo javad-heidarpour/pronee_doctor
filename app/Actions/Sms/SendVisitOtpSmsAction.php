@@ -30,18 +30,23 @@ class SendVisitOtpSmsAction
             ], 422);
         }
 
+        if (!config('services.ghasedak.api_key')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
+            ], 503);
+        }
+
         $clientReferenceId = 'otp-' . $visitNumber;
         $cacheKey = 'otp-sms-lock:' . $visitNumber;
 
-        if (Cache::has($cacheKey)) {
+        if (!Cache::add($cacheKey, true, now()->addMinutes(3))) {
             return response()->json([
                 'success' => false,
                 'message' => 'پیامک قبلاً ارسال شده است. لطفاً ۳ دقیقه صبر کنید.',
                 'visit_number' => $visitNumber,
             ], 429);
         }
-
-        Cache::put($cacheKey, true, now()->addMinutes(3));
 
         try {
             $response = Http::withHeaders([
@@ -65,7 +70,7 @@ class SendVisitOtpSmsAction
                 ]
             );
 
-            if (!$response->successful()) {
+            if (!$response->successful() || $response->json('IsSuccess') === false) {
                 Cache::forget($cacheKey);
 
                 return response()->json([
