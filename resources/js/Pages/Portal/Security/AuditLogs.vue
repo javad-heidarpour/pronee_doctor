@@ -16,6 +16,9 @@ const eventLabels = {
   "managed_user.deleted": "حذف حساب کاربری",
   "managed_user.restored": "بازیابی حساب کاربری",
   "secretary.assignments_updated": "تغییر دسترسی منشی",
+  "auth.login_succeeded": "ورود موفق به پنل",
+  "auth.login_failed": "تلاش ناموفق برای ورود",
+  "auth.logout": "خروج از پنل",
 };
 
 const formatDate = (value) => {
