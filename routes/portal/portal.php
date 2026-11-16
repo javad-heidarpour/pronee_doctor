@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\\Support\\Facades\\Route;
-use App\\Http\\Controllers\\HomeController;
-use App\\Http\\Controllers\\Portal\\AuthController;
-use App\\Http\\Controllers\\Portal\\DashboardController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Portal\AuthController;
+use App\Http\Controllers\Portal\DashboardController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::post('/select-doctor/{doctor}', [
