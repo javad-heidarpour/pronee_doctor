@@ -10,19 +10,21 @@ class ListDoctorReviewsAction
 {
     public function handle(array $filters, Doctor $doctor)
     {
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? null;
+        $rating = $filters['rating'] ?? null;
+
         $reviews = Review::query()
             ->where('doctor_id', $doctor->id)
-            ->when(!empty($filters['search']), function ($query) use ($request) {
-                $search = trim(trim((string) $filters['search']));
-
+            ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('patient_name', 'like', "%{$search}%")
                         ->orWhere('comment', 'like', "%{$search}%");
                 });
             })
-            ->when(($filters['status'] ?? null) === 'approved', fn ($query) => $query->where('is_approved', true))
-            ->when($request->input('status') === 'pending', fn ($query) => $query->where('is_approved', false))
-            ->when(isset($filters['rating']) && $filters['rating'] !== '', fn ($query) => $query->where('rating', (int) $filters['rating']))
+            ->when($status === 'approved', fn ($query) => $query->where('is_approved', true))
+            ->when($status === 'pending', fn ($query) => $query->where('is_approved', false))
+            ->when($rating !== null && $rating !== '', fn ($query) => $query->where('rating', (int) $rating))
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -48,9 +50,9 @@ class ListDoctorReviewsAction
             'reviews' => $reviews,
             'stats' => $stats,
             'filters' => [
-                'search' => $filters['search'] ?? null,
-                'status' => $request->input('status'),
-                'rating' => $filters['rating'] ?? null,
+                'search' => $search,
+                'status' => $status,
+                'rating' => $rating,
             ],
         ]);
     }
