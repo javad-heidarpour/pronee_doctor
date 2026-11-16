@@ -71,94 +71,43 @@ class PatientController extends Controller
     }
 
     /**
-     * دریافت تاریخ‌هایی که در یک مطب زمان آزاد دارند.
+     * دریافت تاریخ‌ها و ساعت‌های آزاد مطب‌های قابل دسترس.
      */
-    public function availableDates(Request $request)
-    {
-        $validated = $request->validate([
-            'clinic_id' => ['required', 'integer', 'exists:addresses,id'],
-        ]);
-
-        $doctor = $this->currentDoctor();
-
-        // اطمینان از اینکه مطب متعلق به پزشک فعال است.
-        $clinicExists = $doctor->address()
-            ->where('addresses.id', $validated['clinic_id'])
-            ->exists();
-
-        abort_unless($clinicExists, 403);
-        $this->authorizeClinicAccess((int) $validated['clinic_id'], $doctor);
-
-        $dates = TimeSlot::query()
-            ->where('doctor_id', $doctor->id)
-            ->where('clinic_id', $validated['clinic_id'])
-            ->where('status', 'available')
-            ->whereDate('date', '>=', now()->toDateString())
-            ->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('appointments')
-                    ->whereColumn('appointments.time_slot_id', 'time_slots.id')
-                    ->whereNotIn('appointments.status', ['cancelled']);
-            })
-            ->distinct()
-            ->orderBy('date')
-            ->pluck('date')
-            ->map(fn($date) => (string) $date)
-            ->values();
-
-        return response()->json([
-            'success' => true,
-            'dates' => $dates,
-        ]);
-    }
-
-
-    /**
-     * دریافت ساعت‌های آزاد یک مطب در یک تاریخ مشخص.
-     */
-
-    public function availableSlots(Request $request)
+    public function availableDates(Request $request, ListAvailableDatesAction $action)
     {
         $validated = $request->validate([
             'clinic_id' => ['required', 'integer'],
         ]);
 
         $doctor = $this->currentDoctor();
+        $clinicId = (int) $validated['clinic_id'];
+        $this->authorizeClinicAccess($clinicId, $doctor);
 
-        // بررسی تعلق مطب به پزشک فعال
-        $clinicExists = $doctor->address()
-            ->where('addresses.id', $validated['clinic_id'])
-            ->exists();
+        return response()->json([
+            'success' => true,
+            'dates' => $action->handle($doctor, $clinicId),
+        ]);
+    }
 
-        if (!$clinicExists || !in_array((int) $validated['clinic_id'], $this->accessibleClinicIds($doctor), true)) {
+    public function availableSlots(
+        Request $request,
+        ListAvailableSlotsAction $action
+    ) {
+        $validated = $request->validate([
+            'clinic_id' => ['required', 'integer'],
+        ]);
+
+        $doctor = $this->currentDoctor();
+        $clinicId = (int) $validated['clinic_id'];
+        $this->authorizeClinicAccess($clinicId, $doctor);
+
+        $slots = $action->handle($doctor, $clinicId);
+
+        if ($slots === null) {
             return response()->json([
-                'message' => 'کلینیک انتخاب‌شده معتبر نیست.',
+                'message' => 'مطب انتخاب‌شده معتبر نیست.',
             ], 422);
         }
-
-        $slots = TimeSlot::query()
-            ->where('doctor_id', $doctor->id)
-            ->where('clinic_id', $validated['clinic_id'])
-            ->where('status', 'available')
-            ->whereDate('date', '>=', now()->toDateString())
-            ->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('appointments')
-                    ->whereColumn(
-                        'appointments.time_slot_id',
-                        'time_slots.id'
-                    )
-                    ->whereNotIn('appointments.status', ['cancelled']);
-            })
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get([
-                'id',
-                'clinic_id',
-                'date',
-                'start_time',
-                'end_time',
-            ]);
 
         return response()->json([
             'success' => true,
