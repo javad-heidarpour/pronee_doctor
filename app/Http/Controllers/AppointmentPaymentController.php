@@ -274,7 +274,7 @@ class AppointmentPaymentController extends Controller
             // ارسال پیامک فقط پس از تأیید موفق پرداخت
             if (!$alreadyPaid) {
                 try {
-                    $smsResponse = $smsAction->handle((int) $appointment->id);
+                    $smsAction->handle((int) $appointment->id);
 
                     Log::info('APPOINTMENT CONFIRMATION SMS TRIGGERED', [
                         'appointment_id' => $appointment->id,
