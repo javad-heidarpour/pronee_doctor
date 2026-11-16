@@ -142,6 +142,7 @@ class BookAppointmentAction
                     ->first();
 
                 $feeRial = (int) ($fee?->fee_rial ?? 5000000);
+                // اجازه ارسال پیامک فقط در همان نشست رزروکننده و به‌مدت ۳۰ دقیقه معتبر است.
                 $appointment = Appointment::create([
 
                     'doctor_id' => $timeSlot->doctor_id,
@@ -170,6 +171,8 @@ class BookAppointmentAction
                 $timeSlot->update([
                     'status' => 'booked',
                 ]);
+
+                session()->put('sms.visit.allowed.' . $appointment->id, now()->addMinutes(30)->timestamp);
 
 
 
