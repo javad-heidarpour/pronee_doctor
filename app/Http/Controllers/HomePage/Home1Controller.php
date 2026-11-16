@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Actions\Home\BuildPublicWorkingHoursAction;
 use App\Actions\Home\BuildPublicDoctorReviewsPageAction;
 use App\Actions\Home\BuildPublicDoctorGalleryPageAction;
+use App\Actions\Home\ListPublicMedicalServicesAction;
+use App\Actions\Home\ListPublicSurgicalProceduresAction;
 use Morilog\Jalali\Jalalian;
 use Inertia\Inertia;
 use App\Models\Doctor;
 use App\Models\Appointment;
 use App\Models\VisitReason;
-use App\Models\MedicalService;
-use App\Models\SurgicalProcedure;
 
 class Home1Controller extends Controller
 {
@@ -111,30 +111,25 @@ class Home1Controller extends Controller
     }
 
 
-    public function Surgeries(string $slug)
-    {
+    public function Surgeries(
+        string $slug,
+        ListPublicSurgicalProceduresAction $action
+    ) {
         $doctor = $this->findDoctor($slug);
-        $procedures = SurgicalProcedure::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderByDesc('id')
-            ->get();
-        // dd(   $doctor);
+        $procedures = $action->handle();
 
         return Inertia::render('HomePage/Home1/Surgeries', [
             'doctor' => $doctor,
             'procedures' => $procedures,
         ]);
     }
-    public function services(string $slug)
-    {
-        $doctor = $this->findDoctor($slug);
 
-        $services = MedicalService::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderByDesc('id')
-            ->get();
+    public function services(
+        string $slug,
+        ListPublicMedicalServicesAction $action
+    ) {
+        $doctor = $this->findDoctor($slug);
+        $services = $action->handle();
 
         return Inertia::render('HomePage/Home1/Services', [
             'doctor' => $doctor,
