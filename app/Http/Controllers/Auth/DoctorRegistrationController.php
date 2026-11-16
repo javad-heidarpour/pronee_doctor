@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\SendDoctorRegistrationOtpRequest;
+use App\Http\Requests\Auth\StoreDoctorRegistrationRequest;
+use App\Http\Requests\Auth\VerifyDoctorRegistrationOtpRequest;
 use App\Models\City;
 use App\Models\Doctor;
 use App\Models\Specialty;
@@ -14,7 +17,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Throwable;
 
@@ -137,41 +139,8 @@ class DoctorRegistrationController extends Controller
     /**
      * ثبت نهایی پزشک و ایجاد سایت
      */
-    public function store(Request $request)
+    public function store(StoreDoctorRegistrationRequest $request)
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'family' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'regex:/^09\d{9}$/'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
-            'medical_system_number' => ['nullable', 'integer', 'min:1'],
-            'specialty_id' => [
-                'required',
-                Rule::exists('specialties', 'id')
-                    ->where('is_active', 1),
-            ],
-            'city_id' => [
-                'required',
-                Rule::exists('cities', 'id')
-                    ->where('is_active', 1),
-            ],
-            'slug' => [
-                'required',
-                'string',
-                'max:255',
-                'alpha_dash',
-                'unique:doctors,slug',
-            ],
-            'registration_token' => ['required', 'string'],
-        ], [
-            'name.required' => 'نام پزشک الزامی است.',
-            'family.required' => 'نام خانوادگی الزامی است.',
-            'email.unique' => 'این ایمیل قبلاً ثبت شده است.',
-            'specialty_id.required' => 'تخصص را انتخاب کنید.',
-            'city_id.required' => 'شهر را انتخاب کنید.',
-            'slug.unique' => 'این آدرس سایت قبلاً استفاده شده است.',
-        ]);
-
         $phone = $this->normalizePhone($request->phone);
 
         // اعتبارسنجی توکن و تطبیق آن با شماره تأییدشده
