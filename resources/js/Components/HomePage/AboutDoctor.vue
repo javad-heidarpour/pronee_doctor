@@ -15,10 +15,17 @@
           <!-- Doctor Image -->
           <div class="relative shrink-0">
             <img
-              :src="doctor.photo"
-              alt="دکتر فرهاد وفایی"
+              v-if="doctorPhoto"
+              :src="doctorPhoto"
+              :alt="doctorFullName"
               class="w-[68px] h-[68px] sm:w-[76px] sm:h-[76px] rounded-2xl object-cover object-top border-2 border-white shadow-md"
             />
+            <div
+              v-else
+              class="flex h-[68px] w-[68px] items-center justify-center rounded-2xl border-2 border-white bg-emerald-50 text-2xl font-black text-emerald-700 shadow-md sm:h-[76px] sm:w-[76px]"
+            >
+              {{ doctorInitials }}
+            </div>
 
             <!-- Online / Verified indicator -->
             <span
@@ -110,12 +117,35 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
 import SpecialtySection from "@/Components/HomePage/SpecialtySection.vue";
 
-defineProps({
+const props = defineProps({
   doctor: {
     type: Object,
     required: true,
   },
 });
+
+const doctorPhoto = computed(() => {
+  const photo = props.doctor.photo;
+  if (!photo) return null;
+  if (/^https?:\\/\\//i.test(photo)) return photo;
+  if (photo.startsWith("/")) return photo;
+  if (photo.startsWith("storage/")) return `/${photo}`;
+  return `/storage/${photo}`;
+});
+
+const doctorFullName = computed(() =>
+  [props.doctor.caption, props.doctor.name, props.doctor.family]
+    .filter(Boolean)
+    .join(" ")
+);
+
+const doctorInitials = computed(() =>
+  [props.doctor.name, props.doctor.family]
+    .filter(Boolean)
+    .map((part) => part.trim().charAt(0))
+    .join("") || "پ"
+);
 </script>
