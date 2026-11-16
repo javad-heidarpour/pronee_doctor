@@ -18,6 +18,7 @@ use App\Models\Appointment;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 
