@@ -1,26 +1,31 @@
 <?php
 
-namespace App\Http\Controllers\Portal;
+namespace App\\Http\\Controllers\\Portal;
 
-use App\Actions\Portal\Appointment\CreatePortalAppointmentAction;
-use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
-use App\Http\Controllers\Controller;
-use App\Http\Requests\Portal\AvailableSlotsRequest;
-use App\Http\Requests\Portal\StorePortalAppointmentRequest;
-use Illuminate\Support\Facades\Auth;
+use App\\Actions\\Portal\\Appointment\\CreatePortalAppointmentAction;
+use App\\Actions\\Portal\\Appointment\\ListAvailableSlotsAction;
+use App\\Http\\Controllers\\Controller;
+use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
+use App\\Http\\Requests\\Portal\\AvailableSlotsRequest;
+use App\\Http\\Requests\\Portal\\StorePortalAppointmentRequest;
 
 class AppointmentController extends Controller
 {
+    use HasActiveDoctor;
+
     /**
      * دریافت تمام ساعت‌های آزاد آینده یک مطب
      */
-    public function availableSlots(AvailableSlotsRequest $request, ListAvailableSlotsAction $action)
-    {
-        $doctor = Auth::guard('web')->user()->doctorProfile;
+    public function availableSlots(
+        AvailableSlotsRequest $request,
+        ListAvailableSlotsAction $action
+    ) {
+        $doctor = $this->currentDoctor();
 
-        abort_unless($doctor, 401);
-
-        $slots = $action->handle($doctor, $request->validated()['clinic_id']);
+        $slots = $action->handle(
+            $doctor,
+            $request->validated()['clinic_id']
+        );
 
         if ($slots === null) {
             return response()->json([
@@ -35,15 +40,18 @@ class AppointmentController extends Controller
     }
 
     /**
-     * ثبت نوبت توسط منشی، بدون درگاه پرداخت
+     * ثبت نوبت توسط پزشک یا منشی، بدون درگاه پرداخت
      */
-    public function store(StorePortalAppointmentRequest $request, CreatePortalAppointmentAction $action)
-    {
-        $doctor = Auth::guard('web')->user()->doctorProfile;
+    public function store(
+        StorePortalAppointmentRequest $request,
+        CreatePortalAppointmentAction $action
+    ) {
+        $doctor = $this->currentDoctor();
 
-        abort_unless($doctor, 401);
-
-        $appointment = $action->handle($doctor, $request->validated());
+        $appointment = $action->handle(
+            $doctor,
+            $request->validated()
+        );
 
         return response()->json([
             'success' => true,
