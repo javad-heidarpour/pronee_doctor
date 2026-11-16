@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('status', 30)->default('pending');
             $table->string('provider', 60)->nullable();
             $table->string('provider_message_id')->nullable();
+            $table->string('deduplication_key')->nullable()->unique();
             $table->text('error_message')->nullable();
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
