@@ -4,26 +4,25 @@ namespace App\Actions\Portal\DoctorReviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ListDoctorReviewsAction
 {
-    public function handle(Request $request, Doctor $doctor)
+    public function handle(array $filters, Doctor $doctor)
     {
         $reviews = Review::query()
             ->where('doctor_id', $doctor->id)
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = trim($request->string('search')->toString());
+            ->when(!empty($filters['search']), function ($query) use ($request) {
+                $search = trim(trim((string) $filters['search']));
 
                 $query->where(function ($q) use ($search) {
                     $q->where('patient_name', 'like', "%{$search}%")
                         ->orWhere('comment', 'like', "%{$search}%");
                 });
             })
-            ->when($request->input('status') === 'approved', fn ($query) => $query->where('is_approved', true))
+            ->when(($filters['status'] ?? null) === 'approved', fn ($query) => $query->where('is_approved', true))
             ->when($request->input('status') === 'pending', fn ($query) => $query->where('is_approved', false))
-            ->when($request->filled('rating'), fn ($query) => $query->where('rating', $request->integer('rating')))
+            ->when(isset($filters['rating']) && $filters['rating'] !== '', fn ($query) => $query->where('rating', (int) $filters['rating']))
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -49,9 +48,9 @@ class ListDoctorReviewsAction
             'reviews' => $reviews,
             'stats' => $stats,
             'filters' => [
-                'search' => $request->input('search'),
+                'search' => $filters['search'] ?? null,
                 'status' => $request->input('status'),
-                'rating' => $request->input('rating'),
+                'rating' => $filters['rating'] ?? null,
             ],
         ]);
     }
