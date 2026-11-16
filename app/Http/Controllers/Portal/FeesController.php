@@ -27,6 +27,9 @@ class FeesController extends Controller
         UpdateFeeRequest $request,
         UpdateFeeAction $action
     ): RedirectResponse {
+        // حتی عملیات تغییر تعرفه نیز باید در زمینه پزشک فعال انجام شود.
+        $this->currentDoctor();
+
         $user = Auth::guard('web')->user();
 
         abort_unless($user, 401);
