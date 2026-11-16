@@ -21,7 +21,7 @@ class RegisterDoctorAction
         // توکن ثبت‌نام فقط یک بار و در یک درخواست هم‌زمان قابل استفاده است.
         $registrationLock = Cache::lock(
             'doctor-registration-consume:' . hash('sha256', $registrationToken),
-            30
+            120
         );
 
         if (!$registrationLock->get()) {
@@ -41,54 +41,54 @@ class RegisterDoctorAction
             }
 
             $doctor = DB::transaction(function () use ($data, $phone, $temporaryPassword) {
-            $user = new User();
+                $user = new User();
 
-            $user->forceFill([
-                'name' => $data['name'],
-                'family' => $data['family'],
-                'username' => $phone,
-                'email' => $data['email'] ?? null,
-                'phone' => $phone,
-                'password' => Hash::make($temporaryPassword),
-                'role' => 'doctor',
-                'is_active' => 1,
-                'phone_verified_at' => now(),
-            ]);
+                $user->forceFill([
+                    'name' => $data['name'],
+                    'family' => $data['family'],
+                    'username' => $phone,
+                    'email' => $data['email'] ?? null,
+                    'phone' => $phone,
+                    'password' => Hash::make($temporaryPassword),
+                    'role' => 'doctor',
+                    'is_active' => 1,
+                    'phone_verified_at' => now(),
+                ]);
 
-            $user->save();
+                $user->save();
 
-            $doctor = new Doctor();
+                $doctor = new Doctor();
 
-            $doctor->forceFill([
-                'user_id' => $user->id,
-                'city_id' => $data['city_id'],
-                'specialty_id' => $data['specialty_id'],
-                'name' => $data['name'],
-                'family' => $data['family'],
-                'slug' => $data['slug'],
-                'email' => $data['email'] ?? null,
-                'phone' => $phone,
-                'Medical_system_number' => $data['medical_system_number'] ?? null,
-                'role' => 'doctor',
-                'is_active' => 1,
-                'registration_status' => 'approved',
-                'approved_at' => now(),
-                'trial_started_at' => now(),
-                'site_expires_at' => now()->addDays(7),
-            ]);
+                $doctor->forceFill([
+                    'user_id' => $user->id,
+                    'city_id' => $data['city_id'],
+                    'specialty_id' => $data['specialty_id'],
+                    'name' => $data['name'],
+                    'family' => $data['family'],
+                    'slug' => $data['slug'],
+                    'email' => $data['email'] ?? null,
+                    'phone' => $phone,
+                    'Medical_system_number' => $data['medical_system_number'] ?? null,
+                    'role' => 'doctor',
+                    'is_active' => 1,
+                    'registration_status' => 'approved',
+                    'approved_at' => now(),
+                    'trial_started_at' => now(),
+                    'site_expires_at' => now()->addDays(7),
+                ]);
 
-            $doctor->save();
+                $doctor->save();
 
-            DB::table('doctor_user')->insert([
-                'doctor_id' => $doctor->id,
-                'user_id' => $user->id,
-                'permissions' => json_encode([]),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+                DB::table('doctor_user')->insert([
+                    'doctor_id' => $doctor->id,
+                    'user_id' => $user->id,
+                    'permissions' => json_encode([]),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-            return $doctor;
-            });
+                return $doctor;
+                });
 
             Cache::forget($tokenKey);
 
