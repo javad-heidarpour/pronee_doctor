@@ -4,6 +4,7 @@
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-bold text-gray-900">مدیریت مطب‌ها</h2>
       <button
+        v-if="!isSecretary"
         @click="openModal()"
         class="bg-gradient-to-l from-teal-500 to-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
       >
@@ -115,7 +116,8 @@
 
 <script setup>
 import { ref } from "vue";
-import { router } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 import FormField from "@/Components/Portal/FormField.vue";
 
@@ -128,6 +130,9 @@ const props = defineProps({
   cities: Array,
   
 });
+
+const page = usePage();
+const isSecretary = computed(() => page.props.auth?.user?.role === "secretary");
 
 const showModal = ref(false);
 const editingClinic = ref(null);
