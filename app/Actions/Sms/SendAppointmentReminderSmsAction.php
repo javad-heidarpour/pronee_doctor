@@ -90,7 +90,7 @@ class SendAppointmentReminderSmsAction
                 ]
             );
 
-            if (!$response->successful()) {
+            if (!$response->successful() || $response->json('IsSuccess') === false) {
                 $smsLog->update([
                     'status' => 'failed',
                     'error_message' => 'provider_rejected_request',
