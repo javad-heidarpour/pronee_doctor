@@ -12,9 +12,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
 use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
+use App\Http\Requests\Portal\ListTimeSlotsRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
-use Illuminate\Http\Request;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Inertia\Inertia;
@@ -25,13 +25,13 @@ class ShiftController extends Controller
     use AuthorizesPortalSchedules;
 
 
-    public function index(Request $request, ListTimeSlotsAction $action)
+    public function index(ListTimeSlotsRequest $request, ListTimeSlotsAction $action)
     {
         $doctor = $this->currentDoctor();
 
         return Inertia::render(
             'Portal/Shifts/Index',
-            $action->handle($doctor, $request, $this->accessibleClinicIds($doctor))
+            $action->handle($doctor, $request->validated(), $this->accessibleClinicIds($doctor))
         );
     }
 
