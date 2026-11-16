@@ -7,7 +7,7 @@ use App\Actions\Payments\VerifyAndSettleSepPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
-use App\Http\Controllers\SmsController;
+use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -93,7 +93,8 @@ class AppointmentPaymentController extends Controller
         Request $request,
         SepPaymentService $sep,
         CancelFailedAppointmentAction $cancelFailedAppointment,
-        VerifyAndSettleSepPaymentAction $settlementAction
+        VerifyAndSettleSepPaymentAction $settlementAction,
+        SendAppointmentConfirmationSmsAction $smsAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
         $refNum = trim((string) $request->input('RefNum', ''));
@@ -374,8 +375,7 @@ class AppointmentPaymentController extends Controller
             // ارسال پیامک فقط پس از تأیید موفق پرداخت
             if (!$alreadyPaid) {
                 try {
-                    $smsResponse = app(SmsController::class)
-                        ->AppointmentConfirmationSMS((int) $appointment->id);
+                    $smsResponse = $smsAction->handle((int) $appointment->id);
 
                     Log::info('APPOINTMENT CONFIRMATION SMS TRIGGERED', [
                         'appointment_id' => $appointment->id,
