@@ -53,8 +53,6 @@ class BuildDashboardAction
             ->whereIn('clinic_id', $clinicIds);
 
         $todayAppointmentsQuery = (clone $appointmentsQuery)
-            ->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)
             ->whereDate('appointment_date', $today);
 
         $todayAppointments = (clone $todayAppointmentsQuery)
