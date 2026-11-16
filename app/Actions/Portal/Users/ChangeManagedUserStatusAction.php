@@ -24,7 +24,7 @@ class ChangeManagedUserStatusAction
 
             $updated = $lockedUser->refresh();
 
-            $audit?->handle('managed_user.status_changed', $updated, [
+            $audit->handle('managed_user.status_changed', $updated, [
                 'role' => $updated->role,
                 'is_active' => (bool) $updated->is_active,
             ]);
