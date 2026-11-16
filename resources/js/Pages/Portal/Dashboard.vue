@@ -281,7 +281,7 @@
 
 <script setup>
 import { computed } from "vue";
-import { usePage } from "@inertiajs/vue3";
+import { usePage, Link } from "@inertiajs/vue3";
 
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 import StatCard from "@/Components/Portal/StatCard.vue";
