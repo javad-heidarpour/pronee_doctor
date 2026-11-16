@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
 use App\Models\TimeSlot;
@@ -228,7 +229,8 @@ class AppointmentPaymentController extends Controller
 
     public function callback(
         Request $request,
-        SepPaymentService $sep
+        SepPaymentService $sep,
+        CancelFailedAppointmentAction $cancelFailedAppointment
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
         $refNum = trim((string) $request->input('RefNum', ''));
@@ -531,7 +533,7 @@ class AppointmentPaymentController extends Controller
                     'result_message' => $resultMessage,
                 ]);
 
-                $this->cancelFailedAppointment($payment);
+                $cancelFailedAppointment->handle($payment);
 
                 return $visitRedirect($appointment->id)->withErrors([
                     'payment' => 'پرداخت توسط درگاه تأیید نشد و رزرو لغو شد. در صورت کسر وجه، پیگیری بانکی انجام می‌شود.',
@@ -697,68 +699,4 @@ class AppointmentPaymentController extends Controller
             ]);
         }
     }
-
-
-    private function cancelFailedAppointment(
-        AppointmentPayment $payment
-    ): void {
-        DB::transaction(function () use ($payment) {
-            $lockedPayment = AppointmentPayment::query()
-                ->whereKey($payment->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            if ($lockedPayment->status === 'paid') {
-                return;
-            }
-
-            $appointment = Appointment::query()
-                ->whereKey($lockedPayment->appointment_id)
-                ->lockForUpdate()
-                ->first();
-
-            $lockedPayment->update([
-                'status' => 'failed',
-            ]);
-
-            if (!$appointment) {
-                return;
-            }
-
-            $appointment->status = 'cancelled';
-            $appointment->reservation_expires_at = null;
-
-            if (
-                \Illuminate\Support\Facades\Schema::hasColumn(
-                    'appointments',
-                    'payment_status'
-                )
-            ) {
-                $appointment->payment_status = 'failed';
-            }
-
-            $appointment->save();
-
-            $timeSlot = TimeSlot::query()
-                ->whereKey($appointment->time_slot_id)
-                ->lockForUpdate()
-                ->first();
-
-            if (!$timeSlot || $timeSlot->status !== 'booked') {
-                return;
-            }
-
-            $hasOtherActiveAppointment = Appointment::query()
-                ->where('time_slot_id', $timeSlot->id)
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->exists();
-
-            if (!$hasOtherActiveAppointment) {
-                $timeSlot->status = 'available';
-                $timeSlot->save();
-            }
-        });
-    }
-
-
 }
