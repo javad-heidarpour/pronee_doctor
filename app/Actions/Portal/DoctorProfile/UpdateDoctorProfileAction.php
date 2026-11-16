@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Actions\\Portal\\DoctorProfile;
+namespace App\Actions\Portal\DoctorProfile;
 
-use App\\Models\\Doctor;
-use Illuminate\\Http\\UploadedFile;
-use Illuminate\\Support\\Facades\\Storage;
-use Illuminate\\Support\\Str;
+use App\Models\Doctor;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class UpdateDoctorProfileAction
 {
