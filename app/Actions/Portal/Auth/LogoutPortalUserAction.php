@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\Auth;
 
 class LogoutPortalUserAction
 {
-    public function handle(Request $request, RecordSecurityAuditEventAction $audit): void
+    public function handle(\n        Request $request,\n        RecordSecurityAuditEventAction $audit,\n        string $event = 'auth.logout'\n    ): void
     {
         $user = Auth::guard('web')->user();
 
         if ($user) {
-            $audit->handle('auth.logout', $user, [
+            $audit->handle($event, $user, [
                 'role' => $user->role,
                 'is_active' => (bool) $user->is_active,
             ]);
