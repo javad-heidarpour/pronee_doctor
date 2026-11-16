@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Payments\InitiateAppointmentPaymentAction;
+use App\Actions\Payments\VerifyAndSettleSepPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
@@ -300,201 +301,28 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | 4. اگر قبلاً پرداخت تأیید شده است، دوباره پردازش نکن
-            |--------------------------------------------------------------------------
-            */
-            if ($payment->status === 'paid') {
-                return $visitRedirect($appointment->id)->with(
-                    'payment_result',
-                    [
-                        'status' => 'success',
-                        'message' => 'این پرداخت قبلاً ثبت شده است.',
-                    ]
-                );
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | 5. ثبت اطلاعات اولیه callback
-            |--------------------------------------------------------------------------
-            */
-            $payment->update([
-                'ref_num' => $refNum,
-                'terminal_id' => $terminalId,
-                'gateway_result_message' =>
-                    'در انتظار تأیید تراکنش از سامان‌کیش.',
-            ]);
-
-            /*
-            |--------------------------------------------------------------------------
-            | 6. استعلام تراکنش از SEP
-            |--------------------------------------------------------------------------
-            */
-            $verifyResponse = $sep->verifyTransaction($refNum);
-
-            if (
-                !is_array($verifyResponse) ||
-                !array_key_exists('ResultCode', $verifyResponse)
-            ) {
-                Log::error('SEP invalid verification response', [
-                    'payment_id' => $payment->id,
-                    'ref_num' => $refNum,
-                ]);
-
-                throw new \RuntimeException(
-                    'پاسخ استعلام سامان‌کیش معتبر نیست.'
-                );
-            }
-
-            $resultCode = $verifyResponse['ResultCode'];
-
-            $resultMessage = (string) (
-                $verifyResponse['ResultDescription']
-                ?? $verifyResponse['ResultMessage']
-                ?? $verifyResponse['Message']
-                ?? ''
+            $settlement = app(VerifyAndSettleSepPaymentAction::class)->handle(
+                $payment,
+                $appointment,
+                $refNum,
+                $terminalId,
+                $sep,
+                $cancelFailedAppointment
             );
 
-            $detail = $verifyResponse['TransactionDetail'] ?? [];
-
-            Log::info('SEP VERIFY RESPONSE', [
-                'payment_id' => $payment->id,
-                'ref_num' => $refNum,
-                'result_code' => $resultCode,
-                'result_message' => $resultMessage,
-                'response_keys' => array_keys($verifyResponse),
-                'detail_keys' => is_array($detail)
-                    ? array_keys($detail)
-                    : [],
-                'original_amount' => is_array($detail)
-                    ? ($detail['OrginalAmount'] ?? null)
-                    : null,
-                'affective_amount' => is_array($detail)
-                    ? ($detail['AffectiveAmount'] ?? null)
-                    : null,
-            ]);
-
-            $payment->update([
-                'gateway_result_code' => is_numeric($resultCode)
-                    ? (string) $resultCode
-                    : null,
-                'gateway_result_message' => $resultMessage !== ''
-                    ? $resultMessage
-                    : 'پاسخ استعلام از درگاه دریافت شد.',
-            ]);
-
-            /*
-            |--------------------------------------------------------------------------
-            | 7. نتیجه استعلام باید موفق باشد
-            |--------------------------------------------------------------------------
-            */
-            if (!is_numeric($resultCode) || (int) $resultCode !== 0) {
-                // فقط اگر نتیجه درگاه به‌طور قطعی ناموفق است:
-                Log::warning('SEP verification unsuccessful', [
-                    'payment_id' => $payment->id,
-                    'ref_num' => $refNum,
-                    'result_code' => $resultCode,
-                    'result_message' => $resultMessage,
-                ]);
-
-                $cancelFailedAppointment->handle($payment);
-
+            if ($settlement['status'] === 'failed') {
                 return $visitRedirect($appointment->id)->withErrors([
                     'payment' => 'پرداخت توسط درگاه تأیید نشد و رزرو لغو شد. در صورت کسر وجه، پیگیری بانکی انجام می‌شود.',
                 ]);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | 8. دریافت و تطبیق مبلغ تراکنش
-            |--------------------------------------------------------------------------
-            */
-            $verifiedAmount = is_array($detail)
-                ? ($detail['OrginalAmount'] ?? null)
-                : null;
-
-            if (
-                !is_numeric($verifiedAmount) ||
-                (int) $verifiedAmount !== (int) $payment->amount_rial
-            ) {
-                Log::error('SEP transaction amount mismatch', [
-                    'payment_id' => $payment->id,
-                    'ref_num' => $refNum,
-                    'expected_amount' => $payment->amount_rial,
-                    'verified_amount' => $verifiedAmount,
-                    'detail_keys' => is_array($detail)
-                        ? array_keys($detail)
-                        : [],
-                ]);
-
-                $payment->update([
-                    'gateway_result_message' =>
-                        'مبلغ تراکنش تأییدشده با مبلغ رکورد پرداخت مطابقت ندارد؛ بررسی دستی لازم است.',
-                ]);
-
+            if ($settlement['status'] === 'amount_mismatch') {
                 return $visitRedirect($appointment->id)->withErrors([
-                    'payment' =>
-                        'مبلغ تراکنش نیازمند بررسی است. لطفاً دوباره پرداخت نکنید.',
+                    'payment' => 'مبلغ تراکنش نیازمند بررسی است. لطفاً دوباره پرداخت نکنید.',
                 ]);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | 9. ثبت اتمیک پرداخت موفق
-            |--------------------------------------------------------------------------
-            */
-            $alreadyPaid = DB::transaction(function () use ($payment, $appointment, $refNum, $terminalId, $resultCode, $resultMessage) {
-                $lockedPayment = AppointmentPayment::query()
-                    ->whereKey($payment->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                $lockedAppointment = Appointment::query()
-                    ->whereKey($appointment->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if ($lockedPayment->status === 'paid') {
-                    return true;
-                }
-
-                $lockedPayment->update([
-                    'status' => 'paid',
-                    'ref_num' => $refNum,
-                    'terminal_id' => $terminalId,
-                    'gateway_result_code' => (string) $resultCode,
-                    'gateway_result_message' => $resultMessage !== ''
-                        ? $resultMessage
-                        : 'تراکنش توسط سامان‌کیش تأیید شد.',
-                    'paid_at' => now(),
-                    'gateway_verified_at' => now(),
-                ]);
-
-                if (
-                    \Illuminate\Support\Facades\Schema::hasColumn(
-                        'appointments',
-                        'payment_status'
-                    )
-                ) {
-                    $lockedAppointment->payment_status = 'paid';
-                }
-
-                // پرداخت تأییدشده باید نوبت را نیز قطعی کند.
-                $lockedAppointment->status = 'confirmed';
-                $lockedAppointment->reservation_expires_at = null;
-                $lockedAppointment->save();
-
-                return false;
-            });
-
-            Log::info('SEP PAYMENT visited', [
-                'payment_id' => $payment->id,
-                'appointment_id' => $appointment->id,
-                'ref_num' => $refNum,
-                'already_paid' => $alreadyPaid,
-            ]);
+            $alreadyPaid = $settlement['status'] === 'already_paid';
 
             // ارسال پیامک فقط پس از تأیید موفق پرداخت
             if (!$alreadyPaid) {
