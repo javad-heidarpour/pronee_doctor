@@ -12,7 +12,7 @@ class RestoreOrDeleteManagedUserAction
      *
      * @return bool True when restored, false when deleted.
      */
-    public function handle(User $user): bool
+    public function handle(\n        User $user,\n        ?RecordSecurityAuditEventAction $audit = null\n    ): bool
     {
         return DB::transaction(function () use ($user) {
             $lockedUser = User::withTrashed()
