@@ -59,74 +59,20 @@ class Home1Controller extends Controller
         ]);
     }
 
-    public function Reviews(string $slug)
-    {
-
+    public function Reviews(
+        string $slug,
+        BuildPublicDoctorReviewsPageAction $action
+    ) {
         $doctor = $this->findDoctor($slug);
-        // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
-
-        /*
-        |--------------------------------------------------------------------------
-        | Reviews
-        |--------------------------------------------------------------------------
-        */
-
-        $reviews = $doctor->approvedReviews()
-            ->with('doctor')
-            ->latest()
-            ->take(10)
-            ->get()
-            ->map(function ($review) {
-
-                return [
-                    'id' => $review->id,
-                    'doctor_reply' => $review->doctor_reply,
-                    'patient_name' => $review->patient_display_name,
-
-                    'doctor_name' => trim(
-                        $review->doctor->caption . ' ' .
-                        $review->doctor->name .
-                        $review->doctor->family
-                    ),
-
-                    'rating' => (int) $review->rating,
-                    'comment' => $review->comment,
-                    'is_anonymous' => $review->is_anonymous,
-
-                    'persian_date' => Jalalian::fromDateTime(
-                        $review->created_at
-                    )->format('%d %B %Y'),
-                ];
-            });
-        // dd( $reviews);
-        $approvedReviews = $doctor->approvedReviews();
-
-        $reviewsStats = [
-
-            'average' => round(
-                $approvedReviews->avg('rating') ?? 0,
-                1
-            ),
-
-            'count' => $approvedReviews->count(),
-
-            'distribution' => [
-                5 => $doctor->approvedReviews()->where('rating', 5)->count(),
-                4 => $doctor->approvedReviews()->where('rating', 4)->count(),
-                3 => $doctor->approvedReviews()->where('rating', 3)->count(),
-                2 => $doctor->approvedReviews()->where('rating', 2)->count(),
-                1 => $doctor->approvedReviews()->where('rating', 1)->count(),
-            ],
-        ];
-        // dd( $reviewsStats);
+        $reviewsPage = $action->handle($doctor);
 
         return Inertia::render('HomePage/Home1/Reviews', [
             'doctor' => $doctor,
-            'Reviews' => $reviews,
-            'reviewsStats' => $reviewsStats,
-
+            'Reviews' => $reviewsPage['Reviews'],
+            'reviewsStats' => $reviewsPage['reviewsStats'],
         ]);
     }
+
     public function tips(string $slug)
     {
         $doctor = $this->findDoctor($slug);
