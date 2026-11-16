@@ -158,14 +158,14 @@ class PatientController extends Controller
     ) {
         $this->authorizeAppointment($appointment);
 
-        if (in_array($appointment->status, ['cancelled', 'canceled'], true)) {
+        $updated = $action->handle($appointment, $request->validated());
+
+        if (!$updated) {
             return back()->with(
                 'error',
                 'امکان ثبت یا ویرایش اطلاعات نوبت لغوشده وجود ندارد.'
             );
         }
-
-        $action->handle($appointment, $request->validated());
 
         return back()->with('success', 'اطلاعات نوبت با موفقیت ذخیره شد.');
     }
