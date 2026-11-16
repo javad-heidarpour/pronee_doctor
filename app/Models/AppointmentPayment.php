@@ -19,6 +19,7 @@ class AppointmentPayment extends Model
         'gateway_result_message',
         'gateway_name',
         'paid_at',
+        'gateway_verified_at',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class AppointmentPayment extends Model
         return [
             'amount_rial' => 'integer',
             'paid_at' => 'datetime',
+            'gateway_verified_at' => 'datetime',
         ];
     }
 
