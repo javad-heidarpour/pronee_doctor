@@ -31,9 +31,11 @@ class PatientController extends Controller
     {
         $user = Auth::guard('web')->user();
         $doctor = $this->currentDoctor();
+        $clinicIds = $this->accessibleClinicIds($doctor);
 
         $query = Appointment::query()
             ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $clinicIds)
             ->with([
                 'user',
                 'timeSlot',
@@ -130,21 +132,25 @@ class PatientController extends Controller
         |--------------------------------------------------------------------------
         */
         $stats = [
-            'total' => Appointment::where('doctor_id', $doctor->id)->count(),
+            'total' => Appointment::where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)->count(),
 
             'pending' => Appointment::where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
                 ->where('status', 'pending')
                 ->count(),
 
             'confirmed' => Appointment::where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
                 ->where('status', 'confirmed')
                 ->count(),
 
             'cancelled' => Appointment::where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
                 ->where('status', 'cancelled')
                 ->count(),
 
             'visited' => Appointment::where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
                 ->where('status', 'visited')
                 ->count(),
         ];
@@ -154,7 +160,7 @@ class PatientController extends Controller
         | اطلاعات مورد نیاز فرم‌ها
         |--------------------------------------------------------------------------
         */
-        $clinics = $doctor->address()
+        $clinics = $this->accessibleClinicsQuery($doctor)
             ->select('addresses.id', 'addresses.name')
             ->get();
 
@@ -204,6 +210,7 @@ class PatientController extends Controller
             ->exists();
 
         abort_unless($clinicExists, 403);
+        $this->authorizeClinicAccess((int) $validated['clinic_id'], $doctor);
 
         $dates = TimeSlot::query()
             ->where('doctor_id', $doctor->id)
@@ -246,7 +253,7 @@ class PatientController extends Controller
             ->where('addresses.id', $validated['clinic_id'])
             ->exists();
 
-        if (!$clinicExists) {
+        if (!$clinicExists || !in_array((int) $validated['clinic_id'], $this->accessibleClinicIds($doctor), true)) {
             return response()->json([
                 'message' => 'کلینیک انتخاب‌شده معتبر نیست.',
             ], 422);
@@ -413,7 +420,8 @@ class PatientController extends Controller
         abort_unless($doctor, 403, 'پروفایل پزشک یافت نشد.');
 
         abort_unless(
-            (int) $appointment->doctor_id === (int) $doctor->id,
+            (int) $appointment->doctor_id === (int) $doctor->id &&
+            in_array((int) $appointment->clinic_id, $this->accessibleClinicIds($doctor), true),
             403,
             'شما اجازه دسترسی به این نوبت را ندارید.'
         );
