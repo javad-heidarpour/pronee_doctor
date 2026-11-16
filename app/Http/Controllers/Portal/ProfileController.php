@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Portal\\DoctorProfile\\ChangeDoctorPasswordAction;
-use App\\Actions\\Portal\\DoctorProfile\\ShowDoctorProfileAction;
-use App\\Actions\\Portal\\DoctorProfile\\UpdateDoctorProfileAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Http\\Requests\\Portal\\UpdateDoctorPasswordRequest;
-use App\\Http\\Requests\\Portal\\UpdateDoctorProfileRequest;
-use Illuminate\\Support\\Facades\\Auth;
-use Inertia\\Inertia;
+use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
+use App\Actions\Portal\DoctorProfile\ShowDoctorProfileAction;
+use App\Actions\Portal\DoctorProfile\UpdateDoctorProfileAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\UpdateDoctorPasswordRequest;
+use App\Http\Requests\Portal\UpdateDoctorProfileRequest;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class ProfileController extends Controller
 {
