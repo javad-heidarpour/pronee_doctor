@@ -11,7 +11,6 @@ use App\Models\Doctor;
 use App\Models\Specialty;
 use App\Models\User;
 use App\Services\LoginOtp;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -51,21 +50,9 @@ class DoctorRegistrationController extends Controller
     /**
      * ارسال کد تأیید موبایل
      */
-    public function sendOtp(Request $request)
+    public function sendOtp(SendDoctorRegistrationOtpRequest $request)
     {
-        $request->validate([
-            'phone' => [
-                'required',
-                'regex:/^09\d{9}$/',
-                Rule::unique('users', 'phone'),
-            ],
-        ], [
-            'phone.required' => 'شماره موبایل را وارد کنید.',
-            'phone.regex' => 'شماره موبایل معتبر نیست.',
-            'phone.unique' => 'این شماره موبایل قبلاً ثبت شده است.',
-        ]);
-
-        $phone = $this->normalizePhone($request->phone);
+        $phone = $this->normalizePhone($request->validated('phone'));
 
         try {
             $this->loginOtp->send($phone);
@@ -90,14 +77,9 @@ class DoctorRegistrationController extends Controller
     /**
      * تأیید کد موبایل و صدور توکن ثبت‌نام
      */
-    public function verifyOtp(Request $request)
+    public function verifyOtp(VerifyDoctorRegistrationOtpRequest $request)
     {
-        $request->validate([
-            'phone' => ['required', 'regex:/^09\d{9}$/'],
-            'code' => ['required', 'digits:6'],
-        ]);
-
-        $phone = $this->normalizePhone($request->phone);
+        $phone = $this->normalizePhone($request->validated('phone'));
 
         if (User::where('phone', $phone)->exists()) {
             return response()->json([
@@ -107,14 +89,13 @@ class DoctorRegistrationController extends Controller
         }
 
         try {
-            if (!$this->loginOtp->verify($phone, $request->code)) {
+            if (! $this->loginOtp->verify($phone, $request->validated('code'))) {
                 return response()->json([
                     'success' => false,
                     'message' => 'کد تأیید اشتباه یا منقضی شده است.',
                 ], 422);
             }
 
-            // توکن موقت ثبت‌نام
             $token = Str::random(64);
 
             Cache::put(
