@@ -9,10 +9,12 @@ use App\Actions\Portal\Shifts\ListTimeSlotsAction;
 use App\Actions\Portal\Shifts\ToggleTimeSlotAction;
 use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\StoreTimeSlotRequest;
+use App\Http\Requests\Portal\UpdateTimeSlotRequest;
+use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ShiftController extends Controller
@@ -48,23 +50,11 @@ class ShiftController extends Controller
         );
     }
 
-    public function store(Request $request, CreateTimeSlotAction $action)
+    public function store(StoreTimeSlotRequest $request, CreateTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
 
-        $validated = $request->validate([
-            'clinic_id' => 'required|exists:addresses,id',
-            'date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-        ], [
-            'clinic_id.required' => 'انتخاب مطب الزامی است',
-            'date.required' => 'انتخاب تاریخ الزامی است',
-            'date.after_or_equal' => 'تاریخ نمی‌تواند در گذشته باشد',
-            'start_time.required' => 'ساعت شروع الزامی است',
-            'end_time.required' => 'ساعت پایان الزامی است',
-            'end_time.after' => 'ساعت پایان باید بعد از ساعت شروع باشد',
-        ]);
+        $validated = $request->validated();
 
         $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
 
@@ -78,7 +68,7 @@ class ShiftController extends Controller
     }
 
     public function update(
-        Request $request,
+        UpdateTimeSlotRequest $request,
         TimeSlot $slot,
         UpdateTimeSlotAction $action
     ) {
@@ -91,12 +81,7 @@ class ShiftController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
-            'clinic_id' => 'required|exists:addresses,id',
-            'date' => 'required|date',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-        ]);
+        $validated = $request->validated();
 
         $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
 
@@ -156,21 +141,12 @@ class ShiftController extends Controller
     }
 
     public function generateSlots(
-        Request $request,
+        GenerateTimeSlotsRequest $request,
         GenerateTimeSlotsAction $action
     ) {
         $doctor = $this->currentDoctor();
 
-        $validated = $request->validate([
-            'weeks_count' => 'required|integer|min:1|max:52',
-            'clinic_id' => auth('web')->user()?->role === 'secretary'
-                ? 'required|exists:addresses,id'
-                : 'nullable|exists:addresses,id',
-        ], [
-            'weeks_count.required' => 'تعداد هفته‌ها الزامی است',
-            'weeks_count.min' => 'حداقل ۱ هفته',
-            'weeks_count.max' => 'حداکثر ۵۲ هفته (یک سال)',
-        ]);
+        $validated = $request->validated();
 
         $clinicId = !empty($validated['clinic_id'])
             ? (int) $validated['clinic_id']
