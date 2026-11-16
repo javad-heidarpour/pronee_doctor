@@ -4,11 +4,6 @@ namespace App\Http\Controllers\HomePage;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Home\BuildPublicWorkingHoursAction;
-use Illuminate\Http\Request;
-use App\Actions\Home\HomeIndexAction;
-use App\Actions\Home\ShowDoctorProfileAction;
-use App\Actions\Home\BookAppointmentAction;
-use Carbon\Carbon;
 use Morilog\Jalali\Jalalian;
 use Inertia\Inertia;
 use App\Models\Doctor;
@@ -17,7 +12,6 @@ use App\Models\VisitReason;
 use App\Models\MedicalService;
 use App\Models\SurgicalProcedure;
 use App\Models\DoctorImage;
-use App\Models\DoctorWorkingHour;
 
 class Home1Controller extends Controller
 {
