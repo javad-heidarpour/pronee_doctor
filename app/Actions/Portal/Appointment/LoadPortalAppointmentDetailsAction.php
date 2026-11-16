@@ -26,6 +26,16 @@ class LoadPortalAppointmentDetailsAction
             $history = Appointment::query()
                 ->where('doctor_id', $appointment->doctor_id)
                 ->where('id', '!=', $appointment->id)
+                ->whereNotIn('status', ['cancelled'])
+                ->where(function ($query) use ($appointment) {
+                    $query
+                        ->whereDate('appointment_date', '<', $appointment->appointment_date)
+                        ->orWhere(function ($sameDay) use ($appointment) {
+                            $sameDay
+                                ->whereDate('appointment_date', $appointment->appointment_date)
+                                ->where('appointment_time', '<', $appointment->appointment_time);
+                        });
+                })
                 ->where(function ($query) use ($nationalCode, $phone) {
                     if ($nationalCode !== '') {
                         $query->where('patient_national_code', $nationalCode);
