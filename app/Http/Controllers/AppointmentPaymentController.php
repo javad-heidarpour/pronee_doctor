@@ -216,14 +216,24 @@ class AppointmentPaymentController extends Controller
 
                 // تست ناموفق باید وضعیت رزرو و آزادسازی اسلات را نیز شبیه‌سازی کند.
                 if ($testResult === 'fail') {
-                    $cancelled = $cancelFailedAppointment->handle($payment);
+                    $cancelResult = $cancelFailedAppointment->handle($payment);
 
-                    if (!$cancelled) {
+                    if ($cancelResult === 'already_paid') {
                         return $visitRedirect($appointment->id)->with(
                             'payment_result',
                             [
                                 'status' => 'success',
-                                'message' => 'این پرداخت هم‌زمان با تست، قبلاً موفق ثبت شده است.',
+                                'message' => 'برای این نوبت یک پرداخت موفق ثبت شده است.',
+                            ]
+                        );
+                    }
+
+                    if ($cancelResult === 'waiting') {
+                        return $visitRedirect($appointment->id)->with(
+                            'payment_result',
+                            [
+                                'status' => 'pending',
+                                'message' => 'یک تلاش پرداخت دیگر هنوز تعیین‌تکلیف نشده است؛ رزرو آزاد نشد.',
                             ]
                         );
                     }
@@ -324,6 +334,12 @@ class AppointmentPaymentController extends Controller
             if ($settlement['status'] === 'failed') {
                 return $visitRedirect($appointment->id)->withErrors([
                     'payment' => 'پرداخت توسط درگاه تأیید نشد و رزرو لغو شد. در صورت کسر وجه، پیگیری بانکی انجام می‌شود.',
+                ]);
+            }
+
+            if ($settlement['status'] === 'waiting') {
+                return $visitRedirect($appointment->id)->withErrors([
+                    'payment' => 'این تلاش پرداخت ناموفق بود، اما تلاش پرداخت دیگری هنوز تعیین‌تکلیف نشده است؛ رزرو فعلاً حفظ شده است.',
                 ]);
             }
 
