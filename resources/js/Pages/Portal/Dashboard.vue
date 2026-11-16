@@ -1,5 +1,5 @@
 <template>
-  <PortalLayout :doctor="doctor">
+  <PortalLayout :doctor="doctor" :stats="stats">
     <div dir="rtl" class="w-full min-w-0 space-y-6 sm:space-y-8">
       <!-- Welcome Banner -->
       <section
