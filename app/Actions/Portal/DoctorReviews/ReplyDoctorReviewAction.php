@@ -2,16 +2,15 @@
 
 namespace App\Actions\Portal\DoctorReviews;
 
-use App\Http\Requests\Portal\ReplyDoctorReviewRequest;
 use App\Models\Doctor;
 use App\Models\Review;
 
 class ReplyDoctorReviewAction
 {
     public function handle(
-        ReplyDoctorReviewRequest $request,
         Doctor $doctor,
-        Review $review
+        Review $review,
+        string $doctorReply
     ) {
         abort_unless(
             (int) $review->doctor_id === (int) $doctor->id,
@@ -20,7 +19,7 @@ class ReplyDoctorReviewAction
         );
 
         $review->update([
-            'doctor_reply' => $request->validated('doctor_reply'),
+            'doctor_reply' => $doctorReply,
             'doctor_reply_at' => now(),
         ]);
 
