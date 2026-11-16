@@ -19,10 +19,19 @@ class CancelFailedAppointmentAction
     public function handle(AppointmentPayment $payment): string
     {
         return DB::transaction(function () use ($payment) {
-            $lockedPayment = AppointmentPayment::query()
-                ->whereKey($payment->id)
+            // Lock all payment attempts in a stable order before the
+            // appointment. The expiry worker uses the same lock order.
+            $paymentAttempts = AppointmentPayment::query()
+                ->where('appointment_id', $payment->appointment_id)
+                ->orderBy('id')
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->get();
+
+            $lockedPayment = $paymentAttempts->firstWhere('id', $payment->id);
+
+            if (!$lockedPayment) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException();
+            }
 
             $appointment = Appointment::query()
                 ->whereKey($lockedPayment->appointment_id)
@@ -40,12 +49,8 @@ class CancelFailedAppointmentAction
 
             $lockedPayment->update(['status' => 'failed']);
 
-            $otherPayments = AppointmentPayment::query()
-                ->where('appointment_id', $appointment->id)
-                ->where('id', '!=', $lockedPayment->id)
-                ->orderByDesc('id')
-                ->lockForUpdate()
-                ->get();
+            $otherPayments = $paymentAttempts
+                ->reject(fn ($item) => (int) $item->id === (int) $lockedPayment->id);
 
             if ($otherPayments->contains(fn ($item) => $item->status === 'paid')) {
                 $appointment->status = 'confirmed';
