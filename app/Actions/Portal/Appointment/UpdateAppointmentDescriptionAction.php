@@ -8,13 +8,17 @@ use Illuminate\Support\Facades\DB;
 
 class UpdateAppointmentDescriptionAction
 {
-    public function handle(Appointment $appointment, array $data): void
+    public function handle(Appointment $appointment, array $data): bool
     {
-        DB::transaction(function () use ($appointment, $data) {
+        return DB::transaction(function () use ($appointment, $data) {
             $lockedAppointment = Appointment::query()
                 ->whereKey($appointment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if (in_array($lockedAppointment->status, ['cancelled', 'canceled'], true)) {
+                return false;
+            }
 
             $newSurgeryType = trim((string) ($data['new_surgery_type'] ?? ''));
 
@@ -32,6 +36,8 @@ class UpdateAppointmentDescriptionAction
                 'description' => $data['description'] ?? null,
                 'status' => 'visited',
             ]);
+
+            return true;
         });
     }
 }
