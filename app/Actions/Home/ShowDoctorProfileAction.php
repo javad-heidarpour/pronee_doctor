@@ -23,11 +23,12 @@ class ShowDoctorProfileAction
                 'reviews',
                 'specialty',
                 'user',
-                'address',
+                'address' => fn ($query) => $query->where('is_active', true),
                 'address.city',
                 'timeSlots',
                 'socials.platform',
             ])
+            ->where('is_active', true)
             ->where('slug', $slug)
             ->firstOrFail();
 
