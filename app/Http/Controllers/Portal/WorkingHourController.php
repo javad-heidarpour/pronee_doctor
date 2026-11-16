@@ -17,6 +17,7 @@ use Inertia\Inertia;
 class WorkingHourController extends Controller
 {
     use HasActiveDoctor;
+    use AuthorizesPortalSchedules;
 
     /**
      * نمایش ساعات کاری پزشک فعال.
@@ -40,7 +41,7 @@ class WorkingHourController extends Controller
 
         $validated = $request->validated();
 
-        if (!$this->clinicBelongsToDoctor($doctor, (int) $validated['clinic_id'])) {
+        if (!in_array((int) $validated['clinic_id'], $this->accessibleClinicIds($doctor), true)) {
             return back()
                 ->withErrors(['clinic_id' => __('working_hours.invalid_clinic')])
                 ->withInput();
@@ -67,7 +68,7 @@ class WorkingHourController extends Controller
     ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeOwnership($workingHour, (int) $doctor->id);
+        $this->authorizeWorkingHour($workingHour, $doctor);
 
         $validated = $request->validated();
 
@@ -118,29 +119,5 @@ class WorkingHourController extends Controller
         return back()->with('success', __('working_hours.deleted'));
     }
 
-    private function clinicBelongsToDoctor(Doctor $doctor, int $clinicId): bool
-    {
-        return in_array($clinicId, $this->accessibleClinicIds($doctor), true);
-    }
 
-    private function overlapMessage(DoctorWorkingHour $duplicate): string
-    {
-        return __('working_hours.duplicate', [
-            'day' => __('working_hours.days.' . $duplicate->day_of_week),
-            'clinic' => $duplicate->clinic?->name
-                ?? __('working_hours.unknown_clinic'),
-        ]);
-    }
-
-    private function authorizeOwnership(
-        DoctorWorkingHour $workingHour,
-        int $doctorId
-    ): void {
-        abort_if(
-            (int) $workingHour->doctor_id !== $doctorId ||
-            !in_array((int) $workingHour->clinic_id, $this->accessibleClinicIds(), true),
-            403,
-            __('working_hours.forbidden')
-        );
-    }
 }
