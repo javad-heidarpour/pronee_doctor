@@ -11,6 +11,8 @@ class UpdateTimeSlotAction
     public function handle(Doctor $doctor, TimeSlot $slot, array $data): bool
     {
         return DB::transaction(function () use ($doctor, $slot, $data) {
+            Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
+
             $lockedSlot = TimeSlot::query()
                 ->whereKey($slot->id)
                 ->lockForUpdate()
