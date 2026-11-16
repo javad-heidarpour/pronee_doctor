@@ -22,6 +22,7 @@ class AppointmentController extends Controller
     ) {
         $doctor = $this->currentDoctor();
         $this->authorizeClinicAccess((int) $request->validated()['clinic_id'], $doctor);
+        $this->authorizeSecretaryPermission('shifts.view', $doctor);
 
         $slots = $action->handle(
             $doctor,
@@ -48,6 +49,7 @@ class AppointmentController extends Controller
         CreatePortalAppointmentAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('appointments.manage', $doctor);
 
         $appointment = $action->handle(
             $doctor,
