@@ -58,6 +58,8 @@ class UsersController extends Controller
             $activeDoctor
         );
 
+        $doctorIds = array_map('intval', array_keys($syncData));
+
         $action->handle(
             $user,
             $syncData,
