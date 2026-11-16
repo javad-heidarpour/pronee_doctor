@@ -200,6 +200,30 @@
         <p v-else class="py-8 text-center text-xs text-slate-400">داده‌ای برای نمایش وجود ندارد.</p>
       </section>
 
+      <!-- Financial overview -->
+      <section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="rounded-2xl border border-emerald-100 bg-gradient-to-l from-emerald-50 to-white p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-bold text-emerald-700">دریافتی امروز</p>
+              <p class="mt-2 text-xl font-black tabular-nums text-slate-900">{{ formatRial(stats.today_revenue_rial) }}</p>
+              <p class="mt-1 text-[11px] text-slate-500">ریال · پرداخت‌های تأییدشده امروز</p>
+            </div>
+            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">💰</span>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-sky-100 bg-gradient-to-l from-sky-50 to-white p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-bold text-sky-700">دریافتی هفت روز اخیر</p>
+              <p class="mt-2 text-xl font-black tabular-nums text-slate-900">{{ formatRial(stats.weekly_revenue_rial) }}</p>
+              <p class="mt-1 text-[11px] text-slate-500">ریال · مجموع پرداخت‌های موفق</p>
+            </div>
+            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">📈</span>
+          </div>
+        </div>
+      </section>
+
       <!-- Quick Actions -->
       <section
         class="overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 lg:p-7"
@@ -421,6 +445,8 @@ const todayStats = computed(() => ({
   unpaid: props.stats?.today_unpaid ?? 0,
   smsFailed: props.stats?.today_sms_failed ?? 0,
 }));
+
+const formatRial = (value) => new Intl.NumberFormat("fa-IR").format(Number(value || 0));
 
 const weeklyMax = computed(() => Math.max(
   1,
