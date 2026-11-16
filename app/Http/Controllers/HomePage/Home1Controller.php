@@ -5,6 +5,7 @@ namespace App\Http\Controllers\HomePage;
 use App\Http\Controllers\Controller;
 use App\Actions\Home\BuildPublicWorkingHoursAction;
 use App\Actions\Home\BuildPublicDoctorReviewsPageAction;
+use App\Actions\Home\BuildPublicDoctorGalleryPageAction;
 use Morilog\Jalali\Jalalian;
 use Inertia\Inertia;
 use App\Models\Doctor;
