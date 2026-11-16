@@ -110,10 +110,6 @@ class BuildDashboardAction
             })
             ->values();
 
-        $todayActiveAppointments = (clone $todayAppointmentsQuery)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->count();
-
         $stats = [
             'total_appointments' => (clone $timeSlots)
                 ->where('status', 'booked')
