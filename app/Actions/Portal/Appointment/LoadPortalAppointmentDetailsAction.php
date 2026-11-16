@@ -25,7 +25,7 @@ class LoadPortalAppointmentDetailsAction
         if ($nationalCode !== '' || $phone !== '') {
             $history = Appointment::query()
                 ->where('doctor_id', $appointment->doctor_id)
-                ->whereKeyNot($appointment->id)
+                ->where('id', '!=', $appointment->id)
                 ->where(function ($query) use ($nationalCode, $phone) {
                     if ($nationalCode !== '') {
                         $query->where('patient_national_code', $nationalCode);
