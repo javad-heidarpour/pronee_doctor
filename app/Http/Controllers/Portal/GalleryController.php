@@ -45,10 +45,11 @@ class GalleryController extends Controller
     public function update(
         UpdateGalleryImageRequest $request,
         DoctorImage $image,
-        UpdateGalleryImageAction $action
+        UpdateGalleryImageAction $action,
+        DoctorImagePolicy $policy
     ) {
         $doctor = $this->currentDoctor();
-        abort_unless(app(DoctorImagePolicy::class)->update($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
+        abort_unless($policy->update($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
 
         $action->handle($image, $request->validated());
 
@@ -57,10 +58,11 @@ class GalleryController extends Controller
 
     public function destroy(
         DoctorImage $image,
-        DeleteGalleryImageAction $action
+        DeleteGalleryImageAction $action,
+        DoctorImagePolicy $policy
     ) {
         $doctor = $this->currentDoctor();
-        abort_unless(app(DoctorImagePolicy::class)->delete($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
+        abort_unless($policy->delete($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
 
         $action->handle($image);
 
