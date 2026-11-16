@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
+use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
 use App\Actions\Portal\Appointment\BuildPatientIndexOptionsAction;
 use App\Actions\Portal\Appointment\ListAvailableDatesAction;
 use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
@@ -102,12 +103,13 @@ class PatientController extends Controller
         ]);
     }
 
-    public function show(Appointment $appointment)
-    {
+    public function show(
+        Appointment $appointment,
+        LoadPortalAppointmentDetailsAction $action
+    ) {
         $this->authorizeAppointment($appointment);
 
-
-        $appointment->load(['user', 'timeSlot', 'clinic.city', 'visitReason',]);
+        $appointment = $action->handle($appointment);
         $doctor = $this->currentDoctor();
         return Inertia::render('Portal/Patients/Show', [
             'doctor' => $doctor,
