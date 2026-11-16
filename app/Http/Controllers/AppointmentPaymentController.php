@@ -21,6 +21,7 @@ class AppointmentPaymentController extends Controller
 
     public function pay(
         int $visit_number,
+        SepPaymentService $sep,
         InitiateAppointmentPaymentAction $action
     ): \Symfony\Component\HttpFoundation\Response {
         $appointment = Appointment::query()->findOrFail($visit_number);
@@ -57,7 +58,7 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            $token = $action->handle($appointment, $cellNumber);
+            $token = $action->handle($appointment, $cellNumber, $sep);
 
             if ($token === null) {
                 return $visitUrl()->with(
