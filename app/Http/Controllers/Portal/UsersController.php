@@ -13,7 +13,6 @@ use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
 use App\Actions\Portal\Users\RestoreOrDeleteManagedUserAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -158,17 +157,6 @@ class UsersController extends Controller
             403,
             'امکان تغییر حساب کاربری خودتان از این بخش وجود ندارد.'
         );
-    }
-
-    private function hashPassword(array $validated): array
-    {
-        if (!empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
-
-        return $validated;
     }
 
     public function assignments(User $user): Response
