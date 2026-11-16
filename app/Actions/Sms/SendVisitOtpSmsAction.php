@@ -13,6 +13,14 @@ class SendVisitOtpSmsAction
 {
     public function handle(int $visitNumber): JsonResponse
     {
+        $sessionExpiry = (int) session()->get('sms.visit.allowed.' . $visitNumber, 0);
+
+        abort_unless(
+            $sessionExpiry >= now()->timestamp,
+            403,
+            'ارسال پیامک فقط از نشست ثبت‌کننده نوبت امکان‌پذیر است.'
+        );
+
         $appointment = Appointment::query()->whereKey($visitNumber)->first();
 
         if (!$appointment) {
@@ -84,6 +92,8 @@ class SendVisitOtpSmsAction
                     'message' => 'ارسال پیامک ناموفق بود. لطفاً بعداً تلاش کنید.',
                 ], 422);
             }
+
+            session()->forget('sms.visit.allowed.' . $visitNumber);
 
             return response()->json([
                 'success' => true,
