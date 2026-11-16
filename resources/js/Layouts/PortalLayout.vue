@@ -216,6 +216,32 @@
               {{ menu.title }}
             </span>
           </Link>
+
+          <Link
+            v-if="currentUser.role === 'admin'"
+            :href="route('portal.security.audit-logs')"
+            @click="closeMobileMenu"
+            :class="[
+              'relative flex items-center gap-3 rounded-xl transition-all duration-200 group',
+              isSidebarCollapsed
+                ? 'justify-center px-2 py-3 mx-auto md:w-12'
+                : 'px-3 py-3 w-full',
+              isActive('portal.security.audit-logs')
+                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-700',
+            ]"
+          >
+            <span class="w-6 h-6 shrink-0 flex items-center justify-center text-lg">🛡️</span>
+            <span v-if="!isSidebarCollapsed" class="flex-1 text-[13px] font-medium truncate">
+              گزارش ممیزی امنیتی
+            </span>
+            <span
+              v-if="isSidebarCollapsed"
+              class="hidden md:block absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap shadow-xl z-[60] pointer-events-none"
+            >
+              گزارش ممیزی امنیتی
+            </span>
+          </Link>
         </div>
       </nav>
 
