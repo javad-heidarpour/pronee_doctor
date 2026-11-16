@@ -131,7 +131,7 @@ class Doctor extends Model
             'id'
         )
             ->where('role', 'secretary')
-            ->withPivot('permissions')
+            ->withPivot('permissions', 'clinic_ids')
             ->withTimestamps();
     }
 
