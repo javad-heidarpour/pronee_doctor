@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Http\\Requests\\Portal;
+namespace App\Http\Requests\Portal;
 
-use App\\Actions\\Portal\\Users\\ListManagedUserPermissionsAction;
-use Illuminate\\Foundation\\Http\\FormRequest;
-use Illuminate\\Validation\\Rule;
+use App\Actions\Portal\Users\ListManagedUserPermissionsAction;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateSecretaryAssignmentsRequest extends FormRequest
 {
