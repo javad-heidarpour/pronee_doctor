@@ -66,7 +66,6 @@ class BuildDashboardAction
                 return [
                     'id' => $appointment->id,
                     'patient_name' => $appointment->patient_name,
-                    'patient_phone' => $appointment->patient_phone,
                     'appointment_time' => $appointment->appointment_time
                         ? substr((string) $appointment->appointment_time, 0, 5)
                         : null,
