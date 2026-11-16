@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Shifts;
 
+use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
 
@@ -10,6 +11,8 @@ class ToggleTimeSlotAction
     public function handle(TimeSlot $slot): ?string
     {
         return DB::transaction(function () use ($slot) {
+            Doctor::query()->whereKey($slot->doctor_id)->lockForUpdate()->firstOrFail();
+
             $lockedSlot = TimeSlot::query()
                 ->whereKey($slot->id)
                 ->lockForUpdate()
