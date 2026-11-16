@@ -403,7 +403,7 @@
             <div>
               <p class="text-xs font-bold text-slate-700">پیامک تأیید نوبت</p>
               <p class="mt-1 text-[11px] text-slate-400">{{ formatSmsDate(smsLog.created_at) }}</p>
-              <p v-if="smsLog.error_message" class="mt-1 text-[11px] text-rose-600">علت ثبت‌شده: {{ smsLog.error_message }}</p>
+              <p v-if="smsLog.error_message" class="mt-1 text-[11px] text-rose-600">{{ smsLogErrorLabel(smsLog.error_message) }}</p>
             </div>
             <span :class="smsLogStatusClass(smsLog.status)" class="self-start rounded-lg px-3 py-1.5 text-[11px] font-bold sm:self-auto">
               {{ smsLogStatusLabel(smsLog.status) }}
@@ -653,6 +653,11 @@ const formatSmsDate = (value) => {
     timeStyle: "short",
   }).format(date);
 };
+
+const smsLogErrorLabel = (error) => ({
+  provider_rejected_request: "سرویس پیامک درخواست را نپذیرفت.",
+  provider_connection_error: "ارتباط با سرویس پیامک برقرار نشد.",
+}[error] || "ارسال پیامک با خطا مواجه شد.");
 
 const smsLogStatusLabel = (status) => ({
   pending: "در حال ارسال",
