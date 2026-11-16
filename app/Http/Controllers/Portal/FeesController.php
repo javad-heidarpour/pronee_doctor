@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Portal\\Fees\\ListFeesAction;
-use App\\Actions\\Portal\\Fees\\UpdateFeeAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Http\\Requests\\Portal\\UpdateFeeRequest;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Support\\Facades\\Auth;
-use Inertia\\Inertia;
-use Inertia\\Response;
+use App\Actions\Portal\Fees\ListFeesAction;
+use App\Actions\Portal\Fees\UpdateFeeAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\UpdateFeeRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class FeesController extends Controller
 {
