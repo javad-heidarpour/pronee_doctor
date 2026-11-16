@@ -102,11 +102,11 @@ class DoctorAuth
     private function requiredPermission(string $routeName, string $method): ?string
     {
         $map = [
-            'patients.' => 'appointments',
-            'appointments.' => 'appointments',
-            'clinics.' => 'clinics',
-            'shifts.' => 'shifts',
-            'working-hours.' => 'working-hours',
+            'portal.patients.' => 'appointments',
+            'portal.appointments.' => 'appointments',
+            'portal.clinics.' => 'clinics',
+            'portal.shifts.' => 'shifts',
+            'portal.working-hours.' => 'working-hours',
         ];
 
         foreach ($map as $prefix => $resource) {
