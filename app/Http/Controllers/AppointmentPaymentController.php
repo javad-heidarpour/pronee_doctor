@@ -5,12 +5,12 @@ namespace App\Http\Controllers;
 use App\Actions\Payments\InitiateAppointmentPaymentAction;
 use App\Actions\Payments\VerifyAndSettleSepPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
+use App\Actions\Payments\ProcessLocalSepPaymentTestAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Throwable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -92,6 +92,7 @@ class AppointmentPaymentController extends Controller
     public function callback(
         Request $request,
         SepPaymentService $sep,
+        ProcessLocalSepPaymentTestAction $localTestAction,
         CancelFailedAppointmentAction $cancelFailedAppointment,
         VerifyAndSettleSepPaymentAction $settlementAction,
         SendAppointmentConfirmationSmsAction $smsAction
@@ -153,88 +154,26 @@ class AppointmentPaymentController extends Controller
                     ]);
                 }
 
-                $testError = null;
+                $testStatus = $localTestAction->handle(
+                    $payment,
+                    $appointment,
+                    $testResult
+                );
 
-                DB::transaction(function () use ($payment, $appointment, $testResult, &$testError) {
-                    $lockedPayment = AppointmentPayment::query()
-                        ->whereKey($payment->id)
-                        ->lockForUpdate()
-                        ->firstOrFail();
-
-                    $lockedAppointment = Appointment::query()
-                        ->whereKey($appointment->id)
-                        ->lockForUpdate()
-                        ->firstOrFail();
-
-                    if ($lockedPayment->status === 'paid') {
-                        $testError = 'already_paid';
-                        return;
-                    }
-
-                    if (
-                        $lockedPayment->status === 'failed' ||
-                        !in_array($lockedAppointment->status, ['pending', 'confirmed'], true)
-                    ) {
-                        $testError = 'reservation_not_payable';
-                        return;
-                    }
-
-                    if ($testResult === 'fail') {
-                        $lockedPayment->update([
-                            'status' => 'failed',
-                            'gateway_result_code' => 'LOCAL_TEST_FAILED',
-                            'gateway_result_message' =>
-                                'تست محلی؛ تراکنش واقعی انجام نشده است.',
-                            'paid_at' => null,
-                            'gateway_verified_at' => null,
-                        ]);
-
-                        return;
-                    }
-
-                    $lockedPayment->update([
-                        'status' => 'paid',
-                        'ref_num' => 'LOCAL-TEST-' . $lockedPayment->id,
-                        'terminal_id' => 'LOCAL-TEST',
-                        'gateway_result_code' => 'LOCAL_TEST_SUCCESS',
-                        'gateway_result_message' =>
-                            'تست محلی؛ پرداخت واقعی SEP نیست.',
-                        'paid_at' => now(),
-                        'gateway_verified_at' => null,
-                    ]);
-
-                    if (
-                        \Illuminate\Support\Facades\Schema::hasColumn(
-                            'appointments',
-                            'payment_status'
-                        )
-                    ) {
-                        $lockedAppointment->payment_status = 'paid';
-                    }
-
-                    $lockedAppointment->status = 'confirmed';
-
-                    $lockedAppointment->save();
-                });
-
-                if ($testError === 'already_paid') {
+                if ($testStatus === 'already_paid') {
                     return $visitRedirect($appointment->id)->withErrors([
                         'payment' => 'این پرداخت قبلاً ثبت شده است.',
                     ]);
                 }
 
-                if ($testError === 'reservation_not_payable') {
+                if ($testStatus === 'reservation_not_payable') {
                     return $visitRedirect($appointment->id)->withErrors([
                         'payment' => 'این رزرو یا تلاش پرداخت دیگر امکان تغییر وضعیت در تست را ندارد.',
                     ]);
                 }
 
                 // تست ناموفق باید وضعیت رزرو و آزادسازی اسلات را نیز شبیه‌سازی کند.
-                if ($testResult === 'fail') {
-                    $cancelResult = $cancelFailedAppointment->handle($payment);
-
-                    if ($cancelResult === 'already_paid') {
-                        return $visitRedirect($appointment->id)->with(
+                return $visitRedirect($appointment->id)->with(
                             'payment_result',
                             [
                                 'status' => 'success',
