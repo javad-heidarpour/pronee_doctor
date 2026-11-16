@@ -5,6 +5,7 @@ namespace App\Actions\Payments;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
 use App\Models\TimeSlot;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -35,7 +36,7 @@ class CancelFailedAppointmentAction
             $lockedPayment = $paymentAttempts->firstWhere('id', $payment->id);
 
             if (!$lockedPayment) {
-                throw new \\Illuminate\\Database\\Eloquent\\ModelNotFoundException();
+                throw new ModelNotFoundException();
             }
 
             if ($lockedPayment->status === 'paid') {
