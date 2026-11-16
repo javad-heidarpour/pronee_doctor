@@ -14,7 +14,6 @@ use App\Models\Doctor;
 use App\Models\SurgeryType;
 use App\Models\TimeSlot;
 use App\Models\VisitReason;
-use App\Models\AppointmentPayment;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 
 use Illuminate\Http\Request;
