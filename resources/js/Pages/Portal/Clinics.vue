@@ -115,9 +115,8 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { router, usePage } from "@inertiajs/vue3";
-import { computed } from "vue";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 import FormField from "@/Components/Portal/FormField.vue";
 
