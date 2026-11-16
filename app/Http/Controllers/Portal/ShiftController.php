@@ -83,6 +83,7 @@ class ShiftController extends Controller
     public function toggle(TimeSlot $slot, ToggleTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
@@ -109,6 +110,7 @@ class ShiftController extends Controller
     public function destroy(TimeSlot $slot, DeleteTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
@@ -131,6 +133,7 @@ class ShiftController extends Controller
         GenerateTimeSlotsAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         $validated = $request->validated();
 
