@@ -1,29 +1,40 @@
 <template>
-  <div
-    class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-shadow duration-300"
+  <section
+    v-if="specialties.length"
+    class="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6"
+    dir="rtl"
   >
-      <!-- :href="`/${doctor.slug}/tag/${specialty.name}`" -->
+    <div class="mb-4">
+      <h3 class="text-base font-black text-slate-900">حوزه‌های تخصصی</h3>
+      <p class="mt-1 text-xs text-slate-500">زمینه‌های فعالیت و تخصص پزشک</p>
+    </div>
 
-    <Link
-      v-for="(specialty, index) in doctor.specialty"
-      :key="specialty.id || index"
-      class="group hover:bg-white hover:shadow-xl transition-all duration-300 p-5 block inline-flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium"
-    >
-      <!-- <span
-        > -->
-      {{ specialty.icon }} {{ specialty.name }}
-      <!-- </span> -->
-    </Link>
-  </div>
-
+    <div class="flex flex-wrap gap-2">
+      <span
+        v-for="(specialty, index) in specialties"
+        :key="specialty.id || specialty.name || index"
+        class="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-sm font-bold text-emerald-800"
+      >
+        <span>{{ specialty.icon || "✚" }}</span>
+        {{ specialty.name || specialty.title }}
+      </span>
+    </div>
+  </section>
 </template>
+
 <script setup>
-import { Link } from "@inertiajs/vue3";
+import { computed } from "vue";
 
 const props = defineProps({
   doctor: {
     type: Object,
     required: true,
   },
+});
+
+const specialties = computed(() => {
+  const value = props.doctor?.specialty;
+  if (Array.isArray(value)) return value;
+  return value && typeof value === "object" ? [value] : [];
 });
 </script>
