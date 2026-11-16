@@ -2,6 +2,7 @@
 
 namespace App\Actions\Payments;
 
+use App\Models\Appointment;
 use App\Models\AppointmentPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +30,12 @@ class RecordSepCallbackFailureAction
 
         try {
             DB::transaction(function () use ($payment): void {
+                // Lock appointment before payment to keep a single global order.
+                Appointment::query()
+                    ->whereKey($payment->appointment_id)
+                    ->lockForUpdate()
+                    ->first();
+
                 $lockedPayment = AppointmentPayment::query()
                     ->whereKey($payment->id)
                     ->lockForUpdate()
