@@ -48,14 +48,14 @@ class DoctorRegistrationController extends Controller
             ]);
         } catch (Throwable $e) {
             Log::warning('Doctor registration OTP failed', [
-                'phone' => $phone,
-                'message' => $e->getMessage(),
+                'phone' => $this->maskPhone($phone),
+                'exception_class' => get_class($e),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+                'message' => 'ارسال کد تأیید انجام نشد. لطفاً کمی بعد دوباره تلاش کنید.',
+            ], 503);
         }
     }
 
@@ -93,8 +93,8 @@ class DoctorRegistrationController extends Controller
         } catch (Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+                'message' => 'بررسی کد تأیید با خطا مواجه شد. لطفاً دوباره تلاش کنید.',
+            ], 500);
         }
     }
 
@@ -130,8 +130,8 @@ class DoctorRegistrationController extends Controller
             }
         } catch (Throwable $e) {
             Log::error('Doctor registration failed', [
-                'phone' => $phone,
-                'message' => $e->getMessage(),
+                'phone' => $this->maskPhone($phone),
+                'exception_class' => get_class($e),
             ]);
 
             return response()->json([
@@ -161,6 +161,19 @@ class DoctorRegistrationController extends Controller
     private function normalizePhone(string $phone): string
     {
         return preg_replace('/\D/', '', $phone);
+    }
+
+    private function maskPhone(string $phone): string
+    {
+        $length = strlen($phone);
+
+        if ($length <= 4) {
+            return str_repeat('*', $length);
+        }
+
+        return substr($phone, 0, 3)
+            . str_repeat('*', max(0, $length - 5))
+            . substr($phone, -2);
     }
 
 }
