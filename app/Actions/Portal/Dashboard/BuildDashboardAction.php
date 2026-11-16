@@ -90,6 +90,26 @@ class BuildDashboardAction
             })
             ->values();
 
+        $weeklyStart = now()->subDays(6)->toDateString();
+        $weeklyCounts = Appointment::query()
+            ->selectRaw('DATE(appointment_date) as appointment_day, COUNT(*) as total')
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $clinicIds)
+            ->whereBetween('appointment_date', [$weeklyStart, $today])
+            ->groupByRaw('DATE(appointment_date)')
+            ->pluck('total', 'appointment_day');
+
+        $weeklyAppointments = collect(range(6, 0))
+            ->map(function (int $daysAgo) use ($weeklyCounts) {
+                $date = now()->subDays($daysAgo)->toDateString();
+
+                return [
+                    'date' => $date,
+                    'total' => (int) ($weeklyCounts[$date] ?? 0),
+                ];
+            })
+            ->values();
+
         $todayActiveAppointments = (clone $todayAppointmentsQuery)
             ->whereIn('status', ['pending', 'confirmed'])
             ->count();
@@ -146,6 +166,7 @@ class BuildDashboardAction
             ],
             'stats' => $stats,
             'todayAppointments' => $todayAppointments,
+            'weeklyAppointments' => $weeklyAppointments,
             'nextAppointment' => $nextAppointment,
             'doctors' => $doctors->map(fn ($item) => [
                 'id' => $item->id,
