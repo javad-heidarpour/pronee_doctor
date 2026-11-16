@@ -148,7 +148,8 @@ class WorkingHourController extends Controller
         int $doctorId
     ): void {
         abort_if(
-            (int) $workingHour->doctor_id !== $doctorId ||\n            !in_array((int) $workingHour->clinic_id, $this->accessibleClinicIds(), true),
+            (int) $workingHour->doctor_id !== $doctorId ||
+            !in_array((int) $workingHour->clinic_id, $this->accessibleClinicIds(), true),
             403,
             __('working_hours.forbidden')
         );
