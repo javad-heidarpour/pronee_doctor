@@ -3,6 +3,7 @@
 namespace App\Actions\Sms;
 
 use App\Models\Appointment;
+use App\Models\SmsLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -25,7 +26,7 @@ class SendAppointmentConfirmationSmsAction
             ], 404);
         }
 
-        if (in_array($appointment->status, ['cancelled'], true)) {
+        if ($appointment->status === 'cancelled') {
             return response()->json([
                 'success' => false,
                 'message' => 'برای نوبت لغوشده امکان ارسال پیامک تأیید وجود ندارد.',
@@ -58,7 +59,6 @@ class SendAppointmentConfirmationSmsAction
 
         $cacheKey = 'appointment-confirmation-sms:' . $visitNumber;
 
-        // قفل اتمیک برای جلوگیری از ارسال هم‌زمان و تکراری.
         if (!Cache::add($cacheKey, true, now()->addMinutes(3))) {
             return response()->json([
                 'success' => false,
@@ -67,7 +67,16 @@ class SendAppointmentConfirmationSmsAction
             ], 429);
         }
 
+        $smsLog = null;
+
         try {
+            $smsLog = SmsLog::create([
+                'appointment_id' => $appointment->id,
+                'type' => 'appointment_confirmation',
+                'status' => 'pending',
+                'provider' => 'ghasedak',
+            ]);
+
             $response = Http::timeout(15)->withHeaders([
                 'ApiKey' => config('services.ghasedak.api_key'),
                 'Accept' => 'application/json',
@@ -92,6 +101,10 @@ class SendAppointmentConfirmationSmsAction
 
             if (!$response->successful()) {
                 Cache::forget($cacheKey);
+                $smsLog->update([
+                    'status' => 'failed',
+                    'error_message' => 'provider_rejected_request',
+                ]);
 
                 Log::warning('Appointment confirmation SMS rejected by provider', [
                     'appointment_id' => $visitNumber,
@@ -104,6 +117,11 @@ class SendAppointmentConfirmationSmsAction
                 ], 422);
             }
 
+            $smsLog->update([
+                'status' => 'sent',
+                'sent_at' => now(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'پیامک تأیید نوبت با موفقیت ارسال شد.',
@@ -111,6 +129,13 @@ class SendAppointmentConfirmationSmsAction
             ]);
         } catch (Throwable $exception) {
             Cache::forget($cacheKey);
+
+            if ($smsLog) {
+                $smsLog->update([
+                    'status' => 'failed',
+                    'error_message' => 'provider_connection_error',
+                ]);
+            }
 
             Log::error('Appointment confirmation SMS exception', [
                 'appointment_id' => $visitNumber,
