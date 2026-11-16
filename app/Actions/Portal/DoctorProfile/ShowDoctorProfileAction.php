@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Actions\\Portal\\DoctorProfile;
+namespace App\Actions\Portal\DoctorProfile;
 
-use App\\Models\\Doctor;
+use App\Models\Doctor;
 
 class ShowDoctorProfileAction
 {
