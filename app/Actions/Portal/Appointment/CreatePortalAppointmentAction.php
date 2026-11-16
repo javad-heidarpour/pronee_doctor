@@ -140,8 +140,8 @@ class CreatePortalAppointmentAction
                 'clinic_id' => $timeSlot->clinic_id,
                 'time_slot_id' => $timeSlot->id,
 
-                // نوبت منشی لزوماً حساب کاربری بیمار ندارد
-                // این فرم توسط پزشک/منشی ثبت می‌شود و حساب کاربری بیمار ندارد.\n                'user_id' => null,
+                // نوبت ثبت‌شده توسط پزشک/منشی به حساب بیمار متصل نیست.
+                'user_id' => null,
                 'fee_rial' => $feeRial,
                 'patient_name' => $validated['patient_name'],
                 'patient_phone' => $validated['patient_phone'],
