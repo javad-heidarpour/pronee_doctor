@@ -33,7 +33,9 @@ class ReviewController extends Controller
         Review $review,
         TogglePortalReviewApprovalAction $action
     ) {
-        $action->handle($this->currentDoctor(), $review);
+        $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
+        $action->handle($doctor, $review);
 
         return back()->with('success', 'وضعیت نظر تغییر کرد.');
     }
