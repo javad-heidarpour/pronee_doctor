@@ -55,48 +55,6 @@ class UsersController extends Controller
         return $doctor;
     }
 
-    private function validateUser(Request $request, ?User $user = null): array
-    {
-        $authUser = Auth::guard('web')->user();
-
-        // ایجاد حساب پزشک باید از فرایند ثبت‌نام پزشک انجام شود تا
-        // رکورد doctors و ارتباط آن با users نیز ساخته شود.
-        // در ویرایش، نقش فعلی پزشک برای حفظ حساب‌های موجود مجاز می‌ماند.
-        $allowedRoles = $authUser?->role === 'admin'
-            ? ($user
-                ? ['doctor', 'secretary', 'admin', 'user']
-                : ['secretary', 'admin', 'user'])
-            : ['secretary'];
-
-        return $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'family' => ['required', 'string', 'max:100'],
-            'phone' => [
-                'required',
-                'string',
-                'max:11',
-                Rule::unique('users', 'phone')->ignore($user?->id),
-            ],
-            'email' => [
-                'nullable',
-                'email',
-                'max:150',
-                Rule::unique('users', 'email')->ignore($user?->id),
-            ],
-            'username' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('users', 'username')->ignore($user?->id),
-            ],
-            'password' => $user
-                ? ['nullable', 'string', 'min:8', 'confirmed']
-                : ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::in($allowedRoles)],
-            'is_active' => ['required', 'boolean'],
-        ]);
-    }
-
     private function preventSelfModification(User $user): void
     {
         abort_if(
@@ -326,7 +284,7 @@ class UsersController extends Controller
         CreateManagedUserAction $action
     ) {
         $activeDoctor = $this->authorizeUserManagement();
-        $validated = $this->validateUser($request);
+        $validated = $request->validated();
 
         $secretary = $action->handle($validated, $activeDoctor);
 
@@ -359,7 +317,7 @@ class UsersController extends Controller
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
-        $validated = $this->validateUser($request, $user);
+        $validated = $request->validated();
         $action->handle($user, $validated);
 
         return redirect()
