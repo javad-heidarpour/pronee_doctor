@@ -44,6 +44,19 @@ trait HasActiveDoctor
 
         return $doctor;
     }
+    /**
+     * تغییر تنظیمات ساختاری مطب فقط برای پزشک یا مدیر مجاز است.
+     * منشی می‌تواند عملیات روزمره نوبت‌ها را انجام دهد، نه پیکربندی مطب.
+     */
+    protected function authorizeDoctorOnly(): void
+    {
+        abort_if(
+            Auth::guard('web')->user()?->role === 'secretary',
+            403,
+            'منشی اجازه تغییر تنظیمات ساختاری مطب را ندارد.'
+        );
+    }
+
     protected function accessibleClinicIds(?Doctor $doctor = null): array
     {
         $user = Auth::guard('web')->user();
