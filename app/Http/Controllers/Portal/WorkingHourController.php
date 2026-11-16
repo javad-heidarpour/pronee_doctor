@@ -9,10 +9,10 @@ use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ToggleWorkingHourAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
+use App\Http\Requests\Portal\ListWorkingHoursRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
 use App\Models\DoctorWorkingHour;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class WorkingHourController extends Controller
@@ -23,13 +23,13 @@ class WorkingHourController extends Controller
     /**
      * نمایش ساعات کاری پزشک فعال.
      */
-    public function index(Request $request, ListWorkingHoursAction $action)
+    public function index(ListWorkingHoursRequest $request, ListWorkingHoursAction $action)
     {
         $doctor = $this->currentDoctor();
 
         return Inertia::render(
             'Portal/WorkingHours',
-            $action->handle($doctor, $request, $this->accessibleClinicIds($doctor))
+            $action->handle($doctor, $request->validated(), $this->accessibleClinicIds($doctor))
         );
     }
 
