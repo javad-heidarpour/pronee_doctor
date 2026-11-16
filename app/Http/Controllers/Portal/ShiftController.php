@@ -2,146 +2,64 @@
 
 namespace App\Http\Controllers\Portal;
 
+use App\Actions\Portal\Shifts\CreateTimeSlotAction;
+use App\Actions\Portal\Shifts\DeleteTimeSlotAction;
+use App\Actions\Portal\Shifts\GenerateTimeSlotsAction;
+use App\Actions\Portal\Shifts\ListTimeSlotsAction;
+use App\Actions\Portal\Shifts\ToggleTimeSlotAction;
+use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
 use App\Http\Controllers\Controller;
-use App\Models\DoctorWorkingHour;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 use Inertia\Inertia;
-use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 
 class ShiftController extends Controller
 {
     use HasActiveDoctor;
 
-
     /**
-     * بررسی تعلق مطب به پزشک
+     * بررسی تعلق مطب به پزشک فعال.
      */
-    private function authorizeClinic($doctor, int $clinicId): void
+    private function authorizeClinic(Doctor $doctor, int $clinicId): void
     {
-        $exists = $doctor->address()
-            ->whereKey($clinicId)
-            ->exists();
-
-        abort_unless($exists, 403, 'شما به این مطب دسترسی ندارید.');
+        abort_unless(
+            $doctor->address()->whereKey($clinicId)->exists(),
+            403,
+            'شما به این مطب دسترسی ندارید.'
+        );
     }
 
     /**
-     * بررسی مالکیت نوبت
+     * بررسی مالکیت نوبت.
      */
     private function authorizeSlot(TimeSlot $slot, int $doctorId): void
     {
         abort_unless(
-            (int) $slot->doctor_id === (int) $doctorId,
+            (int) $slot->doctor_id === $doctorId,
             403,
             'دسترسی غیرمجاز'
         );
     }
 
     /**
-     * نمایش لیست نوبت‌ها
+     * نمایش فهرست نوبت‌ها.
      */
-    public function index(Request $request)
+    public function index(Request $request, ListTimeSlotsAction $action)
     {
         $doctor = $this->currentDoctor();
 
-        $clinics = $doctor->address()
-            ->with('city')
-            ->get();
-
-        $query = TimeSlot::where('doctor_id', $doctor->id)
-            ->with('clinic.city');
-
-        if ($request->filled('clinic_id')) {
-            $query->where('clinic_id', $request->clinic_id);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->where('date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->where('date', '<=', $request->date_to);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-
-            $query->where(function ($q) use ($search) {
-                $q->where('date', 'LIKE', "%{$search}%")
-                    ->orWhere('start_time', 'LIKE', "%{$search}%");
-            });
-        }
-
-        $allowedSortColumns = [
-            'date',
-            'start_time',
-            'end_time',
-            'status',
-            'created_at',
-        ];
-
-        $sortBy = $request->input('sort_by', 'date');
-
-        if (!in_array($sortBy, $allowedSortColumns, true)) {
-            $sortBy = 'date';
-        }
-
-        $sortDir = strtolower($request->input('sort_dir', 'asc'));
-
-        if (!in_array($sortDir, ['asc', 'desc'], true)) {
-            $sortDir = 'asc';
-        }
-
-        $slots = $query
-            ->orderBy($sortBy, $sortDir)
-            ->orderBy('start_time')
-            ->paginate(20)
-            ->withQueryString();
-
-        $stats = [
-            'total' => TimeSlot::where('doctor_id', $doctor->id)->count(),
-
-            'available' => TimeSlot::where('doctor_id', $doctor->id)
-                ->where('status', 'available')
-                ->count(),
-
-            'booked' => TimeSlot::where('doctor_id', $doctor->id)
-                ->where('status', 'booked')
-                ->count(),
-
-            'cancelled' => TimeSlot::where('doctor_id', $doctor->id)
-                ->where('status', 'cancelled')
-                ->count(),
-        ];
-
-        return Inertia::render('Portal/Shifts/Index', [
-            'doctor' => $doctor,
-            'clinics' => $clinics,
-            'slots' => $slots,
-            'stats' => $stats,
-            'filters' => $request->only([
-                'clinic_id',
-                'status',
-                'date_from',
-                'date_to',
-                'search',
-                'sort_by',
-                'sort_dir',
-            ]),
-        ]);
+        return Inertia::render(
+            'Portal/Shifts/Index',
+            $action->handle($doctor, $request)
+        );
     }
 
     /**
-     * ایجاد نوبت تکی
+     * ایجاد نوبت تکی.
      */
-    public function store(Request $request)
+    public function store(Request $request, CreateTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
 
@@ -161,38 +79,26 @@ class ShiftController extends Controller
 
         $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
 
-        $exists = TimeSlot::where('doctor_id', $doctor->id)
-            ->where('clinic_id', $validated['clinic_id'])
-            ->where('date', $validated['date'])
-            ->where('start_time', $validated['start_time'])
-            ->exists();
-
-        if ($exists) {
+        if (!$action->handle($doctor, $validated)) {
             return back()->withErrors([
                 'duplicate' => 'این نوبت قبلاً برای این تاریخ و ساعت ایجاد شده است.',
             ])->withInput();
         }
 
-        TimeSlot::create([
-            'doctor_id' => $doctor->id,
-            'clinic_id' => $validated['clinic_id'],
-            'date' => $validated['date'],
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'status' => 'available',
-        ]);
-
         return back()->with('success', 'نوبت با موفقیت ایجاد شد.');
     }
 
     /**
-     * ویرایش نوبت
+     * ویرایش نوبت.
      */
-    public function update(Request $request, TimeSlot $slot)
-    {
+    public function update(
+        Request $request,
+        TimeSlot $slot,
+        UpdateTimeSlotAction $action
+    ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeSlot($slot, $doctor->id);
+        $this->authorizeSlot($slot, (int) $doctor->id);
 
         if ($slot->status === 'booked') {
             return back()->withErrors([
@@ -209,32 +115,23 @@ class ShiftController extends Controller
 
         $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
 
-        $duplicate = TimeSlot::where('doctor_id', $doctor->id)
-            ->where('id', '!=', $slot->id)
-            ->where('clinic_id', $validated['clinic_id'])
-            ->where('date', $validated['date'])
-            ->where('start_time', $validated['start_time'])
-            ->exists();
-
-        if ($duplicate) {
+        if (!$action->handle($doctor, $slot, $validated)) {
             return back()->withErrors([
                 'duplicate' => 'این نوبت قبلاً وجود دارد.',
             ]);
         }
 
-        $slot->update($validated);
-
         return back()->with('success', 'نوبت بروزرسانی شد.');
     }
 
     /**
-     * تغییر وضعیت نوبت
+     * تغییر وضعیت نوبت.
      */
-    public function toggle(TimeSlot $slot)
+    public function toggle(TimeSlot $slot, ToggleTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeSlot($slot, $doctor->id);
+        $this->authorizeSlot($slot, (int) $doctor->id);
 
         if ($slot->status === 'booked') {
             return back()->withErrors([
@@ -242,13 +139,7 @@ class ShiftController extends Controller
             ]);
         }
 
-        $newStatus = $slot->status === 'available'
-            ? 'cancelled'
-            : 'available';
-
-        $slot->update([
-            'status' => $newStatus,
-        ]);
+        $newStatus = $action->handle($slot);
 
         $message = $newStatus === 'available'
             ? 'نوبت فعال شد.'
@@ -258,13 +149,13 @@ class ShiftController extends Controller
     }
 
     /**
-     * حذف نوبت
+     * حذف نوبت.
      */
-    public function destroy(TimeSlot $slot)
+    public function destroy(TimeSlot $slot, DeleteTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeSlot($slot, $doctor->id);
+        $this->authorizeSlot($slot, (int) $doctor->id);
 
         if ($slot->status === 'booked') {
             return back()->withErrors([
@@ -272,16 +163,18 @@ class ShiftController extends Controller
             ]);
         }
 
-        $slot->delete();
+        $action->handle($slot);
 
         return back()->with('success', 'نوبت حذف شد.');
     }
 
     /**
-     * تولید گروهی نوبت‌ها بر اساس الگوی ساعات کاری
+     * تولید گروهی نوبت‌ها بر اساس الگوی ساعات کاری.
      */
-    public function generateSlots(Request $request)
-    {
+    public function generateSlots(
+        Request $request,
+        GenerateTimeSlotsAction $action
+    ) {
         $doctor = $this->currentDoctor();
 
         $validated = $request->validate([
@@ -293,106 +186,30 @@ class ShiftController extends Controller
             'weeks_count.max' => 'حداکثر ۵۲ هفته (یک سال)',
         ]);
 
-        if (!empty($validated['clinic_id'])) {
-            $this->authorizeClinic(
-                $doctor,
-                (int) $validated['clinic_id']
-            );
+        $clinicId = !empty($validated['clinic_id'])
+            ? (int) $validated['clinic_id']
+            : null;
+
+        if ($clinicId !== null) {
+            $this->authorizeClinic($doctor, $clinicId);
         }
 
-        $weeksCount = (int) $validated['weeks_count'];
+        $result = $action->handle(
+            $doctor,
+            (int) $validated['weeks_count'],
+            $clinicId
+        );
 
-        $generatedCount = 0;
-        $skippedCount = 0;
-
-        $query = DoctorWorkingHour::where('doctor_id', $doctor->id)
-            ->where('is_active', true);
-
-        if (!empty($validated['clinic_id'])) {
-            $query->where('clinic_id', $validated['clinic_id']);
-        }
-
-        $workingHours = $query->get();
-
-        if ($workingHours->isEmpty()) {
+        if (!$result['has_working_hours']) {
             return back()->withErrors([
                 'error' => 'هیچ الگوی شیفت فعالی برای تولید نوبت وجود ندارد. ابتدا شیفت‌ها را تعریف کنید.',
             ]);
         }
 
-        // شروع هفته از شنبه
-        $baseDate = Carbon::now()->startOfWeek(Carbon::SATURDAY);
+        $message = "با موفقیت {$result['generated']} نوبت جدید برای {$validated['weeks_count']} هفته آینده ایجاد شد.";
 
-        for ($week = 0; $week < $weeksCount; $week++) {
-
-            $currentWeekStart = $baseDate->copy()->addWeeks($week);
-
-            foreach ($workingHours as $wh) {
-
-                // 0 = شنبه، 1 = یکشنبه، ...، 6 = جمعه
-                $targetDate = $currentWeekStart
-                    ->copy()
-                    ->addDays($wh->day_of_week);
-
-                // حذف روزهای گذشته؛ امروز مجاز است
-                if ($targetDate->isBefore(Carbon::today())) {
-                    continue;
-                }
-
-                $startTime = Carbon::parse(
-                    $targetDate->format('Y-m-d') . ' ' . $wh->start_time
-                );
-
-                $endTime = Carbon::parse(
-                    $targetDate->format('Y-m-d') . ' ' . $wh->end_time
-                );
-
-                $duration = (int) $wh->duration_minutes;
-
-                $currentSlotTime = $startTime->copy();
-
-                while (
-                    $currentSlotTime->copy()
-                        ->addMinutes($duration)
-                        ->lte($endTime)
-                ) {
-                    $slotEndTime = $currentSlotTime
-                        ->copy()
-                        ->addMinutes($duration);
-
-                    $exists = TimeSlot::where('doctor_id', $doctor->id)
-                        ->where('clinic_id', $wh->clinic_id)
-                        ->where('date', $targetDate->format('Y-m-d'))
-                        ->where(
-                            'start_time',
-                            $currentSlotTime->format('H:i:s')
-                        )
-                        ->exists();
-
-                    if (!$exists) {
-                        TimeSlot::create([
-                            'doctor_id' => $doctor->id,
-                            'clinic_id' => $wh->clinic_id,
-                            'date' => $targetDate->format('Y-m-d'),
-                            'start_time' => $currentSlotTime->format('H:i:s'),
-                            'end_time' => $slotEndTime->format('H:i:s'),
-                            'status' => 'available',
-                        ]);
-
-                        $generatedCount++;
-                    } else {
-                        $skippedCount++;
-                    }
-
-                    $currentSlotTime->addMinutes($duration);
-                }
-            }
-        }
-
-        $message = "با موفقیت {$generatedCount} نوبت جدید برای {$weeksCount} هفته آینده ایجاد شد.";
-
-        if ($skippedCount > 0) {
-            $message .= " ({$skippedCount} نوبت تکراری رد شد)";
+        if ($result['skipped'] > 0) {
+            $message .= " ({$result['skipped']} نوبت تکراری رد شد)";
         }
 
         return back()->with('success', $message);
