@@ -1,19 +1,22 @@
 <?php
 
-namespace App\Actions\Portal\Gallery;
+namespace App\\Actions\\Portal\\Gallery;
 
-use App\Models\DoctorImage;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
+use App\\Models\\Doctor;
+use App\\Models\\DoctorImage;
+use Illuminate\\Http\\UploadedFile;
 
 class StoreGalleryImagesAction
 {
     /**
      * @param  UploadedFile[]  $files
      */
-    public function handle(array $files, string $category, ?string $caption): void
-    {
-        $doctor = Auth::guard('web')->user()->doctorProfile;
+    public function handle(
+        Doctor $doctor,
+        array $files,
+        string $category,
+        ?string $caption
+    ): void {
         $lastOrder = $doctor->images()->max('sort_order') ?? 0;
 
         foreach ($files as $file) {
