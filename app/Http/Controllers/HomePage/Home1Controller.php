@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\HomePage;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Home\BuildPublicWorkingHoursAction;
 use Illuminate\Http\Request;
 use App\Actions\Home\HomeIndexAction;
 use App\Actions\Home\ShowDoctorProfileAction;
