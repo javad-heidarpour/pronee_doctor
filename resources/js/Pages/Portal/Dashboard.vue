@@ -110,6 +110,7 @@
             <span class="rounded-xl bg-amber-50 px-3 py-2 font-bold text-amber-700">در انتظار: {{ todayStats.pending }}</span>
             <span class="rounded-xl bg-emerald-50 px-3 py-2 font-bold text-emerald-700">تأییدشده: {{ todayStats.confirmed }}</span>
             <span class="rounded-xl bg-rose-50 px-3 py-2 font-bold text-rose-700">پرداخت نیازمند پیگیری: {{ todayStats.unpaid }}</span>
+            <span class="rounded-xl bg-slate-100 px-3 py-2 font-bold text-slate-700">لغوشده: {{ todayStats.cancelled }}</span>
             <span class="rounded-xl bg-violet-50 px-3 py-2 font-bold text-violet-700">پیامک ناموفق: {{ todayStats.smsFailed }}</span>
           </div>
         </div>
@@ -444,6 +445,7 @@ const todayStats = computed(() => ({
   confirmed: props.stats?.today_confirmed ?? 0,
   unpaid: props.stats?.today_unpaid ?? 0,
   smsFailed: props.stats?.today_sms_failed ?? 0,
+  cancelled: props.stats?.today_cancelled ?? 0,
 }));
 
 const formatRial = (value) => new Intl.NumberFormat("fa-IR").format(Number(value || 0));
