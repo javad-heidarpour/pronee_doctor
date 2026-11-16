@@ -254,6 +254,15 @@ class UsersController extends Controller
             ],
         ]);
 
+        $totalClinicAssignments = collect($validated['doctors'])
+            ->sum(fn ($item) => count($item['clinic_ids']));
+
+        abort_if(
+            $totalClinicAssignments > 2,
+            422,
+            'هر منشی حداکثر می‌تواند به دو مطب متصل باشد.'
+        );
+
         $doctorIds = collect($validated['doctors'])
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
