@@ -106,6 +106,20 @@ class DoctorAuth
 
     private function requiredPermission(string $routeName, string $method): ?string
     {
+        // ثبت نوبت از فرم بیماران، از نظر سطح دسترسی یک عملیات نوبت‌دهی است؛
+        // نه مدیریت اطلاعات پایه بیمار.
+        if ($routeName === 'portal.patients.store') {
+            return 'appointments.manage';
+        }
+
+        // دریافت تاریخ‌ها و ساعت‌های خالی فقط به مشاهده بخش نوبت‌ها نیاز دارد.
+        if (in_array($routeName, [
+            'portal.patients.available-dates',
+            'portal.patients.available-slots',
+        ], true)) {
+            return 'appointments.view';
+        }
+
         $map = [
             'portal.patients.' => 'patients',
             'portal.appointments.' => 'appointments',
