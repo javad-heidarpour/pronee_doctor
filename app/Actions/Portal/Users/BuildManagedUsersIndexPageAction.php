@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Users;
 
+use App\Models\Doctor;
 use App\Models\User;
 
 class BuildManagedUsersIndexPageAction
@@ -11,7 +12,7 @@ class BuildManagedUsersIndexPageAction
     ) {
     }
 
-    public function handle(User $authUser, $activeDoctor): array
+    public function handle(User $authUser, ?Doctor $activeDoctor): array
     {
         $usersQuery = User::withTrashed()->latest();
 
