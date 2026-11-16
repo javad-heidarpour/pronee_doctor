@@ -48,9 +48,11 @@ class BuildDashboardAction
 
         $today = now()->toDateString();
 
-        $timeSlots = $doctor->timeSlots()->whereIn('clinic_id', $clinicIds);
+        $appointmentsQuery = Appointment::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $clinicIds);
 
-        $todayAppointmentsQuery = Appointment::query()
+        $todayAppointmentsQuery = (clone $appointmentsQuery)
             ->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)
             ->whereDate('appointment_date', $today);
@@ -128,13 +130,12 @@ class BuildDashboardAction
             ->sum('amount_rial');
 
         $stats = [
-            'total_appointments' => (clone $timeSlots)
-                ->where('status', 'booked')
-                ->count(),
+            // شمارش از جدول نوبت‌ها انجام می‌شود، نه اسلات‌ها؛
+            // اسلات رزروشده‌ی بدون رکورد نوبت نباید آمار واقعی را منحرف کند.
+            'total_appointments' => (clone $appointmentsQuery)->count(),
 
-            'pending_appointments' => (clone $timeSlots)
-                ->where('status', 'booked')
-                ->whereHas('appointment', fn ($query) => $query->where('status', 'pending'))
+            'pending_appointments' => (clone $appointmentsQuery)
+                ->where('status', 'pending')
                 ->count(),
 
             'today_total' => $todayAppointments->count(),
