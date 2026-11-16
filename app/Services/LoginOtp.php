@@ -77,38 +77,56 @@ class LoginOtp
      */
     public function verify(string $phone, string $code): bool
     {
-        $otpHash = Cache::get($this->otpKey($phone));
+        // تمام بررسی‌ها و مصرف کد برای هر شماره به‌صورت سریالی انجام می‌شود؛
+        // در نتیجه دو درخواست هم‌زمان نمی‌توانند یک OTP را دوبار مصرف کنند.
+        $verificationLock = Cache::lock(
+            'doctor-register-otp-verify:' . hash('sha256', $phone),
+            10
+        );
 
-        if (!$otpHash) {
-            return false;
-        }
-
-        $attempts = (int) Cache::get($this->attemptsKey($phone), 0);
-
-        if ($attempts >= 5) {
-            Cache::forget($this->otpKey($phone));
-
+        if (!$verificationLock->get()) {
             throw new RuntimeException(
-                'تعداد تلاش‌های شما بیش از حد مجاز است. دوباره درخواست کد بدهید.'
+                'درخواست بررسی کد در حال انجام است. چند لحظه دیگر دوباره تلاش کنید.'
             );
         }
 
-        if (!Hash::check($code, $otpHash)) {
-            Cache::put(
-                $this->attemptsKey($phone),
-                $attempts + 1,
-                now()->addMinutes(5)
-            );
+        try {
+            $otpHash = Cache::get($this->otpKey($phone));
 
-            return false;
+            if (!$otpHash) {
+                return false;
+            }
+
+            $attempts = (int) Cache::get($this->attemptsKey($phone), 0);
+
+            if ($attempts >= 5) {
+                Cache::forget($this->otpKey($phone));
+                Cache::forget($this->attemptsKey($phone));
+
+                throw new RuntimeException(
+                    'تعداد تلاش‌های شما بیش از حد مجاز است. دوباره درخواست کد بدهید.'
+                );
+            }
+
+            if (!Hash::check($code, $otpHash)) {
+                Cache::put(
+                    $this->attemptsKey($phone),
+                    $attempts + 1,
+                    now()->addMinutes(5)
+                );
+
+                return false;
+            }
+
+            // کد یک‌بارمصرف است و فقط یک درخواست می‌تواند آن را مصرف کند.
+            Cache::forget($this->otpKey($phone));
+            Cache::forget($this->lockKey($phone));
+            Cache::forget($this->attemptsKey($phone));
+
+            return true;
+        } finally {
+            $verificationLock->release();
         }
-
-        // کد یک‌بارمصرف است
-        Cache::forget($this->otpKey($phone));
-        Cache::forget($this->lockKey($phone));
-        Cache::forget($this->attemptsKey($phone));
-
-        return true;
     }
 
     /**
