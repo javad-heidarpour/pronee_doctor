@@ -197,7 +197,7 @@
 
             <!-- Pending Badge -->
             <span
-              v-if="menu.route === 'doctor.patients.index' && pendingAppointments > 0"
+              v-if="menu.route === 'portal.patients.index' && pendingAppointments > 0"
               :class="[
                 'flex items-center justify-center bg-rose-500 text-white font-bold rounded-full shrink-0',
                 isSidebarCollapsed
@@ -421,8 +421,6 @@ const page = usePage();
 // --------------------------------------------------
 // Authenticated User
 // --------------------------------------------------
-console.log('Menus:', page.props.menus);
-console.log('Auth:', page.props.auth);
 const currentUser = computed(() => {
   return page.props.auth?.user || {};
 });
