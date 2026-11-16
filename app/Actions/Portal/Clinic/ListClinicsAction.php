@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Actions\\Portal\\Clinic;
+namespace App\Actions\Portal\Clinic;
 
-use App\\Models\\City;
-use App\\Models\\Doctor;
+use App\Models\City;
+use App\Models\Doctor;
 
 class ListClinicsAction
 {
