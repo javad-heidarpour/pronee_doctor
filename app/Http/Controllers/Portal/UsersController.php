@@ -377,24 +377,14 @@ class UsersController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
+    public function store(
+        Request $request,
+        CreateManagedUserAction $action
+    ) {
         $activeDoctor = $this->authorizeUserManagement();
         $validated = $this->validateUser($request);
 
-        $secretary = DB::transaction(function () use ($validated, $activeDoctor) {
-            $secretary = User::create($this->hashPassword($validated));
-
-            // هنگام ساخت منشی توسط پزشک، ابتدا او را به پزشک فعال متصل می‌کنیم.
-            // مجوزها خالی می‌مانند تا پزشک در صفحه تخصیص، دسترسی‌ها را تعیین کند.
-            if ($activeDoctor) {
-                $secretary->doctors()->attach($activeDoctor->id, [
-                    'permissions' => json_encode([], JSON_UNESCAPED_UNICODE),
-                ]);
-            }
-
-            return $secretary;
-        });
+        $secretary = $action->handle($validated, $activeDoctor);
 
         $redirect = $secretary->role === 'secretary'
             ? redirect()->route('portal.users.assignments', $secretary->id)
