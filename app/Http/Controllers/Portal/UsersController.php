@@ -238,7 +238,7 @@ class UsersController extends Controller
                 Rule::exists('doctors', 'id'),
             ],
             'doctors.*.permissions' => ['required', 'array'],
-            'doctors.*.clinic_ids' => ['required', 'array'],
+            'doctors.*.clinic_ids' => ['required', 'array', 'min:1'],
             'doctors.*.clinic_ids.*' => [
                 'required',
                 'integer',
@@ -289,6 +289,7 @@ class UsersController extends Controller
         foreach ($validated['doctors'] as $item) {
             $validClinicIds = $doctors->get((int) $item['id'])
                 ->address()
+                ->where('addresses.is_active', true)
                 ->whereIn('addresses.id', $item['clinic_ids'])
                 ->pluck('addresses.id')
                 ->map(fn ($id) => (int) $id)
