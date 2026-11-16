@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Actions\Portal\Fees;
+namespace App\\Actions\\Portal\\Fees;
 
-use App\Models\Fee;
-use Illuminate\Support\Facades\Auth;
+use App\\Models\\Doctor;
+use App\\Models\\Fee;
 
 class ListFeesAction
 {
     /**
-     * @return array{activeFee: ?Fee, feeHistory: \Illuminate\Database\Eloquent\Collection, doctor: mixed}
+     * @return array{activeFee: ?Fee, feeHistory: \\Illuminate\\Database\\Eloquent\\Collection, doctor: Doctor}
      */
-    public function handle(): array
+    public function handle(Doctor $doctor): array
     {
         $fees = Fee::with('creator:id,name,caption,family')
             ->orderByDesc('id')
@@ -19,8 +19,6 @@ class ListFeesAction
         $activeFee = $fees->first(
             fn (Fee $fee) => $fee->is_active
         );
-
-        $doctor = Auth::guard('web')->user()->doctorProfile;
 
         return [
             'activeFee' => $activeFee,
