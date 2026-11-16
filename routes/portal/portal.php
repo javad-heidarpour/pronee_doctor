@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Portal\AuthController;
 use App\Http\Controllers\Portal\DashboardController;
+use App\Http\Controllers\Portal\SecurityAuditController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
