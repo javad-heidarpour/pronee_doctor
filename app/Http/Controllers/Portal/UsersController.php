@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\User;
 use App\Models\Doctor;
+use App\Actions\Portal\Users\UpdateSecretaryAssignmentsAction;
+use App\Actions\Portal\Users\CreateManagedUserAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -226,7 +228,11 @@ class UsersController extends Controller
         ]);
     }
 
-    public function updateAssignments(\n        Request $request,\n        User $user,\n        UpdateSecretaryAssignmentsAction $action\n    )
+    public function updateAssignments(
+        Request $request,
+        User $user,
+        UpdateSecretaryAssignmentsAction $action
+    )
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement($user);
