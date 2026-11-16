@@ -49,7 +49,7 @@ class SendVisitOtpSmsAction
         }
 
         try {
-            $response = Http::withHeaders([
+            $response = Http::timeout(15)->withHeaders([
                 'ApiKey' => config('services.ghasedak.api_key'),
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
@@ -73,10 +73,14 @@ class SendVisitOtpSmsAction
             if (!$response->successful() || $response->json('IsSuccess') === false) {
                 Cache::forget($cacheKey);
 
+                Log::warning('Visit OTP SMS rejected by provider', [
+                    'appointment_id' => $visitNumber,
+                    'http_status' => $response->status(),
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'status' => $response->status(),
-                    'error' => $response->json(),
+                    'message' => 'ارسال پیامک ناموفق بود. لطفاً بعداً تلاش کنید.',
                 ], 422);
             }
 
