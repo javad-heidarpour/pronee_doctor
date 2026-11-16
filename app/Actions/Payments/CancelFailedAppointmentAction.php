@@ -12,18 +12,19 @@ class CancelFailedAppointmentAction
 {
     /**
      * لغو اتمیک رزرو پس از اعلام قطعی ناموفق بودن پرداخت.
-     * اگر پرداخت قبلاً موفق شده باشد، هیچ تغییری اعمال نمی‌شود.
+     *
+     * @return bool false اگر پرداخت هم‌زمان قبلاً موفق شده باشد.
      */
-    public function handle(AppointmentPayment $payment): void
+    public function handle(AppointmentPayment $payment): bool
     {
-        DB::transaction(function () use ($payment) {
+        return DB::transaction(function () use ($payment) {
             $lockedPayment = AppointmentPayment::query()
                 ->whereKey($payment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
             if ($lockedPayment->status === 'paid') {
-                return;
+                return false;
             }
 
             $appointment = Appointment::query()
@@ -36,7 +37,7 @@ class CancelFailedAppointmentAction
             ]);
 
             if (!$appointment) {
-                return;
+                return true;
             }
 
             $appointment->status = 'cancelled';
@@ -49,7 +50,7 @@ class CancelFailedAppointmentAction
             $appointment->save();
 
             if (!$appointment->time_slot_id) {
-                return;
+                return true;
             }
 
             $timeSlot = TimeSlot::query()
@@ -58,7 +59,7 @@ class CancelFailedAppointmentAction
                 ->first();
 
             if (!$timeSlot || $timeSlot->status !== 'booked') {
-                return;
+                return true;
             }
 
             $hasOtherActiveAppointment = Appointment::query()
@@ -70,6 +71,8 @@ class CancelFailedAppointmentAction
                 $timeSlot->status = 'available';
                 $timeSlot->save();
             }
+
+            return true;
         });
     }
 }
