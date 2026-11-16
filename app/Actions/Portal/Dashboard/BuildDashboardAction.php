@@ -141,7 +141,11 @@ class BuildDashboardAction
             'today_confirmed' => $todayAppointments->where('status', 'confirmed')->count(),
             'today_visited' => $todayAppointments->where('status', 'visited')->count(),
             'today_unpaid' => $todayAppointments
+                ->whereIn('status', ['pending', 'confirmed'])
                 ->whereIn('payment_status', ['pending', 'initiated', 'failed'])
+                ->count(),
+            'today_cancelled' => $todayAppointments
+                ->where('status', 'cancelled')
                 ->count(),
             'today_sms_failed' => SmsLog::query()
                 ->where('status', 'failed')
