@@ -302,104 +302,37 @@ class PatientController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, Appointment $appointment)
-    {
+    public function updateStatus(
+        UpdateAppointmentStatusRequest $request,
+        Appointment $appointment,
+        UpdateAppointmentStatusAction $action
+    ) {
         $this->authorizeAppointment($appointment);
 
-        $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,paid,cancelled,visited',
-        ]);
-
-        // نوبت ویزیت‌شده قابل تغییر نیست
-        if ($appointment->status === 'visited') {
-            return back()->with(
-                'error',
-                'وضعیت این نوبت قبلاً به ویزیت‌شده تغییر کرده و امکان تغییر مجدد آن وجود ندارد.'
-            );
-        }
-
-        // جلوگیری از تغییر مجدد به وضعیت visited از این متد
-        if ($validated['status'] === 'visited') {
-            return back()->with(
-                'error',
-                'ثبت وضعیت ویزیت‌شده از این بخش امکان‌پذیر نیست.'
-            );
-        }
-
         try {
-
-            DB::transaction(function () use ($appointment, $validated) {
-
-                // قفل کردن نوبت
-                $appointment = Appointment::whereKey($appointment->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                // قفل کردن ساعت مربوطه
-                $timeSlot = TimeSlot::whereKey($appointment->time_slot_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                $newStatus = $validated['status'];
-
-                // بررسی اشغال بودن ساعت در صورت فعال‌سازی مجدد نوبت
-                if (in_array($newStatus, ['pending', 'confirmed'])) {
-
-                    $anotherAppointmentExists = Appointment::where(
-                        'time_slot_id',
-                        $appointment->time_slot_id
-                    )
-                        ->where('id', '!=', $appointment->id)
-                        ->whereIn('status', ['pending', 'confirmed'])
-                        ->exists();
-
-                    if ($anotherAppointmentExists) {
-                        throw ValidationException::withMessages([
-                            'status' => 'امکان فعال‌سازی مجدد این نوبت وجود ندارد؛ زیرا ساعت انتخاب‌شده توسط نوبت دیگری رزرو شده است. لطفاً ساعت دیگری انتخاب کنید.',
-                        ]);
-                    }
-                }
-
-                // تغییر وضعیت نوبت
-                $appointment->update([
-                    'status' => $newStatus,
-                ]);
-
-                if ($timeSlot) {
-
-                    if ($newStatus === 'cancelled') {
-
-                        $hasActiveAppointment = Appointment::where(
-                            'time_slot_id',
-                            $timeSlot->id
-                        )
-                            ->whereIn('status', ['pending', 'confirmed'])
-                            ->exists();
-
-                        if (!$hasActiveAppointment) {
-                            $timeSlot->update([
-                                'status' => 'available',
-                            ]);
-                        }
-
-                    } elseif (in_array($newStatus, ['pending', 'confirmed'])) {
-
-                        $timeSlot->update([
-                            'status' => 'booked',
-                        ]);
-                    }
-                }
-            });
-
-            return back()->with(
-                'success',
-                'وضعیت نوبت با موفقیت تغییر کرد.'
+            $result = $action->handle(
+                $appointment,
+                $request->validated('status')
             );
 
+            if ($result === 'already_visited') {
+                return back()->with(
+                    'error',
+                    'وضعیت این نوبت قبلاً به ویزیت‌شده تغییر کرده و امکان تغییر مجدد آن وجود ندارد.'
+                );
+            }
+
+            if ($result === 'visit_completion_not_allowed') {
+                return back()->with(
+                    'error',
+                    'ثبت وضعیت ویزیت‌شده از این بخش امکان‌پذیر نیست.'
+                );
+            }
+
+            return back()->with('success', 'وضعیت نوبت با موفقیت تغییر کرد.');
         } catch (ValidationException $e) {
             throw $e;
-        } catch (\Throwable $e) {
-
+        } catch (\\Throwable $e) {
             report($e);
 
             return back()->with(
