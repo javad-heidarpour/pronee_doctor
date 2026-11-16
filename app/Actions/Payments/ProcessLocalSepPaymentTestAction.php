@@ -18,13 +18,15 @@ class ProcessLocalSepPaymentTestAction
         string $testResult
     ): string {
         return DB::transaction(function () use ($payment, $appointment, $testResult) {
-            $lockedPayment = AppointmentPayment::query()
-                ->whereKey($payment->id)
+            // Match the appointment -> payment lock order used by all
+            // other payment lifecycle operations.
+            $lockedAppointment = Appointment::query()
+                ->whereKey($appointment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $lockedAppointment = Appointment::query()
-                ->whereKey($appointment->id)
+            $lockedPayment = AppointmentPayment::query()
+                ->whereKey($payment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
