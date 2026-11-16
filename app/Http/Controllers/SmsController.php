@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Actions\Sms\SendVisitOtpSmsAction;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
 class SmsController extends Controller
