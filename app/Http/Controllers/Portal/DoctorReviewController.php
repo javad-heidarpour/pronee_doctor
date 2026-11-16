@@ -7,19 +7,19 @@ use App\Actions\Portal\DoctorReviews\ReplyDoctorReviewAction;
 use App\Actions\Portal\DoctorReviews\ToggleDoctorReviewAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\ListDoctorReviewsRequest;
 use App\Http\Requests\Portal\ReplyDoctorReviewRequest;
 use App\Models\Review;
-use Illuminate\Http\Request;
 
 class DoctorReviewController extends Controller
 {
     use HasActiveDoctor;
 
     public function index(
-        Request $request,
+        ListDoctorReviewsRequest $request,
         ListDoctorReviewsAction $action
     ) {
-        return $action->handle($request, $this->currentDoctor());
+        return $action->handle($request->validated(), $this->currentDoctor());
     }
 
     public function toggle(
