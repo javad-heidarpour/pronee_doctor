@@ -39,7 +39,7 @@ class ClinicController extends Controller
         UpdateClinicAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeClinic($clinic, $doctor);
+        $this->authorizeClinicAccess((int) $clinic->id, $doctor);
 
         $action->handle($clinic, $request->validated());
 
@@ -56,13 +56,4 @@ class ClinicController extends Controller
         return back()->with('success', 'مطب حذف شد.');
     }
 
-    private function authorizeClinic(Address $clinic, \App\Models\Doctor $doctor): void
-    {
-        abort_unless(
-            (int) $clinic->doctor_id === (int) $doctor->id &&
-            in_array((int) $clinic->id, $this->accessibleClinicIds($doctor), true),
-            403,
-            'شما به این مطب دسترسی ندارید.'
-        );
-    }
 }
