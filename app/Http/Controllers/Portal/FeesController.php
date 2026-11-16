@@ -28,6 +28,7 @@ class FeesController extends Controller
     ): RedirectResponse {
         // حتی عملیات تغییر تعرفه نیز باید در زمینه پزشک فعال انجام شود.
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         $changed = $action->handle(
             (int) $request->validated()['fee_rial'],
