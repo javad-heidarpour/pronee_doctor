@@ -32,6 +32,15 @@ class SmsRoutesTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_visit_sms_rejects_an_expired_booking_session(): void
+    {
+        $response = $this->withSession([
+            'sms.visit.allowed.123' => now()->subMinute()->timestamp,
+        ])->postJson('/sms/visit/123');
+
+        $response->assertForbidden();
+    }
+
     public function test_confirmation_sms_is_not_exposed_as_a_public_route(): void
     {
         $this->assertFalse(Route::has('sms.Confirmation'));
