@@ -145,7 +145,11 @@ class ShiftController extends Controller
             ]);
         }
 
-        $action->handle($slot);
+        if (!$action->handle($slot)) {
+            return back()->withErrors([
+                'error' => 'نوبت رزرو شده قابل حذف نیست.',
+            ]);
+        }
 
         return back()->with('success', 'نوبت حذف شد.');
     }
