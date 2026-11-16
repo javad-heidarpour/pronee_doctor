@@ -9,6 +9,7 @@ Route::prefix('visit')->name('visit.')->controller(VisitController::class)->grou
     // نمایش اطلاعات نوبت
     Route::get('/{visit_number}', 'show')
         ->whereNumber('visit_number')
+        ->middleware('signed')
         ->name('show');
 
 });
