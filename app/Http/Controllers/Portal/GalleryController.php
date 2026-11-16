@@ -11,7 +11,7 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Requests\Portal\StoreGalleryImagesRequest;
 use App\Http\Requests\Portal\UpdateGalleryImageRequest;
 use App\Models\DoctorImage;
-use Illuminate\Support\Facades\Gate;
+use App\Policies\DoctorImagePolicy;
 use Inertia\Inertia;
 
 class GalleryController extends Controller
@@ -48,7 +48,7 @@ class GalleryController extends Controller
         UpdateGalleryImageAction $action
     ) {
         $doctor = $this->currentDoctor();
-        Gate::forUser($doctor)->authorize('update', $image);
+        abort_unless(app(DoctorImagePolicy::class)->update($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
 
         $action->handle($image, $request->validated());
 
@@ -60,7 +60,7 @@ class GalleryController extends Controller
         DeleteGalleryImageAction $action
     ) {
         $doctor = $this->currentDoctor();
-        Gate::forUser($doctor)->authorize('delete', $image);
+        abort_unless(app(DoctorImagePolicy::class)->delete($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
 
         $action->handle($image);
 
