@@ -6,11 +6,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use App\Models\Doctor;
 
 class User extends Authenticatable
 {
@@ -28,7 +28,6 @@ class User extends Authenticatable
         'family',
         'mobile',
         'username',
-
     ];
 
     protected $hidden = [
@@ -46,13 +45,41 @@ class User extends Authenticatable
     {
         return $this->hasOne(Doctor::class, 'user_id');
     }
+
     /**
-     * پزشکان مرتبط با این منشی
-     *//**
-     * پزشکانی که این کاربر به آن‌ها دسترسی دارد
+     * پرونده‌های پزشکانی که این حساب مجاز به مدیریت آن‌هاست.
+     * پزشک: مالک پرونده از طریق doctors.user_id
+     * منشی: پرونده‌های متصل از طریق doctor_user
+     * مدیر: تمام پرونده‌های فعال
      */
+    public function accessibleDoctors(): Builder
+    {
+        return Doctor::query()
+            ->where('doctors.is_active', true)
+            ->where(function (Builder $query) {
+                if ($this->role === 'admin') {
+                    return;
+                }
+
+                if ($this->role === 'doctor') {
+                    $query->where('doctors.user_id', $this->id);
+                    return;
+                }
+
+                if ($this->role === 'secretary') {
+                    $query->whereIn(
+                        'doctors.id',
+                        $this->doctors()->select('doctors.id')
+                    );
+                    return;
+                }
+
+                $query->whereRaw('1 = 0');
+            });
+    }
+
     /**
-     * پزشکانی که این منشی به آن‌ها دسترسی دارد
+     * پزشکانی که این کاربر به آن‌ها دسترسی دارد (منشی‌ها).
      */
     public function doctors()
     {
@@ -61,19 +88,13 @@ class User extends Authenticatable
             'doctor_user',
             'user_id',
             'doctor_id'
-        )
-            ->withPivot('permissions')
-            ->withTimestamps();
+        )->withPivot('permissions')->withTimestamps();
     }
 
-    // مالکیت های پرونده پزشک یعنی این سایت مال کدوم کاربر است
-    public function ownedDoctorProfiles()
+    public function ownedDoctorProfiles(): HasMany
     {
         return $this->hasMany(Doctor::class, 'user_id');
     }
-    /**
-     * منشی‌های این پزشک
-     */
 
     public function appointments(): HasMany
     {
