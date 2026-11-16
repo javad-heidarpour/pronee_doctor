@@ -75,6 +75,11 @@ class DoctorAuth
         );
 
         $routeName = (string) $request->route()?->getName();
+
+        if (in_array($routeName, ['portal.dashboard', 'portal.logout'], true)) {
+            return $next($request);
+        }
+
         $permission = $this->requiredPermission($routeName, $request->method());
 
         // بخش‌هایی که در فهرست مجوزهای منشی تعریف نشده‌اند، مخصوص پزشک/مدیر هستند.
