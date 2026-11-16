@@ -138,7 +138,12 @@
                 {{ patientInitials(appointment.patient_name) }}
               </div>
               <div class="min-w-0">
-                <p class="truncate text-sm font-extrabold text-slate-800">{{ appointment.patient_name || 'نامشخص' }}</p>
+                <Link
+                  :href="route('portal.patients.show', appointment.id)"
+                  class="block truncate text-sm font-extrabold text-slate-800 transition hover:text-teal-700 hover:underline"
+                >
+                  {{ appointment.patient_name || 'نامشخص' }}
+                </Link>
                 <p class="mt-1 truncate text-xs text-slate-500">{{ appointment.clinic_name || 'مطب ثبت نشده' }}</p>
               </div>
             </div>
