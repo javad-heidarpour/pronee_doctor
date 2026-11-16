@@ -27,6 +27,7 @@ class ShiftController extends Controller
     public function index(ListTimeSlotsRequest $request, ListTimeSlotsAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('shifts.view', $doctor);
 
         return Inertia::render(
             'Portal/Shifts/Index',
