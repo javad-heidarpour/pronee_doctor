@@ -20,25 +20,8 @@ use Inertia\Inertia;
 class ShiftController extends Controller
 {
     use HasActiveDoctor;
+    use AuthorizesPortalSchedules;
 
-    private function authorizeClinic(Doctor $doctor, int $clinicId): void
-    {
-        abort_unless(
-            in_array($clinicId, $this->accessibleClinicIds($doctor), true),
-            403,
-            'شما به این مطب دسترسی ندارید.'
-        );
-    }
-
-    private function authorizeSlot(TimeSlot $slot, int $doctorId): void
-    {
-        abort_unless(
-            (int) $slot->doctor_id === $doctorId &&
-            in_array((int) $slot->clinic_id, $this->accessibleClinicIds(), true),
-            403,
-            'دسترسی غیرمجاز'
-        );
-    }
 
     public function index(Request $request, ListTimeSlotsAction $action)
     {
@@ -73,7 +56,7 @@ class ShiftController extends Controller
         UpdateTimeSlotAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeSlot($slot, (int) $doctor->id);
+        $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
             return back()->withErrors([
