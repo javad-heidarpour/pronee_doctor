@@ -332,14 +332,26 @@ class UsersController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeUserManagement();
+        $activeDoctor = $this->authorizeUserManagement();
         $validated = $this->validateUser($request);
 
-        User::create($this->hashPassword($validated));
+        $secretary = DB::transaction(function () use ($validated, $activeDoctor) {
+            $secretary = User::create($this->hashPassword($validated));
+
+            // هنگام ساخت منشی توسط پزشک، ابتدا او را به پزشک فعال متصل می‌کنیم.
+            // مجوزها خالی می‌مانند تا پزشک در صفحه تخصیص، دسترسی‌ها را تعیین کند.
+            if ($activeDoctor) {
+                $secretary->doctors()->attach($activeDoctor->id, [
+                    'permissions' => json_encode([], JSON_UNESCAPED_UNICODE),
+                ]);
+            }
+
+            return $secretary;
+        });
 
         return redirect()
-            ->route('portal.users.index')
-            ->with('success', 'کاربر جدید با موفقیت ایجاد شد.');
+            ->route('portal.users.assignments', $secretary->id)
+            ->with('success', 'منشی ایجاد شد؛ اکنون سطح دسترسی او را تعیین کنید.');
     }
 
     public function edit(User $user): Response
