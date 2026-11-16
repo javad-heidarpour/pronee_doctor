@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\RegisterDoctorAction;
+use App\Actions\Auth\SendDoctorRegistrationPasswordAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendDoctorRegistrationOtpRequest;
 use App\Http\Requests\Auth\StoreDoctorRegistrationRequest;
@@ -121,7 +122,8 @@ class DoctorRegistrationController extends Controller
      */
     public function store(
         StoreDoctorRegistrationRequest $request,
-        RegisterDoctorAction $registerDoctor
+        RegisterDoctorAction $registerDoctor,
+        SendDoctorRegistrationPasswordAction $sendPassword
     ) {
         $data = $request->validated();
         $phone = $this->normalizePhone($data['phone']);
@@ -154,29 +156,11 @@ class DoctorRegistrationController extends Controller
         }
 
         // ارسال رمز عبور پس از ثبت موفق اطلاعات
-        $smsSent = false;
-
-        try {
-            $this->loginOtp->sendTemplate(
-                $phone,
-                'DoctorPassword',
-                [
-                    [
-                        'param' => 'param1',
-                        'value' => $temporaryPassword,
-                    ],
-                ],
-                'doctor-password-' . $doctor->id
-            );
-
-            $smsSent = true;
-
-        } catch (Throwable $e) {
-            Log::error('Doctor password SMS failed', [
-                'doctor_id' => $doctor->id,
-                'message' => $e->getMessage(),
-            ]);
-        }
+        $smsSent = $sendPassword->handle(
+            $phone,
+            $temporaryPassword,
+            (int) $doctor->id
+        );
 
         return response()->json([
             'success' => true,
