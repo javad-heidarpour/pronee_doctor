@@ -14,8 +14,8 @@ class CreateManagedUserAction
      */
     public function handle(
         array $validated,
-        ?Doctor $doctor = null,
-        RecordSecurityAuditEventAction $audit
+        RecordSecurityAuditEventAction $audit,
+        ?Doctor $doctor = null
     ): User
     {
         return DB::transaction(function () use ($validated, $doctor, $audit) {
@@ -28,7 +28,7 @@ class CreateManagedUserAction
                 ]);
             }
 
-            $audit?->handle('managed_user.created', $user, [
+            $audit->handle('managed_user.created', $user, [
                 'role' => $user->role,
                 'is_active' => (bool) $user->is_active,
                 'doctor_id' => $doctor?->id,
