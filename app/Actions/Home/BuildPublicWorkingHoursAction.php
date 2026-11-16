@@ -12,6 +12,7 @@ class BuildPublicWorkingHoursAction
         $workingHours = DoctorWorkingHour::with('clinic')
             ->where('doctor_id', $doctor->id)
             ->where('is_active', true)
+            ->whereHas('clinic', fn ($query) => $query->where('is_active', true))
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get()
