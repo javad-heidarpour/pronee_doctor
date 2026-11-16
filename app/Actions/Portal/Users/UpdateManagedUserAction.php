@@ -40,7 +40,7 @@ class UpdateManagedUserAction
 
             $updated = $lockedUser->refresh();
 
-            $audit?->handle('managed_user.updated', $updated, [
+            $audit->handle('managed_user.updated', $updated, [
                 'role' => $updated->role,
                 'is_active' => (bool) $updated->is_active,
             ]);
