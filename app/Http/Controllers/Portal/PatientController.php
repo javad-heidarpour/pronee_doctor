@@ -158,6 +158,8 @@ class PatientController extends Controller
         UpdateAppointmentDescriptionAction $action
     ) {
         $this->authorizeAppointment($appointment);
+        // ثبت جزئیات ویزیت علاوه بر مدیریت اطلاعات بیمار، وضعیت نوبت را نیز به visited تغییر می‌دهد.
+        $this->authorizeSecretaryPermission('appointments.manage');
         $this->authorizeSecretaryPermission('patients.manage');
 
         $updated = $action->handle($appointment, $request->validated());
