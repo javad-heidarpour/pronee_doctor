@@ -140,7 +140,17 @@ class VerifyAndSettleSepPaymentAction
                 ->firstOrFail();
 
             if ($lockedPayment->status === 'paid') {
-                return true;
+                return 'already_paid';
+            }
+
+            // A late successful callback must not resurrect a payment that
+            // was already failed/cancelled and whose slot may have been released.
+            if (
+                $lockedPayment->status === 'failed' ||
+                $lockedAppointment->status === 'cancelled' ||
+                !in_array($lockedPayment->status, ['pending', 'initiated'], true)
+            ) {
+                return 'conflict';
             }
 
             $lockedPayment->update([
@@ -163,11 +173,11 @@ class VerifyAndSettleSepPaymentAction
             $lockedAppointment->reservation_expires_at = null;
             $lockedAppointment->save();
 
-            return false;
+            return 'success';
         });
 
         return [
-            'status' => $alreadyPaid ? 'already_paid' : 'success',
+            'status' => $alreadyPaid,
         ];
     }
 }
