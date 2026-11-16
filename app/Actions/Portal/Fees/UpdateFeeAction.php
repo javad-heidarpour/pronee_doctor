@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Actions\Portal\Fees;
+namespace App\\Actions\\Portal\\Fees;
 
-use App\Models\Appointment;
-use App\Models\Fee;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use App\\Models\\Appointment;
+use App\\Models\\Fee;
+use Illuminate\\Support\\Facades\\DB;
 
 class UpdateFeeAction
 {
@@ -14,17 +13,13 @@ class UpdateFeeAction
      *
      * @return bool true اگر تعرفه تغییر کرده، false اگر مبلغ همان قبلی بوده است.
      */
-    public function handle(int $newFee): bool
+    public function handle(int $newFee, int $creatorId): bool
     {
-        $creatorId = Auth::guard('doctor')->id()
-            ?? Auth::id();
-
         return DB::transaction(function () use ($newFee, $creatorId) {
             $activeFee = Fee::where('is_active', true)
                 ->lockForUpdate()
                 ->first();
 
-            // مبلغ تغییر نکرده است
             if ($activeFee && (int) $activeFee->fee_rial === $newFee) {
                 return false;
             }
