@@ -37,6 +37,7 @@ class ShiftController extends Controller
     public function store(StoreTimeSlotRequest $request, CreateTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         $validated = $request->validated();
 
@@ -57,6 +58,7 @@ class ShiftController extends Controller
         UpdateTimeSlotAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
