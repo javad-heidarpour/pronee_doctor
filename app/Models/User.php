@@ -54,34 +54,31 @@ class User extends Authenticatable
      */
     public function accessibleDoctors(): Builder
     {
-        return Doctor::query()
-            ->where('doctors.is_active', true)
-            ->where(function (Builder $query) {
-                if ($this->role === 'admin') {
-                    return;
-                }
+        $query = Doctor::query()
+            ->where('doctors.is_active', true);
 
-                if ($this->role === 'doctor') {
-                    $query->where(function (Builder $access) {
-                        $access->where('doctors.user_id', $this->id)
-                            ->orWhereIn(
-                                'doctors.id',
-                                $this->doctors()->select('doctors.id')
-                            );
-                    });
-                    return;
-                }
+        if ($this->role === 'admin') {
+            return $query;
+        }
 
-                if ($this->role === 'secretary') {
-                    $query->whereIn(
+        if ($this->role === 'doctor') {
+            return $query->where(function (Builder $access) {
+                $access->where('doctors.user_id', $this->id)
+                    ->orWhereIn(
                         'doctors.id',
                         $this->doctors()->select('doctors.id')
                     );
-                    return;
-                }
-
-                $query->whereRaw('1 = 0');
             });
+        }
+
+        if ($this->role === 'secretary') {
+            return $query->whereIn(
+                'doctors.id',
+                $this->doctors()->select('doctors.id')
+            );
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     /**
