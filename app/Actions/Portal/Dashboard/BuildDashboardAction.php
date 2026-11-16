@@ -110,6 +110,22 @@ class BuildDashboardAction
             })
             ->values();
 
+        $todayRevenueRial = AppointmentPayment::query()
+            ->where('status', 'paid')
+            ->whereHas('appointment', fn ($query) => $query
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
+                ->whereDate('appointment_date', $today))
+            ->sum('amount_rial');
+
+        $weeklyRevenueRial = AppointmentPayment::query()
+            ->where('status', 'paid')
+            ->whereHas('appointment', fn ($query) => $query
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
+                ->whereBetween('appointment_date', [$weeklyStart, $today]))
+            ->sum('amount_rial');
+
         $stats = [
             'total_appointments' => (clone $timeSlots)
                 ->where('status', 'booked')
@@ -134,6 +150,8 @@ class BuildDashboardAction
                     ->where('doctor_id', $doctor->id)
                     ->whereIn('clinic_id', $clinicIds))
                 ->count(),
+            'today_revenue_rial' => (int) $todayRevenueRial,
+            'weekly_revenue_rial' => (int) $weeklyRevenueRial,
 
             'total_reviews' => $user->role === 'secretary'
                 ? 0
