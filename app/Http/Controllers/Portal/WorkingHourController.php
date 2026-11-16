@@ -112,6 +112,7 @@ class WorkingHourController extends Controller
         DeleteWorkingHourAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         $this->authorizeWorkingHour($workingHour, $doctor);
         $action->handle($workingHour);
