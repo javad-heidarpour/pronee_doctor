@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
+use App\Actions\Portal\Appointment\UpdateAppointmentDescriptionAction;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
+use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\SurgeryType;
@@ -364,11 +366,13 @@ class PatientController extends Controller
         return true;
     }
 
-    public function updateDescription(Request $request, Appointment $appointment)
-    {
+    public function updateDescription(
+        UpdateAppointmentDescriptionRequest $request,
+        Appointment $appointment,
+        UpdateAppointmentDescriptionAction $action
+    ) {
         $this->authorizeAppointment($appointment);
 
-        // جلوگیری از ویرایش نوبت لغوشده
         if (in_array($appointment->status, ['cancelled', 'canceled'], true)) {
             return back()->with(
                 'error',
@@ -376,37 +380,9 @@ class PatientController extends Controller
             );
         }
 
-        $validated = $request->validate([
-            'description' => 'nullable|string|max:1000',
-            'surgery_type_id' => 'nullable|exists:surgery_types,id',
-            'new_surgery_type' => 'nullable|string|max:255',
-            'surgery_date' => 'nullable|date',
-        ]);
-
-        DB::transaction(function () use ($appointment, $validated) {
-
-            $newSurgeryType = trim($validated['new_surgery_type'] ?? '');
-
-            // نوع جراحی جدید
-            if ($newSurgeryType !== '') {
-                $surgeryType = SurgeryType::firstOrCreate([
-                    'title' => $newSurgeryType,
-                ]);
-
-                $validated['surgery_type_id'] = $surgeryType->id;
-            }
-
-            unset($validated['new_surgery_type']);
-
-            $appointment->update([
-                'surgery_type_id' => $validated['surgery_type_id'] ?? null,
-                'surgery_date' => $validated['surgery_date'] ?? null,
-                'description' => $validated['description'] ?? null,
-
-                'status' => 'visited',
-            ]);
-        });
+        $action->handle($appointment, $request->validated());
 
         return back()->with('success', 'اطلاعات نوبت با موفقیت ذخیره شد.');
     }
+
 }
