@@ -15,6 +15,7 @@ class LoadPortalAppointmentDetailsAction
             'visitReason',
             'surgeryType',
             'latestPayment',
+            'smsLogs',
         ]);
 
         $nationalCode = trim((string) $appointment->patient_national_code);
