@@ -13,6 +13,7 @@ class SmsLog extends Model
         'status',
         'provider',
         'provider_message_id',
+        'deduplication_key',
         'error_message',
         'sent_at',
     ];
