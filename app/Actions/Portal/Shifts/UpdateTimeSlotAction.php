@@ -11,7 +11,7 @@ class UpdateTimeSlotAction
     {
         $duplicate = TimeSlot::query()
             ->where('doctor_id', $doctor->id)
-            ->whereKeyNot($slot->id)
+            ->where('id', '!=', $slot->id)
             ->where('clinic_id', $data['clinic_id'])
             ->where('date', $data['date'])
             ->where('start_time', $data['start_time'])
