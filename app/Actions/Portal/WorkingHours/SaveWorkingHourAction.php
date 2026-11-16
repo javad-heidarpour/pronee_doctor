@@ -4,6 +4,7 @@ namespace App\Actions\Portal\WorkingHours;
 
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
+use Illuminate\Support\Facades\DB;
 
 class SaveWorkingHourAction
 {
@@ -15,37 +16,61 @@ class SaveWorkingHourAction
         array $data,
         ?DoctorWorkingHour $workingHour = null
     ): array {
-        $query = DoctorWorkingHour::query()
-            ->where('doctor_id', $doctor->id)
-            ->where('day_of_week', $data['day_of_week'])
-            ->where('start_time', '<', $data['end_time'])
-            ->where('end_time', '>', $data['start_time'])
-            ->with('clinic');
+        return DB::transaction(function () use ($doctor, $data, $workingHour) {
+            // قفل پزشک، عملیات هم‌زمان ثبت/ویرایش بازه‌های کاری او را سریالی می‌کند.
+            Doctor::query()
+                ->whereKey($doctor->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($workingHour) {
-            $query->where('id', '!=', $workingHour->id);
-        }
+            $lockedWorkingHour = null;
 
-        $duplicate = $query->first();
+            if ($workingHour) {
+                $lockedWorkingHour = DoctorWorkingHour::query()
+                    ->whereKey($workingHour->id)
+                    ->lockForUpdate()
+                    ->first();
 
-        if ($duplicate) {
-            return ['saved' => false, 'duplicate' => $duplicate];
-        }
+                abort_unless(
+                    $lockedWorkingHour &&
+                    (int) $lockedWorkingHour->doctor_id === (int) $doctor->id,
+                    403,
+                    'بازه کاری متعلق به این پزشک نیست.'
+                );
+            }
 
-        if ($workingHour) {
-            $workingHour->update($data);
-        } else {
-            DoctorWorkingHour::create([
-                'doctor_id' => $doctor->id,
-                'clinic_id' => $data['clinic_id'],
-                'day_of_week' => $data['day_of_week'],
-                'duration_minutes' => $data['duration_minutes'],
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
-                'is_active' => true,
-            ]);
-        }
+            $query = DoctorWorkingHour::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('day_of_week', $data['day_of_week'])
+                ->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time'])
+                ->with('clinic');
 
-        return ['saved' => true, 'duplicate' => null];
+            if ($lockedWorkingHour) {
+                $query->where('id', '!=', $lockedWorkingHour->id);
+            }
+
+            $duplicate = $query->lockForUpdate()->first();
+
+            if ($duplicate) {
+                return ['saved' => false, 'duplicate' => $duplicate];
+            }
+
+            if ($lockedWorkingHour) {
+                $lockedWorkingHour->update($data);
+            } else {
+                DoctorWorkingHour::create([
+                    'doctor_id' => $doctor->id,
+                    'clinic_id' => $data['clinic_id'],
+                    'day_of_week' => $data['day_of_week'],
+                    'duration_minutes' => $data['duration_minutes'],
+                    'start_time' => $data['start_time'],
+                    'end_time' => $data['end_time'],
+                    'is_active' => true,
+                ]);
+            }
+
+            return ['saved' => true, 'duplicate' => null];
+        });
     }
 }
