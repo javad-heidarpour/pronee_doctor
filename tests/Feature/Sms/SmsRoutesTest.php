@@ -25,6 +25,13 @@ class SmsRoutesTest extends TestCase
         $this->assertNotContains('GET', $route->methods());
     }
 
+    public function test_visit_sms_requires_the_session_that_created_the_booking(): void
+    {
+        $response = $this->postJson('/sms/visit/123');
+
+        $response->assertForbidden();
+    }
+
     public function test_confirmation_sms_is_not_exposed_as_a_public_route(): void
     {
         $this->assertFalse(Route::has('sms.Confirmation'));
