@@ -34,6 +34,14 @@ class ExpirePendingAppointments extends Command
         foreach ($appointmentIds as $appointmentId) {
             try {
                 $result = DB::transaction(function () use ($appointmentId) {
+                    // Lock payment rows before the appointment, matching the
+                    // payment callback lock order and reducing deadlock risk.
+                    $payments = AppointmentPayment::query()
+                        ->where('appointment_id', $appointmentId)
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+
                     $appointment = Appointment::query()
                         ->whereKey($appointmentId)
                         ->lockForUpdate()
@@ -47,12 +55,6 @@ class ExpirePendingAppointments extends Command
                     ) {
                         return 'skipped';
                     }
-
-                    $payments = AppointmentPayment::query()
-                        ->where('appointment_id', $appointment->id)
-                        ->orderByDesc('id')
-                        ->lockForUpdate()
-                        ->get();
 
                     // پرداخت تأییدشده: نوبت را تأیید کن و اسلات را آزاد نکن.
                     if ($payments->contains('status', 'paid')) {
