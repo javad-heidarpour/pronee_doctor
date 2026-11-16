@@ -163,7 +163,9 @@ class ShiftController extends Controller
 
         $validated = $request->validate([
             'weeks_count' => 'required|integer|min:1|max:52',
-            'clinic_id' => 'nullable|exists:addresses,id',
+            'clinic_id' => auth('web')->user()?->role === 'secretary'
+                ? 'required|exists:addresses,id'
+                : 'nullable|exists:addresses,id',
         ], [
             'weeks_count.required' => 'تعداد هفته‌ها الزامی است',
             'weeks_count.min' => 'حداقل ۱ هفته',
