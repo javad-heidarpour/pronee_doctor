@@ -3,17 +3,46 @@
 namespace App\Actions\Portal\Shifts;
 
 use App\Models\TimeSlot;
+use Illuminate\Support\Facades\DB;
 
 class ToggleTimeSlotAction
 {
-    public function handle(TimeSlot $slot): string
+    public function handle(TimeSlot $slot): ?string
     {
-        $newStatus = $slot->status === 'available'
-            ? 'cancelled'
-            : 'available';
+        return DB::transaction(function () use ($slot) {
+            $lockedSlot = TimeSlot::query()
+                ->whereKey($slot->id)
+                ->lockForUpdate()
+                ->first();
 
-        $slot->update(['status' => $newStatus]);
+            if (!$lockedSlot || $lockedSlot->isBooked()) {
+                return null;
+            }
 
-        return $newStatus;
+            $newStatus = $lockedSlot->status === 'available'
+                ? 'cancelled'
+                : 'available';
+
+            if ($newStatus === 'available') {
+                $overlap = TimeSlot::query()
+                    ->overlapping(
+                        (int) $lockedSlot->doctor_id,
+                        $lockedSlot->date->format('Y-m-d'),
+                        $lockedSlot->start_time,
+                        $lockedSlot->end_time,
+                        (int) $lockedSlot->id
+                    )
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($overlap) {
+                    return null;
+                }
+            }
+
+            $lockedSlot->update(['status' => $newStatus]);
+
+            return $newStatus;
+        });
     }
 }
