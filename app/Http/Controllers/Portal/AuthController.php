@@ -30,9 +30,10 @@ class AuthController extends Controller
 
     public function logout(
         Request $request,
-        LogoutPortalUserAction $action
+        LogoutPortalUserAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
-        $action->handle($request);
+        $action->handle($request, $audit);
 
         return redirect()->route('portal.login');
     }
