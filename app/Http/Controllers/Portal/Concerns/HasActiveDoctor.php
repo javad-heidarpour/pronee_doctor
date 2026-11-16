@@ -57,6 +57,37 @@ trait HasActiveDoctor
         );
     }
 
+    /**
+     * اعمال مجوزهای واقعی منشی از pivot doctor_user.
+     * پزشک و مدیر محدود به مجوزهای منشی نیستند؛ منشی بدون مجوز صریح رد می‌شود.
+     */
+    protected function authorizeSecretaryPermission(string $permission, ?Doctor $doctor = null): void
+    {
+        $user = Auth::guard('web')->user();
+
+        if (!$user || $user->role !== 'secretary') {
+            return;
+        }
+
+        $doctor ??= $this->currentDoctor();
+        $assignment = $user->doctors()
+            ->where('doctors.id', $doctor->id)
+            ->first();
+
+        abort_unless($assignment, 403, 'شما به این پزشک دسترسی ندارید.');
+
+        $permissions = $assignment->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        abort_unless(
+            is_array($permissions) && in_array($permission, $permissions, true),
+            403,
+            'مجوز انجام این عملیات برای حساب شما فعال نیست.'
+        );
+    }
+
     protected function accessibleClinicIds(?Doctor $doctor = null): array
     {
         $user = Auth::guard('web')->user();
