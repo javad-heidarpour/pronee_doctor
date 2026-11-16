@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Actions\Portal\DoctorProfile;
+namespace App\\Actions\\Portal\\DoctorProfile;
 
-use Illuminate\Support\Facades\Auth;
+use App\\Models\\Doctor;
 
 class ShowDoctorProfileAction
 {
-    public function handle()
+    public function handle(Doctor $doctor): Doctor
     {
-        return Auth::guard('doctor')->user()->load(['specialty', 'city']);
+        return $doctor->load(['specialty', 'city']);
     }
 }
