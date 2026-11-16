@@ -196,10 +196,9 @@ class PatientController extends Controller
             'clinic_id' => ['required', 'integer', 'exists:addresses,id'],
         ]);
 
-        $user = Auth::guard('web')->user();
-        $doctor = $user->doctorProfile;
+        $doctor = $this->currentDoctor();
 
-        // اطمینان از اینکه مطب متعلق به پزشک واردشده است.
+        // اطمینان از اینکه مطب متعلق به پزشک فعال است.
         $clinicExists = $doctor->address()
             ->where('addresses.id', $validated['clinic_id'])
             ->exists();
@@ -240,10 +239,9 @@ class PatientController extends Controller
             'clinic_id' => ['required', 'integer'],
         ]);
 
-        $user = Auth::guard('web')->user();
-        $doctor = $user->doctorProfile;
+        $doctor = $this->currentDoctor();
 
-        // بررسی تعلق مطب به پزشک واردشده
+        // بررسی تعلق مطب به پزشک فعال
         $clinicExists = $doctor->address()
             ->where('addresses.id', $validated['clinic_id'])
             ->exists();
@@ -290,8 +288,7 @@ class PatientController extends Controller
 
 
         $appointment->load(['user', 'timeSlot', 'clinic.city', 'visitReason',]);
-        $user = Auth::guard('web')->user();
-        $doctor = $user->doctorProfile;
+        $doctor = $this->currentDoctor();
         return Inertia::render('Portal/Patients/Show', [
             'doctor' => $doctor,
             'appointment' => $appointment,
