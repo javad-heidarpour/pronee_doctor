@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Actions\Home\BookAppointmentAction;
 use App\Actions\Home\ListActiveDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
-use App\Actions\Home\BookAppointmentAction;
-use App\Models\Doctor;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -22,15 +22,13 @@ class HomeController extends Controller
         string $slug,
         ShowDoctorProfileAction $action
     ) {
-
-        $doctor = Doctor::where('slug', $slug)->first();
-        if (!$doctor) {
+        try {
+            return $action->handle($slug);
+        } catch (ModelNotFoundException $exception) {
             return Inertia::render('Errors/DoctorNotFound')
                 ->toResponse(request())
                 ->setStatusCode(404);
         }
-
-        return $action->handle($doctor->slug);
     }
 
     /**
