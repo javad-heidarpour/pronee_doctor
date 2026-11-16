@@ -4,11 +4,10 @@ namespace App\Actions\Portal\Shifts;
 
 use App\Models\Doctor;
 use App\Models\TimeSlot;
-use Illuminate\Http\Request;
 
 class ListTimeSlotsAction
 {
-    public function handle(Doctor $doctor, Request $request, ?array $allowedClinicIds = null): array
+    public function handle(Doctor $doctor, array $filters, ?array $allowedClinicIds = null): array
     {
         $clinics = $doctor->address()->whereIn('addresses.id', $allowedClinicIds ?? $doctor->address()->pluck('addresses.id'))->with('city')->get();
 
@@ -17,24 +16,24 @@ class ListTimeSlotsAction
             ->when($allowedClinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $allowedClinicIds))
             ->with('clinic.city');
 
-        if ($request->filled('clinic_id')) {
-            $query->where('clinic_id', $request->input('clinic_id'));
+        if (!empty($filters['clinic_id'])) {
+            $query->where('clinic_id', $filters['clinic_id']);
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        if ($request->filled('date_from')) {
-            $query->where('date', '>=', $request->input('date_from'));
+        if (!empty($filters['date_from'])) {
+            $query->where('date', '>=', $filters['date_from']);
         }
 
-        if ($request->filled('date_to')) {
-            $query->where('date', '<=', $request->input('date_to'));
+        if (!empty($filters['date_to'])) {
+            $query->where('date', '<=', $filters['date_to']);
         }
 
-        if ($request->filled('search')) {
-            $search = $request->input('search');
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
 
             $query->where(function ($builder) use ($search) {
                 $builder->where('date', 'LIKE', "%{$search}%")
@@ -46,12 +45,12 @@ class ListTimeSlotsAction
             'date', 'start_time', 'end_time', 'status', 'created_at',
         ];
 
-        $sortBy = $request->input('sort_by', 'date');
+        $sortBy = ($filters['sort_by'] ?? 'date');
         if (!in_array($sortBy, $allowedSortColumns, true)) {
             $sortBy = 'date';
         }
 
-        $sortDir = strtolower($request->input('sort_dir', 'asc'));
+        $sortDir = strtolower(($filters['sort_dir'] ?? 'asc'));
         if (!in_array($sortDir, ['asc', 'desc'], true)) {
             $sortDir = 'asc';
         }
@@ -77,10 +76,7 @@ class ListTimeSlotsAction
             'clinics' => $clinics,
             'slots' => $slots,
             'stats' => $stats,
-            'filters' => $request->only([
-                'clinic_id', 'status', 'date_from', 'date_to',
-                'search', 'sort_by', 'sort_dir',
-            ]),
+            'filters' => $filters,
         ];
     }
 }
