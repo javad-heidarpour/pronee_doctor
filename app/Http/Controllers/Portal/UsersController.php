@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\SaveManagedUserRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\User;
 use App\Models\Doctor;
@@ -280,7 +281,7 @@ class UsersController extends Controller
     }
 
     public function store(
-        Request $request,
+        SaveManagedUserRequest $request,
         CreateManagedUserAction $action
     ) {
         $activeDoctor = $this->authorizeUserManagement();
@@ -310,7 +311,7 @@ class UsersController extends Controller
     }
 
     public function update(
-        Request $request,
+        SaveManagedUserRequest $request,
         User $user,
         UpdateManagedUserAction $action
     ) {
