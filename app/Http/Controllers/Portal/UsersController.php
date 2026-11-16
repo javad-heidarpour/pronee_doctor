@@ -52,11 +52,6 @@ class UsersController extends Controller
         abort_unless($user->role === 'secretary', 404);
 
         $validated = $request->validated();
-        $doctorIds = collect($validated['doctors'])
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
         $syncData = $dataAction->handle(
             $validated,
             $authUser->role,
