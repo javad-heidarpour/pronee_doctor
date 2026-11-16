@@ -139,7 +139,15 @@ class InitiateAppointmentPaymentAction
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if ($lockedPayment->status === 'paid') {
+                $lockedAppointment = Appointment::query()
+                    ->whereKey($lockedPayment->appointment_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (
+                    $lockedPayment->status === 'paid' ||
+                    !in_array($lockedAppointment->status, ['pending', 'confirmed'], true)
+                ) {
                     return false;
                 }
 
