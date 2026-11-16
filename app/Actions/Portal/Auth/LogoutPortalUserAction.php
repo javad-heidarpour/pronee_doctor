@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Auth;
 
 class LogoutPortalUserAction
 {
-    public function handle(\n        Request $request,\n        RecordSecurityAuditEventAction $audit,\n        string $event = 'auth.logout'\n    ): void
+    public function handle(
+        Request $request,
+        RecordSecurityAuditEventAction $audit,
+        string $event = 'auth.logout'
+    ): void
     {
         $user = Auth::guard('web')->user();
 
