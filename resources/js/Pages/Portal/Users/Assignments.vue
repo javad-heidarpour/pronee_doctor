@@ -49,6 +49,12 @@ const selectedCount = computed(
     () => form.doctors.filter((item) => item.assigned).length
 );
 
+const selectedClinicCount = computed(() =>
+    form.doctors
+        .filter((item) => item.assigned)
+        .reduce((total, item) => total + item.clinic_ids.length, 0)
+);
+
 const togglePermission = (doctor, permission, checked) => {
     if (checked) {
         if (!doctor.permissions.includes(permission)) {
@@ -214,7 +220,7 @@ const save = () => {
                                         v-model="doctorItem.clinic_ids"
                                         type="checkbox"
                                         :value="clinic.id"
-                                        :disabled="!clinic.is_active"
+                                        :disabled="!clinic.is_active || (!doctorItem.clinic_ids.includes(clinic.id) && selectedClinicCount >= 2)"
                                         class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                     />
                                     <span class="text-sm font-medium text-slate-700">
