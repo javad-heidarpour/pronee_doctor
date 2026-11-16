@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Portal\Concerns;
 
-use App\Models\Doctor;\nuse App\Models\Address;
+use App\Models\Doctor;
+use App\Models\Address;
 use Illuminate\Support\Facades\Auth;
 
 trait HasActiveDoctor
