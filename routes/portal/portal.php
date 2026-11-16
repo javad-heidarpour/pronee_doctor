@@ -43,6 +43,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'logout'
         ])->name('logout');
 
+        Route::get('/security/audit-logs', [
+            SecurityAuditController::class,
+            'index'
+        ])->name('security.audit-logs');
+
         Route::get('/dashboard', [
             DashboardController::class,
             'index'
