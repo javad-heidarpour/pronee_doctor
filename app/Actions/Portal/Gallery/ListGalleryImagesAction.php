@@ -1,15 +1,14 @@
 <?php
 
-namespace App\Actions\Portal\Gallery;
+namespace App\\Actions\\Portal\\Gallery;
 
-use App\Models\DoctorImage;
-use Illuminate\Support\Facades\Auth;
+use App\\Models\\Doctor;
+use App\\Models\\DoctorImage;
 
 class ListGalleryImagesAction
 {
-    public function handle(): array
+    public function handle(Doctor $doctor): array
     {
-        $doctor = Auth::guard('web')->user()->doctorProfile;
         $images = $doctor->images()->orderBy('sort_order')->get();
 
         return [
