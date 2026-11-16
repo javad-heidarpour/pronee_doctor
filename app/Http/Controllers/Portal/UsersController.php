@@ -170,7 +170,7 @@ class UsersController extends Controller
         abort_unless($user->role === 'secretary', 404);
 
         $doctorsQuery = Doctor::query()
-            ->with('user')
+            ->with(['user', 'address'])
             ->whereHas('user', function ($query) {
                 $query->where('role', 'doctor')
                     ->where('is_active', true);
@@ -190,9 +190,14 @@ class UsersController extends Controller
             'doctors' => $doctors->map(function ($doctor) use ($assigned) {
                 $relation = $assigned->get($doctor->id);
                 $permissions = $relation?->pivot?->permissions ?? [];
+                $clinicIds = $relation?->pivot?->clinic_ids ?? [];
 
                 if (is_string($permissions)) {
                     $permissions = json_decode($permissions, true) ?: [];
+                }
+
+                if (is_string($clinicIds)) {
+                    $clinicIds = json_decode($clinicIds, true) ?: [];
                 }
 
                 return [
@@ -203,6 +208,12 @@ class UsersController extends Controller
                     'specialty_title' => $doctor->specialty_title,
                     'assigned' => (bool) $relation,
                     'permissions' => $permissions,
+                    'clinics' => $doctor->address->map(fn ($clinic) => [
+                        'id' => $clinic->id,
+                        'name' => $clinic->name,
+                        'is_active' => (bool) $clinic->is_active,
+                    ])->values(),
+                    'clinic_ids' => array_map('intval', is_array($clinicIds) ? $clinicIds : []),
                 ];
             })->values(),
             'permissions' => $this->availablePermissions(),
@@ -227,6 +238,13 @@ class UsersController extends Controller
                 Rule::exists('doctors', 'id'),
             ],
             'doctors.*.permissions' => ['required', 'array'],
+            'doctors.*.clinic_ids' => ['required', 'array'],
+            'doctors.*.clinic_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('addresses', 'id'),
+            ],
             'doctors.*.permissions.*' => [
                 'required',
                 'string',
@@ -268,12 +286,35 @@ class UsersController extends Controller
             );
         }
 
+        foreach ($validated['doctors'] as $item) {
+            $validClinicIds = $doctors->get((int) $item['id'])
+                ->address()
+                ->whereIn('addresses.id', $item['clinic_ids'])
+                ->pluck('addresses.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            abort_unless(
+                count($validClinicIds) === count($item['clinic_ids']),
+                422,
+                'یکی از مطب‌های انتخاب‌شده متعلق به پزشک مربوطه نیست.'
+            );
+
+            if (count($validClinicIds) === 0) {
+                abort(422, 'برای هر پزشک متصل، حداقل یک مطب انتخاب کنید.');
+            }
+        }
+
         $syncData = [];
 
         foreach ($validated['doctors'] as $item) {
             $syncData[$item['id']] = [
                 'permissions' => json_encode(
                     $item['permissions'],
+                    JSON_UNESCAPED_UNICODE
+                ),
+                'clinic_ids' => json_encode(
+                    array_values(array_map('intval', $item['clinic_ids'])),
                     JSON_UNESCAPED_UNICODE
                 ),
             ];
