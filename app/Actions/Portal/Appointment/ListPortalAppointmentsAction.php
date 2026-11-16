@@ -81,7 +81,7 @@ class ListPortalAppointmentsAction
             ->whereIn('clinic_id', $clinicIds);
 
         $stats = [
-            'total' => (clone $baseQuery())->count(),
+            'total' => $baseQuery()->count(),
             'pending' => (clone $baseQuery())->where('status', 'pending')->count(),
             'confirmed' => (clone $baseQuery())->where('status', 'confirmed')->count(),
             'cancelled' => (clone $baseQuery())->where('status', 'cancelled')->count(),
