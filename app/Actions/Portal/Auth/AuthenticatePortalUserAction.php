@@ -47,7 +47,7 @@ class AuthenticatePortalUserAction
             $doctor = $user->accessibleDoctors()->first();
 
             if (! $doctor) {
-                $logoutAction->handle($request);
+                $logoutAction->handle($request, $audit, 'auth.login_rejected');
 
                 throw ValidationException::withMessages([
                     'email' => 'هیچ پرونده پزشک فعالی به این حساب کاربری متصل نیست.',
