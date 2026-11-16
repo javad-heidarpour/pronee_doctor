@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Http\\Requests\\Portal;
+namespace App\Http\Requests\Portal;
 
-use Illuminate\\Foundation\\Http\\FormRequest;
-use Illuminate\\Validation\\Rule;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ListWorkingHoursRequest extends FormRequest
 {
