@@ -19,6 +19,7 @@ const eventLabels = {
   "auth.login_succeeded": "ورود موفق به پنل",
   "auth.login_failed": "تلاش ناموفق برای ورود",
   "auth.logout": "خروج از پنل",
+  "auth.login_rejected": "ورود ردشده به پنل",
 };
 
 const formatDate = (value) => {
