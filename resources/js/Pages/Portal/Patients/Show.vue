@@ -246,6 +246,56 @@
           </div>
         </div>
       </div>
+      <!-- سابقه مراجعات همین بیمار نزد این پزشک -->
+      <section
+        v-if="appointment.patient_history?.length"
+        class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
+        <div class="mb-5 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-xl">🗂️</div>
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900">سابقه مراجعات بیمار</h2>
+              <p class="mt-1 text-xs text-slate-500">آخرین مراجعات ثبت‌شده نزد همین پزشک</p>
+            </div>
+          </div>
+          <span class="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700">
+            {{ appointment.patient_history.length }} سابقه
+          </span>
+        </div>
+
+        <div class="relative space-y-3">
+          <div
+            v-for="historyItem in appointment.patient_history"
+            :key="historyItem.id"
+            class="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="flex items-start gap-3">
+              <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500 ring-4 ring-sky-100"></span>
+              <div>
+                <p class="text-sm font-extrabold text-slate-800">
+                  {{ toPersianDate(historyItem.appointment_date) }}
+                  <span class="mx-1 text-slate-300">·</span>
+                  {{ formatTime(historyItem.appointment_time) }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ historyItem.clinic?.name || 'مطب ثبت نشده' }}
+                  <span v-if="historyItem.visit_reason?.title"> · {{ historyItem.visit_reason.title }}</span>
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span :class="getStatusBadgeClasses(historyItem.status)" class="rounded-lg border px-2.5 py-1.5 text-[11px] font-bold">
+                {{ getStatusLabel(historyItem.status) }}
+              </span>
+              <span class="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
+                {{ paymentStatusLabel(historyItem.latest_payment?.status) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- دلیل مراجعه -->
       <div class="bg-white rounded-2xl shadow-sm border border-violet-100 p-6 mb-6">
         <div class="flex items-center gap-3 mb-5">
