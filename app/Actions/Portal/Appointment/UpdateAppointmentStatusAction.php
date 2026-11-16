@@ -41,7 +41,7 @@ class UpdateAppointmentStatusAction
             if (in_array($newStatus, ['pending', 'confirmed'], true)) {
                 $anotherAppointmentExists = Appointment::query()
                     ->where('time_slot_id', $lockedAppointment->time_slot_id)
-                    ->whereKeyNot($lockedAppointment->id)
+                    ->where('id', '!=', $lockedAppointment->id)
                     ->whereIn('status', ['pending', 'confirmed'])
                     ->exists();
 
