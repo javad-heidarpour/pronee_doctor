@@ -152,7 +152,20 @@ const reviewStatsFallback = {
             نوبت‌دهی مستقیم
           </span>
         </div>
-        <BookingSection :doctor="doctor" />
+        <BookingSection
+          v-if="doctor.clinics_with_slots?.length"
+          :doctor="doctor"
+        />
+        <div
+          v-else
+          class="rounded-3xl border border-dashed border-emerald-200 bg-white px-5 py-10 text-center shadow-sm"
+        >
+          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl">📅</div>
+          <h3 class="mt-4 text-base font-black text-slate-800">در حال حاضر نوبت آزادی ثبت نشده است</h3>
+          <p class="mx-auto mt-2 max-w-lg text-sm leading-7 text-slate-500">
+            برای اطلاع از زمان‌های مراجعه، از راه‌های ارتباطی پزشک استفاده کنید یا در روزهای آینده دوباره بررسی کنید.
+          </p>
+        </div>
       </section>
 
       <section v-if="doctor.address?.length" id="clinic-locations" class="scroll-mt-24">
