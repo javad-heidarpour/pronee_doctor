@@ -1,25 +1,40 @@
 <?php
 
-namespace App\Http\Controllers\Portal;
+namespace App\\Http\\Controllers\\Portal;
 
-use App\Actions\Portal\Fees\ListFeesAction;
-use App\Actions\Portal\Fees\UpdateFeeAction;
-use App\Http\Controllers\Controller;
-use App\Http\Requests\Portal\UpdateFeeRequest;
-use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
-use Inertia\Response;
+use App\\Actions\\Portal\\Fees\\ListFeesAction;
+use App\\Actions\\Portal\\Fees\\UpdateFeeAction;
+use App\\Http\\Controllers\\Controller;
+use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
+use App\\Http\\Requests\\Portal\\UpdateFeeRequest;
+use Illuminate\\Http\\RedirectResponse;
+use Illuminate\\Support\\Facades\\Auth;
+use Inertia\\Inertia;
+use Inertia\\Response;
 
 class FeesController extends Controller
 {
+    use HasActiveDoctor;
+
     public function index(ListFeesAction $action): Response
     {
-        return Inertia::render('Portal/Settings', $action->handle());
+        $doctor = $this->currentDoctor();
+
+        return Inertia::render('Portal/Settings', $action->handle($doctor));
     }
 
-    public function updateFee(UpdateFeeRequest $request, UpdateFeeAction $action): RedirectResponse
-    {
-        $changed = $action->handle((int) $request->validated()['fee_rial']);
+    public function updateFee(
+        UpdateFeeRequest $request,
+        UpdateFeeAction $action
+    ): RedirectResponse {
+        $user = Auth::guard('web')->user();
+
+        abort_unless($user, 401);
+
+        $changed = $action->handle(
+            (int) $request->validated()['fee_rial'],
+            (int) $user->id
+        );
 
         if (!$changed) {
             return redirect()
