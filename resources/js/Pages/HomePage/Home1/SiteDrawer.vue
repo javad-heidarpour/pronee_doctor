@@ -15,7 +15,7 @@ const menuItems = [
   { title: "دریافت نوبت", href: "booking" },
   { title: "تماس با ما", href: "contact" },
   { title: "ساعت کاری", href: "WorkingHours" },
-  { title: "درباره دکتر فرهاد وفایی", href: "About" },
+  { title: "درباره پزشک", href: "About" },
   { title: "خدمات قابل ارائه در مطب", href: "Surgeries" },
   { title: "عمل های جراحی", href: "services" },
   { title: "دانستنی‌های قبل و بعد از عمل", href: "tips" },
