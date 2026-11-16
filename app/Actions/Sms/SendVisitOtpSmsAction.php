@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class SendVisitOtpSmsAction
@@ -89,7 +90,6 @@ class SendVisitOtpSmsAction
                 'message' => 'پیامک ارسال شد. تا ۳ دقیقه امکان ارسال مجدد وجود ندارد.',
                 'visit_number' => $visitNumber,
                 'clientReferenceId' => $clientReferenceId,
-                'data' => $response->json('data'),
             ]);
         } catch (Throwable $exception) {
             Cache::forget($cacheKey);
