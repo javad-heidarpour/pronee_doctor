@@ -12,6 +12,11 @@ use RuntimeException;
 
 class VerifyAndSettleSepPaymentAction
 {
+    public function __construct(
+        private readonly NormalizeSepVerificationResponseAction $normalizeResponse
+    ) {
+    }
+
     /**
      * استعلام از درگاه و ثبت اتمیک نتیجه پرداخت.
      *
@@ -37,26 +42,20 @@ class VerifyAndSettleSepPaymentAction
 
         $verifyResponse = $sep->verifyTransaction($refNum);
 
-        if (
-            !is_array($verifyResponse) ||
-            !array_key_exists('ResultCode', $verifyResponse)
-        ) {
+        try {
+            $normalized = $this->normalizeResponse->handle($verifyResponse);
+        } catch (RuntimeException $exception) {
             Log::error('SEP invalid verification response', [
                 'payment_id' => $payment->id,
                 'ref_num' => $refNum,
             ]);
 
-            throw new RuntimeException('پاسخ استعلام سامان‌کیش معتبر نیست.');
+            throw $exception;
         }
 
-        $resultCode = $verifyResponse['ResultCode'];
-        $resultMessage = (string) (
-            $verifyResponse['ResultDescription']
-            ?? $verifyResponse['ResultMessage']
-            ?? $verifyResponse['Message']
-            ?? ''
-        );
-        $detail = $verifyResponse['TransactionDetail'] ?? [];
+        $resultCode = $normalized['result_code'];
+        $resultMessage = $normalized['result_message'];
+        $detail = $normalized['transaction_detail'];
 
         Log::info('SEP VERIFY RESPONSE', [
             'payment_id' => $payment->id,
@@ -102,9 +101,7 @@ class VerifyAndSettleSepPaymentAction
             ];
         }
 
-        $verifiedAmount = is_array($detail)
-            ? ($detail['OrginalAmount'] ?? null)
-            : null;
+        $verifiedAmount = $normalized['verified_amount'];
 
         if (
             !is_numeric($verifiedAmount) ||
