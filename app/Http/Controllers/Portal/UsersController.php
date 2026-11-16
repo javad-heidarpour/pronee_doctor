@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveManagedUserRequest;
+use App\Http\Requests\Portal\UpdateManagedUserStatusRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\User;
 use App\Models\Doctor;
@@ -327,16 +328,14 @@ class UsersController extends Controller
     }
 
     public function status(
-        Request $request,
+        UpdateManagedUserStatusRequest $request,
         User $user,
         ChangeManagedUserStatusAction $action
     ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
-        $validated = $request->validate([
-            'is_active' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $updatedUser = $action->handle($user, (bool) $validated['is_active']);
 
