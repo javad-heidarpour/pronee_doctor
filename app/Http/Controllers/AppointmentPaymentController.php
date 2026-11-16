@@ -170,6 +170,14 @@ class AppointmentPaymentController extends Controller
                         return;
                     }
 
+                    if (
+                        $lockedPayment->status === 'failed' ||
+                        !in_array($lockedAppointment->status, ['pending', 'confirmed'], true)
+                    ) {
+                        $testError = 'reservation_not_payable';
+                        return;
+                    }
+
                     if ($testResult === 'fail') {
                         $lockedPayment->update([
                             'status' => 'failed',
@@ -211,6 +219,12 @@ class AppointmentPaymentController extends Controller
                 if ($testError === 'already_paid') {
                     return $visitRedirect($appointment->id)->withErrors([
                         'payment' => 'این پرداخت قبلاً ثبت شده است.',
+                    ]);
+                }
+
+                if ($testError === 'reservation_not_payable') {
+                    return $visitRedirect($appointment->id)->withErrors([
+                        'payment' => 'این رزرو یا تلاش پرداخت دیگر امکان تغییر وضعیت در تست را ندارد.',
                     ]);
                 }
 
