@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Actions\\Home;
+namespace App\Actions\Home;
 
-use App\\Models\\Doctor;
-use App\\Models\\DoctorImage;
+use App\Models\Doctor;
+use App\Models\DoctorImage;
 
 class BuildPublicDoctorGalleryPageAction
 {
