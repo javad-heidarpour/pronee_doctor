@@ -384,6 +384,37 @@
         </div>
       </section>
 
+      <!-- تاریخچه ارسال پیامک -->
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="mb-4 flex items-center gap-3">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-xl">✉️</div>
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">پیگیری پیامک‌ها</h2>
+            <p class="mt-1 text-xs text-slate-500">سوابق تلاش برای ارسال پیامک تأیید نوبت</p>
+          </div>
+        </div>
+
+        <div v-if="appointment.sms_logs?.length" class="space-y-2">
+          <div
+            v-for="smsLog in appointment.sms_logs"
+            :key="smsLog.id"
+            class="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <p class="text-xs font-bold text-slate-700">پیامک تأیید نوبت</p>
+              <p class="mt-1 text-[11px] text-slate-400">{{ formatSmsDate(smsLog.created_at) }}</p>
+              <p v-if="smsLog.error_message" class="mt-1 text-[11px] text-rose-600">علت ثبت‌شده: {{ smsLog.error_message }}</p>
+            </div>
+            <span :class="smsLogStatusClass(smsLog.status)" class="self-start rounded-lg px-3 py-1.5 text-[11px] font-bold sm:self-auto">
+              {{ smsLogStatusLabel(smsLog.status) }}
+            </span>
+          </div>
+        </div>
+        <p v-else class="rounded-xl bg-slate-50 px-4 py-5 text-center text-xs text-slate-400">
+          هنوز سابقه‌ای از ارسال پیامک برای این نوبت ثبت نشده است.
+        </p>
+      </section>
+
       <!-- کارت توضیحات -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between mb-6">
@@ -612,6 +643,28 @@ const updateStatus = (status) => {
     { preserveScroll: true }
   );
 };
+
+const formatSmsDate = (value) => {
+  if (!value) return "زمان ثبت نشده";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "زمان نامشخص";
+  return new Intl.DateTimeFormat("fa-IR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+};
+
+const smsLogStatusLabel = (status) => ({
+  pending: "در حال ارسال",
+  sent: "ارسال‌شده",
+  failed: "ناموفق",
+}[status] || "نامشخص");
+
+const smsLogStatusClass = (status) => ({
+  pending: "bg-amber-100 text-amber-700",
+  sent: "bg-emerald-100 text-emerald-700",
+  failed: "bg-rose-100 text-rose-700",
+}[status] || "bg-slate-100 text-slate-600");
 
 const formatRial = (amount) => {
   return new Intl.NumberFormat("fa-IR").format(Number(amount || 0));
