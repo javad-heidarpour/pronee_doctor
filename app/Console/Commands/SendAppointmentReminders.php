@@ -15,10 +15,10 @@ class SendAppointmentReminders extends Command
 
     public function handle(SendAppointmentReminderSmsAction $action): int
     {
-        if (!config('services.ghasedak.appointment_reminder_template')) {
-            $this->warn('Reminder SMS template is not configured; no messages were sent.');
+        if (!config('services.ghasedak.appointment_reminder_template') || !config('services.ghasedak.api_key')) {
+            $this->warn('Ghasedak API key or reminder template is not configured; no messages were sent.');
 
-            Log::warning('Appointment reminder job skipped: GHASEDAK_APPOINTMENT_REMINDER_TEMPLATE is empty.');
+            Log::warning('Appointment reminder job skipped: Ghasedak API key or reminder template is missing.');
 
             return self::SUCCESS;
         }
