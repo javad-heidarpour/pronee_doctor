@@ -13,10 +13,10 @@ class UpdateFeeAction
      *
      * @return bool true اگر تعرفه تغییر کرده، false اگر مبلغ همان قبلی بوده است.
      */
-    public function handle(int $newFee, int $creatorId): bool
+    public function handle(int $newFee, int $doctorId): bool
     {
-        return DB::transaction(function () use ($newFee, $creatorId) {
-            $activeFee = Fee::where('is_active', true)
+        return DB::transaction(function () use ($newFee, $doctorId) {
+            $activeFee = Fee::where('created_by', $doctorId)->where('is_active', true)
                 ->lockForUpdate()
                 ->first();
 
@@ -36,10 +36,10 @@ class UpdateFeeAction
                 'title' => 'تعرفه ویزیت',
                 'fee_rial' => $newFee,
                 'is_active' => true,
-                'created_by' => $creatorId,
+                'created_by' => $doctorId,
             ]);
 
-            Appointment::updateUnpaidAppointmentsFee($newFee);
+            Appointment::updateUnpaidAppointmentsFee($newFee, $doctorId);
 
             return true;
         });
