@@ -9,6 +9,7 @@ use App\Actions\Auth\VerifyDoctorRegistrationOtpAction;
 use App\Actions\Auth\SendDoctorRegistrationPasswordAction;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\User;
 use App\Http\Requests\Auth\SendDoctorRegistrationOtpRequest;
 use App\Http\Requests\Auth\StoreDoctorRegistrationRequest;
 use App\Http\Requests\Auth\VerifyDoctorRegistrationOtpRequest;
@@ -119,7 +120,7 @@ class DoctorRegistrationController extends Controller
             );
 
             if (! $doctor) {
-                $alreadyRegistered = \\App\\Models\\User::where('phone', $phone)->exists();
+                $alreadyRegistered = User::where('phone', $phone)->exists();
 
                 return response()->json([
                     'success' => false,
