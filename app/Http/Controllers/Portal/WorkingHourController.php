@@ -7,6 +7,7 @@ use App\Actions\Portal\WorkingHours\ListWorkingHoursAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ToggleWorkingHourAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
@@ -33,17 +34,11 @@ class WorkingHourController extends Controller
     /**
      * ایجاد بازه کاری جدید.
      */
-    public function store(Request $request, SaveWorkingHourAction $action)
+    public function store(SaveWorkingHourRequest $request, SaveWorkingHourAction $action)
     {
         $doctor = $this->currentDoctor();
 
-        $validated = $request->validate([
-            'clinic_id' => ['required', 'integer', 'exists:addresses,id'],
-            'day_of_week' => ['required', 'integer', 'between:0,6'],
-            'duration_minutes' => ['required', 'integer', 'min:1'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-        ]);
+        $validated = $request->validated();
 
         if (!$this->clinicBelongsToDoctor($doctor, (int) $validated['clinic_id'])) {
             return back()
@@ -66,7 +61,7 @@ class WorkingHourController extends Controller
      * ویرایش بازه کاری.
      */
     public function update(
-        Request $request,
+        SaveWorkingHourRequest $request,
         DoctorWorkingHour $workingHour,
         SaveWorkingHourAction $action
     ) {
@@ -74,13 +69,7 @@ class WorkingHourController extends Controller
 
         $this->authorizeOwnership($workingHour, (int) $doctor->id);
 
-        $validated = $request->validate([
-            'clinic_id' => ['required', 'integer', 'exists:addresses,id'],
-            'day_of_week' => ['required', 'integer', 'between:0,6'],
-            'duration_minutes' => ['required', 'integer', 'min:1'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-        ]);
+        $validated = $request->validated();
 
         if (!$this->clinicBelongsToDoctor($doctor, (int) $validated['clinic_id'])) {
             return back()
