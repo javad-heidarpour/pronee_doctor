@@ -127,6 +127,13 @@ class BuildDashboardAction
             'today_unpaid' => $todayAppointments
                 ->whereIn('payment_status', ['pending', 'initiated', 'failed'])
                 ->count(),
+            'today_sms_failed' => SmsLog::query()
+                ->where('status', 'failed')
+                ->whereDate('created_at', $today)
+                ->whereHas('appointment', fn ($query) => $query
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $clinicIds))
+                ->count(),
 
             'total_reviews' => $user->role === 'secretary'
                 ? 0
