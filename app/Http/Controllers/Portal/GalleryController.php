@@ -30,6 +30,7 @@ class GalleryController extends Controller
         StoreGalleryImagesAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         $validated = $request->validated();
 
         $action->handle(
@@ -49,6 +50,7 @@ class GalleryController extends Controller
         DoctorImagePolicy $policy
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         abort_unless($policy->update($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
 
         $action->handle($image, $request->validated());
@@ -62,6 +64,7 @@ class GalleryController extends Controller
         DoctorImagePolicy $policy
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         abort_unless($policy->delete($doctor, $image), 403, 'شما به این تصویر دسترسی ندارید.');
 
         $action->handle($image);
