@@ -15,7 +15,6 @@ use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
 use App\Http\Requests\Portal\ListTimeSlotsRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
-use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Inertia\Inertia;
 
