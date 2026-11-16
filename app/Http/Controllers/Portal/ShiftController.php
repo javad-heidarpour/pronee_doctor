@@ -31,7 +31,8 @@ class ShiftController extends Controller
     private function authorizeSlot(TimeSlot $slot, int $doctorId): void
     {
         abort_unless(
-            (int) $slot->doctor_id === $doctorId &&\n            in_array((int) $slot->clinic_id, $this->accessibleClinicIds(), true),
+            (int) $slot->doctor_id === $doctorId &&
+            in_array((int) $slot->clinic_id, $this->accessibleClinicIds(), true),
             403,
             'دسترسی غیرمجاز'
         );
