@@ -302,6 +302,38 @@
           </div>
         </div>
       </div>
+      <!-- وضعیت مالی نوبت -->
+      <section class="mb-6 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6">
+        <div class="mb-4 flex items-center gap-3">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-xl">💳</div>
+          <div>
+            <h2 class="text-base font-extrabold text-gray-900">وضعیت مالی نوبت</h2>
+            <p class="mt-1 text-xs text-gray-500">مبلغ ثبت‌شده و آخرین وضعیت پرداخت</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div class="rounded-xl bg-slate-50 p-4">
+            <p class="text-xs text-slate-500">مبلغ نوبت</p>
+            <p class="mt-2 text-lg font-black text-slate-900">
+              {{ formatRial(appointment.fee_rial) }}
+              <span class="text-xs font-medium text-slate-500">ریال</span>
+            </p>
+          </div>
+          <div class="rounded-xl bg-slate-50 p-4">
+            <p class="text-xs text-slate-500">وضعیت پرداخت</p>
+            <div class="mt-2 flex items-center gap-2">
+              <span :class="paymentBadgeClass(appointment.latest_payment?.status)" class="rounded-lg px-3 py-1.5 text-xs font-bold">
+                {{ paymentStatusLabel(appointment.latest_payment?.status) }}
+              </span>
+              <span v-if="appointment.latest_payment?.gateway_name" class="text-xs text-slate-500">
+                {{ appointment.latest_payment.gateway_name }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- کارت توضیحات -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between mb-6">
@@ -530,6 +562,28 @@ const updateStatus = (status) => {
     { preserveScroll: true }
   );
 };
+
+const formatRial = (amount) => {
+  return new Intl.NumberFormat("fa-IR").format(Number(amount || 0));
+};
+
+const paymentStatusLabel = (status) => ({
+  paid: "پرداخت شده",
+  pending: "در انتظار پرداخت",
+  initiated: "در حال پرداخت",
+  failed: "پرداخت ناموفق",
+  cancelled: "لغو پرداخت",
+  refunded: "مسترد شده",
+}[status] || "پرداخت ثبت نشده");
+
+const paymentBadgeClass = (status) => ({
+  paid: "bg-emerald-100 text-emerald-700",
+  pending: "bg-amber-100 text-amber-700",
+  initiated: "bg-amber-100 text-amber-700",
+  failed: "bg-rose-100 text-rose-700",
+  cancelled: "bg-rose-100 text-rose-700",
+  refunded: "bg-sky-100 text-sky-700",
+}[status] || "bg-slate-100 text-slate-600");
 
 const getStatusClasses = (status) => {
   const classes = {
