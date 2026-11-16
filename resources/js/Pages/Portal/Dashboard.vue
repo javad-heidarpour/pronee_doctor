@@ -170,6 +170,35 @@
         </div>
       </section>
 
+      <!-- Weekly activity -->
+      <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900 sm:text-lg">روند مراجعات هفت روز اخیر</h2>
+            <p class="mt-1 text-xs text-slate-500">تعداد نوبت‌های ثبت‌شده در مطب‌های مجاز</p>
+          </div>
+          <span class="rounded-xl bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700">۷ روز اخیر</span>
+        </div>
+
+        <div v-if="weeklyAppointments.length" class="flex h-40 items-end justify-around gap-2 border-b border-slate-100 pb-2">
+          <div
+            v-for="day in weeklyAppointments"
+            :key="day.date"
+            class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"
+          >
+            <span class="text-[10px] font-bold tabular-nums text-slate-500">{{ day.total }}</span>
+            <div class="flex h-24 w-full max-w-10 items-end overflow-hidden rounded-t-xl bg-slate-100">
+              <div
+                class="w-full rounded-t-xl bg-gradient-to-t from-teal-700 to-emerald-400 transition-all duration-500"
+                :style="{ height: weeklyBarHeight(day.total) }"
+              ></div>
+            </div>
+            <span class="text-[10px] font-semibold text-slate-500">{{ weekdayLabel(day.date) }}</span>
+          </div>
+        </div>
+        <p v-else class="py-8 text-center text-xs text-slate-400">داده‌ای برای نمایش وجود ندارد.</p>
+      </section>
+
       <!-- Quick Actions -->
       <section
         class="overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 lg:p-7"
@@ -321,6 +350,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  weeklyAppointments: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 // --------------------------------------------------
@@ -386,6 +419,21 @@ const todayStats = computed(() => ({
   confirmed: props.stats?.today_confirmed ?? 0,
   unpaid: props.stats?.today_unpaid ?? 0,
 }));
+
+const weeklyMax = computed(() => Math.max(
+  1,
+  ...props.weeklyAppointments.map((day) => Number(day.total || 0))
+));
+
+const weeklyBarHeight = (total) => {
+  const value = Number(total || 0);
+  return `${value === 0 ? 5 : Math.max(8, Math.round((value / weeklyMax.value) * 100))}%`;
+};
+
+const weekdayLabel = (date) => {
+  const safeDate = new Date(`${date}T12:00:00`);
+  return new Intl.DateTimeFormat("fa-IR", { weekday: "short" }).format(safeDate);
+};
 
 const patientInitials = (name) => {
   return (name || '؟')
