@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
+use App\Models\TimeSlot;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -615,10 +616,13 @@ class AppointmentPaymentController extends Controller
                         'payment_status'
                     )
                 ) {
-                    $lockedAppointment->update([
-                        'payment_status' => 'paid',
-                    ]);
+                    $lockedAppointment->payment_status = 'paid';
                 }
+
+                // پرداخت تأییدشده باید نوبت را نیز قطعی کند.
+                $lockedAppointment->status = 'confirmed';
+                $lockedAppointment->reservation_expires_at = null;
+                $lockedAppointment->save();
 
                 return false;
             });
