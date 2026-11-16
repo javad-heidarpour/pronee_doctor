@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Payments\InitiateAppointmentPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
@@ -9,7 +10,6 @@ use App\Http\Controllers\SmsController;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Throwable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -21,11 +21,11 @@ class AppointmentPaymentController extends Controller
 
     public function pay(
         int $visit_number,
-        SepPaymentService $sep
+        InitiateAppointmentPaymentAction $action
     ): \Symfony\Component\HttpFoundation\Response {
         $appointment = Appointment::query()->findOrFail($visit_number);
 
-        $visitUrl = fn() => redirect()->route('visit.show', [
+        $visitUrl = fn () => redirect()->route('visit.show', [
             'visit_number' => $appointment->id,
         ]);
 
@@ -35,14 +35,12 @@ class AppointmentPaymentController extends Controller
                 'status' => $appointment->status,
             ]);
 
-            // 1. اعتبارسنجی وضعیت نوبت
             if (!in_array($appointment->status, ['pending', 'confirmed'], true)) {
                 return $visitUrl()->withErrors([
                     'payment' => 'این نوبت امکان پرداخت ندارد.',
                 ]);
             }
 
-            // 2. اعتبارسنجی مبلغ
             $amount = (int) $appointment->fee_rial;
 
             if ($amount <= 0) {
@@ -51,7 +49,6 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            // 3. اعتبارسنجی شماره موبایل
             $cellNumber = trim((string) $appointment->patient_phone);
 
             if (!preg_match('/^09\d{9}$/', $cellNumber)) {
@@ -60,154 +57,18 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            // 4. دریافت یا ایجاد رکورد پرداخت
-            $payment = DB::transaction(function () use ($appointment, $amount) {
-                $lockedAppointment = Appointment::query()
-                    ->whereKey($appointment->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+            $token = $action->handle($appointment, $cellNumber);
 
-                if (
-                    !in_array(
-                        $lockedAppointment->status,
-                        ['pending', 'confirmed'],
-                        true
-                    )
-                ) {
-                    throw new \RuntimeException(
-                        'این نوبت امکان پرداخت ندارد.'
-                    );
-                }
-
-                // جلوگیری از پرداخت مجدد
-                $alreadyPaid = AppointmentPayment::query()
-                    ->where('appointment_id', $lockedAppointment->id)
-                    ->where('status', 'paid')
-                    ->exists();
-
-                if ($alreadyPaid) {
-                    return null;
-                }
-
-                // یافتن آخرین پرداخت باز
-                $payment = AppointmentPayment::query()
-                    ->where('appointment_id', $lockedAppointment->id)
-                    ->whereIn('status', ['pending', 'initiated'])
-                    ->orderByDesc('id')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($payment) {
-                    if ((int) $payment->amount_rial !== $amount) {
-                        throw new \RuntimeException(
-                            'مبلغ پرداخت قبلی با مبلغ فعلی نوبت مطابقت ندارد.'
-                        );
-                    }
-
-                    if ($payment->gateway_name !== 'sep') {
-                        throw new \RuntimeException(
-                            'درگاه پرداخت معتبر نیست.'
-                        );
-                    }
-
-                    return $payment;
-                }
-
-                return AppointmentPayment::query()->create([
-                    'appointment_id' => $lockedAppointment->id,
-                    'amount_rial' => $amount,
-                    'status' => 'pending',
-                    'payment_uuid' => (string) Str::uuid(),
-                    'gateway_name' => 'sep',
-                ]);
-            });
-
-            if ($payment === null) {
+            if ($token === null) {
                 return $visitUrl()->with(
                     'success',
                     'این نوبت قبلاً پرداخت شده است.'
                 );
             }
 
-            Log::info('PAYMENT RECORD READY', [
-                'payment_id' => $payment->id,
-                'status' => $payment->status,
-                'has_token' => !empty($payment->gateway_token),
-                'amount_rial' => $payment->amount_rial,
-            ]);
-
-            // 5. استفاده از توکن موجود با روش POST
-            $token = trim((string) $payment->gateway_token);
-
-            if ($payment->status === 'initiated' && $token !== '') {
-                Log::warning('SEP EXISTING TOKEN REUSED', [
-                    'payment_id' => $payment->id,
-                    'token_length' => strlen($token),
-                ]);
-
-                // توکن قبلی را استفاده نکن؛ برای دریافت توکن جدید ادامه بده.
-                $payment->gateway_token = null;
-                $payment->status = 'pending';
-                $payment->save();
-
-                $token = '';
-            }
-
-            // 6. درخواست توکن جدید از SEP
-            $callbackUrl = 'https://doctorvafaei.com/payment/callback';
-
-            Log::info('SEP TOKEN REQUEST STARTED', [
-                'payment_id' => $payment->id,
-                'amount_rial' => $payment->amount_rial,
-            ]);
-
-            $result = $sep->requestToken(
-                (int) $payment->amount_rial,
-                (string) $payment->payment_uuid,
-                $callbackUrl,
-                $cellNumber
-            );
-
-            Log::info('SEP TOKEN RESPONSE RECEIVED', [
-                'payment_id' => $payment->id,
-                'result_type' => get_debug_type($result),
-                'result_keys' => is_array($result)
-                    ? array_keys($result)
-                    : [],
-                'has_token' => is_array($result)
-                    && !empty($result['token']),
-            ]);
-
-            if (!is_array($result)) {
-                throw new \RuntimeException(
-                    'پاسخ درگاه SEP در قالب معتبر دریافت نشد.'
-                );
-            }
-
-            $token = trim((string) ($result['token'] ?? ''));
-
-            if ($token === '') {
-                throw new \RuntimeException(
-                    'توکن پرداخت از درگاه دریافت نشد.'
-                );
-            }
-
-            // 7. ذخیره توکن پیش از انتقال به درگاه
-            $payment->gateway_token = $token;
-            $payment->status = 'initiated';
-            $payment->save();
-
-            Log::info('SEP PAYMENT INITIALIZED', [
-                'payment_id' => $payment->id,
-                'appointment_id' => $appointment->id,
-                'amount_rial' => $payment->amount_rial,
-            ]);
-
-            // 8. ارسال توکن با فرم POST
             return response()->view('payments.sep-redirect', [
                 'token' => $token,
             ]);
-
         } catch (Throwable $e) {
             report($e);
 
@@ -224,7 +85,6 @@ class AppointmentPaymentController extends Controller
             ]);
         }
     }
-
 
 
     public function callback(
