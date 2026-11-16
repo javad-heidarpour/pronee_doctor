@@ -94,6 +94,77 @@
         </div>
       </section>
 
+      <!-- Today's clinic operations -->
+      <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:rounded-3xl">
+        <div class="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-lg">🗓️</span>
+              <h2 class="text-base font-extrabold text-slate-900 sm:text-lg">امروز مطب</h2>
+              <span class="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700">{{ todayAppointments.length }} نوبت</span>
+            </div>
+            <p class="mt-2 text-xs leading-6 text-slate-500">برنامه روزانه نوبت‌ها و وضعیت مراجعه‌کنندگان مطب‌های مجاز</p>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="rounded-xl bg-amber-50 px-3 py-2 font-bold text-amber-700">در انتظار: {{ todayStats.pending }}</span>
+            <span class="rounded-xl bg-emerald-50 px-3 py-2 font-bold text-emerald-700">تأییدشده: {{ todayStats.confirmed }}</span>
+            <span class="rounded-xl bg-rose-50 px-3 py-2 font-bold text-rose-700">پرداخت نیازمند پیگیری: {{ todayStats.unpaid }}</span>
+          </div>
+        </div>
+
+        <div v-if="nextAppointment" class="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-teal-100 bg-gradient-to-l from-teal-50 to-white p-4 sm:mx-6 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-3">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-xl shadow-sm">⏱️</span>
+            <div>
+              <p class="text-[11px] font-bold text-teal-700">مراجعه بعدی امروز</p>
+              <p class="mt-1 text-sm font-extrabold text-slate-900">{{ nextAppointment.patient_name }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ nextAppointment.clinic_name || 'مطب ثبت نشده' }}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 self-start rounded-xl bg-white px-4 py-2 text-lg font-black tabular-nums text-teal-800 shadow-sm sm:self-auto">
+            {{ nextAppointment.appointment_time }}
+          </div>
+        </div>
+
+        <div v-if="todayAppointments.length" class="divide-y divide-slate-100">
+          <div
+            v-for="appointment in todayAppointments"
+            :key="appointment.id"
+            class="flex flex-col gap-3 px-4 py-4 transition hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+          >
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-black text-slate-600">
+                {{ patientInitials(appointment.patient_name) }}
+              </div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-extrabold text-slate-800">{{ appointment.patient_name || 'نامشخص' }}</p>
+                <p class="mt-1 truncate text-xs text-slate-500">{{ appointment.clinic_name || 'مطب ثبت نشده' }}</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+              <span class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black tabular-nums text-slate-700">{{ appointment.appointment_time || '--:--' }}</span>
+              <span :class="appointmentStatusClass(appointment.status)" class="rounded-lg px-3 py-2 text-[11px] font-bold">{{ appointment.status_label }}</span>
+              <span :class="paymentStatusClass(appointment.payment_status)" class="rounded-lg px-3 py-2 text-[11px] font-bold">{{ appointment.payment_status_label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="px-5 py-10 text-center">
+          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-2xl">☕</div>
+          <p class="mt-3 text-sm font-extrabold text-slate-700">برای امروز نوبتی ثبت نشده است</p>
+          <p class="mt-1 text-xs text-slate-400">با ثبت نوبت جدید، برنامه روزانه مطب در این بخش نمایش داده می‌شود.</p>
+        </div>
+
+        <div class="border-t border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-6">
+          <Link :href="route('portal.patients.index')" class="inline-flex items-center gap-2 text-xs font-extrabold text-teal-700 transition hover:text-teal-900">
+            مشاهده همه نوبت‌ها
+            <span aria-hidden="true">←</span>
+          </Link>
+        </div>
+      </section>
+
       <!-- Quick Actions -->
       <section
         class="overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 lg:p-7"
@@ -237,6 +308,14 @@ const props = defineProps({
       total_clinics: 0,
     }),
   },
+  todayAppointments: {
+    type: Array,
+    default: () => [],
+  },
+  nextAppointment: {
+    type: Object,
+    default: null,
+  },
 });
 
 // --------------------------------------------------
@@ -296,6 +375,38 @@ const doctorFullName = computed(() => {
     [doctor?.caption, doctor?.name, doctor?.family].filter(Boolean).join(" ") || null
   );
 });
+
+const todayStats = computed(() => ({
+  pending: props.stats?.today_pending ?? 0,
+  confirmed: props.stats?.today_confirmed ?? 0,
+  unpaid: props.stats?.today_unpaid ?? 0,
+}));
+
+const patientInitials = (name) => {
+  return (name || '؟')
+    .trim()
+    .split(/\\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2);
+};
+
+const appointmentStatusClass = (status) => ({
+  pending: 'bg-amber-50 text-amber-700',
+  confirmed: 'bg-emerald-50 text-emerald-700',
+  visited: 'bg-violet-50 text-violet-700',
+  cancelled: 'bg-rose-50 text-rose-700',
+}[status] || 'bg-slate-100 text-slate-600');
+
+const paymentStatusClass = (status) => ({
+  paid: 'bg-emerald-50 text-emerald-700',
+  pending: 'bg-amber-50 text-amber-700',
+  initiated: 'bg-amber-50 text-amber-700',
+  failed: 'bg-rose-50 text-rose-700',
+  cancelled: 'bg-rose-50 text-rose-700',
+  refunded: 'bg-sky-50 text-sky-700',
+}[status] || 'bg-slate-100 text-slate-600');
 
 // --------------------------------------------------
 // Statistics
