@@ -28,6 +28,25 @@
     <!-- فیلتر دسته‌بندی -->
     <div class="flex flex-wrap gap-2 mb-6">
       <button
+        type="button"
+        @click="selectedCategory = 'all'"
+        :class="[
+          'px-4 py-2 rounded-xl text-sm font-medium transition-all',
+          selectedCategory === 'all'
+            ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+        ]"
+      >
+        همه تصاویر
+        <span
+          class="mr-1 px-1.5 py-0.5 text-xs rounded-full"
+          :class="selectedCategory === 'all' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'"
+        >
+          {{ images.length }}
+        </span>
+      </button>
+
+      <button
         v-for="cat in categories"
         :key="cat.value"
         @click="selectedCategory = cat.value"
