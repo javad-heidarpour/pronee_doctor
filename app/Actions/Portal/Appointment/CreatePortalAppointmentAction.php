@@ -38,6 +38,7 @@ class CreatePortalAppointmentAction
             // بررسی تعلق ساعت به پزشک و مطب
             $clinicExists = $doctor->address()
                 ->where('addresses.id', $timeSlot->clinic_id)
+                ->where('addresses.is_active', true)
                 ->exists();
 
             if (
