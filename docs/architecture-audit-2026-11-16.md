@@ -22,7 +22,7 @@ The codebase already has partial Action-based organization. The main issue is in
 1. `routes/sms.php` exposes `GET /sms/visit/{visit_number}` and `GET /sms/Confirmation/{visit_number}` without an authentication middleware. The handlers send SMS based on a guessable appointment ID. This is an IDOR/abuse surface and must be redesigned with authenticated authorization or signed, short-lived links and rate limiting. Do not simply add portal auth until intended public use is confirmed.
 2. `PatientController::updateDescription()` updates the appointment status to `visited` while editing description/surgery details. This couples unrelated operations and bypasses the dedicated status workflow. Separate visit completion from descriptive edits and preserve the existing business rules deliberately.
 3. `PatientController::updateStatus()` contains a transaction, row locks, collision checks, and TimeSlot state transitions in the controller. This belongs in an Action and should be covered by tests.
-4. `Home1Controller` uses `Doctor::findOrFail(1)` in multiple public-page methods even though the routes contain a `{slug}` segment. A public page for a different doctor can therefore show the wrong doctor. Resolve the doctor by the route slug consistently before refactoring the page payloads.
+4. ~~`Home1Controller` used `Doctor::findOrFail(1)` in multiple public-page methods even though the routes contain a `{slug}` segment.~~ Fixed on 2026-11-16: all page methods now resolve an active doctor by the route slug through `findDoctor()`, including booking (where the slug is now the first route argument).
 5. The two portal review flows (`Portal/ReviewController` and `Portal/DoctorReviewController`) overlap. Route usage and frontend callers must be mapped before choosing one canonical flow.
 6. The payment callback contains local test settlement, gateway validation, transaction orchestration, logging, and SMS dispatch. Extracting this requires regression tests around SEP callback idempotency, amount mismatch, retry states, and slot release. Avoid changing payment semantics without those tests.
 
@@ -96,3 +96,23 @@ The codebase already has partial Action-based organization. The main issue is in
 - Do not change payment, booking, SMS, or auth behavior based only on code movement.
 - Before each edit, fetch the latest file from `main` and use its current blob SHA.
 - This audit is source review only. No database migration, PHPUnit, static analysis, or frontend build has been run as part of the audit.
+
+
+## Implementation progress (2026-11-16)
+
+Commits applied directly to `main`:
+- `4df3b2e`: add this architecture audit and phased plan.
+- `496a627`: resolve public Home1 pages using the route doctor slug instead of a fixed doctor ID.
+- `3a434c2`, `25f2313`, `6af9717`: extract appointment status transition into `UpdateAppointmentStatusAction` and `UpdateAppointmentStatusRequest`; the controller now delegates the transactional state change.
+- `a9d9566`, `a3cfcc7`, `876ce28`: extract appointment description update into `UpdateAppointmentDescriptionAction` and `UpdateAppointmentDescriptionRequest`.
+
+The appointment description flow deliberately preserves its current behavior of marking the appointment as visited. This is retained for compatibility and should be reconsidered only after the UI workflow and business rule are confirmed.
+
+Validation performed so far: source files were re-fetched from `main` and inspected for the expected imports, method delegation, malformed escaped backslashes, and remaining hard-coded doctor ID lookups in `Home1Controller`. No PHP runtime, PHPUnit, static-analysis, database, or frontend build execution was available; these changes are not yet runtime-tested.
+
+Next implementation targets:
+1. Extract PatientController index/filter/statistics and available-date/slot queries into Actions and dedicated Requests.
+2. Refactor UsersController assignment/user CRUD into focused Requests, Actions, and a typed assignment DTO.
+3. Secure and refactor SMS endpoints after confirming all frontend and external callers.
+4. Decompose payment callback and doctor registration without changing gateway/OTP semantics.
+5. Continue the remaining controller inventory and resolve duplicate review flows after route usage is verified.
