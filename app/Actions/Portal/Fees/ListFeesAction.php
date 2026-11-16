@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Actions\\Portal\\Fees;
+namespace App\Actions\Portal\Fees;
 
-use App\\Models\\Doctor;
-use App\\Models\\Fee;
+use App\Models\Doctor;
+use App\Models\Fee;
 
 class ListFeesAction
 {
     /**
-     * @return array{activeFee: ?Fee, feeHistory: \\Illuminate\\Database\\Eloquent\\Collection, doctor: Doctor}
+     * @return array{activeFee: ?Fee, feeHistory: \Illuminate\Database\Eloquent\Collection, doctor: Doctor}
      */
     public function handle(Doctor $doctor): array
     {
