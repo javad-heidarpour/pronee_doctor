@@ -8,12 +8,13 @@ use Illuminate\Http\Request;
 
 class ListWorkingHoursAction
 {
-    public function handle(Doctor $doctor, Request $request): array
+    public function handle(Doctor $doctor, Request $request, ?array $allowedClinicIds = null): array
     {
-        $clinics = $doctor->address()->with('city')->get();
+        $clinics = $doctor->address()->whereIn('addresses.id', $allowedClinicIds ?? $doctor->address()->pluck('addresses.id'))->with('city')->get();
 
         $query = DoctorWorkingHour::query()
             ->where('doctor_id', $doctor->id)
+            ->when($allowedClinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $allowedClinicIds))
             ->with('clinic.city');
 
         if ($request->filled('clinic_id')) {
