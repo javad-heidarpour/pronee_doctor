@@ -13,6 +13,8 @@ class LoadPortalAppointmentDetailsAction
             'timeSlot',
             'clinic.city',
             'visitReason',
+            'surgeryType',
+            'latestPayment',
         ]);
     }
 }
