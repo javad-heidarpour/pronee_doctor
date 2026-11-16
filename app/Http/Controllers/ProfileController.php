@@ -8,14 +8,11 @@ use App\Actions\Portal\Profile\DeleteProfileAction;
 use App\Actions\Portal\Profile\EditProfileAction;
 use App\Actions\Portal\Profile\UpdateProfileAction;
 
+use App\Actions\Profile\ChangeProfilePasswordAction;
 use App\Http\Requests\Profile\DeleteProfileRequest;
+use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
-use Illuminate\Support\Facades\Auth;
-
 use Illuminate\Http\Request;
-
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 
 
