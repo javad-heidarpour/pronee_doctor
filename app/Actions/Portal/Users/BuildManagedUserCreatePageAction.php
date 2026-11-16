@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Users;
 
+use App\Models\Doctor;
 use App\Models\User;
 
 class BuildManagedUserCreatePageAction
@@ -11,7 +12,7 @@ class BuildManagedUserCreatePageAction
     ) {
     }
 
-    public function handle(User $authUser, $activeDoctor): array
+    public function handle(User $authUser, ?Doctor $activeDoctor): array
     {
         $roles = array_values(array_filter(
             $this->rolesAction->handle($authUser),
