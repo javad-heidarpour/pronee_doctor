@@ -34,6 +34,7 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->session()->forget('active_doctor_id');
         $user = Auth::guard('web')->user();
 
         if (!in_array($user->role, ['admin', 'doctor', 'secretary'], true)) {
