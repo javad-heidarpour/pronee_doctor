@@ -11,8 +11,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendDoctorRegistrationOtpRequest;
 use App\Http\Requests\Auth\StoreDoctorRegistrationRequest;
 use App\Http\Requests\Auth\VerifyDoctorRegistrationOtpRequest;
-use App\Models\Doctor;
-use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -120,9 +118,13 @@ class DoctorRegistrationController extends Controller
             );
 
             if (! $doctor) {
+                $alreadyRegistered = \\App\\Models\\User::where('phone', $phone)->exists();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'تأیید شماره موبایل معتبر نیست یا این شماره قبلاً ثبت شده است. دوباره کد تأیید بگیرید.',
+                    'message' => $alreadyRegistered
+                        ? 'این شماره موبایل قبلاً ثبت شده است.'
+                        : 'تأیید شماره موبایل معتبر نیست. دوباره کد تأیید بگیرید.',
                 ], 422);
             }
         } catch (Throwable $e) {
@@ -160,8 +162,4 @@ class DoctorRegistrationController extends Controller
         return preg_replace('/\D/', '', $phone);
     }
 
-    private function registrationTokenKey(string $token): string
-    {
-        return 'doctor-registration-token:' . hash('sha256', $token);
-    }
 }
