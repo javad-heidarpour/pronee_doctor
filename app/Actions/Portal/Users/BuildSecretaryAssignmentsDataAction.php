@@ -3,7 +3,6 @@
 namespace App\Actions\Portal\Users;
 
 use App\Models\Doctor;
-use App\Models\User;
 
 class BuildSecretaryAssignmentsDataAction
 {
