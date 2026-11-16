@@ -35,9 +35,9 @@ class DoctorReviewController extends Controller
         ReplyDoctorReviewAction $action
     ) {
         return $action->handle(
-            $request,
             $this->currentDoctor(),
-            $review
+            $review,
+            $request->validated('doctor_reply')
         );
     }
 }
