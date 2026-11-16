@@ -9,6 +9,7 @@ use App\Actions\Portal\WorkingHours\ToggleWorkingHourAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class WorkingHourController extends Controller
 
         $validated = $request->validated();
 
-        if (!$this->clinicBelongsToDoctor($doctor, (int) $validated['clinic_id'])) {
+        if (!in_array((int) $validated['clinic_id'], $this->accessibleClinicIds($doctor), true)) {
             return back()
                 ->withErrors(['clinic_id' => __('working_hours.invalid_clinic')])
                 ->withInput();
@@ -98,7 +99,7 @@ class WorkingHourController extends Controller
     ) {
         $doctor = $this->currentDoctor();
 
-        $this->authorizeOwnership($workingHour, (int) $doctor->id);
+        $this->authorizeWorkingHour($workingHour, $doctor);
         $action->handle($workingHour);
 
         return back()->with('success', __('working_hours.status_changed'));
@@ -119,5 +120,14 @@ class WorkingHourController extends Controller
         return back()->with('success', __('working_hours.deleted'));
     }
 
+
+    private function overlapMessage(DoctorWorkingHour $duplicate): string
+    {
+        return __('working_hours.duplicate', [
+            'day' => __('working_hours.days.' . $duplicate->day_of_week),
+            'clinic' => $duplicate->clinic?->name
+                ?? __('working_hours.unknown_clinic'),
+        ]);
+    }
 
 }
