@@ -109,8 +109,13 @@ class UsersController extends Controller
     {
         $authUser = Auth::guard('web')->user();
 
+        // ایجاد حساب پزشک باید از فرایند ثبت‌نام پزشک انجام شود تا
+        // رکورد doctors و ارتباط آن با users نیز ساخته شود.
+        // در ویرایش، نقش فعلی پزشک برای حفظ حساب‌های موجود مجاز می‌ماند.
         $allowedRoles = $authUser?->role === 'admin'
-            ? ['doctor', 'secretary', 'admin', 'user']
+            ? ($user
+                ? ['doctor', 'secretary', 'admin', 'user']
+                : ['secretary', 'admin', 'user'])
             : ['secretary'];
 
         return $request->validate([
@@ -361,9 +366,14 @@ class UsersController extends Controller
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement();
 
+        $roles = array_values(array_filter(
+            $this->roles(),
+            fn ($role) => $role['value'] !== 'doctor'
+        ));
+
         return Inertia::render('Portal/Users/Create', [
             'doctor' => $activeDoctor ?? $authUser->doctorProfile,
-            'roles' => $this->roles(),
+            'roles' => $roles,
         ]);
     }
 
