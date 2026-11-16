@@ -188,9 +188,12 @@
                     </div>
 
                     <div class="min-w-0">
-                      <p class="whitespace-nowrap text-sm font-bold text-gray-900">
+                      <Link
+                        :href="route('portal.patients.show', appointment.id)"
+                        class="whitespace-nowrap text-sm font-bold text-gray-900 transition hover:text-teal-700 hover:underline"
+                      >
                         {{ appointment.patient_name }}
-                      </p>
+                      </Link>
                       <p class="mt-1 text-xs text-gray-500" dir="ltr">
                         {{ appointment.patient_phone }}
                       </p>
@@ -536,9 +539,12 @@
               </div>
 
               <div class="min-w-0">
-                <h3 class="truncate text-sm font-bold text-gray-900">
+                <Link
+                  :href="route('portal.patients.show', appointment.id)"
+                  class="block truncate text-sm font-bold text-gray-900 transition hover:text-teal-700 hover:underline"
+                >
                   {{ appointment.patient_name }}
-                </h3>
+                </Link>
                 <p class="mt-1 text-xs text-gray-500" dir="ltr">
                   {{ appointment.patient_phone }}
                 </p>
