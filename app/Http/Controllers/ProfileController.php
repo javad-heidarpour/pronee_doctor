@@ -13,6 +13,7 @@ use App\Http\Requests\Profile\DeleteProfileRequest;
 use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 
 
@@ -42,7 +43,7 @@ class ProfileController extends Controller
                 $request->string('current_password')->toString(),
                 $request->string('password')->toString()
             );
-        } catch (\\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             return back()->withErrors([
                 'current_password' => 'رمز ذخیره‌شده قابل بررسی نیست. لطفاً با مدیر سامانه تماس بگیرید.',
             ]);
