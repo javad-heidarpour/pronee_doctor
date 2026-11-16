@@ -12,3 +12,8 @@ Artisan::command('inspire', function () {
 Schedule::command('appointments:expire-pending')
     ->everyMinute()
     ->withoutOverlapping();
+
+// یادآوری نوبت‌های تأییدشده فردا؛ فقط در صورت تنظیم قالب پیامک فعال می‌شود.
+Schedule::command('appointments:send-reminders')
+    ->dailyAt('09:00')
+    ->withoutOverlapping();
