@@ -26,8 +26,7 @@ class ClinicController extends Controller
     public function store(ClinicRequest $request, StoreClinicAction $action)
     {
         $doctor = $this->currentDoctor();
-
-        abort_if(auth('web')->user()?->role === 'secretary', 403, 'منشی اجازه ایجاد مطب جدید را ندارد.');
+        $this->authorizeDoctorOnly();
         $action->handle($doctor, $request->validated());
 
         return back()->with('success', 'مطب با موفقیت اضافه شد.');
@@ -39,6 +38,7 @@ class ClinicController extends Controller
         UpdateClinicAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         $this->authorizeClinicAccess((int) $clinic->id, $doctor);
 
         $action->handle($clinic, $request->validated());
