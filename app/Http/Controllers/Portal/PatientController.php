@@ -20,7 +20,6 @@ use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
 use Inertia\Inertia;
 
-use Illuminate\Validation\ValidationException;
 
 
 
@@ -40,16 +39,10 @@ class PatientController extends Controller
         $doctor = $this->currentDoctor();
         $filters = $request->validated();
 
-        $result = $action->handle(
-            $doctor,
-            $this->accessibleClinicIds($doctor),
-            $filters
-        );
+        $clinicIds = $this->accessibleClinicIds($doctor);
 
-        $options = $optionsAction->handle(
-            $doctor,
-            $this->accessibleClinicIds($doctor)
-        );
+        $result = $action->handle($doctor, $clinicIds, $filters);
+        $options = $optionsAction->handle($doctor, $clinicIds);
 
         return Inertia::render('Portal/Patients/Index', [
             'doctor' => $doctor,
