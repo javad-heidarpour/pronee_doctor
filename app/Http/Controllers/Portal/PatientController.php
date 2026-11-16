@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
+use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\SurgeryType;
@@ -332,7 +334,7 @@ class PatientController extends Controller
             return back()->with('success', 'وضعیت نوبت با موفقیت تغییر کرد.');
         } catch (ValidationException $e) {
             throw $e;
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             report($e);
 
             return back()->with(
