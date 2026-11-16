@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Actions\\Portal\\Appointment;
+namespace App\Actions\Portal\Appointment;
 
-use App\\Models\\Doctor;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Collection;
+use App\Models\Doctor;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class ListAvailableDatesAction
 {
