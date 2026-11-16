@@ -9,7 +9,6 @@ use App\Actions\Payments\FindSepCallbackPaymentAction;
 use App\Actions\Payments\ProcessLocalSepPaymentCallbackAction;
 use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Models\Appointment;
-use App\Models\AppointmentPayment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
