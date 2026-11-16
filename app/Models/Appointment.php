@@ -47,10 +47,16 @@ class Appointment extends Model
 
 
 
-    public static function updateUnpaidAppointmentsFee(int $newFee): int
-    {
+    public static function updateUnpaidAppointmentsFee(
+        int $newFee,
+        int $doctorId
+    ): int {
         return self::query()
+            ->where('doctor_id', $doctorId)
             ->where('status', 'pending')
+            ->whereDoesntHave('latestPayment', function ($query) {
+                $query->where('status', 'paid');
+            })
             ->update([
                 'fee_rial' => $newFee,
             ]);
