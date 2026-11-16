@@ -20,13 +20,14 @@ class ClinicController extends Controller
     {
         $doctor = $this->currentDoctor();
 
-        return Inertia::render('Portal/Clinics', $action->handle($doctor));
+        return Inertia::render('Portal/Clinics', $action->handle($doctor, $this->accessibleClinicIds($doctor)));
     }
 
     public function store(ClinicRequest $request, StoreClinicAction $action)
     {
         $doctor = $this->currentDoctor();
 
+        abort_if(auth('web')->user()?->role === 'secretary', 403, 'منشی اجازه ایجاد مطب جدید را ندارد.');
         $action->handle($doctor, $request->validated());
 
         return back()->with('success', 'مطب با موفقیت اضافه شد.');
@@ -58,7 +59,8 @@ class ClinicController extends Controller
     private function authorizeClinic(Address $clinic, \App\Models\Doctor $doctor): void
     {
         abort_unless(
-            (int) $clinic->doctor_id === (int) $doctor->id,
+            (int) $clinic->doctor_id === (int) $doctor->id &&
+            in_array((int) $clinic->id, $this->accessibleClinicIds($doctor), true),
             403,
             'شما به این مطب دسترسی ندارید.'
         );
