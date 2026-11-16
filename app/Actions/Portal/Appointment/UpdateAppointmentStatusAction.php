@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Actions\Portal\Appointment;
+namespace App\\Actions\\Portal\\Appointment;
 
-use App\Models\Appointment;
-use App\Models\TimeSlot;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
+use App\\Models\\Appointment;
+use App\\Models\\TimeSlot;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Validation\\ValidationException;
 
 class UpdateAppointmentStatusAction
 {
@@ -16,6 +16,12 @@ class UpdateAppointmentStatusAction
      */
     public function handle(Appointment $appointment, string $newStatus): string
     {
+        if (!in_array($newStatus, ['pending', 'confirmed', 'cancelled', 'visited'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'وضعیت انتخاب‌شده معتبر نیست.',
+            ]);
+        }
+
         return DB::transaction(function () use ($appointment, $newStatus) {
             $lockedAppointment = Appointment::query()
                 ->whereKey($appointment->id)
@@ -26,9 +32,21 @@ class UpdateAppointmentStatusAction
                 return 'already_visited';
             }
 
-            // Visit completion is handled by the dedicated visit-details flow.
+            // تکمیل ویزیت فقط از مسیر ثبت جزئیات ویزیت انجام می‌شود.
             if ($newStatus === 'visited') {
                 return 'visit_completion_not_allowed';
+            }
+
+            // پرداخت موفق را نمی‌توان با تغییر دستی وضعیت نوبت لغو یا بازنویسی کرد.
+            // این کار باید از فرایند مستقل استرداد وجه انجام شود.
+            $hasPaidPayment = $lockedAppointment->payments()
+                ->where('status', 'paid')
+                ->exists();
+
+            if ($hasPaidPayment) {
+                throw ValidationException::withMessages([
+                    'status' => 'این نوبت پرداخت موفق دارد؛ تغییر وضعیت آن از این بخش مجاز نیست.',
+                ]);
             }
 
             $timeSlot = $lockedAppointment->time_slot_id
