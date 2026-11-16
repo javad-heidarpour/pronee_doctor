@@ -216,7 +216,17 @@ class AppointmentPaymentController extends Controller
 
                 // تست ناموفق باید وضعیت رزرو و آزادسازی اسلات را نیز شبیه‌سازی کند.
                 if ($testResult === 'fail') {
-                    $cancelFailedAppointment->handle($payment);
+                    $cancelled = $cancelFailedAppointment->handle($payment);
+
+                    if (!$cancelled) {
+                        return $visitRedirect($appointment->id)->with(
+                            'payment_result',
+                            [
+                                'status' => 'success',
+                                'message' => 'این پرداخت هم‌زمان با تست، قبلاً موفق ثبت شده است.',
+                            ]
+                        );
+                    }
                 }
 
                 return $visitRedirect($appointment->id)->with(
