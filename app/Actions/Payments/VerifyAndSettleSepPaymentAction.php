@@ -131,13 +131,15 @@ class VerifyAndSettleSepPaymentAction
             $resultCode,
             $resultMessage
         ) {
-            $lockedPayment = AppointmentPayment::query()
-                ->whereKey($payment->id)
+            // Match the appointment -> payment lock order used by initiation
+            // and cancellation to reduce deadlock risk on concurrent callbacks.
+            $lockedAppointment = Appointment::query()
+                ->whereKey($appointment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $lockedAppointment = Appointment::query()
-                ->whereKey($appointment->id)
+            $lockedPayment = AppointmentPayment::query()
+                ->whereKey($payment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
