@@ -3,6 +3,7 @@
 namespace App\Actions\Payments;
 
 use App\Models\AppointmentPayment;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -22,15 +23,26 @@ class RecordSepCallbackFailureAction
             'exception' => $exception->getMessage(),
         ]);
 
-        if (! $payment || $payment->status === 'paid') {
+        if (! $payment) {
             return;
         }
 
         try {
-            $payment->update([
-                'gateway_result_message' =>
-                    'خطا در بررسی تراکنش؛ وضعیت نیازمند بررسی است.',
-            ]);
+            DB::transaction(function () use ($payment): void {
+                $lockedPayment = AppointmentPayment::query()
+                    ->whereKey($payment->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $lockedPayment || $lockedPayment->status === 'paid') {
+                    return;
+                }
+
+                $lockedPayment->update([
+                    'gateway_result_message' =>
+                        'خطا در بررسی تراکنش؛ وضعیت نیازمند بررسی است.',
+                ]);
+            });
         } catch (Throwable $updateException) {
             Log::error('SEP payment error update failed', [
                 'payment_id' => $payment->id,
