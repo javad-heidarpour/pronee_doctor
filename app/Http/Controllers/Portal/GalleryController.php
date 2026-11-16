@@ -1,96 +1,57 @@
 <?php
 
-// app/Http/Controllers/Doctor/GalleryController.php
 namespace App\Http\Controllers\Portal;
 
+use App\Actions\Portal\Gallery\DeleteGalleryImageAction;
+use App\Actions\Portal\Gallery\ListGalleryImagesAction;
+use App\Actions\Portal\Gallery\StoreGalleryImagesAction;
+use App\Actions\Portal\Gallery\UpdateGalleryImageAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\StoreGalleryImagesRequest;
+use App\Http\Requests\Portal\UpdateGalleryImageRequest;
 use App\Models\DoctorImage;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class GalleryController extends Controller
 {
-    public function index()
+    public function index(ListGalleryImagesAction $action)
     {
-        $user = Auth::guard('web')->user();
-        $doctor = $user->doctorProfile;
-        $images = $doctor->images()->orderBy('sort_order')->get();
-
-        return Inertia::render('Portal/Gallery', [
-            'doctor' => $doctor,
-            'images' => $images->map(fn($img) => [
-                'id' => $img->id,
-                'image_url' => $img->full_image_url,
-                'caption' => $img->caption,
-                'category' => $img->category,
-                'category_name' => $img->category_name,
-                'sort_order' => $img->sort_order,
-                'is_active' => $img->is_active,
-            ]),
-            'categories' => DoctorImage::CATEGORIES,
-        ]);
+        return Inertia::render('Portal/Gallery', $action->handle());
     }
 
-    public function store(Request $request)
+    public function store(StoreGalleryImagesRequest $request, StoreGalleryImagesAction $action)
     {
-        $validated = $request->validate([
-            'images' => 'required|array|max:10',
-            'images.*' => 'image|max:5120',
-            'caption' => 'nullable|string|max:500',
-            'category' => 'required|in:Workplace,equipment,team,certificate,Heartfelt,Portfolio,Satisfaction,other',
+        $validated = $request->validated();
 
-        ]);
-
-        $user = Auth::guard('web')->user();
-        $doctor = $user->doctorProfile;
-        $lastOrder = $doctor->images()->max('sort_order') ?? 0;
-
-
-        foreach ($request->file('images') as $index => $file) {
-            $path = $file->store('doctor-gallery', 'public');
-
-            DoctorImage::create([
-                'doctor_id' => $doctor->id,
-                'image_url' => $path,
-                'caption' => $validated['caption'] ?? null,
-                'category' => $validated['category'],
-                'sort_order' => ++$lastOrder,
-                'is_active' => true,
-            ]);
-        }
+        $action->handle(
+            $request->file('images'),
+            $validated['category'],
+            $validated['caption'] ?? null,
+        );
 
         return back()->with('success', 'تصاویر با موفقیت اضافه شدند.');
     }
 
-    public function update(Request $request, DoctorImage $image)
+    public function update(UpdateGalleryImageRequest $request, DoctorImage $image, UpdateGalleryImageAction $action)
     {
         $this->authorizeImage($image);
 
-        $validated = $request->validate([
-            'caption' => 'nullable|string|max:255',
-            'category' => 'required|in:clinic,equipment,team,certificate,other',
-            'sort_order' => 'integer',
-            'is_active' => 'boolean',
-        ]);
-
-        $image->update($validated);
+        $action->handle($image, $request->validated());
 
         return back()->with('success', 'تصویر بروزرسانی شد.');
     }
 
-    public function destroy(DoctorImage $image)
+    public function destroy(DoctorImage $image, DeleteGalleryImageAction $action)
     {
         $this->authorizeImage($image);
 
-        Storage::disk('public')->delete($image->image_url);
-        $image->delete();
+        $action->handle($image);
 
         return back()->with('success', 'تصویر حذف شد.');
     }
 
-    private function authorizeImage(DoctorImage $image)
+    private function authorizeImage(DoctorImage $image): void
     {
         if ($image->doctor_id !== Auth::guard('doctor')->id()) {
             abort(403);
