@@ -38,7 +38,7 @@ class ShiftController extends Controller
     public function store(StoreTimeSlotRequest $request, CreateTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('shifts.manage', $doctor);
 
         $validated = $request->validated();
 
@@ -59,7 +59,7 @@ class ShiftController extends Controller
         UpdateTimeSlotAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('shifts.manage', $doctor);
         $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
@@ -84,7 +84,7 @@ class ShiftController extends Controller
     public function toggle(TimeSlot $slot, ToggleTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('shifts.manage', $doctor);
         $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
@@ -111,7 +111,7 @@ class ShiftController extends Controller
     public function destroy(TimeSlot $slot, DeleteTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('shifts.manage', $doctor);
         $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
@@ -134,7 +134,7 @@ class ShiftController extends Controller
         GenerateTimeSlotsAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeDoctorOnly();
+        $this->authorizeSecretaryPermission('shifts.manage', $doctor);
 
         $validated = $request->validated();
 
@@ -144,6 +144,8 @@ class ShiftController extends Controller
 
         if ($clinicId !== null) {
             $this->authorizeClinic($doctor, $clinicId);
+        } elseif (auth('web')->user()?->role === 'secretary') {
+            abort(403, 'برای تولید نوبت، انتخاب مطب مجاز الزامی است.');
         }
 
         $result = $action->handle(
