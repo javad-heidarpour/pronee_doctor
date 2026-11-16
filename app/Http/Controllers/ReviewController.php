@@ -9,6 +9,7 @@ use App\Actions\Review\ReplyReviewAction;
 use App\Actions\Review\StoreReviewAction;
 use App\Actions\Review\ShowReviewsAction;
 
+use App\Http\Requests\ReplyReviewRequest;
 use App\Http\Requests\StoreReviewRequest;
 
 use App\Models\Doctor;
@@ -18,9 +19,9 @@ use Illuminate\Http\Request;
 
 class ReviewController extends Controller
 {
-    public function index()
+    public function index(ShowReviewsAction $action)
     {
-        return app(ShowReviewsAction::class)->handle();
+        return $action->handle();
     }
     /**
      * ثبت نظر بیمار
@@ -64,13 +65,13 @@ class ReviewController extends Controller
      * پاسخ پزشک
      */
     public function reply(
-        Request $request,
+        ReplyReviewRequest $request,
         Review $review,
         ReplyReviewAction $action
     ) {
         return $action->handle(
-            $request,
-            $review
+            $review,
+            $request->validated('doctor_reply')
         );
     }
 
