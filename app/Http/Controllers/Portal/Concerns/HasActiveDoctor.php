@@ -13,19 +13,12 @@ trait HasActiveDoctor
 
         abort_unless($user, 401, 'کاربر وارد نشده است.');
 
-        $doctors = $user->role === 'admin'
-            ? Doctor::query()->where('is_active', true)
-            : $user->doctors()->where('doctors.is_active', true);
-
+        $doctors = $user->accessibleDoctors();
         $doctorId = session('active_doctor_id');
 
-        if ($doctorId) {
-            $doctor = (clone $doctors)
-                ->where('doctors.id', $doctorId)
-                ->first();
-        } else {
-            $doctor = null;
-        }
+        $doctor = $doctorId
+            ? (clone $doctors)->whereKey($doctorId)->first()
+            : null;
 
         if (!$doctor) {
             session()->forget('active_doctor_id');
