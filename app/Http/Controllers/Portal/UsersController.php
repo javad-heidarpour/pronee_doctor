@@ -221,7 +221,7 @@ class UsersController extends Controller
         ]);
     }
 
-    public function updateAssignments(Request $request, User $user)
+    public function updateAssignments(\n        Request $request,\n        User $user,\n        UpdateSecretaryAssignmentsAction $action\n    )
     {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement($user);
@@ -253,15 +253,6 @@ class UsersController extends Controller
                 Rule::in($availablePermissions),
             ],
         ]);
-
-        $totalClinicAssignments = collect($validated['doctors'])
-            ->sum(fn ($item) => count($item['clinic_ids']));
-
-        abort_if(
-            $totalClinicAssignments > 2,
-            422,
-            'هر منشی حداکثر می‌تواند به دو مطب متصل باشد.'
-        );
 
         $doctorIds = collect($validated['doctors'])
             ->pluck('id')
@@ -331,19 +322,13 @@ class UsersController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($user, $syncData, $authUser, $activeDoctor, $doctorIds) {
-            if ($authUser->role === 'admin') {
-                $user->doctors()->sync($syncData);
-                return;
-            }
-
-            // پزشک نباید اتصال منشی به پزشکان دیگر را حذف کند.
-            $user->doctors()->syncWithoutDetaching($syncData);
-
-            if (!in_array($activeDoctor->id, $doctorIds, true)) {
-                $user->doctors()->detach($activeDoctor->id);
-            }
-        });
+        $action->handle(
+            $user,
+            $syncData,
+            $authUser->role,
+            $activeDoctor,
+            $doctorIds
+        );
 
         return redirect()
             ->route('portal.users.assignments', $user->id)
