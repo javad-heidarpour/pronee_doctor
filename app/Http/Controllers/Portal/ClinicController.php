@@ -1,34 +1,44 @@
 <?php
 
-namespace App\Http\Controllers\Portal;
+namespace App\\Http\\Controllers\\Portal;
 
-use App\Actions\Portal\Clinic\DeleteClinicAction;
-use App\Actions\Portal\Clinic\ListClinicsAction;
-use App\Actions\Portal\Clinic\StoreClinicAction;
-use App\Actions\Portal\Clinic\UpdateClinicAction;
-use App\Http\Controllers\Controller;
-use App\Http\Requests\Portal\ClinicRequest;
-use App\Models\Address;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
+use App\\Actions\\Portal\\Clinic\\DeleteClinicAction;
+use App\\Actions\\Portal\\Clinic\\ListClinicsAction;
+use App\\Actions\\Portal\\Clinic\\StoreClinicAction;
+use App\\Actions\\Portal\\Clinic\\UpdateClinicAction;
+use App\\Http\\Controllers\\Controller;
+use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
+use App\\Http\\Requests\\Portal\\ClinicRequest;
+use App\\Models\\Address;
+use Inertia\\Inertia;
 
 class ClinicController extends Controller
 {
+    use HasActiveDoctor;
+
     public function index(ListClinicsAction $action)
     {
-        return Inertia::render('Portal/Clinics', $action->handle());
+        $doctor = $this->currentDoctor();
+
+        return Inertia::render('Portal/Clinics', $action->handle($doctor));
     }
 
     public function store(ClinicRequest $request, StoreClinicAction $action)
     {
-        $action->handle($request->validated());
+        $doctor = $this->currentDoctor();
+
+        $action->handle($doctor, $request->validated());
 
         return back()->with('success', 'مطب با موفقیت اضافه شد.');
     }
 
-    public function update(ClinicRequest $request, Address $clinic, UpdateClinicAction $action)
-    {
-        $this->authorizeClinic($clinic);
+    public function update(
+        ClinicRequest $request,
+        Address $clinic,
+        UpdateClinicAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeClinic($clinic, $doctor);
 
         $action->handle($clinic, $request->validated());
 
@@ -37,17 +47,20 @@ class ClinicController extends Controller
 
     public function destroy(Address $clinic, DeleteClinicAction $action)
     {
-        $this->authorizeClinic($clinic);
+        $doctor = $this->currentDoctor();
+        $this->authorizeClinic($clinic, $doctor);
 
         $action->handle($clinic);
 
         return back()->with('success', 'مطب حذف شد.');
     }
 
-    private function authorizeClinic(Address $clinic): void
+    private function authorizeClinic(Address $clinic, \\App\\Models\\Doctor $doctor): void
     {
-        if ($clinic->doctor_id !== Auth::guard('doctor')->id()) {
-            abort(403);
-        }
+        abort_unless(
+            (int) $clinic->doctor_id === (int) $doctor->id,
+            403,
+            'شما به این مطب دسترسی ندارید.'
+        );
     }
 }
