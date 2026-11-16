@@ -90,9 +90,11 @@ class VerifyAndSettleSepPaymentAction
                 'result_message' => $resultMessage,
             ]);
 
-            $cancelFailedAppointment->handle($payment);
+            $cancelled = $cancelFailedAppointment->handle($payment);
 
-            return ['status' => 'failed'];
+            return [
+                'status' => $cancelled ? 'failed' : 'already_paid',
+            ];
         }
 
         $verifiedAmount = is_array($detail)
