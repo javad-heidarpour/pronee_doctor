@@ -13,6 +13,7 @@ class ListFeesAction
     public function handle(Doctor $doctor): array
     {
         $fees = Fee::with('creator:id,name,caption,family')
+            ->where('created_by', $doctor->id)
             ->orderByDesc('id')
             ->get();
 
