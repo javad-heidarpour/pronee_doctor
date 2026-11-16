@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal\\Concerns;
+namespace App\Http\Controllers\Portal\Concerns;
 
-use App\\Models\\Doctor;
-use Illuminate\\Support\\Facades\\Auth;
+use App\Models\Doctor;
+use Illuminate\Support\Facades\Auth;
 
 trait HasActiveDoctor
 {
