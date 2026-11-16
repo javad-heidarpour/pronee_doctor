@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Http\\Requests\\Portal;
+namespace App\Http\Requests\Portal;
 
-use Illuminate\\Foundation\\Http\\FormRequest;
+use Illuminate\Foundation\Http\FormRequest;
 
 class AvailableClinicRequest extends FormRequest
 {
