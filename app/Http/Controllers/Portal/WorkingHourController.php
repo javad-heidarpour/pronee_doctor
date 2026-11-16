@@ -26,6 +26,7 @@ class WorkingHourController extends Controller
     public function index(ListWorkingHoursRequest $request, ListWorkingHoursAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('working-hours.view', $doctor);
 
         return Inertia::render(
             'Portal/WorkingHours',
