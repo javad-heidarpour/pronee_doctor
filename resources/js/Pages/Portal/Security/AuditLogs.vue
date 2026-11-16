@@ -47,7 +47,7 @@ const metadataLabel = (metadata = {}) => {
 
 <template>
   <Head title="گزارش ممیزی امنیتی" />
-  <PortalLayout>
+  <PortalLayout title="گزارش ممیزی امنیتی">
     <main dir="rtl" class="mx-auto w-full max-w-7xl p-4 text-slate-800 sm:p-6">
       <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
