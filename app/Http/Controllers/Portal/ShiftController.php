@@ -13,6 +13,8 @@ use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
 use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
+use Illuminate\Http\Request;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Inertia\Inertia;
@@ -80,7 +82,7 @@ class ShiftController extends Controller
     public function toggle(TimeSlot $slot, ToggleTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSlot($slot, (int) $doctor->id);
+        $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
             return back()->withErrors([
