@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Actions\\Home;
+namespace App\Actions\Home;
 
-use App\\Models\\Doctor;
+use App\Models\Doctor;
 
 class FindPublicDoctorBySlugAction
 {
