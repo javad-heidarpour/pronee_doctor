@@ -10,8 +10,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Requests\Portal\StoreGalleryImagesRequest;
 use App\Http\Requests\Portal\UpdateGalleryImageRequest;
-use App\Models\Doctor;
 use App\Models\DoctorImage;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class GalleryController extends Controller
@@ -48,7 +48,7 @@ class GalleryController extends Controller
         UpdateGalleryImageAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeImage($image, $doctor);
+        Gate::forUser($doctor)->authorize('update', $image);
 
         $action->handle($image, $request->validated());
 
@@ -60,19 +60,11 @@ class GalleryController extends Controller
         DeleteGalleryImageAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeImage($image, $doctor);
+        Gate::forUser($doctor)->authorize('delete', $image);
 
         $action->handle($image);
 
         return back()->with('success', 'تصویر حذف شد.');
     }
 
-    private function authorizeImage(DoctorImage $image, Doctor $doctor): void
-    {
-        abort_unless(
-            (int) $image->doctor_id === (int) $doctor->id,
-            403,
-            'شما به این تصویر دسترسی ندارید.'
-        );
-    }
 }
