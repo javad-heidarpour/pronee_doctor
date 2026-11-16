@@ -53,7 +53,7 @@ class RegisterDoctorAction
                 'name' => $data['name'],
                 'family' => $data['family'],
                 'slug' => $data['slug'],
-                'email' => $data['email'] ?: null,
+                'email' => $data['email'] ?? null,
                 'phone' => $phone,
                 'Medical_system_number' => $data['medical_system_number'] ?? null,
                 'role' => 'doctor',
