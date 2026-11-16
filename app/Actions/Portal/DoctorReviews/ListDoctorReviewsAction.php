@@ -8,6 +8,11 @@ use Inertia\Inertia;
 
 class ListDoctorReviewsAction
 {
+    public function __construct(
+        private readonly BuildDoctorReviewStatisticsAction $statisticsAction
+    ) {
+    }
+
     public function handle(array $filters, Doctor $doctor)
     {
         $search = trim((string) ($filters['search'] ?? ''));
@@ -29,21 +34,7 @@ class ListDoctorReviewsAction
             ->paginate(10)
             ->withQueryString();
 
-        $stats = [
-            'count' => Review::where('doctor_id', $doctor->id)->count(),
-            'approved' => Review::where('doctor_id', $doctor->id)
-                ->where('is_approved', true)
-                ->count(),
-            'pending' => Review::where('doctor_id', $doctor->id)
-                ->where('is_approved', false)
-                ->count(),
-            'average' => round(
-                Review::where('doctor_id', $doctor->id)
-                    ->where('is_approved', true)
-                    ->avg('rating') ?? 0,
-                1
-            ),
-        ];
+        $stats = $this->statisticsAction->handle($doctor);
 
         return Inertia::render('Portal/DoctorReviews', [
             'doctor' => $doctor,
