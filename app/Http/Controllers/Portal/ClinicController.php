@@ -49,6 +49,7 @@ class ClinicController extends Controller
     public function destroy(Address $clinic, DeleteClinicAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
         $this->authorizeClinicAccess((int) $clinic->id, $doctor);
 
         $action->handle($clinic);
