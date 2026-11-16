@@ -2,65 +2,30 @@
 
 namespace App\Actions\Portal\DoctorReviews;
 
+use App\Models\Doctor;
 use App\Models\Review;
-use Illuminate\Support\Facades\Auth;
 
 class ToggleDoctorReviewAction
 {
-    public function handle(Review $review)
+    public function handle(Doctor $doctor, Review $review)
     {
-        // دریافت کاربر از گارد اصلی
-        $user = Auth::guard('web')->user();
-
         abort_unless(
-            $user,
-            401,
-            'کاربر وارد نشده است.'
-        );
-
-        // دریافت پروفایل پزشک
-        $doctor = $user->doctorProfile;
-
-        abort_unless(
-            $doctor,
+            (int) $review->doctor_id === (int) $doctor->id,
             403,
-            'پروفایل پزشک برای این حساب کاربری وجود ندارد.'
-        );
-        abort_if(
-            !$doctor,
-            401
+            'شما به این نظر دسترسی ندارید.'
         );
 
-
-        abort_if(
-            !$doctor,
-            403
-        );
-
-        abort_if(
-            $review->doctor_id !== $doctor->id,
-            403
-        );
-
+        $approved = !$review->is_approved;
 
         $review->update([
-
-            'is_approved' => !$review->is_approved,
-
-            'approved_at' => !$review->is_approved
-                ? now()
-                : null,
-
-            'approved_by' => !$review->is_approved
-                ? Auth::id()
-                : null,
-
+            'is_approved' => $approved,
+            'approved_at' => $approved ? now() : null,
+            'approved_by' => $approved ? auth('web')->id() : null,
         ]);
-
 
         return back()->with(
             'success',
-            'وضعیت نظر با موفقیت تغییر کرد.'
+            $approved ? 'نظر تأیید شد.' : 'نظر از حالت تأیید خارج شد.'
         );
     }
 }

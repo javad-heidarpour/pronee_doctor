@@ -2,88 +2,42 @@
 
 namespace App\Http\Controllers\Portal;
 
+use App\Actions\Portal\Fees\ListFeesAction;
+use App\Actions\Portal\Fees\UpdateFeeAction;
 use App\Http\Controllers\Controller;
-use App\Models\Fee;
-use App\Models\Appointment;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\UpdateFeeRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FeesController extends Controller
 {
-    public function index(): Response
+    use HasActiveDoctor;
+
+    public function index(ListFeesAction $action): Response
     {
-        $fees = Fee::with('creator:id,name,caption,family')
-            ->orderByDesc('id')
-            ->get();
+        $doctor = $this->currentDoctor();
 
-        $activeFee = $fees->first(
-            fn(Fee $fee) => $fee->is_active
-        );
-
-$user = Auth::guard('web')->user();
-$doctor = $user->doctorProfile;
-        return Inertia::render('Portal/Settings', [
-            'activeFee' => $activeFee,
-            'feeHistory' => $fees,
-            'doctor' => $doctor,
-        ]);
+        return Inertia::render('Portal/Settings', $action->handle($doctor));
     }
 
-    public function updateFee(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'fee_rial' => [
-                'required',
-                'integer',
-                'min:1',
-                'max:999999999999',
-            ],
-        ], [
-            'fee_rial.required' => 'مبلغ تعرفه را وارد کنید.',
-            'fee_rial.integer' => 'مبلغ تعرفه باید عدد صحیح باشد.',
-            'fee_rial.min' => 'مبلغ تعرفه باید بیشتر از صفر باشد.',
-            'fee_rial.max' => 'مبلغ واردشده بیش از حد مجاز است.',
-        ]);
+    public function updateFee(
+        UpdateFeeRequest $request,
+        UpdateFeeAction $action
+    ): RedirectResponse {
+        // حتی عملیات تغییر تعرفه نیز باید در زمینه پزشک فعال انجام شود.
+        $this->currentDoctor();
 
-        $newFee = (int) $validated['fee_rial'];
+        $user = Auth::guard('web')->user();
 
-        $creatorId = Auth::guard('doctor')->id()
-            ?? Auth::id();
+        abort_unless($user, 401);
 
-        $changed = DB::transaction(function () use ($newFee, $creatorId) {
-            $activeFee = Fee::where('is_active', true)
-                ->lockForUpdate()
-                ->first();
-
-            // مبلغ تغییر نکرده است
-            if ($activeFee && (int) $activeFee->fee_rial === $newFee) {
-                return false;
-            }
-
-            Fee::where('is_active', true)
-                ->get()
-                ->each(function (Fee $fee) {
-                    $fee->is_active = false;
-                    $fee->deactivated_at = now();
-                    $fee->save();
-                });
-
-            Fee::create([
-                'title' => 'تعرفه ویزیت',
-                'fee_rial' => $newFee,
-                'is_active' => true,
-                'created_by' => $creatorId,
-            ]);
-
-            Appointment::updateUnpaidAppointmentsFee($newFee);
-
-            return true;
-        });
+        $changed = $action->handle(
+            (int) $request->validated()['fee_rial'],
+            (int) $user->id
+        );
 
         if (!$changed) {
             return redirect()

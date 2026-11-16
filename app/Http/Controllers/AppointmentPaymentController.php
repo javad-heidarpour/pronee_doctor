@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
+use App\Models\TimeSlot;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -532,14 +533,8 @@ class AppointmentPaymentController extends Controller
 
                 $this->cancelFailedAppointment($payment);
 
-                return redirect()->route('home')->withErrors([
-                    'payment' => 'پرداخت ناموفق بود و رزرو لغو شد.',
-                ]);
-
-
                 return $visitRedirect($appointment->id)->withErrors([
-                    'payment' =>
-                        'تراکنش هنوز توسط سرویس تأیید سامان‌کیش تأیید نشده است. از پرداخت مجدد خودداری کنید.',
+                    'payment' => 'پرداخت توسط درگاه تأیید نشد و رزرو لغو شد. در صورت کسر وجه، پیگیری بانکی انجام می‌شود.',
                 ]);
             }
 
@@ -615,10 +610,13 @@ class AppointmentPaymentController extends Controller
                         'payment_status'
                     )
                 ) {
-                    $lockedAppointment->update([
-                        'payment_status' => 'paid',
-                    ]);
+                    $lockedAppointment->payment_status = 'paid';
                 }
+
+                // پرداخت تأییدشده باید نوبت را نیز قطعی کند.
+                $lockedAppointment->status = 'confirmed';
+                $lockedAppointment->reservation_expires_at = null;
+                $lockedAppointment->save();
 
                 return false;
             });

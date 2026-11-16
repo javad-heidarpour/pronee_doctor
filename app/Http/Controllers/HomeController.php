@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Actions\Home\HomeIndexAction;
+use App\Actions\Home\ListActiveDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
 use App\Actions\Home\BookAppointmentAction;
 use App\Models\Doctor;
@@ -11,28 +11,13 @@ use Inertia\Inertia;
 
 class HomeController extends Controller
 {
-    public function Home()
+    public function Home(ListActiveDoctorsAction $action)
     {
-
-
-        $doctors = Doctor::query()
-            ->where('is_active', 1)
-            ->select([
-                'id',
-                'slug',
-                'caption',
-                'name',
-                'family',
-                'specialty_title',
-                'photo',
-            ])
-            ->orderBy('id')
-            ->get();
-
         return Inertia::render('Home', [
-            'doctors' => $doctors,
+            'doctors' => $action->handle(),
         ]);
     }
+
     public function showDoctor(
         string $slug,
         ShowDoctorProfileAction $action

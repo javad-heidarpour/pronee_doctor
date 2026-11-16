@@ -2,55 +2,28 @@
 
 namespace App\Actions\Portal\DoctorReviews;
 
-use App\Models\Review;
 use App\Http\Requests\Portal\ReplyDoctorReviewRequest;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Doctor;
+use App\Models\Review;
 
 class ReplyDoctorReviewAction
 {
     public function handle(
         ReplyDoctorReviewRequest $request,
+        Doctor $doctor,
         Review $review
     ) {
-        // دریافت کاربر از گارد اصلی
-        $user = Auth::guard('web')->user();
-
         abort_unless(
-            $user,
-            401,
-            'کاربر وارد نشده است.'
-        );
-
-        // دریافت پروفایل پزشک
-        $doctor = $user->doctorProfile;
-
-        abort_unless(
-            $doctor,
+            (int) $review->doctor_id === (int) $doctor->id,
             403,
-            'پروفایل پزشک برای این حساب کاربری وجود ندارد.'
+            'شما به این نظر دسترسی ندارید.'
         );
-
-        abort_if(
-            $review->doctor_id !== $doctor->id,
-            403
-        );
-
 
         $review->update([
-
-            'doctor_reply' => $request->doctor_reply,
-
+            'doctor_reply' => $request->validated('doctor_reply'),
             'doctor_reply_at' => now(),
-
         ]);
 
-
-        return back()->with(
-
-            'success',
-
-            'پاسخ پزشک ثبت شد.'
-
-        );
+        return back()->with('success', 'پاسخ پزشک ثبت شد.');
     }
 }

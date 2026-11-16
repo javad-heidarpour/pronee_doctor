@@ -10,17 +10,11 @@ use Inertia\Inertia;
 
 class AuthController extends Controller
 {
-    /**
-     * نمایش فرم ورود
-     */
     public function showLoginForm()
     {
         return Inertia::render('Portal/Login');
     }
 
-    /**
-     * ورود پزشک
-     */
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -30,84 +24,62 @@ class AuthController extends Controller
 
         $credentials['is_active'] = true;
 
-        if (
-            !Auth::guard('web')->attempt(
-                $credentials,
-                $request->boolean('remember')
-            )
-        ) {
+        if (!Auth::guard('web')->attempt(
+            $credentials,
+            $request->boolean('remember')
+        )) {
             throw ValidationException::withMessages([
                 'email' => 'ایمیل یا رمز عبور اشتباه است.',
             ]);
         }
 
         $request->session()->regenerate();
-
+        $request->session()->forget('active_doctor_id');
         $user = Auth::guard('web')->user();
 
-        // مدیر سامانه: ورود بدون نیاز به اتصال پزشک
-        if ($user->role === 'admin') {
-            return redirect()->route('portal.dashboard');
-        }
-
-        // فقط پزشک و منشی مجاز به ادامه هستند
-        if (!in_array($user->role, ['doctor', 'secretary'], true)) {
-            Auth::guard('web')->logout();
-
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        if (!in_array($user->role, ['admin', 'doctor', 'secretary'], true)) {
+            $this->logoutAndInvalidate($request);
 
             throw ValidationException::withMessages([
                 'email' => 'شما مجاز به ورود به این پنل نیستید.',
             ]);
         }
 
-        // دریافت پزشکان متصل از جدول واسط
-        $doctors = $user->doctors()
-            ->where('doctors.is_active', true)
-            ->get();
+        // مدیر برای ورود به داشبورد به پرونده پزشک متصل نیاز ندارد.
+        if ($user->role !== 'admin') {
+            $doctor = $user->accessibleDoctors()->first();
 
-        if ($doctors->isEmpty()) {
-            Auth::guard('web')->logout();
-
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            throw ValidationException::withMessages([
-                'email' => 'هیچ پرونده پزشک فعالی به حساب کاربری شما متصل نیست.',
-            ]);
-        }
-
-        // بررسی مالکیت برای پزشک
-        if ($user->role === 'doctor') {
-            $hasOwnership = $doctors->contains(
-                fn($doctor) => (int) $doctor->user_id === (int) $user->id
-            );
-
-            if (!$hasOwnership) {
-                Auth::guard('web')->logout();
-
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+            if (!$doctor) {
+                $this->logoutAndInvalidate($request);
 
                 throw ValidationException::withMessages([
-                    'email' => 'مالکیت پرونده پزشک برای این حساب تأیید نشد.',
+                    'email' => 'هیچ پرونده پزشک فعالی به این حساب کاربری متصل نیست.',
                 ]);
+            }
+
+            // انتخاب خودکار فقط زمانی که یک پرونده قابل دسترس وجود دارد.
+            if ($user->accessibleDoctors()->count() === 1) {
+                session(['active_doctor_id' => $doctor->id]);
+            } else {
+                session()->forget('active_doctor_id');
             }
         }
 
-        return redirect()->route('portal.dashboard');
+        return redirect()->intended(route('portal.dashboard'));
     }
-    /**
-     * خروج از پنل
-     */
+
     public function logout(Request $request)
     {
-        Auth::guard('web')->logout();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $this->logoutAndInvalidate($request);
 
         return redirect()->route('portal.login');
+    }
+
+    private function logoutAndInvalidate(Request $request): void
+    {
+        Auth::guard('web')->logout();
+        $request->session()->forget('active_doctor_id');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
     }
 }
