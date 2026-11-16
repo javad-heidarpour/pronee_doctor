@@ -20,19 +20,31 @@ use App\Models\DoctorWorkingHour;
 
 class Home1Controller extends Controller
 {
-    public function WorkingHours()
+    /**
+     * Public pages are scoped to the doctor identified by the route slug.
+     * Never fall back to a fixed doctor ID.
+     */
+    private function findDoctor(string $slug): Doctor
     {
-        $doctor = Doctor::with([
-            'city',
-            'reviews',
-            'specialty',
-            'user',
-            'address',
-            'address.city',
-            'timeSlots',
-            'socials.platform'
-        ])
-            ->findOrFail(1);
+        return Doctor::query()
+            ->with([
+                'city',
+                'reviews',
+                'specialty',
+                'user',
+                'address',
+                'address.city',
+                'timeSlots',
+                'socials.platform',
+            ])
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+    }
+
+    public function WorkingHours(string $slug)
+    {
+        $doctor = $this->findDoctor($slug);
         $workingHours = DoctorWorkingHour::with('clinic')
             ->where('doctor_id', $doctor->id)
             ->where('is_active', true)
@@ -102,19 +114,9 @@ class Home1Controller extends Controller
             'working_hours' => $finalWorkingHours,
         ]);
     }
-    public function About()
+    public function About(string $slug)
     {
-        $doctor = Doctor::with([
-            'city',
-            'reviews',
-            'specialty',
-            'user',
-            'address',
-            'address.city',
-            'timeSlots',
-            'socials.platform'
-        ])
-            ->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
 
         return Inertia::render('HomePage/Home1/About', [
             'doctor' => $doctor,
@@ -122,10 +124,10 @@ class Home1Controller extends Controller
         ]);
     }
 
-    public function Reviews()
+    public function Reviews(string $slug)
     {
 
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
         /*
@@ -190,9 +192,9 @@ class Home1Controller extends Controller
 
         ]);
     }
-    public function tips()
+    public function tips(string $slug)
     {
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
         return Inertia::render('HomePage/Home1/tips', [
@@ -200,9 +202,9 @@ class Home1Controller extends Controller
 
         ]);
     }
-    public function galleries()
+    public function galleries(string $slug)
     {
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
 
         /*
         |--------------------------------------------------------------------------
@@ -253,9 +255,9 @@ class Home1Controller extends Controller
 
         ]);
     }
-    public function contact()
+    public function contact(string $slug)
     {
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
 
@@ -266,9 +268,9 @@ class Home1Controller extends Controller
     }
 
 
-    public function Surgeries()
+    public function Surgeries(string $slug)
     {
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
         $procedures = SurgicalProcedure::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
@@ -281,9 +283,9 @@ class Home1Controller extends Controller
             'procedures' => $procedures,
         ]);
     }
-    public function services()
+    public function services(string $slug)
     {
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
 
         $services = MedicalService::query()
             ->where('is_active', true)
@@ -297,9 +299,9 @@ class Home1Controller extends Controller
         ]);
     }
 
-    public function booking($clinic = null)
+    public function booking(string $slug, $clinic = null)
     {
-        $doctor = Doctor::with('address')->findOrFail(1);
+        $doctor = $this->findDoctor($slug);
         // این قسمت را با روش فعلی دریافت پزشک جایگزین کن.
 
         $today = now()->toDateString();
