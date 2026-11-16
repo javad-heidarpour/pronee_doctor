@@ -33,7 +33,8 @@ class PatientController extends Controller
 
     public function index(
         ListPortalAppointmentsRequest $request,
-        ListPortalAppointmentsAction $action
+        ListPortalAppointmentsAction $action,
+        BuildPatientIndexOptionsAction $optionsAction
     ) {
         $doctor = $this->currentDoctor();
         $filters = $request->validated();
@@ -44,7 +45,7 @@ class PatientController extends Controller
             $filters
         );
 
-        $options = app(BuildPatientIndexOptionsAction::class)->handle(
+        $options = $optionsAction->handle(
             $doctor,
             $this->accessibleClinicIds($doctor)
         );
