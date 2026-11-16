@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Portal\\Clinic\\DeleteClinicAction;
-use App\\Actions\\Portal\\Clinic\\ListClinicsAction;
-use App\\Actions\\Portal\\Clinic\\StoreClinicAction;
-use App\\Actions\\Portal\\Clinic\\UpdateClinicAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Http\\Requests\\Portal\\ClinicRequest;
-use App\\Models\\Address;
-use Inertia\\Inertia;
+use App\Actions\Portal\Clinic\DeleteClinicAction;
+use App\Actions\Portal\Clinic\ListClinicsAction;
+use App\Actions\Portal\Clinic\StoreClinicAction;
+use App\Actions\Portal\Clinic\UpdateClinicAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\ClinicRequest;
+use App\Models\Address;
+use Inertia\Inertia;
 
 class ClinicController extends Controller
 {
@@ -55,7 +55,7 @@ class ClinicController extends Controller
         return back()->with('success', 'مطب حذف شد.');
     }
 
-    private function authorizeClinic(Address $clinic, \\App\\Models\\Doctor $doctor): void
+    private function authorizeClinic(Address $clinic, \App\Models\Doctor $doctor): void
     {
         abort_unless(
             (int) $clinic->doctor_id === (int) $doctor->id,
