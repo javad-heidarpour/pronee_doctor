@@ -8,6 +8,7 @@ use App\Actions\Payments\CancelFailedAppointmentAction;
 use App\Actions\Payments\ProcessLocalSepPaymentCallbackAction;
 use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Models\Appointment;
+use App\Models\AppointmentPayment;
 use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
 use App\Services\Payments\SepPaymentService;
 use Illuminate\Http\RedirectResponse;
@@ -75,6 +76,7 @@ class AppointmentPaymentController extends Controller
         SepPaymentService $sep,
         ProcessLocalSepPaymentCallbackAction $localCallbackAction,
         VerifyAndSettleSepPaymentAction $settlementAction,
+        CancelFailedAppointmentAction $cancelFailedAppointment,
         SendAppointmentConfirmationSmsAction $smsAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
