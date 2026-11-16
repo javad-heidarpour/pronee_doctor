@@ -30,7 +30,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/login', [
             AuthController::class,
             'login'
-        ])->name('login.submit');
+        ])->middleware('throttle:5,1')->name('login.submit');
     });
 
     Route::middleware('portal.auth')->group(function () {
