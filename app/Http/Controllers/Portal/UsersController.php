@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Requests\Portal\SaveManagedUserRequest;
 use App\Http\Requests\Portal\UpdateManagedUserStatusRequest;
 use App\Http\Requests\Portal\UpdateSecretaryAssignmentsRequest;
@@ -45,7 +46,8 @@ class UsersController extends Controller
         UpdateSecretaryAssignmentsRequest $request,
         User $user,
         UpdateSecretaryAssignmentsAction $action,
-        BuildSecretaryAssignmentsDataAction $dataAction
+        BuildSecretaryAssignmentsDataAction $dataAction,
+        RecordSecurityAuditEventAction $audit
     ) {
         $authUser = Auth::guard('web')->user();
         $activeDoctor = $this->authorizeUserManagement($user);
@@ -66,7 +68,8 @@ class UsersController extends Controller
             $syncData,
             $authUser->role,
             $activeDoctor,
-            $doctorIds
+            $doctorIds,
+            $audit
         );
 
         return redirect()
@@ -98,12 +101,13 @@ class UsersController extends Controller
 
     public function store(
         SaveManagedUserRequest $request,
-        CreateManagedUserAction $action
+        CreateManagedUserAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $activeDoctor = $this->authorizeUserManagement();
         $validated = $request->validated();
 
-        $secretary = $action->handle($validated, $activeDoctor);
+        $secretary = $action->handle($validated, $audit, $activeDoctor);
 
         $redirect = $secretary->role === 'secretary'
             ? redirect()->route('portal.users.assignments', $secretary->id)
@@ -132,13 +136,14 @@ class UsersController extends Controller
     public function update(
         SaveManagedUserRequest $request,
         User $user,
-        UpdateManagedUserAction $action
+        UpdateManagedUserAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
         $validated = $request->validated();
-        $action->handle($user, $validated);
+        $action->handle($user, $validated, $audit);
 
         return redirect()
             ->route('portal.users.index')
@@ -148,14 +153,15 @@ class UsersController extends Controller
     public function status(
         UpdateManagedUserStatusRequest $request,
         User $user,
-        ChangeManagedUserStatusAction $action
+        ChangeManagedUserStatusAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
         $validated = $request->validated();
 
-        $updatedUser = $action->handle($user, (bool) $validated['is_active']);
+        $updatedUser = $action->handle($user, (bool) $validated['is_active'], $audit);
 
         return back()->with(
             'success',
@@ -167,12 +173,13 @@ class UsersController extends Controller
 
     public function destroy(
         User $user,
-        RestoreOrDeleteManagedUserAction $action
+        RestoreOrDeleteManagedUserAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $this->authorizeUserManagement($user);
         $this->preventSelfModification($user);
 
-        $restored = $action->handle($user);
+        $restored = $action->handle($user, $audit);
 
         return redirect()
             ->route('portal.users.index')
