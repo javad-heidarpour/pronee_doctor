@@ -108,7 +108,7 @@ class ShiftController extends Controller
     public function destroy(TimeSlot $slot, DeleteTimeSlotAction $action)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSlot($slot, (int) $doctor->id);
+        $this->authorizeTimeSlot($slot, $doctor);
 
         if ($slot->isBooked()) {
             return back()->withErrors([
