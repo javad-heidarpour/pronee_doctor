@@ -630,8 +630,9 @@ async function sendAppointmentSms() {
   smsSuccess.value = false;
 
   try {
-    const response = await axios.get(
+    const response = await axios.post(
       route("sms.visit", { visit_number: appointmentId }),
+      {},
       { headers: { Accept: "application/json" } }
     );
 
