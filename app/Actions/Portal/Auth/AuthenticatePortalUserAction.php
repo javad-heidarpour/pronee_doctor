@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Auth;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Requests\Portal\PortalLoginRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -11,7 +12,8 @@ class AuthenticatePortalUserAction
 {
     public function handle(
         PortalLoginRequest $request,
-        LogoutPortalUserAction $logoutAction
+        LogoutPortalUserAction $logoutAction,
+        RecordSecurityAuditEventAction $audit
     ): User {
         $credentials = $request->safe()->only(['email', 'password']);
         $credentials['is_active'] = true;
@@ -20,6 +22,8 @@ class AuthenticatePortalUserAction
             $credentials,
             $request->boolean('remember')
         )) {
+            $audit->handle('auth.login_failed');
+
             throw ValidationException::withMessages([
                 'email' => 'ایمیل یا رمز عبور اشتباه است.',
             ]);
@@ -56,6 +60,11 @@ class AuthenticatePortalUserAction
                 $request->session()->forget('active_doctor_id');
             }
         }
+
+        $audit->handle('auth.login_succeeded', $user, [
+            'role' => $user->role,
+            'is_active' => (bool) $user->is_active,
+        ]);
 
         return $user;
     }
