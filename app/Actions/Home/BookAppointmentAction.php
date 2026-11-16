@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\Fee;
 
-use App\Http\Controllers\AppointmentPaymentController;
-
 class BookAppointmentAction
 {
     public function handle(Request $request)
@@ -185,15 +183,15 @@ class BookAppointmentAction
 
         } catch (\Throwable $e) {
 
-            Log::error('Appointment Error', [
+            // اطلاعات هویتی بیمار نباید در لاگ خطا ثبت شود.
+            Log::error('Appointment booking failed', [
+                'time_slot_id' => $validated['time_slot_id'] ?? null,
+                'exception' => get_class($e),
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $validated,
             ]);
 
             return back()->withErrors([
                 'time_slot_id' =>
-                    $e .
                     'خطایی در ثبت نوبت رخ داد. لطفاً دوباره تلاش کنید.',
             ]);
         }
