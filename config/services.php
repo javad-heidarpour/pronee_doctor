@@ -18,6 +18,7 @@ return [
         'api_key' => env('GHASEDAK_API_KEY'),
         'line_number' => env('GHASEDAK_LINE_NUMBER'),
         'url' => env('GHASEDAK_URL', 'https://api.ghasedak.io/v1/SendSimple'),
+        'appointment_reminder_template' => env('GHASEDAK_APPOINTMENT_REMINDER_TEMPLATE'),
     ],
     'sep' => [
         'terminal_id' => env('SEP_TERMINAL_ID'),
