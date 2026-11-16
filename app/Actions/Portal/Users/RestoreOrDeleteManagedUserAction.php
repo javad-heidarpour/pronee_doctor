@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Users;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -12,9 +13,12 @@ class RestoreOrDeleteManagedUserAction
      *
      * @return bool True when restored, false when deleted.
      */
-    public function handle(\n        User $user,\n        ?RecordSecurityAuditEventAction $audit = null\n    ): bool
+    public function handle(
+        User $user,
+        RecordSecurityAuditEventAction $audit
+    ): bool
     {
-        return DB::transaction(function () use ($user) {
+        return DB::transaction(function () use ($user, $audit) {
             $lockedUser = User::withTrashed()
                 ->whereKey($user->id)
                 ->lockForUpdate()
