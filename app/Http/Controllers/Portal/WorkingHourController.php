@@ -26,7 +26,7 @@ class WorkingHourController extends Controller
 
         return Inertia::render(
             'Portal/WorkingHours',
-            $action->handle($doctor, $request)
+            $action->handle($doctor, $request, $this->accessibleClinicIds($doctor))
         );
     }
 
@@ -131,7 +131,7 @@ class WorkingHourController extends Controller
 
     private function clinicBelongsToDoctor(Doctor $doctor, int $clinicId): bool
     {
-        return $doctor->address()->whereKey($clinicId)->exists();
+        return in_array($clinicId, $this->accessibleClinicIds($doctor), true);
     }
 
     private function overlapMessage(DoctorWorkingHour $duplicate): string
@@ -148,7 +148,7 @@ class WorkingHourController extends Controller
         int $doctorId
     ): void {
         abort_if(
-            (int) $workingHour->doctor_id !== $doctorId,
+            (int) $workingHour->doctor_id !== $doctorId ||\n            !in_array((int) $workingHour->clinic_id, $this->accessibleClinicIds(), true),
             403,
             __('working_hours.forbidden')
         );
