@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Actions\Auth\BuildDoctorRegistrationFormAction;
 use App\Actions\Auth\RegisterDoctorAction;
+use App\Actions\Auth\SendDoctorRegistrationOtpAction;
+use App\Actions\Auth\VerifyDoctorRegistrationOtpAction;
 use App\Actions\Auth\SendDoctorRegistrationPasswordAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendDoctorRegistrationOtpRequest;
 use App\Http\Requests\Auth\StoreDoctorRegistrationRequest;
 use App\Http\Requests\Auth\VerifyDoctorRegistrationOtpRequest;
-use App\Models\City;
 use App\Models\Doctor;
-use App\Models\Specialty;
 use App\Models\User;
-use App\Services\LoginOtp;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -21,41 +20,28 @@ use Throwable;
 
 class DoctorRegistrationController extends Controller
 {
-    public function __construct(
-        private LoginOtp $loginOtp
-    ) {
-    }
-
     /**
      * نمایش فرم ثبت‌نام
      */
-    public function create()
+    public function create(BuildDoctorRegistrationFormAction $action)
     {
-        $specialties = Specialty::where('is_active', 1)
-            ->orderBy('sort_order')
-            ->get(['id', 'name']);
-
-        $cities = City::where('is_active', 1)
-            ->orderBy('name')
-            ->get(['id', 'name', 'province']);
-
-        // dd($specialties, $cities);
-        return Inertia::render('Auth/DoctorRegister', [
-            'specialties' => $specialties,
-
-            'cities' => $cities,
-        ]);
+        return Inertia::render(
+            'Auth/DoctorRegister',
+            $action->handle()
+        );
     }
 
     /**
      * ارسال کد تأیید موبایل
      */
-    public function sendOtp(SendDoctorRegistrationOtpRequest $request)
-    {
+    public function sendOtp(
+        SendDoctorRegistrationOtpRequest $request,
+        SendDoctorRegistrationOtpAction $action
+    ) {
         $phone = $this->normalizePhone($request->validated('phone'));
 
         try {
-            $this->loginOtp->send($phone);
+            $action->handle($phone);
 
             return response()->json([
                 'success' => true,
@@ -77,37 +63,33 @@ class DoctorRegistrationController extends Controller
     /**
      * تأیید کد موبایل و صدور توکن ثبت‌نام
      */
-    public function verifyOtp(VerifyDoctorRegistrationOtpRequest $request)
-    {
+    public function verifyOtp(
+        VerifyDoctorRegistrationOtpRequest $request,
+        VerifyDoctorRegistrationOtpAction $action
+    ) {
         $phone = $this->normalizePhone($request->validated('phone'));
 
-        if (User::where('phone', $phone)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'این شماره موبایل قبلاً ثبت شده است.',
-            ], 422);
-        }
-
         try {
-            if (! $this->loginOtp->verify($phone, $request->validated('code'))) {
+            $result = $action->handle($phone, $request->validated('code'));
+
+            if ($result['status'] === 'already_registered') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'این شماره موبایل قبلاً ثبت شده است.',
+                ], 422);
+            }
+
+            if ($result['status'] === 'invalid_code') {
                 return response()->json([
                     'success' => false,
                     'message' => 'کد تأیید اشتباه یا منقضی شده است.',
                 ], 422);
             }
 
-            $token = Str::random(64);
-
-            Cache::put(
-                $this->registrationTokenKey($token),
-                $phone,
-                now()->addMinutes(10)
-            );
-
             return response()->json([
                 'success' => true,
                 'message' => 'شماره موبایل با موفقیت تأیید شد.',
-                'registration_token' => $token,
+                'registration_token' => $result['registration_token'],
             ]);
         } catch (Throwable $e) {
             return response()->json([
