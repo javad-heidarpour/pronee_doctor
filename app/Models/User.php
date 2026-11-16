@@ -116,10 +116,12 @@ class User extends Authenticatable
     public function accessibleClinics(): Builder
     {
         if ($this->role === 'admin' || $this->role === 'doctor') {
-            return Address::query()->whereIn(
-                'addresses.doctor_id',
-                $this->accessibleDoctors()->select('doctors.id')
-            );
+            return Address::query()
+                ->whereIn(
+                    'addresses.doctor_id',
+                    $this->accessibleDoctors()->select('doctors.id')
+                )
+                ->where('addresses.is_active', true);
         }
 
         if ($this->role !== 'secretary') {
