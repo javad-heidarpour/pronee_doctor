@@ -36,7 +36,7 @@ class AuthenticatePortalUserAction
         $user = Auth::guard('web')->user();
 
         if (! in_array($user->role, ['admin', 'doctor', 'secretary'], true)) {
-            $logoutAction->handle($request, $audit);
+            $logoutAction->handle($request, $audit, 'auth.login_rejected');
 
             throw ValidationException::withMessages([
                 'email' => 'شما مجاز به ورود به این پنل نیستید.',
