@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Payments\InitiateAppointmentPaymentAction;
 use App\Actions\Payments\VerifyAndSettleSepPaymentAction;
 use App\Actions\Payments\CancelFailedAppointmentAction;
+use App\Actions\Payments\FindSepCallbackPaymentAction;
 use App\Actions\Payments\ProcessLocalSepPaymentCallbackAction;
 use App\Actions\Payments\ValidateAppointmentPaymentPhoneAction;
 use App\Models\Appointment;
@@ -77,6 +78,7 @@ class AppointmentPaymentController extends Controller
         ProcessLocalSepPaymentCallbackAction $localCallbackAction,
         VerifyAndSettleSepPaymentAction $settlementAction,
         CancelFailedAppointmentAction $cancelFailedAppointment,
+        FindSepCallbackPaymentAction $lookupAction,
         SendAppointmentConfirmationSmsAction $smsAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
@@ -211,12 +213,9 @@ class AppointmentPaymentController extends Controller
             | 3. یافتن رکورد پرداخت
             |--------------------------------------------------------------------------
             */
-            $payment = AppointmentPayment::query()
-                ->where('payment_uuid', $resNum)
-                ->where('gateway_name', 'sep')
-                ->first();
+            $lookup = $lookupAction->handle($resNum);
 
-            if (!$payment) {
+            if ($lookup['status'] === 'payment_not_found') {
                 Log::error('SEP callback payment not found', [
                     'res_num' => $resNum,
                     'ref_num' => $refNum,
@@ -227,18 +226,19 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
-            $appointment = Appointment::find($payment->appointment_id);
-
-            if (!$appointment) {
+            if ($lookup['status'] === 'appointment_not_found') {
                 Log::error('SEP callback appointment not found', [
-                    'payment_id' => $payment->id,
-                    'appointment_id' => $payment->appointment_id,
+                    'payment_id' => $lookup['payment']->id,
+                    'appointment_id' => $lookup['payment']->appointment_id,
                 ]);
 
                 return redirect()->route('home')->withErrors([
                     'payment' => 'نوبت مرتبط با پرداخت پیدا نشد.',
                 ]);
             }
+
+            $payment = $lookup['payment'];
+            $appointment = $lookup['appointment'];
 
             $settlement = $settlementAction->handle(
                 $payment,
