@@ -81,7 +81,7 @@ class AppointmentPaymentController extends Controller
         CancelFailedAppointmentAction $cancelFailedAppointment,
         FindSepCallbackPaymentAction $lookupAction,
         ValidateSepCallbackTerminalAction $terminalAction,
-        SendAppointmentConfirmationSmsAction $smsAction,
+        SendPaidAppointmentConfirmationAction $notificationAction,
         RecordSepCallbackFailureAction $failureAction
     ): RedirectResponse {
         $resNum = trim((string) $request->input('ResNum', ''));
@@ -273,20 +273,7 @@ class AppointmentPaymentController extends Controller
 
             // ارسال پیامک فقط پس از تأیید موفق پرداخت
             if (!$alreadyPaid) {
-                try {
-                    $smsAction->handle((int) $appointment->id);
-
-                    Log::info('APPOINTMENT CONFIRMATION SMS TRIGGERED', [
-                        'appointment_id' => $appointment->id,
-                    ]);
-
-                } catch (Throwable $smsException) {
-                    // خطای پیامک نباید پرداخت موفق را ناموفق کند
-                    Log::error('APPOINTMENT CONFIRMATION SMS FAILED', [
-                        'appointment_id' => $appointment->id,
-                        'exception' => $smsException->getMessage(),
-                    ]);
-                }
+                $notificationAction->handle((int) $appointment->id);
             }
 
             return $visitRedirect($appointment->id)->with(
