@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Actions\\Portal\\Users;
+namespace App\Actions\Portal\Users;
 
-use App\\Models\\Doctor;
-use App\\Models\\User;
+use App\Models\Doctor;
+use App\Models\User;
 
 class BuildSecretaryAssignmentsDataAction
 {
