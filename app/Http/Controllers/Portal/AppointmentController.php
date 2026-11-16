@@ -21,6 +21,7 @@ class AppointmentController extends Controller
         ListAvailableSlotsAction $action
     ) {
         $doctor = $this->currentDoctor();
+        $this->authorizeClinicAccess((int) $request->validated()['clinic_id'], $doctor);
 
         $slots = $action->handle(
             $doctor,
