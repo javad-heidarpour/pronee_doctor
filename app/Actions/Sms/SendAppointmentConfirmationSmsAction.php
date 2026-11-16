@@ -99,7 +99,7 @@ class SendAppointmentConfirmationSmsAction
                 ]
             );
 
-            if (!$response->successful()) {
+            if (!$response->successful() || $response->json('IsSuccess') === false) {
                 Cache::forget($cacheKey);
                 $smsLog->update([
                     'status' => 'failed',
