@@ -49,18 +49,18 @@ class BuildDashboardAction
                 )
                 ->count(),
 
-            'total_reviews' => $doctor->reviews()
-                ->approved()
-                ->count(),
+            // اطلاعات عمومی پزشک در داشبورد منشی نمایش داده نمی‌شود.
+            'total_reviews' => $user->role === 'secretary'
+                ? 0
+                : $doctor->reviews()->approved()->count(),
 
-            'average_rating' => round(
-                $doctor->reviews()->approved()->avg('rating') ?? 0,
-                1
-            ),
+            'average_rating' => $user->role === 'secretary'
+                ? 0
+                : round($doctor->reviews()->approved()->avg('rating') ?? 0, 1),
 
-            'total_images' => $doctor->images()
-                ->active()
-                ->count(),
+            'total_images' => $user->role === 'secretary'
+                ? 0
+                : $doctor->images()->active()->count(),
 
             'total_clinics' => count($clinicIds),
         ];
