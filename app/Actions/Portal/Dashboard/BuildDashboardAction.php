@@ -3,6 +3,8 @@
 namespace App\Actions\Portal\Dashboard;
 
 use App\Models\Appointment;
+use App\Models\AppointmentPayment;
+use App\Models\SmsLog;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
