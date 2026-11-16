@@ -533,14 +533,8 @@ class AppointmentPaymentController extends Controller
 
                 $this->cancelFailedAppointment($payment);
 
-                return redirect()->route('home')->withErrors([
-                    'payment' => 'پرداخت ناموفق بود و رزرو لغو شد.',
-                ]);
-
-
                 return $visitRedirect($appointment->id)->withErrors([
-                    'payment' =>
-                        'تراکنش هنوز توسط سرویس تأیید سامان‌کیش تأیید نشده است. از پرداخت مجدد خودداری کنید.',
+                    'payment' => 'پرداخت توسط درگاه تأیید نشد و رزرو لغو شد. در صورت کسر وجه، پیگیری بانکی انجام می‌شود.',
                 ]);
             }
 
