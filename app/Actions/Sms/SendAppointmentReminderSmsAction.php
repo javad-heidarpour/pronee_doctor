@@ -31,7 +31,7 @@ class SendAppointmentReminderSmsAction
             return 'skipped';
         }
 
-        $deduplicationKey = 'appointment-reminder-24h:' . $appointment->id;
+        $deduplicationKey = 'appointment-reminder-day-before:' . $appointment->id;
 
         if (SmsLog::query()->where('deduplication_key', $deduplicationKey)->exists()) {
             return 'already_attempted';
@@ -40,7 +40,7 @@ class SendAppointmentReminderSmsAction
         try {
             $smsLog = SmsLog::create([
                 'appointment_id' => $appointment->id,
-                'type' => 'appointment_reminder_24h',
+                'type' => 'appointment_reminder_day_before',
                 'status' => 'pending',
                 'provider' => 'ghasedak',
                 'deduplication_key' => $deduplicationKey,
