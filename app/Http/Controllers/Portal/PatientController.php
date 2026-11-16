@@ -97,6 +97,7 @@ class PatientController extends Controller
         $this->authorizeAppointment($appointment);
 
         $appointment = $action->handle($appointment);
+        $doctor = $this->currentDoctor();
 
         return Inertia::render('Portal/Patients/Show', [
             'doctor' => $doctor,
