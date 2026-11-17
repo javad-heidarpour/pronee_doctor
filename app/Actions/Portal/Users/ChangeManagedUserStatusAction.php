@@ -1,10 +1,11 @@
 <?php
 
-namespace App\\Actions\\Portal\\Users;
+namespace App\Actions\Portal\Users;
 
-use App\\Actions\\Security\\RecordSecurityAuditEventAction;
-use App\\Models\\User;
-use Illuminate\\Support\\Facades\\DB;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ChangeManagedUserStatusAction
 {
@@ -23,7 +24,7 @@ class ChangeManagedUserStatusAction
 
             // با غیرفعال‌سازی حساب، کوکی‌های ورود ماندگار نیز بی‌اعتبار می‌شوند.
             if (! $isActive) {
-                $lockedUser->setRememberToken(\\Illuminate\\Support\\Str::random(60));
+                $lockedUser->setRememberToken(Str::random(60));
             }
 
             $lockedUser->save();
