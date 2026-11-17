@@ -6,15 +6,14 @@ namespace App\Actions\Portal\DoctorReviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 final class ToggleDoctorReviewAction
 {
-    public function handle(Doctor $doctor, Review $review): RedirectResponse
+    public function handle(Doctor $doctor, Review $review): bool
     {
-        $approved = DB::transaction(function () use ($doctor, $review): bool {
+        return DB::transaction(function () use ($doctor, $review): bool {
             $lockedReview = $doctor->reviews()
                 ->whereKey($review->getKey())
                 ->lockForUpdate()
@@ -30,10 +29,5 @@ final class ToggleDoctorReviewAction
 
             return $nextState;
         });
-
-        return back()->with(
-            'success',
-            $approved ? 'نظر تأیید شد.' : 'نظر از حالت تأیید خارج شد.'
-        );
     }
 }
