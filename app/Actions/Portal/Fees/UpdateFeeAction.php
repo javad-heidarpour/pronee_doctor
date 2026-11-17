@@ -4,6 +4,7 @@ namespace App\Actions\Portal\Fees;
 
 use App\Models\Appointment;
 use App\Models\Fee;
+use App\Models\Doctor;
 use Illuminate\Support\Facades\DB;
 
 class UpdateFeeAction
