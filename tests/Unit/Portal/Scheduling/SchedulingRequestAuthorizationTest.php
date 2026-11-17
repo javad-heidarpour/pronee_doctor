@@ -13,6 +13,10 @@ use App\Http\Requests\Portal\SaveManagedUserRequest;
 use App\Http\Requests\Portal\UpdateManagedUserStatusRequest;
 use App\Http\Requests\Portal\ClinicRequest;
 use App\Http\Requests\Portal\UpdateFeeRequest;
+use App\Http\Requests\Portal\StoreGalleryImagesRequest;
+use App\Http\Requests\Portal\UpdateGalleryImageRequest;
+use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
+use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -91,6 +95,10 @@ final class SchedulingRequestAuthorizationTest extends TestCase
             'managed user status' => [UpdateManagedUserStatusRequest::class],
             'clinic' => [ClinicRequest::class],
             'fee' => [UpdateFeeRequest::class],
+            'gallery upload' => [StoreGalleryImagesRequest::class],
+            'gallery update' => [UpdateGalleryImageRequest::class],
+            'appointment status' => [UpdateAppointmentStatusRequest::class],
+            'appointment description' => [UpdateAppointmentDescriptionRequest::class],
         ];
     }
 }
