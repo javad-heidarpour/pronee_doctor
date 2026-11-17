@@ -36,6 +36,8 @@ const eventLabels = {
   "appointments.exported": "خروجی گرفتن از فهرست نوبت‌ها",
   "patients.directory.viewed": "مشاهده دفترچه بیماران",
   "patient.record.viewed": "مشاهده پرونده و سوابق بیمار",
+  "patient.profile.created": "ایجاد پرونده پایه بیمار",
+  "patient.profile.updated": "ویرایش اطلاعات پایه بیمار",
 };
 
 const applyFilters = () => {
