@@ -26,4 +26,12 @@ class Patient extends Model
     {
         return $this->hasMany(Appointment::class);
     }
+
+    public function clinicalRecords(): HasMany
+    {
+        return $this->hasMany(PatientClinicalRecord::class)
+            ->orderByDesc('is_active')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
 }
