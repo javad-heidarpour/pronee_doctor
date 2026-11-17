@@ -51,7 +51,7 @@
                 <td class="px-5 py-4 text-sm font-bold text-teal-700">{{ Number(patient.appointments_count).toLocaleString('fa-IR') }}</td>
                 <td class="px-5 py-4 text-sm text-slate-600">{{ formatDate(patient.last_appointment_date) }}</td>
                 <td class="px-5 py-4">
-                  <Link :href="route('portal.patients.show', patient.latest_appointment_id)" class="inline-flex rounded-lg bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-100">
+                  <Link :href="route('portal.patients.directory.record', patient.latest_appointment_id)" class="inline-flex rounded-lg bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-100">
                     پرونده و سوابق
                   </Link>
                 </td>
