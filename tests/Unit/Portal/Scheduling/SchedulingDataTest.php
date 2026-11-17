@@ -3,6 +3,7 @@
 namespace Tests\Unit\Portal\Scheduling;
 
 use App\DTOs\Portal\Scheduling\TimeSlotData;
+use App\DTOs\Portal\Scheduling\GenerateTimeSlotsData;
 use App\DTOs\Portal\Scheduling\WorkingHourData;
 use PHPUnit\Framework\TestCase;
 
@@ -21,6 +22,23 @@ class SchedulingDataTest extends TestCase
         $this->assertSame('2026-11-18', $data->date);
         $this->assertSame('09:00', $data->startTime);
         $this->assertSame('09:30', $data->endTime);
+    }
+
+    public function test_generate_time_slots_data_maps_optional_clinic_and_week_count(): void
+    {
+        $data = GenerateTimeSlotsData::fromValidated([
+            'weeks_count' => '6',
+            'clinic_id' => '15',
+        ]);
+
+        $this->assertSame(6, $data->weeksCount);
+        $this->assertSame(15, $data->clinicId);
+
+        $allClinics = GenerateTimeSlotsData::fromValidated([
+            'weeks_count' => '2',
+        ]);
+
+        $this->assertNull($allClinics->clinicId);
     }
 
     public function test_working_hour_data_maps_and_serializes_validated_fields(): void

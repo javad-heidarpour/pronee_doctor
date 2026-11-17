@@ -9,6 +9,7 @@ use App\Actions\Portal\Shifts\ListTimeSlotsAction;
 use App\Actions\Portal\Shifts\ToggleTimeSlotAction;
 use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
+use App\DTOs\Portal\Scheduling\GenerateTimeSlotsData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
@@ -142,11 +143,8 @@ class ShiftController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('shifts.manage', $doctor);
 
-        $validated = $request->validated();
-
-        $clinicId = !empty($validated['clinic_id'])
-            ? (int) $validated['clinic_id']
-            : null;
+        $data = GenerateTimeSlotsData::fromValidated($request->validated());
+        $clinicId = $data->clinicId;
 
         if ($clinicId !== null) {
             $this->authorizeClinic($doctor, $clinicId);
@@ -154,11 +152,7 @@ class ShiftController extends Controller
             abort(403, 'برای تولید نوبت، انتخاب مطب مجاز الزامی است.');
         }
 
-        $result = $action->handle(
-            $doctor,
-            (int) $validated['weeks_count'],
-            $clinicId
-        );
+        $result = $action->handle($doctor, $data);
 
         if (!$result['has_working_hours']) {
             return back()->withErrors([
@@ -166,7 +160,7 @@ class ShiftController extends Controller
             ]);
         }
 
-        $message = "با موفقیت {$result['generated']} نوبت جدید برای {$validated['weeks_count']} هفته آینده ایجاد شد.";
+        $message = "با موفقیت {$result['generated']} نوبت جدید برای {$data->weeksCount} هفته آینده ایجاد شد.";
 
         if ($result['skipped'] > 0) {
             $message .= " ({$result['skipped']} نوبت تکراری یا دارای تداخل رد شد)";

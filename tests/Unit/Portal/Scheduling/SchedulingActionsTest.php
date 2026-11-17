@@ -9,6 +9,7 @@ use App\Actions\Portal\Shifts\GenerateTimeSlotsAction;
 use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
+use App\DTOs\Portal\Scheduling\GenerateTimeSlotsData;
 use App\DTOs\Portal\Scheduling\WorkingHourData;
 use App\Models\Address;
 use App\Models\Doctor;
@@ -170,7 +171,7 @@ final class SchedulingActionsTest extends TestCase
 
         $this->slot($doctor->id, '09:00', '09:30', '2026-11-14');
 
-        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, 1, $clinic->id);
+        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, GenerateTimeSlotsData::fromValidated(['weeks_count' => 1, 'clinic_id' => $clinic->id]));
 
         $this->assertSame(1, $result['generated']);
         $this->assertSame(1, $result['skipped']);
@@ -195,7 +196,7 @@ final class SchedulingActionsTest extends TestCase
             'is_active' => true,
         ]);
 
-        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, 1);
+        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, GenerateTimeSlotsData::fromValidated(['weeks_count' => 1]));
 
         $this->assertFalse($result['has_working_hours']);
         $this->assertSame(0, $result['generated']);

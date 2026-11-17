@@ -14,6 +14,7 @@ final class EnsureDoctorOwnsActiveClinicAction
             $doctor->address()
                 ->whereKey($clinicId)
                 ->where('is_active', true)
+                ->lockForUpdate()
                 ->exists(),
             403,
             'مطب انتخاب‌شده متعلق به پزشک فعال نیست یا غیرفعال شده است.'

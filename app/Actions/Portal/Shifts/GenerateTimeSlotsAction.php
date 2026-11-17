@@ -3,6 +3,7 @@
 namespace App\Actions\Portal\Shifts;
 
 use App\Actions\Portal\Clinic\EnsureDoctorOwnsActiveClinicAction;
+use App\DTOs\Portal\Scheduling\GenerateTimeSlotsData;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use App\Models\TimeSlot;
@@ -19,8 +20,10 @@ class GenerateTimeSlotsAction
     /**
      * @return array{generated:int,skipped:int,has_working_hours:bool}
      */
-    public function handle(Doctor $doctor, int $weeksCount, ?int $clinicId = null): array
+    public function handle(Doctor $doctor, GenerateTimeSlotsData $data): array
     {
+        $weeksCount = $data->weeksCount;
+        $clinicId = $data->clinicId;
         if ($clinicId !== null) {
             $this->ensureClinic->handle($doctor, $clinicId);
         }

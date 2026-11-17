@@ -4,6 +4,10 @@ namespace Tests\Unit\Portal\Scheduling;
 
 use App\Http\Requests\Portal\ListTimeSlotsRequest;
 use App\Http\Requests\Portal\ListWorkingHoursRequest;
+use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
+use App\Http\Requests\Portal\SaveWorkingHourRequest;
+use App\Http\Requests\Portal\StoreTimeSlotRequest;
+use App\Http\Requests\Portal\UpdateTimeSlotRequest;
 use App\Models\User;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -47,7 +51,11 @@ final class SchedulingRequestAuthorizationTest extends TestCase
     {
         return [
             'time slots' => [ListTimeSlotsRequest::class],
-            'working hours' => [ListWorkingHoursRequest::class],
+            'working hours list' => [ListWorkingHoursRequest::class],
+            'generate time slots' => [GenerateTimeSlotsRequest::class],
+            'save working hours' => [SaveWorkingHourRequest::class],
+            'store time slot' => [StoreTimeSlotRequest::class],
+            'update time slot' => [UpdateTimeSlotRequest::class],
         ];
     }
 }
