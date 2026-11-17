@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\SecurityAuditLog;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Auth;
-use Inertia\\Inertia;
-use Inertia\\Response;
+use App\Http\Controllers\Controller;
+use App\Models\SecurityAuditLog;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SecurityAuditController extends Controller
 {
