@@ -17,6 +17,12 @@ use App\Http\Requests\Portal\StoreGalleryImagesRequest;
 use App\Http\Requests\Portal\UpdateGalleryImageRequest;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
 use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
+use App\Http\Requests\Portal\AvailableClinicRequest;
+use App\Http\Requests\Portal\AvailableSlotsRequest;
+use App\Http\Requests\Portal\ListDoctorReviewsRequest;
+use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
+use App\Http\Requests\Portal\StorePortalAppointmentRequest;
+use App\Http\Requests\Portal\ReplyDoctorReviewRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -99,6 +105,12 @@ final class SchedulingRequestAuthorizationTest extends TestCase
             'gallery update' => [UpdateGalleryImageRequest::class],
             'appointment status' => [UpdateAppointmentStatusRequest::class],
             'appointment description' => [UpdateAppointmentDescriptionRequest::class],
+            'available clinic' => [AvailableClinicRequest::class],
+            'available slots' => [AvailableSlotsRequest::class],
+            'doctor reviews' => [ListDoctorReviewsRequest::class],
+            'portal appointments' => [ListPortalAppointmentsRequest::class],
+            'portal appointment store' => [StorePortalAppointmentRequest::class],
+            'doctor review reply' => [ReplyDoctorReviewRequest::class],
         ];
     }
 }

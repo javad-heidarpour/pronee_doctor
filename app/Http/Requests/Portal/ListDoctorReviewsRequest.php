@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Portal;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,9 @@ class ListDoctorReviewsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user('web');
+
+        return $user instanceof User && $user->is_active;
     }
 
     public function rules(): array
