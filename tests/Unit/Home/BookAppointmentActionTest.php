@@ -52,9 +52,19 @@ final class BookAppointmentActionTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patients', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
+            $table->string('phone', 45)->nullable();
+            $table->string('national_code', 20)->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('appointments', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('patient_id')->nullable();
             $table->unsignedBigInteger('clinic_id');
             $table->unsignedBigInteger('time_slot_id');
             $table->unsignedBigInteger('user_id')->nullable();
@@ -124,6 +134,12 @@ final class BookAppointmentActionTest extends TestCase
         $this->assertSame('pending', $appointment->status);
         $this->assertSame(7000000, (int) $appointment->fee_rial);
         $this->assertSame('booked', $slot->fresh()->status);
+        $this->assertNotNull($appointment->patient_id);
+        $this->assertDatabaseHas('patients', [
+            'id' => $appointment->patient_id,
+            'doctor_id' => $doctor->id,
+            'national_code' => '0012345678',
+        ]);
         $this->assertNotNull(session('sms.visit.allowed.' . $appointment->id));
         $this->assertDatabaseHas('appointments', [
             'id' => $appointment->id,
