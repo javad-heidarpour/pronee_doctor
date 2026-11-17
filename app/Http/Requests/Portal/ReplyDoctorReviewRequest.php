@@ -11,7 +11,9 @@ class ReplyDoctorReviewRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user('web')?->isDoctor() ?? false;
+        $user = $this->user('web');
+
+        return $user instanceof User && $user->is_active && $user->isDoctor();
     }
 
     public function rules(): array
