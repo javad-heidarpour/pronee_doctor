@@ -87,7 +87,7 @@ class SepPaymentService
             if (!is_array($result)) {
                 Log::error('SEP token response is not valid JSON', [
                     'response_type' => 'non_json',
-                    'res_num' => $resNum,
+                    'res_num_fingerprint' => hash('sha256', $resNum),
                 ]);
 
                 throw new RuntimeException(
@@ -191,7 +191,7 @@ class SepPaymentService
             !array_key_exists('ResultCode', $result)
         ) {
             Log::error('SEP invalid verification response', [
-                'ref_num' => $refNum,
+                'ref_num_fingerprint' => hash('sha256', $refNum),
                 'response_type' => get_debug_type($result),
             ]);
 
