@@ -4,7 +4,7 @@ import './bootstrap';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import { ZiggyVue } from '../../vendor/tightenco/ziggy/dist/index.js';
 import { VueReCaptcha } from 'vue-recaptcha-v3';
 import { formatDate, formatDateShort, formatTime } from "./utils/dateUtils";
 
