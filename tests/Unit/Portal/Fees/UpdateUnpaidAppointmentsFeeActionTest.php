@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Fees;
+namespace Tests\Unit\Portal\Fees;
 
-use App\\Actions\\Portal\\Fees\\UpdateUnpaidAppointmentsFeeAction;
-use App\\Models\\Appointment;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
-use Tests\\TestCase;
+use App\Actions\Portal\Fees\UpdateUnpaidAppointmentsFeeAction;
+use App\Models\Appointment;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 final class UpdateUnpaidAppointmentsFeeActionTest extends TestCase
 {
