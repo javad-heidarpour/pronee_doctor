@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
+use App\Actions\Portal\Patient\ListPortalPatientsAction;
 use App\Actions\Portal\Appointment\ExportPortalAppointmentsAction;
 use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
 use App\Actions\Portal\Appointment\BuildPatientIndexOptionsAction;
@@ -28,6 +29,28 @@ class PatientController extends Controller
 {
     use HasActiveDoctor;
     use AuthorizesPortalAppointments;
+
+    public function directory(
+        \Illuminate\Http\Request $request,
+        ListPortalPatientsAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.view', $doctor);
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:150'],
+        ]);
+
+        return Inertia::render('Portal/Patients/Directory', [
+            'doctor' => $doctor,
+            'patients' => $action->handle(
+                $doctor,
+                $this->accessibleClinicIds($doctor),
+                $validated['search'] ?? null
+            ),
+            'filters' => ['search' => $validated['search'] ?? ''],
+        ]);
+    }
 
     public function index(
         ListPortalAppointmentsRequest $request,
