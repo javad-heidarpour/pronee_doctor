@@ -137,7 +137,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('doctor_id')->constrained('doctors')->cascadeOnDelete();
             $table->unsignedBigInteger('clinic_id');
-            $table->unsignedTinyInteger('day_of_week');
+            $table->tinyInteger('day_of_week');
             $table->time('start_time');
             $table->time('end_time');
             $table->unsignedSmallInteger('duration_minutes')->default(5);

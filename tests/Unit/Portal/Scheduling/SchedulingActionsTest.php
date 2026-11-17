@@ -6,6 +6,7 @@ namespace Tests\Unit\Portal\Scheduling;
 
 use App\Actions\Portal\Shifts\CreateTimeSlotAction;
 use App\Actions\Portal\Shifts\GenerateTimeSlotsAction;
+use App\Actions\Portal\Shifts\GenerateSlotsForAllDoctorsAction;
 use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
@@ -31,6 +32,7 @@ final class SchedulingActionsTest extends TestCase
             $table->id();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->softDeletes();
             $table->timestamps();
         });
@@ -282,6 +284,37 @@ final class SchedulingActionsTest extends TestCase
         $this->assertSame('08:00', substr((string) $workingHour->fresh()->start_time, 0, 5));
     }
 
+    public function test_generate_slots_for_all_active_doctors_uses_the_transactional_generator(): void
+    {
+        Carbon::setTestNow('2026-11-14 08:00:00');
+
+        $doctorWithHours = $this->doctor();
+        $clinic = $this->clinic($doctorWithHours);
+
+        DoctorWorkingHour::query()->create([
+            'doctor_id' => $doctorWithHours->id,
+            'clinic_id' => $clinic->id,
+            'day_of_week' => 0,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        $this->doctor(); // active doctor without a working-hour pattern
+
+        $inactiveDoctor = $this->doctor();
+        $inactiveDoctor->update(['is_active' => false]);
+
+        $result = app(GenerateSlotsForAllDoctorsAction::class)->handle(1);
+
+        $this->assertSame(2, $result['doctors']);
+        $this->assertSame(2, $result['generated']);
+        $this->assertSame(0, $result['skipped']);
+        $this->assertSame(1, $result['without_working_hours']);
+        $this->assertDatabaseCount('time_slots', 2);
+    }
+
     private function clinic(Doctor $doctor, bool $active = true): Address
     {
         return Address::query()->create([
@@ -295,7 +328,8 @@ final class SchedulingActionsTest extends TestCase
     {
         return Doctor::query()->create([
             'name' => 'Scheduling Test Doctor',
-            'slug' => 'scheduling-test-doctor',
+            'slug' => 'scheduling-test-doctor-' . uniqid(),
+            'is_active' => true,
         ]);
     }
 
