@@ -1,27 +1,35 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Portal\DoctorReviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
-class ToggleDoctorReviewAction
+final class ToggleDoctorReviewAction
 {
-    public function handle(Doctor $doctor, Review $review)
+    public function handle(Doctor $doctor, Review $review): RedirectResponse
     {
-        abort_unless(
-            (int) $review->doctor_id === (int) $doctor->id,
-            403,
-            'شما به این نظر دسترسی ندارید.'
-        );
+        $approved = DB::transaction(function () use ($doctor, $review): bool {
+            $lockedReview = $doctor->reviews()
+                ->whereKey($review->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $approved = !$review->is_approved;
+            $nextState = ! (bool) $lockedReview->is_approved;
 
-        $review->update([
-            'is_approved' => $approved,
-            'approved_at' => $approved ? now() : null,
-            'approved_by' => $approved ? auth('web')->id() : null,
-        ]);
+            $lockedReview->forceFill([
+                'is_approved' => $nextState,
+                'approved_at' => $nextState ? now() : null,
+                'approved_by' => $nextState ? Auth::guard('web')->id() : null,
+            ])->save();
+
+            return $nextState;
+        });
 
         return back()->with(
             'success',
