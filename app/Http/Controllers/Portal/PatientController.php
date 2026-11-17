@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
 use App\Actions\Portal\Patient\ListPortalPatientsAction;
+use App\Actions\Portal\Patient\LoadPortalPatientRecordAction;
 use App\Actions\Portal\Appointment\ExportPortalAppointmentsAction;
 use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
 use App\Actions\Portal\Appointment\BuildPatientIndexOptionsAction;
@@ -147,6 +148,31 @@ class PatientController extends Controller
         return response()->json([
             'success' => true,
             'slots' => $slots,
+        ]);
+    }
+
+    public function record(
+        Appointment $appointment,
+        LoadPortalPatientRecordAction $action,
+        RecordSecurityAuditEventAction $audit
+    ) {
+        $this->authorizeAppointment($appointment);
+
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.view', $doctor);
+
+        $visits = $action->handle(
+            $appointment,
+            $this->accessibleClinicIds($doctor)
+        );
+
+        $audit->handle('patient.record.viewed', $appointment, [
+            'doctor_id' => $doctor->id,
+        ]);
+
+        return Inertia::render('Portal/Patients/Record', [
+            'doctor' => $doctor,
+            'visits' => $visits,
         ]);
     }
 
