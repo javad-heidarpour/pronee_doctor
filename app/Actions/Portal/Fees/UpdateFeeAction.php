@@ -16,7 +16,16 @@ class UpdateFeeAction
     public function handle(int $newFee, int $doctorId): bool
     {
         return DB::transaction(function () use ($newFee, $doctorId) {
-            $activeFee = Fee::where('created_by', $doctorId)->where('is_active', true)
+            // قفل رکورد پزشک حتی زمانی که هنوز تعرفه فعالی وجود ندارد؛
+            // قفل کردن صرفاً ردیف Fee در حالت نبود ردیف، جلوی ثبت هم‌زمان
+            // دو تعرفه فعال را در همه موتورهای پایگاه داده نمی‌گیرد.
+            Doctor::query()
+                ->whereKey($doctorId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $activeFee = Fee::where('created_by', $doctorId)
+                ->where('is_active', true)
                 ->lockForUpdate()
                 ->first();
 
