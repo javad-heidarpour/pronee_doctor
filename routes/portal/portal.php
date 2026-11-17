@@ -56,6 +56,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'index'
         ])->name('payments.review-queue');
 
+        Route::post('/payments/{payment}/reconcile', [
+            PaymentReviewController::class,
+            'reconcile'
+        ])->whereNumber('payment')->middleware('throttle:3,1')->name('payments.reconcile');
+
         Route::get('/security/sessions', [
             SecuritySessionsController::class,
             'index'
