@@ -46,12 +46,23 @@ class NewPasswordController extends Controller
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user) use ($request) {
-                $user->forceFill([
-                    'password' => Hash::make($request->password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+                DB::transaction(function () use ($user, $request) {
+                    // مدل User دارای cast از نوع hashed است؛ رمز خام را تنظیم می‌کنیم.
+                    $user->forceFill([
+                        'password' => $request->password,
+                        'remember_token' => Str::random(60),
+                    ])->save();
 
-                event(new PasswordReset($user));
+                    // بازیابی رمز باید تمام نشست‌های قبلی را، بدون استثنا، باطل کند.
+                    if (config('session.driver') === 'database') {
+                        DB::connection(config('session.connection'))
+                            ->table(config('session.table', 'sessions'))
+                            ->where('user_id', $user->getAuthIdentifier())
+                            ->delete();
+                    }
+
+                    event(new PasswordReset($user));
+                });
             }
         );
 
