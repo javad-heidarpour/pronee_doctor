@@ -16,17 +16,21 @@ class UpdateManagedUserAction
         User $user,
         array $validated,
         RecordSecurityAuditEventAction $audit
-    ): User
-    {
+    ): User {
         return DB::transaction(function () use ($user, $validated, $audit) {
             $lockedUser = User::withTrashed()
                 ->whereKey($user->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $newRole = $validated['role'] ?? $lockedUser->role;
+            $oldRole = $lockedUser->role;
+            $oldIsActive = (bool) $lockedUser->is_active;
+            $newRole = $validated['role'] ?? $oldRole;
+            $newIsActive = array_key_exists('is_active', $validated)
+                ? (bool) $validated['is_active']
+                : $oldIsActive;
 
-            if ($lockedUser->role === 'secretary' && $newRole !== 'secretary') {
+            if ($oldRole === 'secretary' && $newRole !== 'secretary') {
                 $lockedUser->doctors()->detach();
             }
 
@@ -38,16 +42,20 @@ class UpdateManagedUserAction
                 unset($validated['password']);
             }
 
+            $roleChanged = $oldRole !== $newRole;
+            $statusChanged = $oldIsActive !== $newIsActive;
+            $accessChanged = $passwordChanged || $roleChanged || $statusChanged;
+
             $lockedUser->fill($validated);
 
-            if ($passwordChanged) {
-                // تغییر رمز توسط مدیر، نشست‌ها و کوکی‌های ماندگار قبلی را باطل می‌کند.
+            if ($accessChanged) {
+                // تغییر رمز، نقش یا وضعیت باید تمام اعتبارنامه‌های قبلی را باطل کند.
                 $lockedUser->setRememberToken(Str::random(60));
             }
 
             $lockedUser->save();
 
-            if ($passwordChanged && config('session.driver') === 'database') {
+            if ($accessChanged && config('session.driver') === 'database') {
                 DB::connection(config('session.connection'))
                     ->table(config('session.table', 'sessions'))
                     ->where('user_id', $lockedUser->getAuthIdentifier())
@@ -59,6 +67,10 @@ class UpdateManagedUserAction
             $audit->handle('managed_user.updated', $updated, [
                 'role' => $updated->role,
                 'is_active' => (bool) $updated->is_active,
+                'role_changed' => $roleChanged,
+                'status_changed' => $statusChanged,
+                'password_changed' => $passwordChanged,
+                'sessions_revoked' => $accessChanged && config('session.driver') === 'database',
             ]);
 
             return $updated;
