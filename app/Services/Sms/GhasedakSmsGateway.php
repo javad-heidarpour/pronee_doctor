@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Sms;
 
+use App\Contracts\Sms\SmsGateway;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
-final class GhasedakSmsGateway
+final class GhasedakSmsGateway implements SmsGateway
 {
     private const ENDPOINT = 'https://gateway.ghasedak.me/rest/api/v1/WebService/SendOtpSMS';
 
