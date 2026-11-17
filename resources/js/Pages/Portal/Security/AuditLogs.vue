@@ -38,6 +38,9 @@ const eventLabels = {
   "patient.record.viewed": "مشاهده پرونده و سوابق بیمار",
   "patient.profile.created": "ایجاد پرونده پایه بیمار",
   "patient.profile.updated": "ویرایش اطلاعات پایه بیمار",
+  "patient.clinical_record.created": "ثبت اطلاعات پزشکی بیمار",
+  "patient.clinical_record.updated": "ویرایش اطلاعات پزشکی بیمار",
+  "patient.clinical_record.deleted": "حذف اطلاعات پزشکی بیمار",
 };
 
 const applyFilters = () => {
