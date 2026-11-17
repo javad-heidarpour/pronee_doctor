@@ -3,7 +3,7 @@
 namespace Tests\Unit\Sms;
 
 use App\Services\LoginOtp;
-use App\Services\Sms\GhasedakSmsGateway;
+use App\Contracts\Sms\SmsGateway;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
 use RuntimeException;
