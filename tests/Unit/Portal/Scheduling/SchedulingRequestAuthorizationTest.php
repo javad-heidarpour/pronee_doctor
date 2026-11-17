@@ -8,6 +8,7 @@ use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
+use App\Http\Requests\Portal\ReplyDoctorReviewRequest;
 use App\Http\Requests\Portal\UpdateSecretaryAssignmentsRequest;
 use App\Http\Requests\Portal\SaveManagedUserRequest;
 use App\Http\Requests\Portal\UpdateManagedUserStatusRequest;
@@ -88,6 +89,30 @@ final class SchedulingRequestAuthorizationTest extends TestCase
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function test_doctor_review_reply_request_rejects_inactive_doctor_accounts(): void
+    {
+        $user = new User();
+        $user->setAttribute('role', 'doctor');
+        $user->setAttribute('is_active', false);
+
+        $request = new ReplyDoctorReviewRequest();
+        $request->setUserResolver(fn ($guard = null) => $user);
+
+        $this->assertFalse($request->authorize());
+    }
+
+    public function test_doctor_review_reply_request_allows_active_doctor_accounts(): void
+    {
+        $user = new User();
+        $user->setAttribute('role', 'doctor');
+        $user->setAttribute('is_active', true);
+
+        $request = new ReplyDoctorReviewRequest();
+        $request->setUserResolver(fn ($guard = null) => $user);
+
+        $this->assertTrue($request->authorize());
     }
 
     public static function listRequestClasses(): array
