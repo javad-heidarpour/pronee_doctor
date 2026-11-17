@@ -49,6 +49,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'index'
         ])->name('security.audit-logs');
 
+        Route::get('/payments/review-queue', [
+            PaymentReviewController::class,
+            'index'
+        ])->name('payments.review-queue');
+
         Route::get('/security/sessions', [
             SecuritySessionsController::class,
             'index'
