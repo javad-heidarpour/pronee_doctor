@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive } from "vue";
+import { computed, reactive, ref } from "vue";
 import { Head, Link, router } from "@inertiajs/vue3";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 
@@ -9,6 +9,24 @@ const props = defineProps({
 });
 
 const rows = computed(() => props.payments?.data ?? []);
+const reconcilingId = ref(null);
+
+const reconcile = (payment) => {
+  if (!payment?.ref_num || reconcilingId.value !== null) return;
+
+  const confirmed = window.confirm(
+    "وضعیت این تراکنش مستقیماً از سامان‌کیش استعلام می‌شود. ادامه می‌دهید؟"
+  );
+
+  if (!confirmed) return;
+
+  reconcilingId.value = payment.id;
+  router.post(route("portal.payments.reconcile", payment.id), {}, {
+    preserveScroll: true,
+    onFinish: () => { reconcilingId.value = null; },
+  });
+};
+
 const form = reactive({
   search: props.filters?.search ?? "",
   gateway: props.filters?.gateway ?? "",
@@ -108,7 +126,7 @@ const appointmentStatusLabel = (status) => ({
         </div>
 
         <div v-else class="overflow-x-auto">
-          <table class="w-full min-w-[1050px] text-right text-sm">
+          <table class="w-full min-w-[1180px] text-right text-sm">
             <thead class="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th class="px-4 py-4 font-bold">پرداخت / نوبت</th>
@@ -118,6 +136,7 @@ const appointmentStatusLabel = (status) => ({
                 <th class="px-4 py-4 font-bold">شناسه درگاه</th>
                 <th class="px-4 py-4 font-bold">پیام درگاه</th>
                 <th class="px-4 py-4 font-bold">آخرین تغییر</th>
+                <th class="px-4 py-4 font-bold">اقدام</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -147,6 +166,20 @@ const appointmentStatusLabel = (status) => ({
                 </td>
                 <td class="max-w-xs whitespace-normal px-4 py-4 text-xs leading-6 text-slate-600">{{ payment.result_message || "پیام ثبت نشده است." }}</td>
                 <td class="whitespace-nowrap px-4 py-4 text-xs text-slate-500">{{ dateTime(payment.updated_at) }}</td>
+                <td class="px-4 py-4">
+                  <button
+                    v-if="payment.ref_num"
+                    type="button"
+                    :disabled="reconcilingId !== null"
+                    @click="reconcile(payment)"
+                    class="whitespace-nowrap rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {{ reconcilingId === payment.id ? "در حال استعلام..." : "استعلام مجدد SEP" }}
+                  </button>
+                  <span v-else class="text-xs leading-6 text-amber-700">
+                    فاقد RefNum؛ پیگیری از گزارش پذیرنده
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
