@@ -23,9 +23,12 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
-        return $user->doctors()
-            ->where('doctors.id', $doctorId)
-            ->where('doctors.is_active', true)
+        // Resolve through the same role-aware access contract used by the portal.
+        // Doctors own their profile through doctors.user_id; secretaries use doctor_user;
+        // administrators may select any active doctor. The raw doctors() relation is
+        // only the secretary pivot and therefore returns null for doctors/admins.
+        return $user->accessibleDoctors()
+            ->whereKey($doctorId)
             ->first();
     }
     protected $rootView = 'app';
