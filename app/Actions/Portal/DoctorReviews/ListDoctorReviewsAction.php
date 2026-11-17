@@ -1,29 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Portal\DoctorReviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
-use Inertia\Inertia;
 
-class ListDoctorReviewsAction
+final class ListDoctorReviewsAction
 {
     public function __construct(
         private readonly BuildDoctorReviewStatisticsAction $statisticsAction
     ) {
     }
 
-    public function handle(array $filters, Doctor $doctor)
+    public function handle(array $filters, Doctor $doctor): array
     {
         $search = trim((string) ($filters['search'] ?? ''));
         $status = $filters['status'] ?? null;
         $rating = $filters['rating'] ?? null;
 
-        $reviews = Review::query()
-            ->where('doctor_id', $doctor->id)
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('patient_name', 'like', "%{$search}%")
+        $reviews = $doctor->reviews()
+            ->with('user')
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($nested) use ($search): void {
+                    $nested->where('patient_name', 'like', "%{$search}%")
                         ->orWhere('comment', 'like', "%{$search}%");
                 });
             })
@@ -34,17 +35,14 @@ class ListDoctorReviewsAction
             ->paginate(10)
             ->withQueryString();
 
-        $stats = $this->statisticsAction->handle($doctor);
-
-        return Inertia::render('Portal/DoctorReviews', [
-            'doctor' => $doctor,
+        return [
             'reviews' => $reviews,
-            'stats' => $stats,
+            'stats' => $this->statisticsAction->handle($doctor),
             'filters' => [
                 'search' => $search,
                 'status' => $status,
                 'rating' => $rating,
             ],
-        ]);
+        ];
     }
 }
