@@ -267,6 +267,12 @@ class AppointmentPaymentController extends Controller
                 ]);
             }
 
+            if ($settlement['status'] === 'verification_mismatch') {
+                return $visitRedirect($appointment->id)->withErrors([
+                    'payment' => 'شناسه مرجع یا ترمینال پاسخ استعلام با تراکنش ثبت‌شده مطابقت ندارد؛ پرداخت ثبت نشد و نیازمند بررسی است.',
+                ]);
+            }
+
             if ($settlement['status'] === 'amount_mismatch') {
                 return $visitRedirect($appointment->id)->withErrors([
                     'payment' => 'مبلغ تراکنش نیازمند بررسی است. لطفاً دوباره پرداخت نکنید.',
