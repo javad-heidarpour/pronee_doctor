@@ -82,7 +82,16 @@ const props = defineProps({
   visits: { type: Array, default: () => [] },
 });
 
-const patient = computed(() => props.visits[0] || {});
+const patient = computed(() => {
+  const latestVisit = props.visits[0] || {};
+  const profile = latestVisit.patient || {};
+
+  return {
+    patient_name: profile.name || latestVisit.patient_name || '',
+    patient_phone: profile.phone || latestVisit.patient_phone || '',
+    patient_national_code: profile.national_code || latestVisit.patient_national_code || '',
+  };
+});
 const formatDate = (value) => {
   if (!value) return '—';
   const date = new Date(value + 'T00:00:00');
