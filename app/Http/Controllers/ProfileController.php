@@ -8,12 +8,11 @@ use App\Actions\Portal\Profile\DeleteProfileAction;
 use App\Actions\Portal\Profile\EditProfileAction;
 use App\Actions\Portal\Profile\UpdateProfileAction;
 
-use App\Actions\Profile\ChangeProfilePasswordAction;
+use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
 use App\Http\Requests\Profile\DeleteProfileRequest;
 use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
 use Illuminate\Http\Request;
-use RuntimeException;
 
 
 
@@ -33,21 +32,20 @@ class ProfileController extends Controller
 
 
 
-    public function updatePassword(UpdateProfilePasswordRequest $request, ChangeProfilePasswordAction $action)
-    {
-        $doctor = $request->user('web')->doctorProfile;
+    public function updatePassword(
+        UpdateProfilePasswordRequest $request,
+        ChangeDoctorPasswordAction $action
+    ) {
+        $user = $request->user('web');
 
-        try {
-            $changed = $action->handle(
-                $doctor,
-                $request->string('current_password')->toString(),
-                $request->string('password')->toString()
-            );
-        } catch (RuntimeException $exception) {
-            return back()->withErrors([
-                'current_password' => 'رمز ذخیره‌شده قابل بررسی نیست. لطفاً با مدیر سامانه تماس بگیرید.',
-            ]);
-        }
+        abort_unless($user instanceof \\App\\Models\\User, 401);
+
+        $changed = $action->handle(
+            $user,
+            $request->string('current_password')->toString(),
+            $request->string('password')->toString(),
+            $request->session()->getId()
+        );
 
         if (! $changed) {
             return back()->withErrors([
@@ -55,7 +53,7 @@ class ProfileController extends Controller
             ]);
         }
 
-        return back()->with('success', 'رمز عبور با موفقیت تغییر کرد.');
+        return back()->with('success', 'رمز عبور حساب کاربری با موفقیت تغییر کرد.');
     }
 
     public function edit(Request $request)
