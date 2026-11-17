@@ -20,6 +20,10 @@ use App\Http\Requests\Portal\AvailableClinicRequest;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
 use App\Http\Requests\Portal\UpdateAppointmentDescriptionRequest;
 use App\Models\Appointment;
+use App\Models\Patient;
+use App\Models\PatientClinicalRecord;
+use App\Actions\Portal\Patient\SavePatientClinicalRecordAction;
+use App\Http\Requests\Portal\SavePatientClinicalRecordRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
@@ -174,6 +178,57 @@ class PatientController extends Controller
             'doctor' => $doctor,
             'visits' => $visits,
         ]);
+    }
+
+    public function storeClinicalRecord(
+        SavePatientClinicalRecordRequest $request,
+        Patient $patient,
+        SavePatientClinicalRecordAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
+
+        $record = $action->handle($patient, $request->validated());
+
+        return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ثبت شد.');
+    }
+
+    public function updateClinicalRecord(
+        SavePatientClinicalRecordRequest $request,
+        Patient $patient,
+        PatientClinicalRecord $record,
+        SavePatientClinicalRecordAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
+
+        abort_unless(
+            (int) $record->patient_id === (int) $patient->id &&
+            (int) $record->doctor_id === (int) $doctor->id,
+            404
+        );
+
+        $action->handle($patient, $request->validated(), $record);
+
+        return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
+    }
+
+    private function authorizePatientClinicalAccess(Patient $patient, \App\Models\Doctor $doctor): Patient
+    {
+        $scopedPatient = Patient::query()
+            ->whereKey($patient->id)
+            ->where('doctor_id', $doctor->id)
+            ->firstOrFail();
+
+        $hasAccessibleVisit = $scopedPatient->appointments()
+            ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+            ->exists();
+
+        abort_unless($hasAccessibleVisit, 403, 'شما به پرونده این بیمار دسترسی ندارید.');
+
+        return $scopedPatient;
     }
 
     public function show(
