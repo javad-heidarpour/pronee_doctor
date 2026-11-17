@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\Appointment\CreatePortalAppointmentAction;
 use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
+use App\DTOs\Portal\Appointment\CreatePortalAppointmentData;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Requests\Portal\AvailableSlotsRequest;
@@ -21,13 +22,11 @@ class AppointmentController extends Controller
         ListAvailableSlotsAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeClinicAccess((int) $request->validated()['clinic_id'], $doctor);
+        $clinicId = (int) $request->validated()['clinic_id'];
+        $this->authorizeClinicAccess($clinicId, $doctor);
         $this->authorizeSecretaryPermission('shifts.view', $doctor);
 
-        $slots = $action->handle(
-            $doctor,
-            $request->validated()['clinic_id']
-        );
+        $slots = $action->handle($doctor, $clinicId);
 
         if ($slots === null) {
             return response()->json([
@@ -51,10 +50,8 @@ class AppointmentController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('appointments.manage', $doctor);
 
-        $appointment = $action->handle(
-            $doctor,
-            $request->validated()
-        );
+        $data = CreatePortalAppointmentData::fromValidated($request->validated());
+        $appointment = $action->handle($doctor, $data);
 
         return response()->json([
             'success' => true,

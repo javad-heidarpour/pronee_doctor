@@ -2,14 +2,17 @@
 
 namespace App\Actions\Portal\Appointment;
 
+use App\DTOs\Portal\Appointment\UpdateAppointmentDescriptionData;
 use App\Models\Appointment;
 use App\Models\SurgeryType;
 use Illuminate\Support\Facades\DB;
 
 class UpdateAppointmentDescriptionAction
 {
-    public function handle(Appointment $appointment, array $data): bool
-    {
+    public function handle(
+        Appointment $appointment,
+        UpdateAppointmentDescriptionData $data
+    ): bool {
         return DB::transaction(function () use ($appointment, $data) {
             $lockedAppointment = Appointment::query()
                 ->whereKey($appointment->id)
@@ -20,20 +23,19 @@ class UpdateAppointmentDescriptionAction
                 return false;
             }
 
-            $newSurgeryType = trim((string) ($data['new_surgery_type'] ?? ''));
+            $surgeryTypeId = $data->surgeryTypeId;
+            $newSurgeryType = trim($data->newSurgeryType ?? '');
 
             if ($newSurgeryType !== '') {
-                $surgeryType = SurgeryType::query()->firstOrCreate([
+                $surgeryTypeId = SurgeryType::query()->firstOrCreate([
                     'title' => $newSurgeryType,
-                ]);
-
-                $data['surgery_type_id'] = $surgeryType->id;
+                ])->id;
             }
 
             $lockedAppointment->update([
-                'surgery_type_id' => $data['surgery_type_id'] ?? null,
-                'surgery_date' => $data['surgery_date'] ?? null,
-                'description' => $data['description'] ?? null,
+                'surgery_type_id' => $surgeryTypeId,
+                'surgery_date' => $data->surgeryDate,
+                'description' => $data->description,
                 'status' => 'visited',
             ]);
 

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Appointment;
 
+use App\DTOs\Portal\Appointment\CreatePortalAppointmentData;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Fee;
@@ -24,13 +25,13 @@ class CreatePortalAppointmentAction
      *
      * @throws ValidationException
      */
-    public function handle(Doctor $doctor, array $validated): Appointment
+    public function handle(Doctor $doctor, CreatePortalAppointmentData $data): Appointment
     {
-        $newVisitReason = trim($validated['new_visit_reason'] ?? '');
+        $newVisitReason = trim($data->newVisitReason ?? '');
 
-        return DB::transaction(function () use ($validated, $doctor, $newVisitReason) {
+        return DB::transaction(function () use ($data, $doctor, $newVisitReason) {
             $timeSlot = TimeSlot::query()
-                ->whereKey($validated['time_slot_id'])
+                ->whereKey($data->timeSlotId)
                 ->lockForUpdate()
                 ->first();
 
@@ -92,13 +93,10 @@ class CreatePortalAppointmentAction
             }
 
             // جلوگیری از داشتن دو نوبت فعال برای یک کد ملی نزد همین پزشک
-            if (!empty($validated['patient_national_code'])) {
+            if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
                 $duplicate = Appointment::query()
                     ->where('doctor_id', $doctor->id)
-                    ->where(
-                        'patient_national_code',
-                        $validated['patient_national_code']
-                    )
+                    ->where('patient_national_code', $data->patientNationalCode)
                     ->whereIn('status', ['pending', 'confirmed'])
                     ->exists();
 
@@ -110,7 +108,7 @@ class CreatePortalAppointmentAction
                 }
             }
 
-            $visitReasonId = $validated['visit_reason_id'] ?? null;
+            $visitReasonId = $data->visitReasonId;
 
             if ($newVisitReason !== '') {
                 $visitReasonId = VisitReason::firstOrCreate([
@@ -119,7 +117,7 @@ class CreatePortalAppointmentAction
             }
 
             $fee = Fee::where('created_by', $timeSlot->doctor_id)
-                    ->where('is_active', true)
+                ->where('is_active', true)
                 ->orderByDesc('id')
                 ->first();
 
@@ -133,11 +131,10 @@ class CreatePortalAppointmentAction
                 // نوبت ثبت‌شده توسط پزشک/منشی به حساب بیمار متصل نیست.
                 'user_id' => null,
                 'fee_rial' => $feeRial,
-                'patient_name' => $validated['patient_name'],
-                'patient_phone' => $validated['patient_phone'],
-                'patient_national_code' =>
-                    $validated['patient_national_code'] ?? null,
-                'description' => $validated['description'] ?? null,
+                'patient_name' => $data->patientName,
+                'patient_phone' => $data->patientPhone,
+                'patient_national_code' => $data->patientNationalCode,
+                'description' => $data->description,
 
                 'status' => 'pending',
                 'appointment_date' => $timeSlot->date,

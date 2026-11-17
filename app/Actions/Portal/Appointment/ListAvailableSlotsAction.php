@@ -12,12 +12,13 @@ class ListAvailableSlotsAction
     /**
      * ساعت‌های آزاد آینده‌ی یک مطب.
      *
-     * @return Collection|null  null اگر مطب متعلق به این پزشک نباشد.
+     * @return Collection|null  null اگر مطب متعلق به این پزشک یا فعال نباشد.
      */
     public function handle(Doctor $doctor, int|string $clinicId): ?Collection
     {
         $clinicExists = $doctor->address()
             ->where('addresses.id', $clinicId)
+            ->where('addresses.is_active', true)
             ->exists();
 
         if (!$clinicExists) {

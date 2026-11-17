@@ -22,40 +22,51 @@ class GenerateTimeSlotsAction
      */
     public function handle(Doctor $doctor, GenerateTimeSlotsData $data): array
     {
-        $weeksCount = $data->weeksCount;
-        $clinicId = $data->clinicId;
-        if ($clinicId !== null) {
-            $this->ensureClinic->handle($doctor, $clinicId);
-        }
-
-        $query = DoctorWorkingHour::query()
-            ->where('doctor_id', $doctor->id)
-            ->where('is_active', true)
-            ->whereHas('clinic', fn ($clinicQuery) => $clinicQuery
-                ->where('doctor_id', $doctor->id)
-                ->where('is_active', true));
-
-        if ($clinicId !== null) {
-            $query->where('clinic_id', $clinicId);
-        }
-
-        $workingHours = $query->get();
-
-        if ($workingHours->isEmpty()) {
-            return ['generated' => 0, 'skipped' => 0, 'has_working_hours' => false];
-        }
-
         $generatedCount = 0;
         $skippedCount = 0;
+        $hasWorkingHours = false;
         $baseDate = Carbon::now()->startOfWeek(Carbon::SATURDAY);
 
         DB::transaction(function () use (
-            $workingHours, $weeksCount, $baseDate, $doctor,
-            &$generatedCount, &$skippedCount
+            $doctor,
+            $data,
+            $baseDate,
+            &$generatedCount,
+            &$skippedCount,
+            &$hasWorkingHours
         ) {
+            // تمام عملیات زمان‌بندی یک پزشک با قفل همان پزشک سریالی می‌شوند.
             Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
 
-            for ($week = 0; $week < $weeksCount; $week++) {
+            // مطب‌های فعال در همین تراکنش قفل می‌شوند تا حین تولید غیرفعال نشوند.
+            $activeClinicIds = $doctor->address()
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->pluck('addresses.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if ($data->clinicId !== null) {
+                $this->ensureClinic->handle($doctor, $data->clinicId);
+                $activeClinicIds = array_values(array_intersect(
+                    $activeClinicIds,
+                    [$data->clinicId]
+                ));
+            }
+
+            $workingHours = DoctorWorkingHour::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('is_active', true)
+                ->whereIn('clinic_id', $activeClinicIds)
+                ->get();
+
+            if ($workingHours->isEmpty()) {
+                return;
+            }
+
+            $hasWorkingHours = true;
+
+            for ($week = 0; $week < $data->weeksCount; $week++) {
                 $currentWeekStart = $baseDate->copy()->addWeeks($week);
 
                 foreach ($workingHours as $workingHour) {
@@ -104,7 +115,7 @@ class GenerateTimeSlotsAction
         return [
             'generated' => $generatedCount,
             'skipped' => $skippedCount,
-            'has_working_hours' => true,
+            'has_working_hours' => $hasWorkingHours,
         ];
     }
 }

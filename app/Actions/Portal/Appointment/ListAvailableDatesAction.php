@@ -3,8 +3,8 @@
 namespace App\Actions\Portal\Appointment;
 
 use App\Models\Doctor;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ListAvailableDatesAction
 {
@@ -16,6 +16,15 @@ class ListAvailableDatesAction
      */
     public function handle(Doctor $doctor, int $clinicId): Collection
     {
+        $clinicIsActive = $doctor->address()
+            ->whereKey($clinicId)
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$clinicIsActive) {
+            return collect();
+        }
+
         return $doctor->timeSlots()
             ->where('clinic_id', $clinicId)
             ->where('status', 'available')

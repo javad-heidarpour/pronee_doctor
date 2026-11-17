@@ -10,6 +10,7 @@ use App\Actions\Portal\Appointment\ListAvailableDatesAction;
 use App\Actions\Portal\Appointment\ListAvailableSlotsAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
 use App\Actions\Portal\Appointment\UpdateAppointmentDescriptionAction;
+use App\DTOs\Portal\Appointment\UpdateAppointmentDescriptionData;
 use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
 use App\Http\Requests\Portal\AvailableClinicRequest;
 use App\Http\Requests\Portal\UpdateAppointmentStatusRequest;
@@ -162,7 +163,8 @@ class PatientController extends Controller
         $this->authorizeSecretaryPermission('appointments.manage');
         $this->authorizeSecretaryPermission('patients.manage');
 
-        $updated = $action->handle($appointment, $request->validated());
+        $data = UpdateAppointmentDescriptionData::fromValidated($request->validated());
+        $updated = $action->handle($appointment, $data);
 
         if (!$updated) {
             return back()->with(
