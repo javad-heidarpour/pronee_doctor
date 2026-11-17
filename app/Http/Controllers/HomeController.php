@@ -6,7 +6,7 @@ use App\Actions\Home\BookAppointmentAction;
 use App\Actions\Home\ListActiveDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
+use App\Http\Requests\BookAppointmentRequest;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -35,7 +35,7 @@ class HomeController extends Controller
      * ثبت نوبت
      */
     public function bookAppointment(
-        Request $request,
+        BookAppointmentRequest $request,
         BookAppointmentAction $action
     ) {
         return $action->handle($request);
