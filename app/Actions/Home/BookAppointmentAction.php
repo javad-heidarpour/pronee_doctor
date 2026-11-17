@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Home;
 
 use App\DTOs\Home\BookAppointmentData;
+use App\Actions\Portal\Patient\ResolveOrCreatePatientAction;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Fee;
@@ -17,6 +18,11 @@ use Throwable;
 
 final class BookAppointmentAction
 {
+    public function __construct(
+        private readonly ResolveOrCreatePatientAction $resolvePatient
+    ) {
+    }
+
     public function handle(BookAppointmentData $data): Appointment
     {
         try {
@@ -141,8 +147,16 @@ final class BookAppointmentAction
                     ->orderByDesc('id')
                     ->first();
 
+                $patient = $this->resolvePatient->handle(
+                    $doctor,
+                    $data->patientName,
+                    $data->patientPhone,
+                    $data->patientNationalCode
+                );
+
                 $appointment = Appointment::query()->create([
                     'doctor_id' => $doctor->id,
+                    'patient_id' => $patient?->id,
                     'clinic_id' => $clinic->id,
                     'time_slot_id' => $timeSlot->id,
                     'user_id' => auth('web')->id(),
