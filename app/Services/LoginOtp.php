@@ -5,12 +5,15 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use App\\Services\\Sms\\GhasedakSmsGateway;
 use RuntimeException;
 
 class LoginOtp
 {
-    private string $endpoint =
-        'https://gateway.ghasedak.me/rest/api/v1/WebService/SendOtpSMS';
+    public function __construct(
+        private readonly GhasedakSmsGateway $gateway,
+    ) {
+    }
 
     private function otpKey(string $phone): string
     {
@@ -138,52 +141,12 @@ class LoginOtp
         array $inputs,
         string $referenceId
     ): array {
-        $apiKey = config('services.ghasedak.api_key');
-
-        if (!$apiKey) {
-            throw new RuntimeException('کلید API قاصدک تنظیم نشده است.');
-        }
-
-        // Use the host's configured CA bundle; do not depend on a
-        // developer-specific Windows certificate path in production.
-        $response = Http::withOptions([
-            'timeout' => 20,
-        ])->withHeaders([
-                    'ApiKey' => $apiKey,
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
-                ])->post($this->endpoint, [
-                    'sendDate' => null,
-                    'receptors' => [
-                        [
-                            'mobile' => $phone,
-                            'clientReferenceId' => $referenceId,
-                        ],
-                    ],
-                    'templateName' => $templateName,
-                    'inputs' => $inputs,
-                    'isVoice' => false,
-                ]);
-
-        if (!$response->successful()) {
-            throw new RuntimeException(
-                'ارسال پیامک ناموفق بود: ' .
-                $response->status()
-            );
-        }
-
-        $payload = $response->json() ?? [];
-
-        if (
-            is_array($payload) &&
-            array_key_exists('IsSuccess', $payload) &&
-            $payload['IsSuccess'] === false
-        ) {
-            throw new RuntimeException(
-                'ارسال پیامک توسط سرویس‌دهنده تأیید نشد.'
-            );
-        }
-
-        return is_array($payload) ? $payload : [];
+        return $this->gateway->sendTemplate(
+            $phone,
+            $templateName,
+            $inputs,
+            $referenceId
+        );
     }
+
 }
