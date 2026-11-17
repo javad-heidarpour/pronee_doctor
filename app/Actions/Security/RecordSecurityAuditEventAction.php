@@ -23,6 +23,10 @@ class RecordSecurityAuditEventAction
             'clinic_count',
             'permission_count',
             'restored',
+            'sessions_revoked',
+            'role_changed',
+            'status_changed',
+            'password_changed',
         ]));
 
         SecurityAuditLog::create([
