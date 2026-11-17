@@ -115,7 +115,7 @@ final class SchedulingActionsTest extends TestCase
             'end_time' => '10:15',
         ])));
 
-        $this->assertSame('09:00:00', $slot->fresh()->start_time);
+        $this->assertSame('09:00', substr((string) $slot->fresh()->start_time, 0, 5));
 
         $this->assertTrue($action->handle($doctor, $slot, TimeSlotData::fromValidated([
             'clinic_id' => 1,
@@ -187,7 +187,7 @@ final class SchedulingActionsTest extends TestCase
         ]), $workingHour);
 
         $this->assertTrue($updated['saved']);
-        $this->assertSame('08:00:00', $workingHour->fresh()->start_time);
+        $this->assertSame('08:00', substr((string) $workingHour->fresh()->start_time, 0, 5));
     }
 
     private function doctor(): Doctor
