@@ -27,6 +27,7 @@ class RecordSecurityAuditEventAction
             'role_changed',
             'status_changed',
             'password_changed',
+            'reconciliation_status',
         ]));
 
         SecurityAuditLog::create([
