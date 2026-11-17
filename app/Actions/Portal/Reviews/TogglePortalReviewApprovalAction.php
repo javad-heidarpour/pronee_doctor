@@ -1,29 +1,35 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Portal\Reviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
-class TogglePortalReviewApprovalAction
+final class TogglePortalReviewApprovalAction
 {
     public function handle(Doctor $doctor, Review $review): bool
     {
-        abort_unless(
-            (int) $review->doctor_id === (int) $doctor->id,
-            403,
-            'شما به این نظر دسترسی ندارید.'
-        );
+        return DB::transaction(function () use ($doctor, $review): bool {
+            // Scope the locked row through the active doctor to prevent
+            // cross-doctor updates even if a foreign model ID is supplied.
+            $lockedReview = $doctor->reviews()
+                ->whereKey($review->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $approved = !$review->is_approved;
+            $approved = ! (bool) $lockedReview->is_approved;
 
-        $review->update([
-            'is_approved' => $approved,
-            'approved_at' => $approved ? now() : null,
-            'approved_by' => $approved ? Auth::guard('web')->id() : null,
-        ]);
+            $lockedReview->forceFill([
+                'is_approved' => $approved,
+                'approved_at' => $approved ? now() : null,
+                'approved_by' => $approved ? Auth::guard('web')->id() : null,
+            ])->save();
 
-        return $approved;
+            return $approved;
+        });
     }
 }
