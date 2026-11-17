@@ -76,7 +76,7 @@ class SepPaymentService
                     'response_keys' => is_array($result)
                         ? array_keys($result)
                         : [],
-                    'res_num' => $resNum,
+                    'res_num_fingerprint' => hash('sha256', $resNum),
                 ]);
 
                 throw new RuntimeException(
@@ -102,7 +102,6 @@ class SepPaymentService
                 Log::error('SEP rejected token request', [
                     'status' => $result['status'] ?? null,
                     'error_code' => $result['errorCode'] ?? null,
-                    'error_desc' => $result['errorDesc'] ?? null,
                     'res_num' => $resNum,
                 ]);
 
@@ -128,8 +127,7 @@ class SepPaymentService
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             Log::error('SEP connection error', [
-                'message' => $e->getMessage(),
-                'res_num' => $resNum,
+                'res_num_fingerprint' => hash('sha256', $resNum),
             ]);
 
             throw new RuntimeException(
@@ -178,7 +176,7 @@ class SepPaymentService
         if (!$response->successful()) {
             Log::error('SEP verification HTTP error', [
                 'http_status' => $response->status(),
-                'ref_num' => $refNum,
+                'ref_num_fingerprint' => hash('sha256', $refNum),
             ]);
 
             throw new \RuntimeException(
