@@ -1,27 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Portal\DoctorReviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
-class ReplyDoctorReviewAction
+final class ReplyDoctorReviewAction
 {
     public function handle(
         Doctor $doctor,
         Review $review,
         string $doctorReply
-    ) {
-        abort_unless(
-            (int) $review->doctor_id === (int) $doctor->id,
-            403,
-            'شما به این نظر دسترسی ندارید.'
-        );
+    ): RedirectResponse {
+        DB::transaction(function () use ($doctor, $review, $doctorReply): void {
+            $lockedReview = $doctor->reviews()
+                ->whereKey($review->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $review->update([
-            'doctor_reply' => $doctorReply,
-            'doctor_reply_at' => now(),
-        ]);
+            $lockedReview->forceFill([
+                'doctor_reply' => $doctorReply,
+                'doctor_reply_at' => now(),
+            ])->save();
+        });
 
         return back()->with('success', 'پاسخ پزشک ثبت شد.');
     }
