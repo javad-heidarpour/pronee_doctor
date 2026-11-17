@@ -72,9 +72,10 @@ class SepPaymentService
             if (!$response->successful()) {
                 Log::error('SEP token HTTP error', [
                     'http_status' => $response->status(),
-                    'response' => is_array($result)
-                        ? $result
-                        : $response->body(),
+                    'response_type' => get_debug_type($result),
+                    'response_keys' => is_array($result)
+                        ? array_keys($result)
+                        : [],
                     'res_num' => $resNum,
                 ]);
 
@@ -85,7 +86,7 @@ class SepPaymentService
 
             if (!is_array($result)) {
                 Log::error('SEP token response is not valid JSON', [
-                    'response' => $response->body(),
+                    'response_type' => 'non_json',
                     'res_num' => $resNum,
                 ]);
 
