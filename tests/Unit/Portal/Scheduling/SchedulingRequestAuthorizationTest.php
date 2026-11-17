@@ -56,21 +56,15 @@ final class SchedulingRequestAuthorizationTest extends TestCase
 
         try {
             $request = new UpdateTimeSlotRequest();
-            $rules = $request->rules();
+            $dateRules = ['date' => $request->rules()['date']];
 
             $pastDate = Validator::make([
-                'clinic_id' => 1,
                 'date' => '2026-11-16',
-                'start_time' => '09:00',
-                'end_time' => '09:30',
-            ], $rules);
+            ], $dateRules);
 
             $today = Validator::make([
-                'clinic_id' => 1,
                 'date' => '2026-11-17',
-                'start_time' => '09:00',
-                'end_time' => '09:30',
-            ], $rules);
+            ], $dateRules);
 
             $this->assertTrue($pastDate->fails());
             $this->assertFalse($today->fails());
