@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Actions\Home\BookAppointmentAction;
 use App\Actions\Home\ListActiveDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\DTOs\Home\BookAppointmentData;
 use App\Http\Requests\BookAppointmentRequest;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -31,13 +33,19 @@ class HomeController extends Controller
         }
     }
 
-    /**
-     * ثبت نوبت
-     */
     public function bookAppointment(
         BookAppointmentRequest $request,
         BookAppointmentAction $action
-    ) {
-        return $action->handle($request);
+    ): RedirectResponse {
+        $appointment = $action->handle(
+            BookAppointmentData::fromValidated($request->validated())
+        );
+
+        return back()->with([
+            'success' => true,
+            'message' => 'نوبت با موفقیت ثبت شد.',
+            'appointment_id' => $appointment->id,
+            'fee_rial' => $appointment->fee_rial,
+        ]);
     }
 }
