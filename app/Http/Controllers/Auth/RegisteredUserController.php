@@ -23,9 +23,8 @@ class RegisteredUserController extends Controller
         RegisterPublicUserRequest $request,
         RegisterPublicUserAction $action
     ): RedirectResponse {
-        $action->handle(
-            RegisterPublicUserData::fromValidated($request->validated())
-        );
+        $data = RegisterPublicUserData::fromValidated($request->validated());
+        $action->handle($data);
 
         return redirect()->route('dashboard', absolute: false);
     }
