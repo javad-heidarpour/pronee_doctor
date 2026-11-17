@@ -15,7 +15,7 @@ class RegistrationTest extends TestCase
         $this->get('/register')->assertOk();
     }
 
-    public function test_public_registration_creates_a_least_privilege_patient_account(): void
+    public function test_public_registration_creates_a_least_privilege_user_account(): void
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
