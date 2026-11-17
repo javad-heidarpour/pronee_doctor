@@ -18,7 +18,7 @@ class UpdateTimeSlotRequest extends FormRequest
     {
         return [
             'clinic_id' => ['required', 'exists:addresses,id'],
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ];
