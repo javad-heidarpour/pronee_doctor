@@ -14,7 +14,7 @@ class ListPaymentsRequiringReviewAction
     public function handle(array $filters = []): LengthAwarePaginator
     {
         return AppointmentPayment::query()
-            ->with(['appointment:id,patient_name,appointment_date,appointment_time,doctor_id,clinic_id,status'])
+            ->with(['appointment:id,appointment_date,appointment_time,doctor_id,clinic_id,status'])
             ->whereIn('status', ['pending', 'initiated'])
             ->where(function ($query) {
                 $query->where('gateway_result_code', 'REVIEW_REQUIRED')
@@ -57,7 +57,6 @@ class ListPaymentsRequiringReviewAction
                 'updated_at' => $payment->updated_at?->toIso8601String(),
                 'appointment' => $payment->appointment ? [
                     'id' => $payment->appointment->id,
-                    'patient_name' => $payment->appointment->patient_name,
                     'appointment_date' => $payment->appointment->appointment_date,
                     'appointment_time' => $payment->appointment->appointment_time,
                     'doctor_id' => $payment->appointment->doctor_id,
