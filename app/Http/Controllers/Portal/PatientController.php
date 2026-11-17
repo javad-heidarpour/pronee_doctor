@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
 use App\Actions\Portal\Appointment\ExportPortalAppointmentsAction;
 use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
@@ -55,16 +56,23 @@ class PatientController extends Controller
 
     public function export(
         ListPortalAppointmentsRequest $request,
-        ExportPortalAppointmentsAction $action
+        ExportPortalAppointmentsAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('appointments.view', $doctor);
 
-        return $action->handle(
+        $response = $action->handle(
             $doctor,
             $this->accessibleClinicIds($doctor),
             $request->validated()
         );
+
+        $audit->handle('appointments.exported', null, [
+            'doctor_id' => $doctor->id,
+        ]);
+
+        return $response;
     }
 
     /**
@@ -112,7 +120,8 @@ class PatientController extends Controller
 
     public function show(
         Appointment $appointment,
-        LoadPortalAppointmentDetailsAction $action
+        LoadPortalAppointmentDetailsAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $this->authorizeAppointment($appointment);
 
@@ -120,6 +129,10 @@ class PatientController extends Controller
         $this->authorizeSecretaryPermission('patients.view', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $appointment = $action->handle($appointment, $clinicIds);
+
+        $audit->handle('appointment.viewed', $appointment, [
+            'doctor_id' => $doctor->id,
+        ]);
 
         return Inertia::render('Portal/Patients/Show', [
             'doctor' => $doctor,
