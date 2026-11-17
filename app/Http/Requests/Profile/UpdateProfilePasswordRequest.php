@@ -9,8 +9,11 @@ class UpdateProfilePasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth('web')->check()
-            && auth('web')->user()?->doctorProfile !== null;
+        $user = $this->user('web');
+
+        return $user !== null
+            && $user->isDoctor()
+            && $user->doctorProfile !== null;
     }
 
     public function rules(): array
