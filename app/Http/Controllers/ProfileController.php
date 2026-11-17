@@ -9,6 +9,7 @@ use App\Actions\Portal\Profile\EditProfileAction;
 use App\Actions\Portal\Profile\UpdateProfileAction;
 
 use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
+use App\Models\User;
 use App\Http\Requests\Profile\DeleteProfileRequest;
 use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
@@ -38,7 +39,7 @@ class ProfileController extends Controller
     ) {
         $user = $request->user('web');
 
-        abort_unless($user instanceof \\App\\Models\\User, 401);
+        abort_unless($user instanceof User, 401);
 
         $changed = $action->handle(
             $user,
