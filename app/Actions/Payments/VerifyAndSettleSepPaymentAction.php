@@ -202,7 +202,7 @@ class VerifyAndSettleSepPaymentAction
 
             $lockedPayment->update([
                 'status' => 'paid',
-                'ref_num_fingerprint' => hash('sha256', $refNum),
+                'ref_num' => $refNum,
                 'terminal_id' => $terminalId,
                 'gateway_result_code' => (string) $resultCode,
                 'gateway_result_message' => $resultMessage !== ''

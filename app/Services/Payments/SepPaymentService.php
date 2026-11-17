@@ -102,7 +102,7 @@ class SepPaymentService
                 Log::error('SEP rejected token request', [
                     'status' => $result['status'] ?? null,
                     'error_code' => $result['errorCode'] ?? null,
-                    'res_num' => $resNum,
+                    'res_num_fingerprint' => hash('sha256', $resNum),
                 ]);
 
                 throw new RuntimeException(
@@ -203,7 +203,7 @@ class SepPaymentService
         $detail = $result['TransactionDetail'] ?? [];
 
         Log::info('SEP VERIFY RESPONSE STRUCTURE', [
-            'ref_num' => $refNum,
+            'ref_num_fingerprint' => hash('sha256', $refNum),
             'result_code' => $result['ResultCode'] ?? null,
             'success' => $result['Success'] ?? null,
             'response_keys' => array_keys($result),
