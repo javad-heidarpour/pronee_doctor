@@ -67,6 +67,10 @@ const metadataLabel = (metadata = {}) => {
   if (typeof metadata.clinic_count === "number") parts.push("تعداد مطب: " + metadata.clinic_count);
   if (typeof metadata.permission_count === "number") parts.push("تعداد مجوز: " + metadata.permission_count);
   if (typeof metadata.restored === "boolean") parts.push(metadata.restored ? "بازیابی" : "حذف");
+  if (metadata.role_changed) parts.push("نقش تغییر کرده");
+  if (metadata.status_changed) parts.push("وضعیت تغییر کرده");
+  if (metadata.password_changed) parts.push("رمز عبور تغییر کرده");
+  if (metadata.sessions_revoked) parts.push("نشست‌های قبلی باطل شدند");
   return parts.join(" · ") || "—";
 };
 </script>
