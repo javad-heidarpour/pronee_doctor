@@ -55,6 +55,16 @@ class InitiateAppointmentPaymentAction
                 return ['type' => 'paid'];
             }
 
+            // A stale attempt marked for manual reconciliation must not
+            // request another SEP token: the previous gateway result is unknown.
+            if ($payments->contains(
+                fn ($item) => $item->gateway_result_code === 'REVIEW_REQUIRED'
+            )) {
+                throw new RuntimeException(
+                    'وضعیت پرداخت قبلی نیازمند بررسی است؛ لطفاً برای پیگیری با مطب تماس بگیرید.'
+                );
+            }
+
             $amount = (int) $lockedAppointment->fee_rial;
 
             if ($amount <= 0) {
