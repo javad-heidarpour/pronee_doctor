@@ -6,12 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+# CI must never mutate the repository or its dependency lockfiles.
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Backend and frontend quality
+  backend:
+    name: Backend validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,27 +28,22 @@ jobs:
           php-version: '8.3'
           extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, mbstring, openssl, pdo, pdo_sqlite, session, tokenizer, xml
           coverage: none
+          tools: composer:v2
 
-      - name: Validate Composer manifest
+      - name: Validate Composer manifest and lockfile
         run: composer validate --no-check-publish
 
-      - name: Update compatible PHP dependencies
-        run: composer update --with-all-dependencies --no-interaction --prefer-dist --no-progress
+      # Install exactly the versions committed in composer.lock.
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
+
+      - name: Audit PHP dependencies
+        run: composer audit --locked --no-interaction
 
       - name: Prepare Laravel test environment
         run: |
-          if [ ! -f .env ]; then cp .env.example .env; fi
+          cp .env.example .env
           php artisan key:generate --force
-
-      - name: Audit PHP dependencies
-        run: composer audit --locked --no-interaction || true
-
-      - name: Upload updated Composer lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: audited-composer-lock
-          path: composer.lock
-          if-no-files-found: error
 
       - name: Check PHP syntax
         shell: bash
@@ -58,8 +58,18 @@ jobs:
       - name: Validate registered routes
         run: php artisan route:list --except-vendor
 
-      - name: Run isolated unit tests
+      # Feature tests use RefreshDatabase. The repository currently lacks the
+      # foundational schema migrations (users/doctors/addresses/etc.); do not
+      # report those tests as passing until that schema is versioned.
+      - name: Run unit tests
         run: php artisan test --testsuite=Unit
+
+  frontend:
+    name: Frontend validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -67,38 +77,12 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Apply compatible npm security updates
-        run: npm audit fix --package-lock-only --ignore-scripts --legacy-peer-deps || true
-
+      # Install exactly the versions committed in package-lock.json.
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
       - name: Audit frontend dependencies
-        shell: bash
-        run: |
-          npm audit --json > /tmp/npm-audit.json || true
-          node -e "const report = require('/tmp/npm-audit.json'); console.log('Dependency vulnerability summary:', JSON.stringify(report.metadata?.vulnerabilities ?? {}, null, 2)); for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) console.log(name + ': ' + item.severity + '; fix=' + JSON.stringify(item.fixAvailable));"
-
-      - name: Upload audited dependency lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: audited-package-lock
-          path: package-lock.json
-          if-no-files-found: error
+        run: npm audit --audit-level=high
 
       - name: Build frontend
         run: npm run build
-
-      - name: Commit verified dependency lockfile updates
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        shell: bash
-        run: |
-          if git diff --quiet -- package-lock.json composer.lock; then
-            echo "No dependency lockfile changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json composer.lock
-          git commit -m "fix(deps): apply compatible Composer and npm security updates"
-          git push
