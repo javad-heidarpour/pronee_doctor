@@ -24,7 +24,7 @@ class LoginOtpTest extends TestCase
         $phone = '09120000000';
         $code = null;
 
-        $gateway = Mockery::mock(GhasedakSmsGateway::class);
+        $gateway = Mockery::mock(SmsGateway::class);
         $gateway->shouldReceive('sendTemplate')
             ->once()
             ->withArgs(function ($target, $template, $inputs, $reference) use ($phone, &$code): bool {
@@ -38,7 +38,7 @@ class LoginOtpTest extends TestCase
             })
             ->andReturn([]);
 
-        $this->app->instance(GhasedakSmsGateway::class, $gateway);
+        $this->app->instance(SmsGateway::class, $gateway);
 
         $otp = app(LoginOtp::class);
         $otp->send($phone);
@@ -49,10 +49,10 @@ class LoginOtpTest extends TestCase
 
     public function test_otp_resend_is_rate_limited(): void
     {
-        $gateway = Mockery::mock(GhasedakSmsGateway::class);
+        $gateway = Mockery::mock(SmsGateway::class);
         $gateway->shouldReceive('sendTemplate')->once()->andReturn([]);
 
-        $this->app->instance(GhasedakSmsGateway::class, $gateway);
+        $this->app->instance(SmsGateway::class, $gateway);
 
         $otp = app(LoginOtp::class);
         $otp->send('09120000001');
