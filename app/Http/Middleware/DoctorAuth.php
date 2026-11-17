@@ -79,11 +79,17 @@ class DoctorAuth
             ->where('doctors.id', $doctorId)
             ->first();
 
-        abort_unless(
-            $assignment,
-            403,
-            'به پرونده پزشک انتخاب‌شده دسترسی ندارید.'
-        );
+        if (! $assignment) {
+            // ممکن است پزشک انتخاب‌شده غیرفعال یا تخصیص منشی حذف شده باشد.
+            // شناسه قدیمی نباید باعث قفل شدن پنل یا دسترسی به پزشک قبلی شود.
+            session()->forget('active_doctor_id');
+
+            return redirect()
+                ->route('portal.dashboard')
+                ->withErrors([
+                    'doctor' => 'دسترسی قبلی شما تغییر کرده است؛ لطفاً پزشک فعال را دوباره انتخاب کنید.',
+                ]);
+        }
 
         $routeName = (string) $request->route()?->getName();
 
