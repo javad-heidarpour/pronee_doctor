@@ -37,6 +37,12 @@ jobs:
           find app bootstrap config database routes tests -type f -name '*.php' -print0 |
             xargs -0 -n1 php -l
 
+      - name: Validate PSR-4 autoloading
+        run: composer dump-autoload --optimize --strict-psr
+
+      - name: Validate registered routes
+        run: php artisan route:list --except-vendor
+
       - name: Run isolated unit tests
         run: php artisan test --testsuite=Unit
 
