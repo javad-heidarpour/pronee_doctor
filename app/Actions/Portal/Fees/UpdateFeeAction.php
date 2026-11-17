@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\DB;
 
 class UpdateFeeAction
 {
+    public function __construct(
+        private readonly UpdateUnpaidAppointmentsFeeAction $updateUnpaidAppointmentsFee,
+    ) {
+    }
+
     /**
      * تعرفه‌ی جدید را ثبت می‌کند.
      *
@@ -50,7 +55,7 @@ class UpdateFeeAction
                 'created_by' => $doctorId,
             ]);
 
-            Appointment::updateUnpaidAppointmentsFee($newFee, $doctorId);
+            $this->updateUnpaidAppointmentsFee->handle($newFee, $doctorId);
 
             return true;
         });
