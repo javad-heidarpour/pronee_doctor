@@ -11,6 +11,8 @@ class ListManagedUserPermissionsAction
             'appointments.manage' => 'مدیریت نوبت‌ها',
             'patients.view' => 'مشاهده بیماران',
             'patients.manage' => 'مدیریت بیماران',
+            'patients.clinical.view' => 'مشاهده اطلاعات پزشکی محرمانه',
+            'patients.clinical.manage' => 'ثبت و ویرایش اطلاعات پزشکی',
             'clinics.view' => 'مشاهده مطب‌ها',
             'shifts.view' => 'مشاهده شیفت‌ها',
             'shifts.manage' => 'مدیریت شیفت‌ها',
