@@ -96,7 +96,10 @@ class ExpirePendingAppointments extends Command
                             // reconciled; flag the payment for operator review.
                             AppointmentPayment::query()
                                 ->whereIn('id', $stalePaymentIds)
-                                ->where('gateway_result_code', '<>', 'REVIEW_REQUIRED')
+                                ->where(function ($query) {
+                                    $query->whereNull('gateway_result_code')
+                                        ->orWhere('gateway_result_code', '<>', 'REVIEW_REQUIRED');
+                                })
                                 ->update([
                                     'gateway_result_code' => 'REVIEW_REQUIRED',
                                     'gateway_result_message' =>
