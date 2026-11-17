@@ -20,7 +20,11 @@ class PasswordController extends Controller
 
         abort_unless($user instanceof \App\Models\User, 401);
 
-        $action->handle($user, $request->string('password')->toString());
+        $action->handle(
+            $user,
+            $request->string('password')->toString(),
+            $request->session()->getId()
+        );
 
         return back();
     }
