@@ -29,6 +29,9 @@ const eventLabels = {
   "auth.logout": "خروج از پنل",
   "auth.login_rejected": "ورود ردشده به پنل",
   "security.session_revoked": "خاتمه نشست دیگر",
+  "appointment.created": "ثبت نوبت جدید",
+  "appointment.updated": "ویرایش نوبت",
+  "appointment.deleted": "حذف نوبت",
 };
 
 const applyFilters = () => {
@@ -71,6 +74,21 @@ const metadataLabel = (metadata = {}) => {
   if (metadata.status_changed) parts.push("وضعیت تغییر کرده");
   if (metadata.password_changed) parts.push("رمز عبور تغییر کرده");
   if (metadata.sessions_revoked) parts.push("نشست‌های قبلی باطل شدند");
+  const fieldLabels = {
+    status: "وضعیت",
+    doctor_id: "پزشک",
+    clinic_id: "مطب",
+    time_slot_id: "ساعت نوبت",
+    appointment_date: "تاریخ نوبت",
+    appointment_time: "زمان نوبت",
+    fee_rial: "هزینه",
+    visit_reason_id: "علت مراجعه",
+    surgery_type_id: "نوع عمل",
+    surgery_date: "تاریخ عمل",
+  };
+  if (Array.isArray(metadata.changed_fields) && metadata.changed_fields.length) {
+    parts.push("فیلدهای تغییرکرده: " + metadata.changed_fields.map((field) => fieldLabels[field] || field).join("، "));
+  }
   return parts.join(" · ") || "—";
 };
 </script>
@@ -82,7 +100,7 @@ const metadataLabel = (metadata = {}) => {
       <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 class="text-xl font-black text-slate-900 sm:text-2xl">گزارش ممیزی امنیتی</h1>
-          <p class="mt-2 text-sm text-slate-500">ردیابی تغییرات حساس حساب‌ها و دسترسی‌ها</p>
+          <p class="mt-2 text-sm text-slate-500">ثبت رویدادهای ورود، دسترسی‌ها و تغییرات نوبت‌ها؛ بدون ذخیره اطلاعات شخصی بیمار</p>
         </div>
         <span class="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">
           {{ logs.total ?? 0 }} رویداد ثبت‌شده
