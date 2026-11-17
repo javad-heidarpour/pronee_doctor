@@ -19,6 +19,7 @@ Route::prefix('payment')->name('payment.')->controller(AppointmentPaymentControl
     // شروع پرداخت نوبت از مسیر پرداخت
     Route::post('/{visit_number}/pay', 'pay')
         ->whereNumber('visit_number')
+        ->middleware('throttle:5,1')
         ->name('pay');
 
     // بازگشت از درگاه سامان‌کیش (GET و POST)
