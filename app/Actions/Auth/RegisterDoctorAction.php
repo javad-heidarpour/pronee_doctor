@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Auth;
 
+use App\DTOs\Auth\RegisterDoctorData;
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -12,16 +13,14 @@ use Illuminate\Support\Facades\DB;
 final class RegisterDoctorAction
 {
     public function handle(
-        array $data,
-        string $phone,
+        RegisterDoctorData $data,
         string $registrationToken,
         string $temporaryPassword
     ): ?Doctor {
         $tokenKey = $this->registrationTokenKey($registrationToken);
 
-        // Serialize registrations for the same phone as well as token consumption.
         $phoneLock = Cache::lock(
-            'doctor-registration-phone:' . hash('sha256', $phone),
+            'doctor-registration-phone:' . hash('sha256', $data->phone),
             120
         );
 
@@ -43,25 +42,25 @@ final class RegisterDoctorAction
         try {
             $verifiedPhone = Cache::get($tokenKey);
 
-            if (! $verifiedPhone || ! hash_equals((string) $verifiedPhone, $phone)) {
+            if (! $verifiedPhone || ! hash_equals((string) $verifiedPhone, $data->phone)) {
                 return null;
             }
 
-            if (User::query()->where('phone', $phone)->exists()) {
+            if (User::query()->where('phone', $data->phone)->exists()) {
                 Cache::forget($tokenKey);
 
                 return null;
             }
 
-            $doctor = DB::transaction(function () use ($data, $phone, $temporaryPassword): Doctor {
+            $doctor = DB::transaction(function () use ($data, $temporaryPassword): Doctor {
                 $user = new User();
 
                 $user->forceFill([
-                    'name' => $data['name'],
-                    'family' => $data['family'],
-                    'username' => $phone,
-                    'email' => $data['email'] ?? null,
-                    'phone' => $phone,
+                    'name' => $data->name,
+                    'family' => $data->family,
+                    'username' => $data->phone,
+                    'email' => $data->email,
+                    'phone' => $data->phone,
                     'password' => $temporaryPassword,
                     'role' => 'doctor',
                     'is_active' => true,
@@ -74,14 +73,14 @@ final class RegisterDoctorAction
 
                 $doctor->forceFill([
                     'user_id' => $user->id,
-                    'city_id' => $data['city_id'],
-                    'specialty_id' => $data['specialty_id'],
-                    'name' => $data['name'],
-                    'family' => $data['family'],
-                    'slug' => $data['slug'],
-                    'email' => $data['email'] ?? null,
-                    'phone' => $phone,
-                    'Medical_system_number' => $data['medical_system_number'] ?? null,
+                    'city_id' => $data->cityId,
+                    'specialty_id' => $data->specialtyId,
+                    'name' => $data->name,
+                    'family' => $data->family,
+                    'slug' => $data->slug,
+                    'email' => $data->email,
+                    'phone' => $data->phone,
+                    'Medical_system_number' => $data->medicalSystemNumber,
                     'is_active' => true,
                     'registration_status' => 'approved',
                     'approved_at' => now(),
