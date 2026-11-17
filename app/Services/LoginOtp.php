@@ -4,13 +4,13 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use App\Services\Sms\GhasedakSmsGateway;
+use App\Contracts\Sms\SmsGateway;
 use RuntimeException;
 
 class LoginOtp
 {
     public function __construct(
-        private readonly GhasedakSmsGateway $gateway,
+        private readonly SmsGateway $gateway,
     ) {
     }
 
