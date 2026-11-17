@@ -190,13 +190,14 @@
 
               <!-- Email -->
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2"
-                  >ایمیل</label
-                >
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  ایمیل <span class="text-red-500">*</span>
+                </label>
 
                 <input
                   v-model.trim="form.email"
                   type="email"
+                  required
                   dir="ltr"
                   class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 text-sm text-left disabled:bg-gray-100"
                   placeholder="doctor@example.com"
@@ -627,7 +628,10 @@ const validateForm = () => {
     valid = false;
   }
 
-  if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+  if (!form.email.trim()) {
+    errors.email = "ایمیل را وارد کنید.";
+    valid = false;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
     errors.email = "ایمیل معتبر نیست.";
     valid = false;
   }
