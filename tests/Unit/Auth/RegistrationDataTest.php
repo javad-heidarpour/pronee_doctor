@@ -31,13 +31,14 @@ class RegistrationDataTest extends TestCase
             'city_id' => '2',
             'specialty_id' => '4',
             'slug' => 'javad-test',
-            'email' => 'doctor@example.com',
+            'email' => 'DOCTOR@EXAMPLE.COM',
             'medical_system_number' => '001234',
         ], '09120000000');
 
         $this->assertSame(2, $data->cityId);
         $this->assertSame(4, $data->specialtyId);
         $this->assertSame('09120000000', $data->phone);
+        $this->assertSame('doctor@example.com', $data->email);
         $this->assertSame('001234', $data->medicalSystemNumber);
     }
 }
