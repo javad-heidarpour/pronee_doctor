@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watch } from "vue";
 import { Head, useForm, usePage } from "@inertiajs/vue3";
-import numberToPersianWords from "@/Utils/numberToPersianWords";
+import numberToPersianWords from "@/utils/numberToPersianWords";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 
 const props = defineProps({
