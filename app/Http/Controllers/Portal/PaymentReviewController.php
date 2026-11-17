@@ -8,7 +8,7 @@ use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\AppointmentPayment;
 use RuntimeException;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\Portal\ListPaymentReviewRequest;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,7 +36,7 @@ class PaymentReviewController extends Controller
                 'reconciliation_status' => 'rejected',
             ]);
 
-            return back()->with('error', $exception->getMessage());
+            return back()->with('error', 'استعلام پرداخت انجام نشد یا اطلاعات کافی برای بررسی وجود ندارد. وضعیت پرداخت بدون تغییر باقی ماند.');
         }
 
         $audit->handle('payments.reconciliation.checked', $payment, [
@@ -59,17 +59,10 @@ class PaymentReviewController extends Controller
     }
 
     public function index(
-        Request $request,
+        ListPaymentReviewRequest $request,
         ListPaymentsRequiringReviewAction $action
     ): Response {
-        abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
-
-        $filters = $request->validate([
-            'search' => ['nullable', 'string', 'max:100'],
-            'gateway' => ['nullable', 'in:sep'],
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-        ]);
+        $filters = $request->validated();
 
         return Inertia::render('Portal/Payments/ReviewQueue', [
             'payments' => $action->handle($filters),
@@ -80,5 +73,4 @@ class PaymentReviewController extends Controller
                 'to' => $filters['to'] ?? '',
             ],
         ]);
-    }
-}
+    }}
