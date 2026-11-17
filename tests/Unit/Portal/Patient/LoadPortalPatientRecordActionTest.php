@@ -52,9 +52,19 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patients', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
+            $table->string('phone', 45)->nullable();
+            $table->string('national_code', 20)->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('appointments', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('patient_id')->nullable();
             $table->unsignedBigInteger('clinic_id');
             $table->unsignedBigInteger('time_slot_id')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
@@ -104,6 +114,36 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         $this->visit($doctor, 10, '2026-11-11', '09:00', [
             'patient_national_code' => null,
             'patient_phone' => '09129999999',
+        ]);
+
+        $visits = app(LoadPortalPatientRecordAction::class)->handle($reference, [10]);
+
+        $this->assertSame([$reference->id, $matching->id], $visits->pluck('id')->all());
+    }
+
+    public function test_it_prefers_the_stable_patient_id_when_loading_a_patient_timeline(): void
+    {
+        $doctor = $this->doctor('doctor-stable-patient');
+        $patient = \App\Models\Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Updated Patient Name',
+            'phone' => '09129999999',
+            'national_code' => '0012345678',
+        ]);
+
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => $patient->id,
+            'patient_phone' => '09120000000',
+        ]);
+        $matching = $this->visit($doctor, 10, '2026-11-10', '09:00', [
+            'patient_id' => $patient->id,
+            'patient_phone' => '09128888888',
+            'patient_national_code' => null,
+        ]);
+        $this->visit($doctor, 10, '2026-11-11', '09:00', [
+            'patient_id' => null,
+            'patient_phone' => '09120000000',
+            'patient_national_code' => '0012345678',
         ]);
 
         $visits = app(LoadPortalPatientRecordAction::class)->handle($reference, [10]);
