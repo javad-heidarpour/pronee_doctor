@@ -48,22 +48,6 @@ class Appointment extends Model
 
 
 
-    public static function updateUnpaidAppointmentsFee(
-        int $newFee,
-        int $doctorId
-    ): int {
-        return self::query()
-            ->where('doctor_id', $doctorId)
-            ->where('status', 'pending')
-            // پرداخت‌های در حال انجام یا موفق نباید با تعرفه جدید دست‌کاری شوند.
-            ->whereDoesntHave('payments', function ($query) {
-                $query->whereIn('status', ['pending', 'initiated', 'paid']);
-            })
-            ->update([
-                'fee_rial' => $newFee,
-            ]);
-    }
-
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(Doctor::class);
