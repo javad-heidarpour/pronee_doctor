@@ -6,8 +6,8 @@ use App\Actions\Payments\ListPaymentsRequiringReviewAction;
 use App\Actions\Payments\ReconcileKnownSepPaymentAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\AppointmentPayment;
-use RuntimeException;
 use App\Http\Controllers\Controller;
+use RuntimeException;
 use App\Http\Requests\Portal\ListPaymentReviewRequest;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -31,7 +31,7 @@ class PaymentReviewController extends Controller
 
         try {
             $result = $action->handle($payment);
-        } catch (RuntimeException $exception) {
+        } catch (RuntimeException) {
             $audit->handle('payments.reconciliation.rejected', $payment, [
                 'reconciliation_status' => 'rejected',
             ]);
@@ -73,4 +73,5 @@ class PaymentReviewController extends Controller
                 'to' => $filters['to'] ?? '',
             ],
         ]);
-    }}
+    }
+}
