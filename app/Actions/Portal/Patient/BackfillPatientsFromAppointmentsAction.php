@@ -41,21 +41,23 @@ final class BackfillPatientsFromAppointmentsAction
                     }
 
                     DB::transaction(function () use ($appointment, &$stats, $phone, $nationalCode): void {
+                        // Keep the same lock order as booking: doctor, then appointment.
+                        $doctor = Doctor::query()
+                            ->whereKey($appointment->doctor_id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$doctor) {
+                            $stats['skipped']++;
+                            return;
+                        }
+
                         $lockedAppointment = Appointment::query()
                             ->whereKey($appointment->id)
                             ->lockForUpdate()
                             ->first();
 
                         if (!$lockedAppointment || $lockedAppointment->patient_id !== null) {
-                            $stats['skipped']++;
-                            return;
-                        }
-
-                        $doctor = Doctor::query()
-                            ->whereKey($lockedAppointment->doctor_id)
-                            ->first();
-
-                        if (!$doctor) {
                             $stats['skipped']++;
                             return;
                         }
