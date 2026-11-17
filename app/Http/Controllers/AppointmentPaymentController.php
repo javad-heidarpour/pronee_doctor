@@ -95,8 +95,14 @@ class AppointmentPaymentController extends Controller
         $payment = null;
         $appointment = null;
 
+        // صفحه ویزیت فقط با امضای موقت قابل مشاهده است؛ callback نیز
+        // باید همان قرارداد امنیتی را رعایت کند.
         $visitRedirect = function (int $appointmentId) {
-            return redirect()->to(url('/visit/' . $appointmentId));
+            return redirect()->to(URL::temporarySignedRoute(
+                'visit.show',
+                now()->addMinutes(30),
+                ['visit_number' => $appointmentId]
+            ));
         };
 
         try {
