@@ -19,6 +19,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
+            'family' => 'Tester',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
@@ -29,7 +30,9 @@ class RegistrationTest extends TestCase
 
         $user = User::query()->where('email', 'test@example.com')->firstOrFail();
 
-        $this->assertSame('patient', $user->role);
+        $this->assertSame('user', $user->role);
+        $this->assertSame('Tester', $user->family);
+        $this->assertNotEmpty($user->username);
         $this->assertTrue($user->is_active);
         $this->assertFalse($user->isAdmin());
         $this->assertFalse($user->isDoctor());
