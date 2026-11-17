@@ -29,9 +29,12 @@ final class ProfileService
 
         abort_unless($doctor !== null, 403);
 
+        $user = $request->user('web');
+
         return Inertia::render('Portal/Profile', [
             'doctor' => $doctor,
-            'mustVerifyEmail' => $doctor instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail
+                && ! $user->hasVerifiedEmail(),
             'status' => session('status'),
         ]);
     }
@@ -39,18 +42,28 @@ final class ProfileService
     public function update(UpdateProfileDto $dto): RedirectResponse
     {
         DB::transaction(function () use ($dto): void {
+            $doctor = $dto->doctor;
+            $emailChanged = $doctor->email !== $dto->email;
             $data = $dto->toArray();
 
-            if ($dto->doctor->email !== $dto->email) {
-                $data['email_verified_at'] = null;
-            }
-
             if ($dto->photo !== null) {
-                $path = $dto->photo->store('doctors', 'public');
-                $data['photo'] = $path;
+                $data['photo'] = $dto->photo->store('doctors', 'public');
             }
 
-            $this->repository->update($dto->doctor, $data);
+            $this->repository->update($doctor, $data);
+
+            // Keep the public doctor profile and the web login identity in sync.
+            $user = $doctor->user;
+
+            if ($user !== null) {
+                $user->forceFill([
+                    'name' => $dto->name,
+                    'family' => $dto->family,
+                    'email' => $dto->email,
+                    'phone' => $dto->phone,
+                    ...($emailChanged ? ['email_verified_at' => null] : []),
+                ])->save();
+            }
         });
 
         return back()->with(
