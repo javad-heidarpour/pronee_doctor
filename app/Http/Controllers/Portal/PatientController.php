@@ -32,7 +32,8 @@ class PatientController extends Controller
 
     public function directory(
         \Illuminate\Http\Request $request,
-        ListPortalPatientsAction $action
+        ListPortalPatientsAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
@@ -41,13 +42,21 @@ class PatientController extends Controller
             'search' => ['nullable', 'string', 'max:150'],
         ]);
 
+        $patients = $action->handle(
+            $doctor,
+            $this->accessibleClinicIds($doctor),
+            $validated['search'] ?? null
+        );
+
+        // The directory exposes patient identifiers, so access itself is auditable.
+        // Search terms and patient identifiers are intentionally excluded from metadata.
+        $audit->handle('patients.directory.viewed', null, [
+            'doctor_id' => $doctor->id,
+        ]);
+
         return Inertia::render('Portal/Patients/Directory', [
             'doctor' => $doctor,
-            'patients' => $action->handle(
-                $doctor,
-                $this->accessibleClinicIds($doctor),
-                $validated['search'] ?? null
-            ),
+            'patients' => $patients,
             'filters' => ['search' => $validated['search'] ?? ''],
         ]);
     }
