@@ -40,6 +40,11 @@ class DoctorAuth
             return $next($request);
         }
 
+        // مدیریت نشست‌ها به انتخاب پزشک یا مجوزهای عملیاتی منشی وابسته نیست.
+        if ($request->routeIs('portal.security.sessions', 'portal.security.sessions.destroy')) {
+            return $next($request);
+        }
+
         // پزشک و مدیر در این مرحله محدودیت دسترسی منشی را ندارند.
         if ($user->role !== 'secretary') {
             return $next($request);
