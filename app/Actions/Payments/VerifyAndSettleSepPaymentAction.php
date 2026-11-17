@@ -41,7 +41,7 @@ class VerifyAndSettleSepPaymentAction
         } catch (RuntimeException $exception) {
             Log::error('SEP invalid verification response', [
                 'payment_id' => $payment->id,
-                'ref_num' => $refNum,
+                'ref_num_fingerprint' => hash('sha256', $refNum),
             ]);
 
             throw $exception;
@@ -56,7 +56,6 @@ class VerifyAndSettleSepPaymentAction
             'ref_num' => $refNum,
             'result_code' => $resultCode,
             'success' => $normalized['success'],
-            'result_message' => $resultMessage,
             'response_keys' => array_keys($verifyResponse),
             'detail_keys' => array_keys($detail),
             'original_amount' => $normalized['verified_amount'],
@@ -73,7 +72,6 @@ class VerifyAndSettleSepPaymentAction
                 'ref_num' => $refNum,
                 'result_code' => $resultCode,
                 'success' => $normalized['success'],
-                'result_message' => $resultMessage,
             ]);
 
             $cancelResult = $cancelFailedAppointment->handle($payment);
@@ -111,10 +109,10 @@ class VerifyAndSettleSepPaymentAction
         ) {
             Log::critical('SEP verified transaction identity mismatch', [
                 'payment_id' => $payment->id,
-                'callback_ref_num' => $refNum,
-                'verified_ref_num' => $verifiedRefNum !== '' ? $verifiedRefNum : null,
-                'callback_terminal' => $callbackTerminal,
-                'verified_terminal' => $verifiedTerminal,
+                'callback_ref_num_fingerprint' => hash('sha256', $refNum),
+                'verified_ref_num_fingerprint' => $verifiedRefNum !== '' ? hash('sha256', $verifiedRefNum) : null,
+                'callback_terminal_fingerprint' => hash('sha256', $callbackTerminal),
+                'verified_terminal_fingerprint' => is_string($verifiedTerminal) || is_int($verifiedTerminal) ? hash('sha256', (string) $verifiedTerminal) : null,
             ]);
 
             return ['status' => 'verification_mismatch'];
