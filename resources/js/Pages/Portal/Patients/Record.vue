@@ -27,7 +27,7 @@
         </div>
       </section>
 
-      <section v-if="patient.id" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section v-if="patient.id && canViewClinicalRecords" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="font-black text-slate-900">اطلاعات پزشکی پرونده</h2>
@@ -36,7 +36,7 @@
           <span class="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">اطلاعات محرمانه</span>
         </div>
 
-        <form @submit.prevent="saveClinicalRecord" class="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+        <form v-if="canManageClinicalRecords" @submit.prevent="saveClinicalRecord" class="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="space-y-1 text-xs font-bold text-slate-600">
               نوع اطلاعات
@@ -111,13 +111,16 @@
                   {{ record.start_date || 'تاریخ شروع ثبت نشده' }} تا {{ record.end_date || 'بدون تاریخ پایان' }}
                 </p>
               </div>
-              <button type="button" @click="editClinicalRecord(record)" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ویرایش</button>
+              <button v-if="canManageClinicalRecords" type="button" @click="editClinicalRecord(record)" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ویرایش</button>
             </div>
           </article>
         </div>
         <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-xs text-slate-500">هنوز اطلاعات پزشکی مستقلی برای این بیمار ثبت نشده است.</p>
       </section>
-      <section v-else class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
+      <section v-else-if="patient.id && !canViewClinicalRecords" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
+        مجوز مشاهده اطلاعات پزشکی محرمانه برای حساب شما فعال نیست.
+      </section>
+      <section v-else-if="!patient.id" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
         برای ثبت اطلاعات پزشکی مستقل، ابتدا نوبت‌های قدیمی را به پرونده‌های بیماران متصل کنید.
       </section>
 
@@ -174,6 +177,8 @@ import PortalLayout from '@/Layouts/PortalLayout.vue';
 const props = defineProps({
   doctor: { type: Object, required: true },
   visits: { type: Array, default: () => [] },
+  canViewClinicalRecords: { type: Boolean, default: false },
+  canManageClinicalRecords: { type: Boolean, default: false },
 });
 
 const patient = computed(() => {
