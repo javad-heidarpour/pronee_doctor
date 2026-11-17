@@ -28,7 +28,7 @@ jobs:
         run: composer validate --no-check-publish
 
       - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-source --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Check PHP syntax
         shell: bash
