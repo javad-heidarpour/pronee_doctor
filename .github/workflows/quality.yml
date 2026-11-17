@@ -95,8 +95,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Audit frontend dependencies
-        run: npm audit --audit-level=high
-
+      # Build before the audit so an upstream advisory cannot hide compile failures.
       - name: Build frontend
         run: npm run build
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
