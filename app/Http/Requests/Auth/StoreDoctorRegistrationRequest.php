@@ -19,7 +19,7 @@ class StoreDoctorRegistrationRequest extends FormRequest
             'family' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'regex:/^09\d{9}$/'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
-            'medical_system_number' => ['nullable', 'integer', 'min:1'],
+            'medical_system_number' => ['nullable', 'string', 'max:50'],
             'specialty_id' => [
                 'required',
                 Rule::exists('specialties', 'id')->where('is_active', 1),
