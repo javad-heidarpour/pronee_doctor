@@ -5,6 +5,8 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Portal\AuthController;
 use App\Http\Controllers\Portal\DashboardController;
 use App\Http\Controllers\Portal\SecurityAuditController;
+use App\Http\Controllers\Portal\PaymentReviewController;
+use App\Http\Controllers\Portal\SecuritySessionsController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
