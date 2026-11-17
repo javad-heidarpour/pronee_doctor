@@ -18,6 +18,10 @@ Route::prefix('appointments')->name('appointments.')->group(function () {
 
 
 Route::prefix('patients')->name('patients.')->group(function () {
+    Route::get('/directory/record/{appointment}', [PatientController::class, 'record'])
+        ->whereNumber('appointment')
+        ->name('directory.record');
+
     Route::get('/directory', [PatientController::class, 'directory'])
         ->name('directory');
 
