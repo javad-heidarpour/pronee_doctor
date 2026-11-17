@@ -30,6 +30,9 @@ class CreatePortalAppointmentAction
         $newVisitReason = trim($data->newVisitReason ?? '');
 
         return DB::transaction(function () use ($data, $doctor, $newVisitReason) {
+            // قفل پزشک، بررسی هم‌زمان نوبت فعال با کد ملی یکسان را سریالی می‌کند.
+            Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
+
             $timeSlot = TimeSlot::query()
                 ->whereKey($data->timeSlotId)
                 ->lockForUpdate()
@@ -45,6 +48,7 @@ class CreatePortalAppointmentAction
             $clinicExists = $doctor->address()
                 ->where('addresses.id', $timeSlot->clinic_id)
                 ->where('addresses.is_active', true)
+                ->lockForUpdate()
                 ->exists();
 
             if (
