@@ -1,23 +1,21 @@
 <?php
 
-namespace App\\Http\\Controllers;
+declare(strict_types=1);
 
-use App\\Actions\\Review\\StoreReviewAction;
-use App\\Http\\Requests\\StoreReviewRequest;
-use App\\Models\\Doctor;
+namespace App\Http\Controllers;
 
-class ReviewController extends Controller
+use App\Actions\Review\StoreReviewAction;
+use App\Http\Requests\StoreReviewRequest;
+use App\Models\Doctor;
+use Illuminate\Http\RedirectResponse;
+
+final class ReviewController extends Controller
 {
-    /**
-     * ثبت نظر بیمار برای پزشک.
-     *
-     * سایر عملیات مدیریت نظر در پنل پزشک و مسیرهای محافظت‌شده انجام می‌شوند.
-     */
     public function store(
         StoreReviewRequest $request,
         Doctor $doctor,
         StoreReviewAction $action
-    ) {
+    ): RedirectResponse {
         return $action->handle($request, $doctor);
     }
 }
