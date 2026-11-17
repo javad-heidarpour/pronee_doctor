@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: PHP syntax and unit checks
+  quality:
+    name: Backend and frontend quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,23 +39,6 @@ jobs:
 
       - name: Run isolated unit tests
         run: php artisan test --testsuite=Unit
-
-  frontend:
-    name: Vue production build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, mbstring, openssl, pdo, pdo_sqlite, session, tokenizer, xml
-          coverage: none
-
-      - name: Install PHP dependencies for Ziggy
-        run: composer install --no-interaction --prefer-source --no-progress
 
       - name: Setup Node
         uses: actions/setup-node@v4
