@@ -239,8 +239,8 @@ const saveClinicalRecord = () => {
   savingClinicalRecord.value = true;
   const payload = { ...clinicalForm };
   const url = editingClinicalRecordId.value
-    ? route('portal.patients.clinical-records.update', [patient.value.id, editingClinicalRecordId.value])
-    : route('portal.patients.clinical-records.store', patient.value.id);
+    ? route('portal.patients.clinical-records.update', { patient: patient.value.id, record: editingClinicalRecordId.value })
+    : route('portal.patients.clinical-records.store', { patient: patient.value.id });
   const options = {
     preserveScroll: true,
     onFinish: () => { savingClinicalRecord.value = false; },
