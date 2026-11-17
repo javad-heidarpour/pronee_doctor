@@ -244,7 +244,7 @@
 
           <Link
             v-if="currentUser.role === 'admin'"
-            :href="route('portal.security.audit-logs')
+            :href="route('portal.security.audit-logs')"
             @click="closeMobileMenu"
             :class="[
               'relative flex items-center gap-3 rounded-xl transition-all duration-200 group',
