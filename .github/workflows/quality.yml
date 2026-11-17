@@ -71,6 +71,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Ziggy's JavaScript entry point is shipped by the Composer package.
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, mbstring, openssl, pdo, pdo_sqlite, session, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Composer dependencies for Ziggy
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
