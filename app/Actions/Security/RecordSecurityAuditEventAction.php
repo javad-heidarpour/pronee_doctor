@@ -28,6 +28,7 @@ class RecordSecurityAuditEventAction
             'status_changed',
             'password_changed',
             'reconciliation_status',
+            'changed_fields',
         ]));
 
         SecurityAuditLog::create([
