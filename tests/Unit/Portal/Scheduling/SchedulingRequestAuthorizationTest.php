@@ -23,7 +23,6 @@ use App\Http\Requests\Portal\AvailableSlotsRequest;
 use App\Http\Requests\Portal\ListDoctorReviewsRequest;
 use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
 use App\Http\Requests\Portal\StorePortalAppointmentRequest;
-use App\Http\Requests\Portal\ReplyDoctorReviewRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
