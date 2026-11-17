@@ -141,7 +141,7 @@ final class BookAppointmentAction
                     ->orderByDesc('id')
                     ->first();
 
-                return Appointment::query()->create([
+                $appointment = Appointment::query()->create([
                     'doctor_id' => $doctor->id,
                     'clinic_id' => $clinic->id,
                     'time_slot_id' => $timeSlot->id,
@@ -157,6 +157,10 @@ final class BookAppointmentAction
                     'reservation_expires_at' => now()->addMinutes(10),
                     'visit_reason_id' => $data->visitReasonId,
                 ]);
+
+                $timeSlot->update(['status' => 'booked']);
+
+                return $appointment;
             });
 
             // The SMS authorization is written only after the database
