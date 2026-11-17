@@ -92,10 +92,23 @@ class ExpirePendingAppointments extends Command
                             ->all();
 
                         if ($stalePaymentIds !== []) {
+                            // Keep the reservation and slot locked until SEP is
+                            // reconciled; flag the payment for operator review.
+                            AppointmentPayment::query()
+                                ->whereIn('id', $stalePaymentIds)
+                                ->where('gateway_result_code', '<>', 'REVIEW_REQUIRED')
+                                ->update([
+                                    'gateway_result_code' => 'REVIEW_REQUIRED',
+                                    'gateway_result_message' =>
+                                        'پرداخت بیش از ۱۵ دقیقه تعیین‌تکلیف نشده است؛ پیش از آزادسازی نوبت، وضعیت تراکنش در سامان‌کیش بررسی شود.',
+                                    'updated_at' => now(),
+                                ]);
+
                             Log::warning('Expired reservation has stale unresolved SEP payment', [
                                 'appointment_id' => $appointment->id,
                                 'payment_ids' => $stalePaymentIds,
                                 'threshold_minutes' => 15,
+                                'action' => 'manual_reconciliation_required',
                             ]);
 
                             return 'stale_waiting';
