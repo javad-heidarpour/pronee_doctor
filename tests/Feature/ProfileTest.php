@@ -16,7 +16,7 @@ class ProfileTest extends TestCase
             ->assertRedirect(route('portal.login'));
     }
 
-    public function test_patient_account_cannot_access_doctor_profile_management(): void
+    public function test_public_user_account_cannot_access_doctor_profile_management(): void
     {
         $patient = User::factory()->create();
 
