@@ -13,7 +13,7 @@ final readonly class RegisterDoctorData
         public int $specialtyId,
         public string $slug,
         public string $phone,
-        public ?string $email,
+        public string $email,
         public ?string $medicalSystemNumber,
     ) {
     }
@@ -27,7 +27,7 @@ final readonly class RegisterDoctorData
             specialtyId: (int) $data['specialty_id'],
             slug: $data['slug'],
             phone: $normalizedPhone,
-            email: $data['email'] ?? null,
+            email: mb_strtolower($data['email']),
             medicalSystemNumber: $data['medical_system_number'] ?? null,
         );
     }
