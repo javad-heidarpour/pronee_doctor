@@ -34,6 +34,7 @@ const eventLabels = {
   "appointment.deleted": "حذف نوبت",
   "appointment.viewed": "مشاهده پرونده نوبت",
   "appointments.exported": "خروجی گرفتن از فهرست نوبت‌ها",
+  "patients.directory.viewed": "مشاهده دفترچه بیماران",
 };
 
 const applyFilters = () => {
