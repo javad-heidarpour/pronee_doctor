@@ -26,6 +26,6 @@ class RegisteredUserController extends Controller
         $data = RegisterPublicUserData::fromValidated($request->validated());
         $action->handle($data);
 
-        return redirect()->route('dashboard', absolute: false);
+        return redirect()->route('home', absolute: false);
     }
 }
