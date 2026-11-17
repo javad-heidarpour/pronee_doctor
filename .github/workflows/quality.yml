@@ -52,6 +52,9 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Apply compatible npm security updates
+        run: npm audit fix --package-lock-only --ignore-scripts --legacy-peer-deps
+
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
@@ -60,6 +63,13 @@ jobs:
         run: |
           npm audit --json > /tmp/npm-audit.json || true
           node -e "const report = require('/tmp/npm-audit.json'); console.log('Dependency vulnerability summary:', JSON.stringify(report.metadata?.vulnerabilities ?? {}, null, 2)); for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) console.log(name + ': ' + item.severity + '; fix=' + JSON.stringify(item.fixAvailable));"
+
+      - name: Upload audited dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: audited-package-lock
+          path: package-lock.json
+          if-no-files-found: error
 
       - name: Build frontend
         run: npm run build
