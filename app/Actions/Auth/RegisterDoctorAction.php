@@ -1,14 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Auth;
 
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
-class RegisterDoctorAction
+final class RegisterDoctorAction
 {
     public function handle(
         array $data,
@@ -18,29 +19,41 @@ class RegisterDoctorAction
     ): ?Doctor {
         $tokenKey = $this->registrationTokenKey($registrationToken);
 
-        // توکن ثبت‌نام فقط یک بار و در یک درخواست هم‌زمان قابل استفاده است.
+        // Serialize registrations for the same phone as well as token consumption.
+        $phoneLock = Cache::lock(
+            'doctor-registration-phone:' . hash('sha256', $phone),
+            120
+        );
+
+        if (! $phoneLock->get()) {
+            return null;
+        }
+
         $registrationLock = Cache::lock(
             'doctor-registration-consume:' . hash('sha256', $registrationToken),
             120
         );
 
-        if (!$registrationLock->get()) {
+        if (! $registrationLock->get()) {
+            $phoneLock->release();
+
             return null;
         }
 
         try {
             $verifiedPhone = Cache::get($tokenKey);
 
-            if (!$verifiedPhone || !hash_equals((string) $verifiedPhone, $phone)) {
+            if (! $verifiedPhone || ! hash_equals((string) $verifiedPhone, $phone)) {
                 return null;
             }
 
-            if (User::where('phone', $phone)->exists()) {
+            if (User::query()->where('phone', $phone)->exists()) {
                 Cache::forget($tokenKey);
+
                 return null;
             }
 
-            $doctor = DB::transaction(function () use ($data, $phone, $temporaryPassword) {
+            $doctor = DB::transaction(function () use ($data, $phone, $temporaryPassword): Doctor {
                 $user = new User();
 
                 $user->forceFill([
@@ -49,9 +62,9 @@ class RegisterDoctorAction
                     'username' => $phone,
                     'email' => $data['email'] ?? null,
                     'phone' => $phone,
-                    'password' => Hash::make($temporaryPassword),
+                    'password' => $temporaryPassword,
                     'role' => 'doctor',
-                    'is_active' => 1,
+                    'is_active' => true,
                     'phone_verified_at' => now(),
                 ]);
 
@@ -69,8 +82,7 @@ class RegisterDoctorAction
                     'email' => $data['email'] ?? null,
                     'phone' => $phone,
                     'Medical_system_number' => $data['medical_system_number'] ?? null,
-                    'role' => 'doctor',
-                    'is_active' => 1,
+                    'is_active' => true,
                     'registration_status' => 'approved',
                     'approved_at' => now(),
                     'trial_started_at' => now(),
@@ -88,13 +100,14 @@ class RegisterDoctorAction
                 ]);
 
                 return $doctor;
-                });
+            });
 
             Cache::forget($tokenKey);
 
             return $doctor;
         } finally {
             $registrationLock->release();
+            $phoneLock->release();
         }
     }
 
