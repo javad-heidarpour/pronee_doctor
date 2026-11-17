@@ -65,7 +65,7 @@ class AppointmentPaymentController extends Controller
             Log::error('APPOINTMENT PAYMENT REQUEST FAILED', [
                 'visit_number' => $appointment->id,
                 'exception_class' => get_class($e),
-                'exception' => $e->getMessage(),
+                // Do not persist provider/client exception messages; they may contain secrets.
             ]);
 
             return $visitUrl()->withErrors([
