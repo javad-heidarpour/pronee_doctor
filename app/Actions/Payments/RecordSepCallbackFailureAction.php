@@ -18,10 +18,9 @@ class RecordSepCallbackFailureAction
     ): void {
         Log::error('SEP callback exception', [
             'payment_id' => $payment?->id,
-            'res_num' => $resNum,
-            'ref_num' => $refNum,
+            'res_num_fingerprint' => $resNum !== '' ? hash('sha256', $resNum) : null,
+            'ref_num_fingerprint' => $refNum !== '' ? hash('sha256', $refNum) : null,
             'exception_class' => get_class($exception),
-            'exception' => $exception->getMessage(),
         ]);
 
         if (! $payment) {
@@ -53,7 +52,7 @@ class RecordSepCallbackFailureAction
         } catch (Throwable $updateException) {
             Log::error('SEP payment error update failed', [
                 'payment_id' => $payment->id,
-                'exception' => $updateException->getMessage(),
+                'exception_class' => get_class($updateException),
             ]);
         }
     }
