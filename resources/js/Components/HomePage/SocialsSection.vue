@@ -33,7 +33,7 @@ import {
   MessageCircle,
 } from "lucide-vue-next";
 
-import Bale from "@/assets/socials/bale.svg";
+import Bale from "@/assets/socials/Bale.svg";
 import Eitta from "@/assets/socials/eitta.svg";
 import roubika from "@/assets/socials/roubika.svg";
 
