@@ -25,9 +25,10 @@ final class ProfileService
 
     public function edit(Request $request): Response
     {
-        $doctor = $request->user('web')?->doctorProfile;
+        $user = $request->user('web');
+        $doctor = $user?->doctorProfile;
 
-        abort_unless($doctor !== null, 403);
+        abort_unless($user?->isDoctor() && $doctor !== null, 403);
 
         $user = $request->user('web');
 
@@ -75,7 +76,14 @@ final class ProfileService
     public function destroy(DeleteProfileDto $dto): RedirectResponse
     {
         DB::transaction(function () use ($dto): void {
+            $user = $dto->doctor->user;
+
             $this->repository->delete($dto->doctor);
+
+            if ($user !== null) {
+                $user->forceFill(['is_active' => false])->save();
+                $user->delete();
+            }
         });
 
         Auth::guard('web')->logout();
