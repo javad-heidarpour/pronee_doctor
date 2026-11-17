@@ -201,8 +201,8 @@ class AppointmentPaymentController extends Controller
 
             if (! $terminalAction->handle($terminalId)) {
                 Log::error('SEP callback terminal mismatch', [
-                    'res_num' => $resNum,
-                    'callback_terminal' => $terminalId,
+                    'res_num_fingerprint' => hash('sha256', $resNum),
+                    'callback_terminal_fingerprint' => hash('sha256', $terminalId),
                 ]);
 
                 return redirect()->route('home')->withErrors([
@@ -220,7 +220,7 @@ class AppointmentPaymentController extends Controller
             if ($lookup['status'] === 'payment_not_found') {
                 Log::error('SEP callback payment not found', [
                     'res_num' => $resNum,
-                    'ref_num' => $refNum,
+                    'ref_num_fingerprint' => hash('sha256', $refNum),
                 ]);
 
                 return redirect()->route('home')->withErrors([
