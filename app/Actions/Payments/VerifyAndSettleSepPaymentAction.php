@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Actions\\Payments;
+namespace App\Actions\Payments;
 
-use App\\Models\\Appointment;
-use App\\Models\\AppointmentPayment;
-use App\\Services\\Payments\\SepPaymentService;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Log;
-use Illuminate\\Support\\Facades\\Schema;
+use App\Models\Appointment;
+use App\Models\AppointmentPayment;
+use App\Services\Payments\SepPaymentService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class VerifyAndSettleSepPaymentAction
