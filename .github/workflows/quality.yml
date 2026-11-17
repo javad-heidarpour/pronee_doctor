@@ -30,6 +30,9 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Audit PHP dependencies
+        run: composer audit --locked --no-interaction || true
+
       - name: Check PHP syntax
         shell: bash
         run: |
