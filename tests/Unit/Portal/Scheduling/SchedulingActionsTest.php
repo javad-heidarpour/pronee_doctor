@@ -152,6 +152,44 @@ final class SchedulingActionsTest extends TestCase
         ])));
     }
 
+    public function test_update_time_slot_rejects_foreign_and_booked_slots(): void
+    {
+        $doctor = $this->doctor();
+        $otherDoctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+
+        $foreignSlot = TimeSlot::query()->create([
+            'doctor_id' => $otherDoctor->id,
+            'clinic_id' => $this->clinic($otherDoctor)->id,
+            'date' => '2026-11-18',
+            'start_time' => '09:00',
+            'end_time' => '09:30',
+            'status' => 'available',
+        ]);
+
+        $bookedSlot = TimeSlot::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'date' => '2026-11-18',
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => 'booked',
+        ]);
+
+        $action = app(UpdateTimeSlotAction::class);
+        $data = TimeSlotData::fromValidated([
+            'clinic_id' => $clinic->id,
+            'date' => '2026-11-18',
+            'start_time' => '11:00',
+            'end_time' => '11:30',
+        ]);
+
+        $this->assertFalse($action->handle($doctor, $foreignSlot, $data));
+        $this->assertFalse($action->handle($doctor, $bookedSlot, $data));
+        $this->assertSame('09:00', substr((string) $foreignSlot->fresh()->start_time, 0, 5));
+        $this->assertSame('10:00', substr((string) $bookedSlot->fresh()->start_time, 0, 5));
+    }
+
     public function test_generate_slots_skips_existing_overlap_and_creates_remaining_slots(): void
     {
         Carbon::setTestNow('2026-11-14 08:00:00');
