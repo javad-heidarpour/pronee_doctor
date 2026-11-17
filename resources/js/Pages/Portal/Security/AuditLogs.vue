@@ -32,6 +32,8 @@ const eventLabels = {
   "appointment.created": "ثبت نوبت جدید",
   "appointment.updated": "ویرایش نوبت",
   "appointment.deleted": "حذف نوبت",
+  "appointment.viewed": "مشاهده پرونده نوبت",
+  "appointments.exported": "خروجی گرفتن از فهرست نوبت‌ها",
 };
 
 const applyFilters = () => {
