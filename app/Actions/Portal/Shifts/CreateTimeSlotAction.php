@@ -2,19 +2,20 @@
 
 namespace App\Actions\Portal\Shifts;
 
+use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
 
 class CreateTimeSlotAction
 {
-    public function handle(Doctor $doctor, array $data): bool
+    public function handle(Doctor $doctor, TimeSlotData $data): bool
     {
         return DB::transaction(function () use ($doctor, $data) {
             Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
 
             $overlap = TimeSlot::query()
-                ->overlapping((int) $doctor->id, $data['date'], $data['start_time'], $data['end_time'])
+                ->overlapping($doctor->id, $data->date, $data->startTime, $data->endTime)
                 ->lockForUpdate()
                 ->exists();
 
@@ -24,10 +25,10 @@ class CreateTimeSlotAction
 
             TimeSlot::create([
                 'doctor_id' => $doctor->id,
-                'clinic_id' => $data['clinic_id'],
-                'date' => $data['date'],
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
+                'clinic_id' => $data->clinicId,
+                'date' => $data->date,
+                'start_time' => $data->startTime,
+                'end_time' => $data->endTime,
                 'status' => 'available',
             ]);
 

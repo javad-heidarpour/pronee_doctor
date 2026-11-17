@@ -7,6 +7,7 @@ use App\Actions\Portal\WorkingHours\DeleteWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ListWorkingHoursAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ToggleWorkingHourAction;
+use App\DTOs\Portal\Scheduling\WorkingHourData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Requests\Portal\ListWorkingHoursRequest;
@@ -28,9 +29,15 @@ class WorkingHourController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('working-hours.view', $doctor);
 
+        $filters = $request->validated();
+
+        if (!empty($filters['clinic_id'])) {
+            $this->authorizeClinic($doctor, (int) $filters['clinic_id']);
+        }
+
         return Inertia::render(
             'Portal/WorkingHours',
-            $action->handle($doctor, $request->validated(), $this->accessibleClinicIds($doctor))
+            $action->handle($doctor, $filters, $this->accessibleClinicIds($doctor))
         );
     }
 
@@ -41,16 +48,15 @@ class WorkingHourController extends Controller
         SaveWorkingHourRequest $request,
         SaveWorkingHourAction $action,
         BuildWorkingHourConflictMessageAction $messageAction
-    )
-    {
+    ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
 
-        $validated = $request->validated();
+        $data = WorkingHourData::fromValidated($request->validated());
 
-        $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
+        $this->authorizeClinic($doctor, $data->clinicId);
 
-        $result = $action->handle($doctor, $validated);
+        $result = $action->handle($doctor, $data);
 
         if (!$result['saved']) {
             return back()
@@ -75,11 +81,11 @@ class WorkingHourController extends Controller
 
         $this->authorizeWorkingHour($workingHour, $doctor);
 
-        $validated = $request->validated();
+        $data = WorkingHourData::fromValidated($request->validated());
 
-        $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
+        $this->authorizeClinic($doctor, $data->clinicId);
 
-        $result = $action->handle($doctor, $validated, $workingHour);
+        $result = $action->handle($doctor, $data, $workingHour);
 
         if (!$result['saved']) {
             return back()
@@ -121,5 +127,4 @@ class WorkingHourController extends Controller
 
         return back()->with('success', __('working_hours.deleted'));
     }
-
 }

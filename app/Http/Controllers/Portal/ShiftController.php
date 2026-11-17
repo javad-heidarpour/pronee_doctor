@@ -8,6 +8,7 @@ use App\Actions\Portal\Shifts\GenerateTimeSlotsAction;
 use App\Actions\Portal\Shifts\ListTimeSlotsAction;
 use App\Actions\Portal\Shifts\ToggleTimeSlotAction;
 use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
+use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
@@ -23,15 +24,20 @@ class ShiftController extends Controller
     use HasActiveDoctor;
     use AuthorizesPortalSchedules;
 
-
     public function index(ListTimeSlotsRequest $request, ListTimeSlotsAction $action)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('shifts.view', $doctor);
 
+        $filters = $request->validated();
+
+        if (!empty($filters['clinic_id'])) {
+            $this->authorizeClinic($doctor, (int) $filters['clinic_id']);
+        }
+
         return Inertia::render(
             'Portal/Shifts/Index',
-            $action->handle($doctor, $request->validated(), $this->accessibleClinicIds($doctor))
+            $action->handle($doctor, $filters, $this->accessibleClinicIds($doctor))
         );
     }
 
@@ -40,11 +46,11 @@ class ShiftController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('shifts.manage', $doctor);
 
-        $validated = $request->validated();
+        $data = TimeSlotData::fromValidated($request->validated());
 
-        $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
+        $this->authorizeClinic($doctor, $data->clinicId);
 
-        if (!$action->handle($doctor, $validated)) {
+        if (!$action->handle($doctor, $data)) {
             return back()->withErrors([
                 'duplicate' => 'این بازه زمانی با یک نوبت دیگر تداخل دارد یا قبلاً ایجاد شده است.',
             ])->withInput();
@@ -68,11 +74,11 @@ class ShiftController extends Controller
             ]);
         }
 
-        $validated = $request->validated();
+        $data = TimeSlotData::fromValidated($request->validated());
 
-        $this->authorizeClinic($doctor, (int) $validated['clinic_id']);
+        $this->authorizeClinic($doctor, $data->clinicId);
 
-        if (!$action->handle($doctor, $slot, $validated)) {
+        if (!$action->handle($doctor, $slot, $data)) {
             return back()->withErrors([
                 'duplicate' => 'این بازه زمانی با نوبت دیگری تداخل دارد یا قابل ویرایش نیست.',
             ]);

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\WorkingHours;
 
+use App\DTOs\Portal\Scheduling\WorkingHourData;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ class SaveWorkingHourAction
      */
     public function handle(
         Doctor $doctor,
-        array $data,
+        WorkingHourData $data,
         ?DoctorWorkingHour $workingHour = null
     ): array {
         return DB::transaction(function () use ($doctor, $data, $workingHour) {
@@ -41,9 +42,9 @@ class SaveWorkingHourAction
 
             $query = DoctorWorkingHour::query()
                 ->where('doctor_id', $doctor->id)
-                ->where('day_of_week', $data['day_of_week'])
-                ->where('start_time', '<', $data['end_time'])
-                ->where('end_time', '>', $data['start_time'])
+                ->where('day_of_week', $data->dayOfWeek)
+                ->where('start_time', '<', $data->endTime)
+                ->where('end_time', '>', $data->startTime)
                 ->with('clinic');
 
             if ($lockedWorkingHour) {
@@ -57,15 +58,11 @@ class SaveWorkingHourAction
             }
 
             if ($lockedWorkingHour) {
-                $lockedWorkingHour->update($data);
+                $lockedWorkingHour->update($data->toArray());
             } else {
                 DoctorWorkingHour::create([
                     'doctor_id' => $doctor->id,
-                    'clinic_id' => $data['clinic_id'],
-                    'day_of_week' => $data['day_of_week'],
-                    'duration_minutes' => $data['duration_minutes'],
-                    'start_time' => $data['start_time'],
-                    'end_time' => $data['end_time'],
+                    ...$data->toArray(),
                     'is_active' => true,
                 ]);
             }
