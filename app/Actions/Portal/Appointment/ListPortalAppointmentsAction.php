@@ -27,6 +27,10 @@ class ListPortalAppointmentsAction
             ->orderByDesc('appointment_date')
             ->orderByDesc('appointment_time');
 
+        if (!empty($filters['clinic_id'])) {
+            $query->where('clinic_id', (int) $filters['clinic_id']);
+        }
+
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }

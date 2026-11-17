@@ -28,6 +28,19 @@
             />
           </div>
 
+          <!-- مطب -->
+          <div>
+            <label class="mb-2 block text-sm font-bold text-gray-700">مطب</label>
+            <SelectInput
+              v-model="filters.clinic_id"
+              :options="clinicOptions"
+              placeholder="همه مطب‌ها"
+              :clearable="true"
+              searchable
+              @keydown.enter.prevent
+            />
+          </div>
+
           <!-- وضعیت پرداخت -->
           <div>
             <label class="mb-2 block text-sm font-bold text-gray-700">
@@ -943,7 +956,7 @@
       <!-- مودال ثبت نوبت -->
       <RegisterNewAppointment
         v-model="showAppointmentBooking"
-        :clinics="$page.props.clinics || []"
+        :clinics="clinics"
         :available-slots="availableSlots"
         :visit-reasons="$page.props.visitReasons || []"
         :loading-slots="loadingSlots"
@@ -999,6 +1012,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  clinics: {
+    type: Array,
+    default: () => [],
+  },
 });
 const isCancelled = (appointment) => {
   return ["cancelled", "canceled"].includes(appointment.status?.toLowerCase());
@@ -1025,9 +1042,15 @@ const filters = ref({
   search: props.filters?.search || "",
   status: props.filters?.status || "",
   payment_status: props.filters?.payment_status || "",
+  clinic_id: props.filters?.clinic_id ? String(props.filters.clinic_id) : "",
   date_from: props.filters?.date_from || "",
   date_to: props.filters?.date_to || "",
 });
+
+const clinicOptions = computed(() => props.clinics.map((clinic) => ({
+  value: String(clinic.id),
+  label: clinic.name,
+})));
 
 const exportFilterParams = computed(() => Object.fromEntries(
   Object.entries(filters.value).filter(([, value]) =>
@@ -1049,6 +1072,7 @@ const resetFilters = () => {
     search: "",
     status: "",
     payment_status: "",
+    clinic_id: "",
     date_from: "",
     date_to: "",
   };

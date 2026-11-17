@@ -20,6 +20,10 @@ final class ExportPortalAppointmentsAction
             ->whereIn('clinic_id', $clinicIds)
             ->with(['clinic', 'visitReason', 'latestPayment']);
 
+        if (!empty($filters['clinic_id'])) {
+            $query->where('clinic_id', (int) $filters['clinic_id']);
+        }
+
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
