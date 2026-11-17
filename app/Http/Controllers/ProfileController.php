@@ -4,39 +4,47 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Actions\Portal\Profile\DeleteProfileAction;
-use App\Actions\Portal\Profile\EditProfileAction;
-use App\Actions\Portal\Profile\UpdateProfileAction;
-
 use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
-use App\Models\User;
+use App\Actions\Portal\Profile\DeleteProfileAction;
+use App\Actions\Portal\Profile\UpdateProfileAction;
 use App\Http\Requests\Profile\DeleteProfileRequest;
 use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
+use App\Models\User;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
-
-
-
-class ProfileController extends Controller
+final class ProfileController extends Controller
 {
     public function __construct(
-
-        private readonly EditProfileAction $editAction,
-
         private readonly UpdateProfileAction $updateAction,
-
         private readonly DeleteProfileAction $deleteAction,
-
     ) {
     }
 
+    public function edit(Request $request): Response
+    {
+        $user = $request->user('web');
+        abort_unless($user instanceof User && $user->isDoctor(), 403);
 
+        $doctor = $user->doctorProfile;
+        abort_unless($doctor !== null, 403);
+
+        return Inertia::render('Portal/Profile', [
+            'doctor' => $doctor,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail
+                && ! $user->hasVerifiedEmail(),
+            'status' => session('status'),
+        ]);
+    }
 
     public function updatePassword(
         UpdateProfilePasswordRequest $request,
         ChangeDoctorPasswordAction $action
-    ) {
+    ): RedirectResponse {
         $user = $request->user('web');
 
         abort_unless($user instanceof User, 401);
@@ -57,17 +65,12 @@ class ProfileController extends Controller
         return back()->with('success', 'رمز عبور حساب کاربری با موفقیت تغییر کرد.');
     }
 
-    public function edit(Request $request)
-    {
-        return $this->editAction->handle($request);
-    }
-
-    public function update(UpdateProfileRequest $request)
+    public function update(UpdateProfileRequest $request): RedirectResponse
     {
         return $this->updateAction->handle($request);
     }
 
-    public function destroy(DeleteProfileRequest $request)
+    public function destroy(DeleteProfileRequest $request): RedirectResponse
     {
         return $this->deleteAction->handle($request);
     }
