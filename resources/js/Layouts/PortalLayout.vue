@@ -412,6 +412,25 @@
               </div>
             </Transition>
 
+            <Transition
+              enter-active-class="transition-all duration-300"
+              enter-from-class="transition-all opacity-0 translate-y-2"
+              leave-active-class="transition-all duration-200"
+              leave-to-class="opacity-0 translate-y-2"
+            >
+              <div
+                v-if="flashNotice.message"
+                class="flex max-w-64 items-center gap-2 rounded-xl border px-3 py-2"
+                :class="flashNotice.type === 'error'
+                  ? 'border-rose-100 bg-rose-50 text-rose-700'
+                  : 'border-sky-100 bg-sky-50 text-sky-700'"
+                role="status"
+                aria-live="polite"
+              >
+                <span class="text-xs font-medium">{{ flashNotice.message }}</span>
+              </div>
+            </Transition>
+
             <!-- System Status -->
             <div
               class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100"
@@ -583,6 +602,11 @@ const menuItems = computed(() => {
 const flashSuccess = computed(() => {
   return page.props.flash?.success || "";
 });
+
+const flashNotice = computed(() => ({
+  type: page.props.flash?.error ? "error" : "info",
+  message: page.props.flash?.error || page.props.flash?.info || "",
+}));
 
 const pendingAppointments = computed(() => {
   return Number(
