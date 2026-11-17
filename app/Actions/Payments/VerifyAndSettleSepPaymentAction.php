@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Actions\Payments;
+namespace App\\Actions\\Payments;
 
-use App\Models\Appointment;
-use App\Models\AppointmentPayment;
-use App\Services\Payments\SepPaymentService;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+use App\\Models\\Appointment;
+use App\\Models\\AppointmentPayment;
+use App\\Services\\Payments\\SepPaymentService;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\Log;
+use Illuminate\\Support\\Facades\\Schema;
 use RuntimeException;
 
 class VerifyAndSettleSepPaymentAction
@@ -18,7 +18,7 @@ class VerifyAndSettleSepPaymentAction
     }
 
     /**
-     * استعلام از درگاه و ثبت اتمیک نتیجه پرداخت.
+     * Verify gateway identifiers and amount before atomically settling payment.
      *
      * @return array{status:string,message?:string}
      */
@@ -33,12 +33,6 @@ class VerifyAndSettleSepPaymentAction
         if ($payment->status === 'paid') {
             return ['status' => 'already_paid'];
         }
-
-        $payment->update([
-            'ref_num' => $refNum,
-            'terminal_id' => $terminalId,
-            'gateway_result_message' => 'در انتظار تأیید تراکنش از سامان‌کیش.',
-        ]);
 
         $verifyResponse = $sep->verifyTransaction($refNum);
 
@@ -61,31 +55,24 @@ class VerifyAndSettleSepPaymentAction
             'payment_id' => $payment->id,
             'ref_num' => $refNum,
             'result_code' => $resultCode,
+            'success' => $normalized['success'],
             'result_message' => $resultMessage,
             'response_keys' => array_keys($verifyResponse),
-            'detail_keys' => is_array($detail) ? array_keys($detail) : [],
-            'original_amount' => is_array($detail)
-                ? ($detail['OrginalAmount'] ?? null)
-                : null,
-            'affective_amount' => is_array($detail)
-                ? ($detail['AffectiveAmount'] ?? null)
-                : null,
+            'detail_keys' => array_keys($detail),
+            'original_amount' => $normalized['verified_amount'],
+            'affective_amount' => $detail['AffectiveAmount'] ?? null,
         ]);
 
-        $payment->update([
-            'gateway_result_code' => is_numeric($resultCode)
-                ? (string) $resultCode
-                : null,
-            'gateway_result_message' => $resultMessage !== ''
-                ? $resultMessage
-                : 'پاسخ استعلام از درگاه دریافت شد.',
-        ]);
-
-        if (!is_numeric($resultCode) || (int) $resultCode !== 0) {
+        if (
+            ! $normalized['success'] ||
+            ! is_numeric($resultCode) ||
+            (int) $resultCode !== 0
+        ) {
             Log::warning('SEP verification unsuccessful', [
                 'payment_id' => $payment->id,
                 'ref_num' => $refNum,
                 'result_code' => $resultCode,
+                'success' => $normalized['success'],
                 'result_message' => $resultMessage,
             ]);
 
@@ -101,29 +88,56 @@ class VerifyAndSettleSepPaymentAction
             ];
         }
 
+        $verifiedRefNum = $normalized['verified_ref_num'];
+        $verifiedTerminal = $normalized['verified_terminal_number'];
+        $callbackTerminal = trim($terminalId);
+
+        // SEP documents RefNum and TerminalNumber in TransactionDetail.
+        // ResNum is correlated locally through payment_uuid in the callback lookup.
+        $terminalMatches = is_string($verifiedTerminal) || is_int($verifiedTerminal);
+        $terminalValue = $terminalMatches
+            ? trim((string) $verifiedTerminal)
+            : '';
+
+        $terminalMatches = $terminalMatches
+            && ctype_digit($terminalValue)
+            && ctype_digit($callbackTerminal)
+            && ltrim($terminalValue, '0') === ltrim($callbackTerminal, '0');
+
+        if (
+            $verifiedRefNum === '' ||
+            ! hash_equals($refNum, $verifiedRefNum) ||
+            ! $terminalMatches
+        ) {
+            Log::critical('SEP verified transaction identity mismatch', [
+                'payment_id' => $payment->id,
+                'callback_ref_num' => $refNum,
+                'verified_ref_num' => $verifiedRefNum !== '' ? $verifiedRefNum : null,
+                'callback_terminal' => $callbackTerminal,
+                'verified_terminal' => $verifiedTerminal,
+            ]);
+
+            return ['status' => 'verification_mismatch'];
+        }
+
         $verifiedAmount = $normalized['verified_amount'];
 
         if (
-            !is_numeric($verifiedAmount) ||
+            ! is_numeric($verifiedAmount) ||
             (int) $verifiedAmount !== (int) $payment->amount_rial
         ) {
-            Log::error('SEP transaction amount mismatch', [
+            Log::critical('SEP transaction amount mismatch', [
                 'payment_id' => $payment->id,
                 'ref_num' => $refNum,
                 'expected_amount' => $payment->amount_rial,
                 'verified_amount' => $verifiedAmount,
-                'detail_keys' => is_array($detail) ? array_keys($detail) : [],
-            ]);
-
-            $payment->update([
-                'gateway_result_message' =>
-                    'مبلغ تراکنش تأییدشده با مبلغ رکورد پرداخت مطابقت ندارد؛ بررسی دستی لازم است.',
+                'detail_keys' => array_keys($detail),
             ]);
 
             return ['status' => 'amount_mismatch'];
         }
 
-        $alreadyPaid = DB::transaction(function () use (
+        $settlementStatus = DB::transaction(function () use (
             $payment,
             $appointment,
             $refNum,
@@ -147,12 +161,10 @@ class VerifyAndSettleSepPaymentAction
                 return 'already_paid';
             }
 
-            // A late successful callback must not resurrect a payment that
-            // was already failed/cancelled and whose slot may have been released.
             if (
                 $lockedPayment->status === 'failed' ||
                 $lockedAppointment->status === 'cancelled' ||
-                !in_array($lockedPayment->status, ['pending', 'initiated'], true)
+                ! in_array($lockedPayment->status, ['pending', 'initiated'], true)
             ) {
                 return 'conflict';
             }
@@ -180,8 +192,6 @@ class VerifyAndSettleSepPaymentAction
             return 'success';
         });
 
-        return [
-            'status' => $alreadyPaid,
-        ];
+        return ['status' => $settlementStatus];
     }
 }
