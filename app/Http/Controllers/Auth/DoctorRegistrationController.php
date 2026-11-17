@@ -1,17 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\BuildDoctorRegistrationFormAction;
 use App\Actions\Auth\RegisterDoctorAction;
 use App\Actions\Auth\SendDoctorRegistrationOtpAction;
-use App\Actions\Auth\VerifyDoctorRegistrationOtpAction;
 use App\Actions\Auth\SendDoctorRegistrationPasswordAction;
+use App\Actions\Auth\VerifyDoctorRegistrationOtpAction;
+use App\DTOs\Auth\RegisterDoctorData;
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Http\Requests\Auth\SendDoctorRegistrationOtpRequest;
 use App\Http\Requests\Auth\StoreDoctorRegistrationRequest;
 use App\Http\Requests\Auth\VerifyDoctorRegistrationOtpRequest;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -19,20 +22,11 @@ use Throwable;
 
 class DoctorRegistrationController extends Controller
 {
-    /**
-     * نمایش فرم ثبت‌نام
-     */
     public function create(BuildDoctorRegistrationFormAction $action)
     {
-        return Inertia::render(
-            'Auth/DoctorRegister',
-            $action->handle()
-        );
+        return Inertia::render('Auth/DoctorRegister', $action->handle());
     }
 
-    /**
-     * ارسال کد تأیید موبایل
-     */
     public function sendOtp(
         SendDoctorRegistrationOtpRequest $request,
         SendDoctorRegistrationOtpAction $action
@@ -59,9 +53,6 @@ class DoctorRegistrationController extends Controller
         }
     }
 
-    /**
-     * تأیید کد موبایل و صدور توکن ثبت‌نام
-     */
     public function verifyOtp(
         VerifyDoctorRegistrationOtpRequest $request,
         VerifyDoctorRegistrationOtpAction $action
@@ -91,6 +82,11 @@ class DoctorRegistrationController extends Controller
                 'registration_token' => $result['registration_token'],
             ]);
         } catch (Throwable $e) {
+            Log::warning('Doctor registration OTP verification failed', [
+                'phone' => $this->maskPhone($phone),
+                'exception_class' => get_class($e),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'بررسی کد تأیید با خطا مواجه شد. لطفاً دوباره تلاش کنید.',
@@ -98,9 +94,6 @@ class DoctorRegistrationController extends Controller
         }
     }
 
-    /**
-     * ثبت نهایی پزشک و ایجاد سایت
-     */
     public function store(
         StoreDoctorRegistrationRequest $request,
         RegisterDoctorAction $registerDoctor,
@@ -108,18 +101,18 @@ class DoctorRegistrationController extends Controller
     ) {
         $data = $request->validated();
         $phone = $this->normalizePhone($data['phone']);
+        $registrationData = RegisterDoctorData::fromValidated($data, $phone);
         $temporaryPassword = Str::random(12);
 
         try {
             $doctor = $registerDoctor->handle(
-                $data,
-                $phone,
+                $registrationData,
                 $data['registration_token'],
                 $temporaryPassword
             );
 
             if (! $doctor) {
-                $alreadyRegistered = User::where('phone', $phone)->exists();
+                $alreadyRegistered = User::query()->where('phone', $phone)->exists();
 
                 return response()->json([
                     'success' => false,
@@ -140,7 +133,6 @@ class DoctorRegistrationController extends Controller
             ], 500);
         }
 
-        // ارسال رمز عبور پس از ثبت موفق اطلاعات
         $smsSent = $sendPassword->handle(
             $phone,
             $temporaryPassword,
@@ -175,5 +167,4 @@ class DoctorRegistrationController extends Controller
             . str_repeat('*', max(0, $length - 5))
             . substr($phone, -2);
     }
-
 }
