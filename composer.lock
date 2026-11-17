@@ -11,7 +11,7 @@
             "version": "v3.3.4",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/beberlei/assert/v3.3.4/beberlei-assert-v3.3.4.zip",
+                "url": "https://api.github.com/repos/beberlei/assert/zipball/f193f4613c7d7fbcee2c05e4daff4061d49c040e",
                 "reference": "f193f4613c7d7fbcee2c05e4daff4061d49c040e",
                 "shasum": ""
             },
@@ -1232,7 +1232,7 @@
             "version": "v2.0.24",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/inertiajs/inertia-laravel/v2.0.24/inertiajs-inertia-laravel-v2.0.24.zip",
+                "url": "https://api.github.com/repos/inertiajs/inertia-laravel/zipball/ea345adad12f110edbbc4bef03b69c2374a535d4",
                 "reference": "ea345adad12f110edbbc4bef03b69c2374a535d4",
                 "shasum": ""
             },
@@ -1580,7 +1580,7 @@
             "version": "v4.3.2",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/laravel/sanctum/v4.3.2/laravel-sanctum-v4.3.2.zip",
+                "url": "https://api.github.com/repos/laravel/sanctum/zipball/2a9bccc18e9907808e0018dd15fa643937886b1e",
                 "reference": "2a9bccc18e9907808e0018dd15fa643937886b1e",
                 "shasum": ""
             },
@@ -2426,7 +2426,7 @@
             "version": "v3.5.0",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/morilog/jalali/v3.5.0/morilog-jalali-v3.5.0.zip",
+                "url": "https://api.github.com/repos/morilog/jalali/zipball/40b906c405b72edd20e73797b40be1e650e872c1",
                 "reference": "40b906c405b72edd20e73797b40be1e650e872c1",
                 "shasum": ""
             },
@@ -3657,7 +3657,7 @@
             "version": "4.7.2",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/spatie/laravel-honeypot/4.7.2/spatie-laravel-honeypot-4.7.2.zip",
+                "url": "https://api.github.com/repos/spatie/laravel-honeypot/zipball/b99f668c5b673ddc8abbc58743584339cc8db3a9",
                 "reference": "b99f668c5b673ddc8abbc58743584339cc8db3a9",
                 "shasum": ""
             },
@@ -3727,7 +3727,7 @@
             "version": "1.93.1",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/spatie/laravel-package-tools/1.93.1/spatie-laravel-package-tools-1.93.1.zip",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/d5552849801f2642aea710557463234b59ef65eb",
                 "reference": "d5552849801f2642aea710557463234b59ef65eb",
                 "shasum": ""
             },
@@ -6379,7 +6379,7 @@
             "version": "v2.6.2",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/tightenco/ziggy/v2.6.2/tightenco-ziggy-v2.6.2.zip",
+                "url": "https://api.github.com/repos/tightenco/ziggy/zipball/8a0b645921623f77dceaf543d61ecd51a391d96e",
                 "reference": "8a0b645921623f77dceaf543d61ecd51a391d96e",
                 "shasum": ""
             },
@@ -6656,7 +6656,7 @@
             "version": "v1.0.1",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/ybazli/faker/v1.0.1/ybazli-faker-v1.0.1.zip",
+                "url": "https://api.github.com/repos/ybazli/faker/zipball/8ed1b8a5a658e2bb028f62eb6186e534a7972448",
                 "reference": "8ed1b8a5a658e2bb028f62eb6186e534a7972448",
                 "shasum": ""
             },
@@ -6874,7 +6874,7 @@
             "version": "v2.4.2",
             "dist": {
                 "type": "zip",
-                "url": "https://package-mirror.liara.ir/repository/composer/laravel/breeze/v2.4.2/laravel-breeze-v2.4.2.zip",
+                "url": "https://api.github.com/repos/laravel/breeze/zipball/4f20e7b2cc8d25daa85d8647241a89c8e0930305",
                 "reference": "4f20e7b2cc8d25daa85d8647241a89c8e0930305",
                 "shasum": ""
             },
