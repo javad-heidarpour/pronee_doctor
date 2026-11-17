@@ -14,6 +14,7 @@ class Appointment extends Model
 
     protected $fillable = [
         'doctor_id',
+        'patient_id',
         'clinic_id',
         'time_slot_id',
         'user_id',
@@ -28,8 +29,6 @@ class Appointment extends Model
         'reservation_expires_at',
         'visit_reason_id',
         'description',
-
-        // اطلاعات عمل جراحی
         'surgery_type_id',
         'surgery_date',
     ];
@@ -40,22 +39,22 @@ class Appointment extends Model
         'appointment_date' => 'date:Y-m-d',
         'surgery_date' => 'date:Y-m-d',
         'reservation_expires_at' => 'datetime',
-
     ];
-
-
 
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(Doctor::class);
     }
 
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class);
+    }
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
     }
-
-
 
     public function clinic(): BelongsTo
     {
@@ -83,36 +82,26 @@ class Appointment extends Model
         };
     }
 
-    public function visitReason()
+    public function visitReason(): BelongsTo
     {
         return $this->belongsTo(VisitReason::class);
     }
 
-
-
-
-
     public function payments(): HasMany
     {
-        return $this->hasMany(
-            AppointmentPayment::class,
-            'appointment_id'
-        );
+        return $this->hasMany(AppointmentPayment::class, 'appointment_id');
     }
-
 
     public function latestPayment(): HasOne
     {
-        return $this->hasOne(
-            AppointmentPayment::class,
-            'appointment_id'
-        )->latestOfMany();
+        return $this->hasOne(AppointmentPayment::class, 'appointment_id')->latestOfMany();
     }
 
     public function smsLogs(): HasMany
     {
         return $this->hasMany(SmsLog::class)->latest();
     }
+
     public function surgeryType(): BelongsTo
     {
         return $this->belongsTo(SurgeryType::class);
