@@ -120,6 +120,11 @@ class Doctor extends Model
         return $this->hasMany(Appointment::class);
     }
 
+    public function patients(): HasMany
+    {
+        return $this->hasMany(Patient::class);
+    }
+
     public function secretaries(): BelongsToMany
     {
         return $this->belongsToMany(
