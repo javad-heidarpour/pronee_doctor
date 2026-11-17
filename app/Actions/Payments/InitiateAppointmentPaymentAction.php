@@ -33,6 +33,18 @@ class InitiateAppointmentPaymentAction
                 throw new RuntimeException('این نوبت امکان پرداخت ندارد.');
             }
 
+            // A public reservation that has expired must never start a new
+            // payment attempt, even if the scheduler has not processed it yet.
+            if (
+                $lockedAppointment->status === 'pending' &&
+                $lockedAppointment->reservation_expires_at !== null &&
+                $lockedAppointment->reservation_expires_at->isPast()
+            ) {
+                throw new RuntimeException(
+                    'مهلت رزرو این نوبت به پایان رسیده است؛ لطفاً زمان دیگری انتخاب کنید.'
+                );
+            }
+
             $payments = AppointmentPayment::query()
                 ->where('appointment_id', $lockedAppointment->id)
                 ->orderByDesc('id')
