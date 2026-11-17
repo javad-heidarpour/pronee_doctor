@@ -8,6 +8,7 @@ use App\Http\Requests\Portal\GenerateTimeSlotsRequest;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
+use App\Http\Requests\Portal\UpdateSecretaryAssignmentsRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -87,6 +88,7 @@ final class SchedulingRequestAuthorizationTest extends TestCase
             'save working hours' => [SaveWorkingHourRequest::class],
             'store time slot' => [StoreTimeSlotRequest::class],
             'update time slot' => [UpdateTimeSlotRequest::class],
+            'secretary assignments' => [UpdateSecretaryAssignmentsRequest::class],
         ];
     }
 }
