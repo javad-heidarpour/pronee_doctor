@@ -12,11 +12,13 @@ class RegistrationDataTest extends TestCase
     {
         $data = RegisterPublicUserData::fromValidated([
             'name' => 'Test User',
+            'family' => 'Tester',
             'email' => 'TEST@EXAMPLE.COM',
             'password' => 'secret-password',
         ]);
 
         $this->assertSame('Test User', $data->name);
+        $this->assertSame('Tester', $data->family);
         $this->assertSame('test@example.com', $data->email);
         $this->assertSame('secret-password', $data->password);
     }
