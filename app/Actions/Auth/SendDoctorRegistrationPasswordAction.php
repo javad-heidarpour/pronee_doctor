@@ -32,7 +32,7 @@ class SendDoctorRegistrationPasswordAction
         } catch (Throwable $exception) {
             Log::error('Doctor password SMS failed', [
                 'doctor_id' => $doctorId,
-                'message' => $exception->getMessage(),
+                'exception_class' => get_class($exception),
             ]);
 
             return false;
