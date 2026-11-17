@@ -164,7 +164,7 @@ class ExpirePendingAppointments extends Command
             } catch (\Throwable $e) {
                 Log::error('Expire pending appointment failed', [
                     'appointment_id' => $appointmentId,
-                    'exception' => $e->getMessage(),
+                    'exception' => get_class($e),
                 ]);
             }
         }
