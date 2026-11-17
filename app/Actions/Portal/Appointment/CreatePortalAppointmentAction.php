@@ -3,6 +3,7 @@
 namespace App\Actions\Portal\Appointment;
 
 use App\DTOs\Portal\Appointment\CreatePortalAppointmentData;
+use App\Actions\Portal\Patient\ResolveOrCreatePatientAction;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Fee;
@@ -16,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 class CreatePortalAppointmentAction
 {
     public function __construct(
-        private readonly EnsureSecretaryCanBookClinicAction $secretaryClinicAuthorization
+        private readonly EnsureSecretaryCanBookClinicAction $secretaryClinicAuthorization,
+        private readonly ResolveOrCreatePatientAction $resolvePatient
     ) {
     }
 
@@ -127,8 +129,16 @@ class CreatePortalAppointmentAction
 
             $feeRial = (int) ($fee?->fee_rial ?? 5000000);
 
+            $patient = $this->resolvePatient->handle(
+                $doctor,
+                $data->patientName,
+                $data->patientPhone,
+                $data->patientNationalCode
+            );
+
             $appointment = Appointment::create([
                 'doctor_id' => $doctor->id,
+                'patient_id' => $patient?->id,
                 'clinic_id' => $timeSlot->clinic_id,
                 'time_slot_id' => $timeSlot->id,
 
