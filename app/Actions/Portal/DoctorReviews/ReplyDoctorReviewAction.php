@@ -6,7 +6,6 @@ namespace App\Actions\Portal\DoctorReviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 final class ReplyDoctorReviewAction
@@ -15,8 +14,8 @@ final class ReplyDoctorReviewAction
         Doctor $doctor,
         Review $review,
         string $doctorReply
-    ): RedirectResponse {
-        DB::transaction(function () use ($doctor, $review, $doctorReply): void {
+    ): Review {
+        return DB::transaction(function () use ($doctor, $review, $doctorReply): Review {
             $lockedReview = $doctor->reviews()
                 ->whereKey($review->getKey())
                 ->lockForUpdate()
@@ -26,8 +25,8 @@ final class ReplyDoctorReviewAction
                 'doctor_reply' => $doctorReply,
                 'doctor_reply_at' => now(),
             ])->save();
-        });
 
-        return back()->with('success', 'پاسخ پزشک ثبت شد.');
+            return $lockedReview->refresh();
+        });
     }
 }
