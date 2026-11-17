@@ -19,6 +19,7 @@ class RegisterPublicUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'family' => ['required', 'string', 'max:100'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Password::defaults()],
         ];
