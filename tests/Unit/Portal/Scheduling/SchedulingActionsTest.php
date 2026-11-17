@@ -111,15 +111,18 @@ final class SchedulingActionsTest extends TestCase
         $foreignDoctor = $this->doctor();
         $foreignClinic = $this->clinic($foreignDoctor);
 
-        $this->expectException(HttpException::class);
-        $this->expectExceptionCode(403);
+        try {
+            app(CreateTimeSlotAction::class)->handle($doctor, TimeSlotData::fromValidated([
+                'clinic_id' => $foreignClinic->id,
+                'date' => '2026-11-18',
+                'start_time' => '09:00',
+                'end_time' => '09:30',
+            ]));
 
-        app(CreateTimeSlotAction::class)->handle($doctor, TimeSlotData::fromValidated([
-            'clinic_id' => $foreignClinic->id,
-            'date' => '2026-11-18',
-            'start_time' => '09:00',
-            'end_time' => '09:30',
-        ]));
+            $this->fail('A clinic owned by another doctor must be rejected.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
     }
 
     public function test_update_time_slot_ignores_its_own_range_but_rejects_another_overlap(): void
