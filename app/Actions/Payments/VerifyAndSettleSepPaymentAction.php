@@ -169,6 +169,39 @@ class VerifyAndSettleSepPaymentAction
                 return 'conflict';
             }
 
+            // A payment UUID (ResNum) may only settle against its own first
+            // verified reference. Replays with the same RefNum are idempotent;
+            // a different reference for the same payment is treated as conflict.
+            $storedRefNum = trim((string) $lockedPayment->ref_num);
+
+            if ($storedRefNum !== '' && ! hash_equals($storedRefNum, $refNum)) {
+                Log::critical('SEP callback reference changed for payment', [
+                    'payment_id' => $lockedPayment->id,
+                    'stored_ref_num' => $storedRefNum,
+                    'callback_ref_num' => $refNum,
+                ]);
+
+                return 'verification_mismatch';
+            }
+
+            // RefNum must not already be bound to another payment record.
+            $referenceOwner = AppointmentPayment::query()
+                ->where('gateway_name', 'sep')
+                ->where('ref_num', $refNum)
+                ->where('id', '<>', $lockedPayment->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($referenceOwner) {
+                Log::critical('SEP RefNum already assigned to another payment', [
+                    'payment_id' => $lockedPayment->id,
+                    'reference_owner_payment_id' => $referenceOwner->id,
+                    'ref_num' => $refNum,
+                ]);
+
+                return 'verification_mismatch';
+            }
+
             $lockedPayment->update([
                 'status' => 'paid',
                 'ref_num' => $refNum,
