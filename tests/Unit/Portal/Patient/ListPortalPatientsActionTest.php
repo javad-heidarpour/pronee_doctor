@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Patient;
+namespace Tests\Unit\Portal\Patient;
 
-use App\\Actions\\Portal\\Patient\\ListPortalPatientsAction;
-use App\\Models\\Appointment;
-use App\\Models\\Doctor;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
-use Tests\\TestCase;
+use App\Actions\Portal\Patient\ListPortalPatientsAction;
+use App\Models\Appointment;
+use App\Models\Doctor;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 final class ListPortalPatientsActionTest extends TestCase
 {
