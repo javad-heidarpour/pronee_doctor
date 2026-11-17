@@ -58,9 +58,11 @@ jobs:
       - name: Validate registered routes
         run: php artisan route:list --except-vendor
 
-      # Feature tests use RefreshDatabase. The repository currently lacks the
-      # foundational schema migrations (users/doctors/addresses/etc.); do not
-      # report those tests as passing until that schema is versioned.
+      # AuthFeature uses a focused in-memory schema for the shared User model.
+      # The remaining integration suite still requires the full production schema.
+      - name: Run authentication feature tests
+        run: php artisan test --testsuite=AuthFeature
+
       - name: Run unit tests
         run: php artisan test --testsuite=Unit
 
