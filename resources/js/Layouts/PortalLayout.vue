@@ -561,7 +561,23 @@ watch(doctorPhoto, () => {
 // --------------------------------------------------
 
 const menuItems = computed(() => {
-  return page.props.menus || [];
+  const menus = [...(page.props.menus || [])];
+
+  // Payment reconciliation is a system-level operation, not a clinic menu.
+  if (
+    currentUser.value?.role === "admin" &&
+    !menus.some((menu) => menu.route === "portal.payments.review-queue")
+  ) {
+    menus.push({
+      id: "system-payment-review",
+      title: "پیگیری پرداخت‌ها",
+      route: "portal.payments.review-queue",
+      icon: "IconClock",
+      order: 999,
+    });
+  }
+
+  return menus.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
 });
 
 const flashSuccess = computed(() => {
