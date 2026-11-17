@@ -1,20 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Portal\Reviews;
 
 use App\Models\Doctor;
 use App\Models\Review;
+use Illuminate\Support\Facades\DB;
 
-class DeletePortalReviewAction
+final class DeletePortalReviewAction
 {
     public function handle(Doctor $doctor, Review $review): void
     {
-        abort_unless(
-            (int) $review->doctor_id === (int) $doctor->id,
-            403,
-            'شما به این نظر دسترسی ندارید.'
-        );
+        DB::transaction(function () use ($doctor, $review): void {
+            $lockedReview = $doctor->reviews()
+                ->whereKey($review->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $review->delete();
+            $lockedReview->delete();
+        });
     }
 }
