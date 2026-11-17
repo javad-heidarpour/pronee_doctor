@@ -6,6 +6,7 @@ namespace Tests\Feature\Auth;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Vite;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,8 @@ abstract class AuthTestCase extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->withoutVite();
 
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
