@@ -130,7 +130,7 @@ const appointmentStatusLabel = (status) => ({
             <thead class="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th class="px-4 py-4 font-bold">پرداخت / نوبت</th>
-                <th class="px-4 py-4 font-bold">بیمار</th>
+                <th class="px-4 py-4 font-bold">اطلاعات نوبت</th>
                 <th class="px-4 py-4 font-bold">مبلغ</th>
                 <th class="px-4 py-4 font-bold">وضعیت</th>
                 <th class="px-4 py-4 font-bold">شناسه درگاه</th>
@@ -147,7 +147,7 @@ const appointmentStatusLabel = (status) => ({
                   <div class="mt-1 max-w-48 truncate font-mono text-[10px] text-slate-400">{{ payment.payment_uuid }}</div>
                 </td>
                 <td class="px-4 py-4">
-                  <div class="font-semibold">{{ payment.appointment?.patient_name || "نوبت حذف‌شده" }}</div>
+                  <div class="font-semibold">نوبت #{{ payment.appointment_id }}</div>
                   <div class="mt-1 text-xs text-slate-500">
                     {{ payment.appointment?.appointment_date || "—" }}
                     <span v-if="payment.appointment?.appointment_time"> · {{ payment.appointment.appointment_time }}</span>
