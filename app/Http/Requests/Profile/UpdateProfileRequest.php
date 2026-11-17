@@ -26,6 +26,7 @@ class UpdateProfileRequest extends FormRequest
                 'email',
                 'max:255',
                 Rule::unique('doctors', 'email')->ignore($doctor?->getKey()),
+                Rule::unique('users', 'email')->ignore($doctor?->user_id),
             ],
             'phone' => ['nullable', 'string', 'max:20'],
             'caption' => ['nullable', 'string', 'max:255'],
