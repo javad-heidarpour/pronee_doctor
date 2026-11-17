@@ -14,11 +14,11 @@ Route::prefix('/register/doctor')
         Route::get('/', 'create')->name('register');
 
         // ارسال کد تأیید موبایل
-        Route::post('/send-otp', 'sendOtp')->name('register.sendOtp');
+        Route::post('/send-otp', 'sendOtp')->middleware('throttle:5,1')->name('register.sendOtp');
 
         // تأیید کد موبایل
-        Route::post('/verify-otp', 'verifyOtp')->name('register.verifyOtp');
+        Route::post('/verify-otp', 'verifyOtp')->middleware('throttle:10,1')->name('register.verifyOtp');
 
         // ثبت نهایی پزشک و ایجاد سایت
-        Route::post('/', 'store')->name('register.store');
+        Route::post('/', 'store')->middleware('throttle:5,1')->name('register.store');
     });
