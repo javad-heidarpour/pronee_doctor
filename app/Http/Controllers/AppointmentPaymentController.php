@@ -219,7 +219,7 @@ class AppointmentPaymentController extends Controller
 
             if ($lookup['status'] === 'payment_not_found') {
                 Log::error('SEP callback payment not found', [
-                    'res_num' => $resNum,
+                    'res_num_fingerprint' => hash('sha256', $resNum),
                     'ref_num_fingerprint' => hash('sha256', $refNum),
                 ]);
 

@@ -120,13 +120,13 @@ const pay = () => {
   }
 
   processing.value = true;
-  paymentError.value = "";
+  ErrTxt.value = null;
 
-  const visitNumber = props.visit?.number;
+  const paymentUrl = props.visit?.payment_url;
 
-  if (!visitNumber) {
+  if (!paymentUrl) {
     processing.value = false;
-    paymentError.value = "شماره نوبت معتبر نیست.";
+    ErrTxt.value = "پیوند امن پرداخت معتبر نیست؛ صفحه را دوباره بارگذاری کنید.";
     return;
   }
 
@@ -153,7 +153,7 @@ const pay = () => {
 
   const form = document.createElement("form");
   form.method = "POST";
-  form.action = `/payment/${encodeURIComponent(visitNumber)}/pay`;
+  form.action = paymentUrl;
   form.style.display = "none";
 
   const tokenInput = document.createElement("input");

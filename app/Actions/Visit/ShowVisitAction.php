@@ -4,6 +4,7 @@ namespace App\Actions\Visit;
 
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
+use Illuminate\Support\Facades\URL;
 
 class ShowVisitAction
 {
@@ -47,6 +48,11 @@ class ShowVisitAction
 
         return [
             'number' => $appointment->id,
+            'payment_url' => URL::temporarySignedRoute(
+                'payment.pay',
+                now()->addMinutes(30),
+                ['visit_number' => $appointment->id]
+            ),
             'patient_name' => $appointment->patient_name,
             'doctor_name' => $doctorName !== '' ? 'دکتر ' . $doctorName : 'پزشک',
             'clinic_name' => $clinic?->name ?? 'مطب پزشک',
