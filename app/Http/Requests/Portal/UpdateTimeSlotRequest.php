@@ -8,7 +8,7 @@ class UpdateTimeSlotRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user('web');\n\n        return $user instanceof User && $user->is_active;
     }
 
     public function rules(): array
