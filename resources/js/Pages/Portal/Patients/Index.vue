@@ -123,6 +123,13 @@
             پاک کردن فیلتر
           </button>
 
+          <Link
+            :href="route('portal.patients.directory')"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-sm font-bold text-teal-800 transition hover:bg-teal-100"
+          >
+            🗂️ دفترچه بیماران
+          </Link>
+
           <button
             type="button"
             @click="openAppointmentBooking"
