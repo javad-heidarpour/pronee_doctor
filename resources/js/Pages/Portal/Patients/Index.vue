@@ -94,6 +94,14 @@
             اعمال فیلتر
           </button>
 
+          <a
+            :href="route('portal.patients.export', exportFilterParams)"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
+          >
+            <span aria-hidden="true">↓</span>
+            خروجی Excel / CSV
+          </a>
+
           <button
             type="button"
             @click="resetFilters"
@@ -1021,14 +1029,14 @@ const filters = ref({
   date_to: props.filters?.date_to || "",
 });
 
-const applyFilters = () => {
-  const payload = {};
+const exportFilterParams = computed(() => Object.fromEntries(
+  Object.entries(filters.value).filter(([, value]) =>
+    value !== "" && value !== null && value !== undefined
+  )
+));
 
-  Object.entries(filters.value).forEach(([key, value]) => {
-    if (value !== "" && value !== null && value !== undefined) {
-      payload[key] = value;
-    }
-  });
+const applyFilters = () => {
+  const payload = exportFilterParams.value;
 
   router.get(route("portal.patients.index"), payload, {
     preserveState: true,

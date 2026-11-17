@@ -21,6 +21,9 @@ Route::prefix('patients')->name('patients.')->group(function () {
     Route::get('/', [PatientController::class, 'index'])
         ->name('index');
 
+    Route::get('/export', [PatientController::class, 'export'])
+        ->name('export');
+
     // دریافت تاریخ‌های آزاد؛ فعلاً مسیر قبلی حفظ می‌شود
     Route::get('/available-dates', [PatientController::class, 'availableDates'])
         ->name('available-dates');

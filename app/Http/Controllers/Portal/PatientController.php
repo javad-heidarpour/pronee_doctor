@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
+use App\Actions\Portal\Appointment\ExportPortalAppointmentsAction;
 use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
 use App\Actions\Portal\Appointment\BuildPatientIndexOptionsAction;
 use App\Actions\Portal\Appointment\ListAvailableDatesAction;
@@ -50,6 +51,20 @@ class PatientController extends Controller
             'surgeryTypes' => $options['surgeryTypes'],
             'filters' => $filters,
         ]);
+    }
+
+    public function export(
+        ListPortalAppointmentsRequest $request,
+        ExportPortalAppointmentsAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('appointments.view', $doctor);
+
+        return $action->handle(
+            $doctor,
+            $this->accessibleClinicIds($doctor),
+            $request->validated()
+        );
     }
 
     /**
