@@ -1,34 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Portal\Patient;
 
 use App\Models\Appointment;
 use Illuminate\Database\Eloquent\Collection;
 
-class LoadPortalPatientRecordAction
+final class LoadPortalPatientRecordAction
 {
     /**
-     * Load the complete visit timeline for the patient represented by a scoped appointment.
-     * Patient identifiers are never accepted from the URL or request payload.
+     * Load the visit timeline for the patient represented by a scoped appointment.
+     * The patient's identifiers are never accepted from the URL or request payload.
      */
     public function handle(Appointment $reference, array $accessibleClinicIds): Collection
     {
-        $nationalCode = trim((string) $reference->patient_national_code);
-        $phone = trim((string) $reference->patient_phone);
-
-        abort_if($nationalCode === '' && $phone === '', 404);
-
         $query = Appointment::query()
             ->where('doctor_id', $reference->doctor_id)
             ->whereIn('clinic_id', $accessibleClinicIds)
             ->with(['clinic', 'visitReason', 'latestPayment', 'surgeryType']);
 
-        // National code is the primary identity. Phone is only a fallback when
-        // no national code was captured for the reference appointment.
-        if ($nationalCode !== '') {
-            $query->where('patient_national_code', $nationalCode);
+        if ($reference->patient_id !== null) {
+            $query->where('patient_id', $reference->patient_id);
         } else {
-            $query->where('patient_phone', $phone);
+            // Compatibility while legacy appointments are being backfilled.
+            $nationalCode = trim((string) $reference->patient_national_code);
+            $phone = trim((string) $reference->patient_phone);
+
+            abort_if($nationalCode === '' && $phone === '', 404);
+
+            if ($nationalCode !== '') {
+                $query->where('patient_national_code', $nationalCode);
+            } else {
+                $query->whereNull('patient_id')->where('patient_phone', $phone);
+            }
         }
 
         return $query
