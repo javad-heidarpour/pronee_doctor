@@ -1,6 +1,6 @@
 <?php
 
-namespace App\\Actions\\Payments;
+namespace App\Actions\Payments;
 
 use RuntimeException;
 
