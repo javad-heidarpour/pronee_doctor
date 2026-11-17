@@ -200,6 +200,40 @@ final class CreatePortalAppointmentActionTest extends TestCase
         );
     }
 
+    public function test_it_reuses_the_same_doctor_scoped_patient_for_the_same_national_code(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $firstSlot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        $secondSlot = $this->slot($doctor, $clinic, '2026-11-19', '09:00');
+
+        $action = app(CreatePortalAppointmentAction::class);
+        $first = $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
+            'time_slot_id' => $firstSlot->id,
+            'patient_name' => 'Test Patient',
+            'patient_phone' => '09120000000',
+            'patient_national_code' => '0012345678',
+        ]));
+
+        \Illuminate\Support\Facades\DB::table('appointments')
+            ->where('id', $first->id)
+            ->update(['status' => 'visited']);
+
+        $second = $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
+            'time_slot_id' => $secondSlot->id,
+            'patient_name' => 'Updated Patient Name',
+            'patient_phone' => '09129999999',
+            'patient_national_code' => '0012345678',
+        ]));
+
+        $this->assertSame($first->patient_id, $second->patient_id);
+        $this->assertDatabaseHas('patients', [
+            'id' => $first->patient_id,
+            'name' => 'Updated Patient Name',
+            'phone' => '09129999999',
+        ]);
+    }
+
     private function appointmentData(int $slotId, ?string $nationalCode = null): CreatePortalAppointmentData
     {
         return CreatePortalAppointmentData::fromValidated([
