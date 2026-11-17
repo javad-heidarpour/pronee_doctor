@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\WorkingHours;
 
+use App\Actions\Portal\Clinic\EnsureDoctorOwnsActiveClinicAction;
 use App\DTOs\Portal\Scheduling\WorkingHourData;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
@@ -9,6 +10,11 @@ use Illuminate\Support\Facades\DB;
 
 class SaveWorkingHourAction
 {
+    public function __construct(
+        private readonly EnsureDoctorOwnsActiveClinicAction $ensureClinic
+    ) {
+    }
+
     /**
      * @return array{saved:bool,duplicate:?DoctorWorkingHour}
      */
@@ -23,6 +29,8 @@ class SaveWorkingHourAction
                 ->whereKey($doctor->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $this->ensureClinic->handle($doctor, $data->clinicId);
 
             $lockedWorkingHour = null;
 

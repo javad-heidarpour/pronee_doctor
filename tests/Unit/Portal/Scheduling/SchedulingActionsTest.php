@@ -100,6 +100,23 @@ final class SchedulingActionsTest extends TestCase
         $this->assertDatabaseCount('time_slots', 1);
     }
 
+    public function test_create_time_slot_rejects_a_clinic_owned_by_another_doctor(): void
+    {
+        $doctor = $this->doctor();
+        $foreignDoctor = $this->doctor();
+        $foreignClinic = $this->clinic($foreignDoctor);
+
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectExceptionCode(403);
+
+        app(CreateTimeSlotAction::class)->handle($doctor, TimeSlotData::fromValidated([
+            'clinic_id' => $foreignClinic->id,
+            'date' => '2026-11-18',
+            'start_time' => '09:00',
+            'end_time' => '09:30',
+        ]));
+    }
+
     public function test_update_time_slot_ignores_its_own_range_but_rejects_another_overlap(): void
     {
         $doctor = $this->doctor();
@@ -149,6 +166,30 @@ final class SchedulingActionsTest extends TestCase
         $this->assertSame(1, $result['skipped']);
         $this->assertTrue($result['has_working_hours']);
         $this->assertDatabaseCount('time_slots', 2);
+    }
+
+    public function test_generate_slots_ignores_working_hours_for_inactive_clinics(): void
+    {
+        Carbon::setTestNow('2026-11-14 08:00:00');
+
+        $doctor = $this->doctor();
+        $inactiveClinic = $this->clinic($doctor, active: false);
+
+        DoctorWorkingHour::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $inactiveClinic->id,
+            'day_of_week' => 0,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, 1);
+
+        $this->assertFalse($result['has_working_hours']);
+        $this->assertSame(0, $result['generated']);
+        $this->assertDatabaseCount('time_slots', 0);
     }
 
     public function test_save_working_hour_rejects_overlap_across_clinics_and_allows_self_update(): void

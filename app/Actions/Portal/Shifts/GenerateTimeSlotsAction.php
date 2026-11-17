@@ -2,6 +2,7 @@
 
 namespace App\Actions\Portal\Shifts;
 
+use App\Actions\Portal\Clinic\EnsureDoctorOwnsActiveClinicAction;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use App\Models\TimeSlot;
@@ -10,14 +11,26 @@ use Illuminate\Support\Facades\DB;
 
 class GenerateTimeSlotsAction
 {
+    public function __construct(
+        private readonly EnsureDoctorOwnsActiveClinicAction $ensureClinic
+    ) {
+    }
+
     /**
      * @return array{generated:int,skipped:int,has_working_hours:bool}
      */
     public function handle(Doctor $doctor, int $weeksCount, ?int $clinicId = null): array
     {
+        if ($clinicId !== null) {
+            $this->ensureClinic->handle($doctor, $clinicId);
+        }
+
         $query = DoctorWorkingHour::query()
             ->where('doctor_id', $doctor->id)
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->whereHas('clinic', fn ($clinicQuery) => $clinicQuery
+                ->where('doctor_id', $doctor->id)
+                ->where('is_active', true));
 
         if ($clinicId !== null) {
             $query->where('clinic_id', $clinicId);
