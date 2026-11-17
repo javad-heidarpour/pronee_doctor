@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Actions\\Portal\\Patient;
+namespace App\Actions\Portal\Patient;
 
-use App\\Models\\Appointment;
-use App\\Models\\Doctor;
-use Illuminate\\Contracts\\Pagination\\LengthAwarePaginator;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\Appointment;
+use App\Models\Doctor;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class ListPortalPatientsAction
 {
