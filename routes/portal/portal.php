@@ -49,6 +49,16 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'index'
         ])->name('security.audit-logs');
 
+        Route::get('/security/sessions', [
+            SecuritySessionsController::class,
+            'index'
+        ])->name('security.sessions');
+
+        Route::delete('/security/sessions/{session}', [
+            SecuritySessionsController::class,
+            'destroy'
+        ])->where('session', '[a-f0-9]{64}')->name('security.sessions.destroy');
+
         Route::get('/dashboard', [
             DashboardController::class,
             'index'
