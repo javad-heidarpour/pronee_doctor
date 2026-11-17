@@ -8,6 +8,7 @@ final readonly class RegisterPublicUserData
 {
     public function __construct(
         public string $name,
+        public string $family,
         public string $email,
         public string $password,
     ) {
@@ -17,6 +18,7 @@ final readonly class RegisterPublicUserData
     {
         return new self(
             name: $data['name'],
+            family: $data['family'],
             email: mb_strtolower($data['email']),
             password: $data['password'],
         );
