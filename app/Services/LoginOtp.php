@@ -4,8 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
-use App\\Services\\Sms\\GhasedakSmsGateway;
+use App\Services\Sms\GhasedakSmsGateway;
 use RuntimeException;
 
 class LoginOtp
