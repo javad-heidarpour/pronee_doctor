@@ -9,7 +9,7 @@ class UpdateDoctorProfileRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user('web')?->isDoctor() ?? false;
     }
 
     public function rules(): array
