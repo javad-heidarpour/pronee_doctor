@@ -60,8 +60,6 @@ class AppointmentPaymentController extends Controller
                 'token' => $token,
             ]);
         } catch (Throwable $e) {
-            report($e);
-
             Log::error('APPOINTMENT PAYMENT REQUEST FAILED', [
                 'visit_number' => $appointment->id,
                 'exception_class' => get_class($e),
@@ -69,9 +67,7 @@ class AppointmentPaymentController extends Controller
             ]);
 
             return $visitUrl()->withErrors([
-                'payment' => $e instanceof \RuntimeException
-                    ? $e->getMessage()
-                    : 'درخواست پرداخت انجام نشد. لطفاً دوباره تلاش کنید.',
+                'payment' => 'درخواست پرداخت انجام نشد. لطفاً دوباره تلاش کنید.',
             ]);
         }
     }
