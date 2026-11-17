@@ -4,8 +4,7 @@ namespace App\Actions\Home;
 
 use App\Models\Appointment;
 use App\Models\TimeSlot;
-use App\Models\VisitReason;
-use Illuminate\Http\Request;
+use App\Http\Requests\BookAppointmentRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -13,35 +12,9 @@ use App\Models\Fee;
 
 class BookAppointmentAction
 {
-    public function handle(Request $request)
+    public function handle(BookAppointmentRequest $request)
     {
-        $validated = $request->validate([
-            'time_slot_id' => 'required|integer|exists:time_slots,id',
-            'patient_name' => 'required|string|min:3|max:255',
-            'patient_phone' => [
-                'required',
-                'string',
-                'regex:/^09[0-9]{9}$/',
-            ],
-            'patient_national_code' => [
-                'nullable',
-                'string',
-                'size:10',
-                'regex:/^[0-9]{10}$/',
-            ],
-            'description' => 'nullable|string|max:1000',
-            'visit_reason_id' => [
-                'nullable',
-                'integer',
-                'exists:visit_reasons,id',
-            ],
-
-            'new_visit_reason' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
-        ]);
+        $validated = $request->validated();
         try {
 
             return DB::transaction(function () use ($validated) {
@@ -73,6 +46,15 @@ class BookAppointmentAction
                     ]);
                 }
 
+                if (
+                    !$timeSlot->doctor()->where('is_active', true)->exists() ||
+                    !$timeSlot->clinic()->where('is_active', true)->exists()
+                ) {
+                    return back()->withErrors([
+                        'time_slot_id' => 'این زمان برای رزرو عمومی در دسترس نیست.',
+                    ]);
+                }
+
                 // آزادسازی زمان در صورت نبود نوبت فعال
                 if ($timeSlot->status === 'booked') {
                     $timeSlot->update([
@@ -89,6 +71,12 @@ class BookAppointmentAction
                 //             'امکان رزرو نوبت برای تاریخ‌های گذشته وجود ندارد.',
                 //     ]);
                 // }
+
+                if ($timeSlot->status !== 'available') {
+                    return back()->withErrors([
+                        'time_slot_id' => 'این ساعت در حال حاضر قابل رزرو نیست.',
+                    ]);
+                }
 
                 $appointmentDateTime = Carbon::parse(
                     $timeSlot->date->format('Y-m-d') . ' ' . $timeSlot->start_time
@@ -124,17 +112,12 @@ class BookAppointmentAction
                 }
 
                 $visitReasonId = $validated['visit_reason_id'] ?? null;
+                $newVisitReason = trim((string) ($validated['new_visit_reason'] ?? ''));
+                $description = trim((string) ($validated['description'] ?? ''));
 
-                $newVisitReason = trim(
-                    $validated['new_visit_reason'] ?? ''
-                );
-
+                // دلیل آزاد فقط به همین نوبت متصل می‌شود؛ از ایجاد رکورد سراسری و اسپم جلوگیری می‌کنیم.
                 if ($newVisitReason !== '') {
-                    $visitReason = VisitReason::firstOrCreate([
-                        'title' => $newVisitReason,
-                    ]);
-
-                    $visitReasonId = $visitReason->id;
+                    $description = trim($description . "\n" . 'دلیل مراجعه: ' . $newVisitReason);
                 }
                 $fee = Fee::where('created_by', $timeSlot->doctor_id)
                     ->where('is_active', true)
@@ -155,8 +138,7 @@ class BookAppointmentAction
                     'patient_national_code' =>
                         $validated['patient_national_code'] ?? null,
 
-                    'description' =>
-                        $validated['description'] ?? null,
+                    'description' => $description !== '' ? $description : null,
 
                     'status' => 'pending',
 
