@@ -28,6 +28,7 @@ const eventLabels = {
   "auth.login_failed": "تلاش ناموفق برای ورود",
   "auth.logout": "خروج از پنل",
   "auth.login_rejected": "ورود ردشده به پنل",
+  "security.session_revoked": "خاتمه نشست دیگر",
 };
 
 const applyFilters = () => {
