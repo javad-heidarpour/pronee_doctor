@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\\Actions\\Portal\\Fees;
+namespace App\Actions\Portal\Fees;
 
-use App\\Models\\Appointment;
+use App\Models\Appointment;
 
 /**
  * Applies a newly configured consultation fee only to unpaid appointments.
