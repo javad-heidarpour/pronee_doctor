@@ -64,13 +64,10 @@ class User extends Authenticatable
         }
 
         if ($this->role === 'doctor') {
-            return $query->where(function (Builder $access) {
-                $access->where('doctors.user_id', $this->id)
-                    ->orWhereIn(
-                        'doctors.id',
-                        $this->doctors()->select('doctors.id')
-                    );
-            });
+            // حساب پزشک فقط به پرونده‌ای دسترسی دارد که مالک آن است.
+            // ارتباط‌های pivot مخصوص منشی‌ها هستند و نباید به حساب پزشک
+            // امکان انتخاب پرونده پزشک دیگری را بدهند.
+            return $query->where('doctors.user_id', $this->id);
         }
 
         if ($this->role === 'secretary') {
