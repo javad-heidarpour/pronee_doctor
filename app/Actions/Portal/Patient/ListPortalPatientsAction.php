@@ -5,7 +5,6 @@ namespace App\Actions\Portal\Patient;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 
 class ListPortalPatientsAction
 {
@@ -36,31 +35,43 @@ class ListPortalPatientsAction
             });
         }
 
-        // MAX(id) is not necessarily the latest visit when appointments are backdated
-        // or imported. Resolve the actual latest appointment by date, time, then id.
-        $latestAppointmentId = DB::table('appointments as latest_appointment')
-            ->select('latest_appointment.id')
-            ->whereColumn('latest_appointment.doctor_id', 'appointments.doctor_id')
-            ->whereIn('latest_appointment.clinic_id', $clinicIds)
-            ->whereRaw(
-                "COALESCE(NULLIF(latest_appointment.patient_national_code, ''), NULLIF(latest_appointment.patient_phone, '')) = {$identity}"
-            )
-            ->orderByDesc('latest_appointment.appointment_date')
-            ->orderByDesc('latest_appointment.appointment_time')
-            ->orderByDesc('latest_appointment.id')
-            ->limit(1);
-
-        return $query
+        $patients = $query
             ->selectRaw("{$identity} as patient_key")
             ->selectRaw('MAX(appointments.patient_name) as patient_name')
             ->selectRaw('MAX(appointments.patient_phone) as patient_phone')
             ->selectRaw('MAX(appointments.patient_national_code) as patient_national_code')
             ->selectRaw('COUNT(*) as appointments_count')
             ->selectRaw('MAX(appointments.appointment_date) as last_appointment_date')
-            ->selectSub($latestAppointmentId, 'latest_appointment_id')
             ->groupByRaw($identity)
             ->orderByDesc('last_appointment_date')
             ->paginate(20)
             ->withQueryString();
+
+        // Resolve the actual latest visit per visible patient. Keeping this lookup
+        // outside the aggregate query avoids GROUP BY portability issues on MySQL.
+        $patients->getCollection()->transform(function ($patient) use ($doctor, $clinicIds) {
+            $latestVisitQuery = Appointment::query()
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds);
+
+            $nationalCode = trim((string) $patient->patient_national_code);
+            $phone = trim((string) $patient->patient_phone);
+
+            if ($nationalCode !== '') {
+                $latestVisitQuery->where('patient_national_code', $nationalCode);
+            } else {
+                $latestVisitQuery->where('patient_phone', $phone);
+            }
+
+            $patient->latest_appointment_id = $latestVisitQuery
+                ->orderByDesc('appointment_date')
+                ->orderByDesc('appointment_time')
+                ->orderByDesc('id')
+                ->value('id');
+
+            return $patient;
+        });
+
+        return $patients;
     }
 }
