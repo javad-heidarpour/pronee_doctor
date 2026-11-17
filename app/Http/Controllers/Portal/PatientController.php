@@ -171,8 +171,9 @@ class PatientController extends Controller
             $this->accessibleClinicIds($doctor)
         );
 
-        $canViewClinicalRecords = $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
         $canManageClinicalRecords = $this->hasSecretaryPermission($doctor, 'patients.clinical.manage');
+        $canViewClinicalRecords = $canManageClinicalRecords ||
+            $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
 
         if ($canViewClinicalRecords) {
             $visits->loadMissing('patient.clinicalRecords');
