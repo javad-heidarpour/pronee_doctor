@@ -57,6 +57,9 @@ final class SchedulingRequestAuthorizationTest extends TestCase
     {
         $user = new User();
         $user->setAttribute('is_active', true);
+        if ($requestClass === ReplyDoctorReviewRequest::class) {
+            $user->setAttribute('role', 'doctor');
+        }
 
         $request = new $requestClass();
         $request->setUserResolver(fn ($guard = null) => $user);
