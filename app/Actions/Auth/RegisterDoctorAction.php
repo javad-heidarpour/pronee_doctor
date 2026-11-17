@@ -64,7 +64,6 @@ final class RegisterDoctorAction
                     'password' => $temporaryPassword,
                     'role' => 'doctor',
                     'is_active' => true,
-                    'phone_verified_at' => now(),
                 ]);
 
                 $user->save();
