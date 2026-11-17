@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Contracts\Sms\SmsGateway;
+use App\Models\Appointment;
+use App\Observers\AppointmentAuditObserver;
 use App\Repositories\Contracts\DoctorRepositoryInterface;
 use App\Repositories\Eloquent\DoctorRepository;
 use App\Services\Sms\GhasedakSmsGateway;
@@ -22,6 +24,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        Appointment::observe(AppointmentAuditObserver::class);
     }
 }
