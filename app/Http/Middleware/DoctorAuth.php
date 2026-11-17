@@ -135,12 +135,13 @@ class DoctorAuth
             return 'appointments.manage';
         }
 
-        // دریافت تاریخ‌ها و ساعت‌های خالی فقط به مشاهده بخش نوبت‌ها نیاز دارد.
+        // دریافت تقویم و ساعت‌های خالی، بخشی از مدیریت شیفت‌هاست؛
+        // با مجوز shifts.view کنترل می‌شود تا با مجوز مشاهده نوبت‌ها اشتباه نشود.
         if (in_array($routeName, [
             'portal.patients.available-dates',
             'portal.patients.available-slots',
         ], true)) {
-            return 'appointments.view';
+            return 'shifts.view';
         }
 
         $map = [
