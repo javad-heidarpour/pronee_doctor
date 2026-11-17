@@ -3,12 +3,15 @@
 namespace App\Http\Requests\Portal;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\User;
 
 class StoreTimeSlotRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $user = $this->user('web');\n\n        return $user instanceof User && $user->is_active;
+        $user = $this->user('web');
+
+        return $user instanceof User && $user->is_active;
     }
 
     public function rules(): array
