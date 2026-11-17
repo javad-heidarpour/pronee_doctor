@@ -47,6 +47,35 @@ final class SchedulingRequestAuthorizationTest extends TestCase
         $this->assertTrue($request->authorize());
     }
 
+    public function test_update_time_slot_request_rejects_past_dates(): void
+    {
+        Carbon::setTestNow('2026-11-17 12:00:00');
+
+        try {
+            $request = new UpdateTimeSlotRequest();
+            $rules = $request->rules();
+
+            $pastDate = Validator::make([
+                'clinic_id' => 1,
+                'date' => '2026-11-16',
+                'start_time' => '09:00',
+                'end_time' => '09:30',
+            ], $rules);
+
+            $today = Validator::make([
+                'clinic_id' => 1,
+                'date' => '2026-11-17',
+                'start_time' => '09:00',
+                'end_time' => '09:30',
+            ], $rules);
+
+            $this->assertTrue($pastDate->fails());
+            $this->assertFalse($today->fails());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public static function listRequestClasses(): array
     {
         return [
