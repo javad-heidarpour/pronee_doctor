@@ -28,6 +28,7 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class PatientController extends Controller
@@ -170,6 +171,17 @@ class PatientController extends Controller
             $this->accessibleClinicIds($doctor)
         );
 
+        $canViewClinicalRecords = $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
+        $canManageClinicalRecords = $this->hasSecretaryPermission($doctor, 'patients.clinical.manage');
+
+        if ($canViewClinicalRecords) {
+            $visits->loadMissing('patient.clinicalRecords');
+        } else {
+            $visits->each(function (Appointment $visit): void {
+                $visit->patient?->setRelation('clinicalRecords', collect());
+            });
+        }
+
         $audit->handle('patient.record.viewed', $appointment, [
             'doctor_id' => $doctor->id,
         ]);
@@ -177,6 +189,8 @@ class PatientController extends Controller
         return Inertia::render('Portal/Patients/Record', [
             'doctor' => $doctor,
             'visits' => $visits,
+            'canViewClinicalRecords' => $canViewClinicalRecords,
+            'canManageClinicalRecords' => $canManageClinicalRecords,
         ]);
     }
 
@@ -186,7 +200,7 @@ class PatientController extends Controller
         SavePatientClinicalRecordAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
         $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
 
         $record = $action->handle($patient, $request->validated());
@@ -213,6 +227,30 @@ class PatientController extends Controller
         $action->handle($patient, $request->validated(), $record);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
+    }
+
+    private function hasSecretaryPermission(\App\Models\Doctor $doctor, string $permission): bool
+    {
+        $user = Auth::guard('web')->user();
+
+        if (!$user || $user->role !== 'secretary') {
+            return true;
+        }
+
+        $assignment = $user->doctors()
+            ->where('doctors.id', $doctor->id)
+            ->first();
+
+        if (!$assignment) {
+            return false;
+        }
+
+        $permissions = $assignment->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        return is_array($permissions) && in_array($permission, $permissions, true);
     }
 
     private function authorizePatientClinicalAccess(Patient $patient, \App\Models\Doctor $doctor): Patient
