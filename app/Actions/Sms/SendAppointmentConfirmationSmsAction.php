@@ -42,6 +42,17 @@ class SendAppointmentConfirmationSmsAction
             ], 422);
         }
 
+        if (!config('services.ghasedak.api_key')) {
+            Log::warning('Appointment confirmation SMS unavailable: provider not configured', [
+                'appointment_id' => $visitNumber,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
+            ], 503);
+        }
+
         $patientName = trim((string) $appointment->patient_name) ?: 'مراجع گرامی';
         $date = Jalalian::fromDateTime($appointment->appointment_date)->format('j F Y');
         $time = substr((string) $appointment->appointment_time, 0, 5);
