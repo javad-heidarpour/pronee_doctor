@@ -56,7 +56,8 @@ class ProfileController extends Controller
         if (!$action->handle(
             $user,
             $validated['current_password'],
-            $validated['password']
+            $validated['password'],
+            $request->session()->getId()
         )) {
             return back()->withErrors([
                 'current_password' => 'رمز عبور فعلی اشتباه است.',
