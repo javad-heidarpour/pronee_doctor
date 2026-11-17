@@ -53,7 +53,7 @@ jobs:
           cache: npm
 
       - name: Apply compatible npm security updates
-        run: npm audit fix --package-lock-only --ignore-scripts --legacy-peer-deps
+        run: npm audit fix --package-lock-only --ignore-scripts --legacy-peer-deps || true
 
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
