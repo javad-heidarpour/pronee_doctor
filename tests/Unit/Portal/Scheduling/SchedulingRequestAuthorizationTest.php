@@ -9,6 +9,10 @@ use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Requests\Portal\StoreTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateTimeSlotRequest;
 use App\Http\Requests\Portal\UpdateSecretaryAssignmentsRequest;
+use App\Http\Requests\Portal\SaveManagedUserRequest;
+use App\Http\Requests\Portal\UpdateManagedUserStatusRequest;
+use App\Http\Requests\Portal\ClinicRequest;
+use App\Http\Requests\Portal\UpdateFeeRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -83,6 +87,10 @@ final class SchedulingRequestAuthorizationTest extends TestCase
             'store time slot' => [StoreTimeSlotRequest::class],
             'update time slot' => [UpdateTimeSlotRequest::class],
             'secretary assignments' => [UpdateSecretaryAssignmentsRequest::class],
+            'managed user' => [SaveManagedUserRequest::class],
+            'managed user status' => [UpdateManagedUserStatusRequest::class],
+            'clinic' => [ClinicRequest::class],
+            'fee' => [UpdateFeeRequest::class],
         ];
     }
 }
