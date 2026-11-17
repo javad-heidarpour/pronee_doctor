@@ -45,6 +45,7 @@ class RecordSepCallbackFailureAction
                 }
 
                 $lockedPayment->update([
+                    'gateway_result_code' => 'REVIEW_REQUIRED',
                     'gateway_result_message' =>
                         'خطا در بررسی تراکنش؛ وضعیت نیازمند بررسی است.',
                 ]);
