@@ -18,6 +18,9 @@ Route::prefix('appointments')->name('appointments.')->group(function () {
 
 
 Route::prefix('patients')->name('patients.')->group(function () {
+    Route::get('/directory', [PatientController::class, 'directory'])
+        ->name('directory');
+
     Route::get('/', [PatientController::class, 'index'])
         ->name('index');
 
