@@ -41,6 +41,7 @@ const eventLabels = {
   "patient.clinical_record.created": "ثبت اطلاعات پزشکی بیمار",
   "patient.clinical_record.updated": "ویرایش اطلاعات پزشکی بیمار",
   "patient.clinical_record.deleted": "حذف اطلاعات پزشکی بیمار",
+  "patient.clinical_records.viewed": "مشاهده اطلاعات پزشکی محرمانه بیمار",
 };
 
 const applyFilters = () => {
