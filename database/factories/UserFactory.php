@@ -24,7 +24,7 @@ class UserFactory extends Factory
             'username' => fake()->unique()->userName(),
             'password' => 'password',
             'remember_token' => Str::random(10),
-            'role' => 'patient',
+            'role' => 'user',
             'is_active' => true,
         ];
     }
