@@ -176,6 +176,9 @@ class PatientController extends Controller
 
         if ($canViewClinicalRecords) {
             $visits->loadMissing('patient.clinicalRecords');
+            $audit->handle('patient.clinical_records.viewed', $appointment, [
+                'doctor_id' => $doctor->id,
+            ]);
         } else {
             $visits->each(function (Appointment $visit): void {
                 $visit->patient?->setRelation('clinicalRecords', collect());
@@ -203,7 +206,7 @@ class PatientController extends Controller
         abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
         $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
 
-        $record = $action->handle($patient, $request->validated());
+        $action->handle($patient, $request->validated());
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ثبت شد.');
     }
@@ -215,7 +218,7 @@ class PatientController extends Controller
         SavePatientClinicalRecordAction $action
     ) {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
         $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
 
         abort_unless(
