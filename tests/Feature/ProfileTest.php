@@ -3,13 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use Tests\Feature\Auth\AuthTestCase;
 
-class ProfileTest extends TestCase
+class ProfileTest extends AuthTestCase
 {
-    use RefreshDatabase;
-
     public function test_guest_is_redirected_from_the_portal_profile(): void
     {
         $this->get('/portal/profile')
@@ -18,9 +15,9 @@ class ProfileTest extends TestCase
 
     public function test_public_user_account_cannot_access_doctor_profile_management(): void
     {
-        $patient = User::factory()->create();
+        $publicUser = User::factory()->create();
 
-        $this->actingAs($patient, 'web')
+        $this->actingAs($publicUser, 'web')
             ->get('/portal/profile')
             ->assertRedirect(route('portal.login'));
 
