@@ -30,6 +30,17 @@ class SendVisitOtpSmsAction
             ], 404);
         }
 
+        if (
+            $appointment->status !== 'pending' ||
+            !$appointment->reservation_expires_at ||
+            $appointment->reservation_expires_at->lessThanOrEqualTo(now())
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'مهلت رزرو این نوبت به پایان رسیده یا نوبت دیگر در انتظار پرداخت نیست.',
+            ], 422);
+        }
+
         $mobile = $appointment->patient_phone;
 
         if (!$mobile || !preg_match('/^09\d{9}$/', $mobile)) {
