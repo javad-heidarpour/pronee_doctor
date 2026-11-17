@@ -5,6 +5,7 @@ namespace App\Actions\Portal\Users;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class UpdateManagedUserAction
 {
@@ -31,12 +32,27 @@ class UpdateManagedUserAction
 
             // مدل User فیلد password را با cast از نوع hashed ذخیره می‌کند.
             // مقدار خام رمز عبور را دریافت می‌کنیم تا دوباره hash نشود.
-            if (empty($validated['password'])) {
+            $passwordChanged = filled($validated['password'] ?? null);
+
+            if (! $passwordChanged) {
                 unset($validated['password']);
             }
 
             $lockedUser->fill($validated);
+
+            if ($passwordChanged) {
+                // تغییر رمز توسط مدیر، نشست‌ها و کوکی‌های ماندگار قبلی را باطل می‌کند.
+                $lockedUser->setRememberToken(Str::random(60));
+            }
+
             $lockedUser->save();
+
+            if ($passwordChanged && config('session.driver') === 'database') {
+                DB::connection(config('session.connection'))
+                    ->table(config('session.table', 'sessions'))
+                    ->where('user_id', $lockedUser->getAuthIdentifier())
+                    ->delete();
+            }
 
             $updated = $lockedUser->refresh();
 
