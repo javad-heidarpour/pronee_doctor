@@ -53,7 +53,7 @@ class VerifyAndSettleSepPaymentAction
 
         Log::info('SEP VERIFY RESPONSE', [
             'payment_id' => $payment->id,
-            'ref_num' => $refNum,
+            'ref_num_fingerprint' => hash('sha256', $refNum),
             'result_code' => $resultCode,
             'success' => $normalized['success'],
             'response_keys' => array_keys($verifyResponse),
@@ -69,7 +69,7 @@ class VerifyAndSettleSepPaymentAction
         ) {
             Log::warning('SEP verification unsuccessful', [
                 'payment_id' => $payment->id,
-                'ref_num' => $refNum,
+                'ref_num_fingerprint' => hash('sha256', $refNum),
                 'result_code' => $resultCode,
                 'success' => $normalized['success'],
             ]);
@@ -126,7 +126,7 @@ class VerifyAndSettleSepPaymentAction
         ) {
             Log::critical('SEP transaction amount mismatch', [
                 'payment_id' => $payment->id,
-                'ref_num' => $refNum,
+                'ref_num_fingerprint' => hash('sha256', $refNum),
                 'expected_amount' => $payment->amount_rial,
                 'verified_amount' => $verifiedAmount,
                 'detail_keys' => array_keys($detail),
@@ -175,8 +175,8 @@ class VerifyAndSettleSepPaymentAction
             if ($storedRefNum !== '' && ! hash_equals($storedRefNum, $refNum)) {
                 Log::critical('SEP callback reference changed for payment', [
                     'payment_id' => $lockedPayment->id,
-                    'stored_ref_num' => $storedRefNum,
-                    'callback_ref_num' => $refNum,
+                    'stored_ref_num_fingerprint' => hash('sha256', $storedRefNum),
+                    'callback_ref_num_fingerprint' => hash('sha256', $refNum),
                 ]);
 
                 return 'verification_mismatch';
@@ -194,7 +194,7 @@ class VerifyAndSettleSepPaymentAction
                 Log::critical('SEP RefNum already assigned to another payment', [
                     'payment_id' => $lockedPayment->id,
                     'reference_owner_payment_id' => $referenceOwner->id,
-                    'ref_num' => $refNum,
+                    'ref_num_fingerprint' => hash('sha256', $refNum),
                 ]);
 
                 return 'verification_mismatch';
@@ -202,7 +202,7 @@ class VerifyAndSettleSepPaymentAction
 
             $lockedPayment->update([
                 'status' => 'paid',
-                'ref_num' => $refNum,
+                'ref_num_fingerprint' => hash('sha256', $refNum),
                 'terminal_id' => $terminalId,
                 'gateway_result_code' => (string) $resultCode,
                 'gateway_result_message' => $resultMessage !== ''
