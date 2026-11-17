@@ -5,6 +5,7 @@ namespace App\Actions\Security;
 use App\Models\SecurityAuditLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class RecordSecurityAuditEventAction
 {
@@ -16,6 +17,12 @@ class RecordSecurityAuditEventAction
         ?Model $subject = null,
         array $metadata = []
     ): void {
+        // Some isolated tests and early deployment steps do not create this table.
+        // Audit logging must never break the business operation being observed.
+        if (!Schema::hasTable('security_audit_logs')) {
+            return;
+        }
+
         $safeMetadata = array_intersect_key($metadata, array_flip([
             'role',
             'is_active',
