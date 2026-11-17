@@ -18,7 +18,15 @@ class StoreDoctorRegistrationRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'family' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'regex:/^09\d{9}$/'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email'),
+                Rule::unique('doctors', 'email'),
+            ],
             'medical_system_number' => ['nullable', 'string', 'max:50'],
             'specialty_id' => [
                 'required',
