@@ -10,12 +10,14 @@ use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\DTOs\Portal\Scheduling\WorkingHourData;
+use App\Models\Address;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 final class SchedulingActionsTest extends TestCase
@@ -36,6 +38,7 @@ final class SchedulingActionsTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
@@ -80,6 +83,8 @@ final class SchedulingActionsTest extends TestCase
     public function test_create_time_slot_rejects_overlapping_ranges_for_the_same_doctor(): void
     {
         $doctor = $this->doctor();
+        $this->clinic($doctor);
+        $this->clinic($doctor);
 
         $action = app(CreateTimeSlotAction::class);
         $data = TimeSlotData::fromValidated([
@@ -106,7 +111,7 @@ final class SchedulingActionsTest extends TestCase
         $foreignDoctor = $this->doctor();
         $foreignClinic = $this->clinic($foreignDoctor);
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionCode(403);
 
         app(CreateTimeSlotAction::class)->handle($doctor, TimeSlotData::fromValidated([
@@ -120,6 +125,7 @@ final class SchedulingActionsTest extends TestCase
     public function test_update_time_slot_ignores_its_own_range_but_rejects_another_overlap(): void
     {
         $doctor = $this->doctor();
+        $this->clinic($doctor);
         $slot = $this->slot($doctor->id, '09:00', '09:30');
         $this->slot($doctor->id, '10:00', '10:30');
 
@@ -147,10 +153,11 @@ final class SchedulingActionsTest extends TestCase
         Carbon::setTestNow('2026-11-14 08:00:00');
 
         $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
 
         DoctorWorkingHour::query()->create([
             'doctor_id' => $doctor->id,
-            'clinic_id' => 1,
+            'clinic_id' => $clinic->id,
             'day_of_week' => 0,
             'start_time' => '09:00',
             'end_time' => '10:00',
@@ -160,7 +167,7 @@ final class SchedulingActionsTest extends TestCase
 
         $this->slot($doctor->id, '09:00', '09:30', '2026-11-14');
 
-        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, 1, 1);
+        $result = app(GenerateTimeSlotsAction::class)->handle($doctor, 1, $clinic->id);
 
         $this->assertSame(1, $result['generated']);
         $this->assertSame(1, $result['skipped']);
@@ -195,10 +202,12 @@ final class SchedulingActionsTest extends TestCase
     public function test_save_working_hour_rejects_overlap_across_clinics_and_allows_self_update(): void
     {
         $doctor = $this->doctor();
+        $clinicOne = $this->clinic($doctor);
+        $clinicTwo = $this->clinic($doctor);
 
         $workingHour = DoctorWorkingHour::query()->create([
             'doctor_id' => $doctor->id,
-            'clinic_id' => 1,
+            'clinic_id' => $clinicOne->id,
             'day_of_week' => 2,
             'start_time' => '09:00',
             'end_time' => '12:00',
@@ -209,7 +218,7 @@ final class SchedulingActionsTest extends TestCase
         $action = app(SaveWorkingHourAction::class);
 
         $conflict = $action->handle($doctor, WorkingHourData::fromValidated([
-            'clinic_id' => 2,
+            'clinic_id' => $clinicTwo->id,
             'day_of_week' => 2,
             'duration_minutes' => 30,
             'start_time' => '11:00',
@@ -220,7 +229,7 @@ final class SchedulingActionsTest extends TestCase
         $this->assertSame($workingHour->id, $conflict['duplicate']->id);
 
         $updated = $action->handle($doctor, WorkingHourData::fromValidated([
-            'clinic_id' => 1,
+            'clinic_id' => $clinicOne->id,
             'day_of_week' => 2,
             'duration_minutes' => 20,
             'start_time' => '08:00',
@@ -229,6 +238,15 @@ final class SchedulingActionsTest extends TestCase
 
         $this->assertTrue($updated['saved']);
         $this->assertSame('08:00', substr((string) $workingHour->fresh()->start_time, 0, 5));
+    }
+
+    private function clinic(Doctor $doctor, bool $active = true): Address
+    {
+        return Address::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Test clinic',
+            'is_active' => $active,
+        ]);
     }
 
     private function doctor(): Doctor
