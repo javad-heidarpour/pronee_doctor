@@ -51,6 +51,7 @@ class UpdateSecretaryAssignmentsAction
                 }
 
                 $lockedSecretary->doctors()->sync($syncData);
+                $this->revokeSecretarySessions($lockedSecretary);
                 $audit->handle('secretary.assignments_updated', $lockedSecretary, [
                     'clinic_count' => collect($syncData)->sum(function ($pivot) {
                         $ids = json_decode($pivot['clinic_ids'] ?? '[]', true);
@@ -108,6 +109,8 @@ class UpdateSecretaryAssignmentsAction
                 $lockedSecretary->doctors()->detach($activeDoctor->id);
             }
 
+            $this->revokeSecretarySessions($lockedSecretary);
+
             $audit->handle('secretary.assignments_updated', $lockedSecretary, [
                 'doctor_id' => $activeDoctor->id,
                 'clinic_count' => $currentDoctorClinicCount,
@@ -117,5 +120,21 @@ class UpdateSecretaryAssignmentsAction
                 ) ?: []),
             ]);
         });
+    }
+    /**
+     * دسترسی‌های منشی تغییر کرده‌اند؛ کوکی‌های ماندگار و نشست‌های دیتابیسی
+     * قبلی را باطل می‌کنیم تا نشست قدیمی به تغییرات دسترسی متکی نماند.
+     */
+    private function revokeSecretarySessions(User $secretary): void
+    {
+        $secretary->forceFill([
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        if (config('session.driver') === 'database') {
+            DB::table(config('session.table', 'sessions'))
+                ->where('user_id', $secretary->id)
+                ->delete();
+        }
     }
 }
