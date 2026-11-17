@@ -191,7 +191,6 @@ class BookAppointmentAction
             Log::error('Appointment booking failed', [
                 'time_slot_id' => $validated['time_slot_id'] ?? null,
                 'exception' => get_class($e),
-                'message' => $e->getMessage(),
             ]);
 
             return back()->withErrors([
