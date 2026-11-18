@@ -75,6 +75,11 @@ final class ClinicIntelligenceController extends Controller
         $paidAppointmentCount = (int) (clone $paidPayments)->distinct('a.id')->count('a.id');
         $expenses = (int) DB::table('clinic_expenses')->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())->sum('amount');
+        $ownedOrganizationIds = DB::table('clinic_organizations')
+            ->where('owner_user_id', $user->id)->where('status', 'active')->pluck('id');
+        $paidPayroll = (int) DB::table('clinic_staff_payrolls')
+            ->whereIn('organization_id', $ownedOrganizationIds)->where('status', 'paid')
+            ->whereDate('period_end', '>=', now()->subDays(90)->toDateString())->sum('net_amount');
 
         return Inertia::render('Portal/ClinicIntelligence/Index', [
             'doctor' => $doctor,
@@ -90,7 +95,7 @@ final class ClinicIntelligenceController extends Controller
                 'appointments_90d' => $appointmentCount,
                 'monthly_appointments' => round($appointmentCount / 3, 1),
                 'monthly_revenue' => (int) round($revenue / 3),
-                'monthly_expenses' => (int) round($expenses / 3),
+                'monthly_expenses' => (int) round(($expenses + $paidPayroll) / 3),
                 'average_fee' => $paidAppointmentCount > 0 ? (int) round($revenue / $paidAppointmentCount) : 0,
             ],
         ]);
@@ -245,6 +250,12 @@ final class ClinicIntelligenceController extends Controller
             ->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())
             ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('clinic_id', $clinicId));
         $baselineExpenses = (int) (clone $expenseQuery)->sum('amount') / 3;
+        $organizationIds = DB::table('clinic_organizations')->where('owner_user_id', Auth::guard('web')->id())
+            ->where('status', 'active')->pluck('id');
+        $payrollQuery = DB::table('clinic_staff_payrolls')->whereIn('organization_id', $organizationIds)
+            ->where('status', 'paid')->whereDate('period_end', '>=', now()->subDays(90)->toDateString())
+            ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where(fn ($scope) => $scope->whereNull('clinic_id')->orWhere('clinic_id', $clinicId)));
+        $baselineExpenses += (int) (clone $payrollQuery)->sum('net_amount') / 3;
         $averageFee = (int) ($data['average_fee'] ?: ($paidAppointmentCount > 0 ? round(($baselineRevenue * 3) / $paidAppointmentCount) : 0));
         $extraAppointments = min((float) $data['extra_appointments_month'], (float) $data['capacity_monthly']);
         $volumeFactor = 1 + ((float) ($data['volume_change_percent'] ?? 0) / 100);
