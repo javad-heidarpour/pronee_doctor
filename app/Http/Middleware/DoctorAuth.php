@@ -112,6 +112,12 @@ class DoctorAuth
             $permissions = json_decode($permissions, true) ?: [];
         }
 
+        if ($routeName === 'portal.operations.index') {
+            $allowed = ['services.view', 'services.manage', 'inventory.view', 'inventory.manage', 'patients.clinical.view', 'patients.clinical.manage'];
+            abort_unless(is_array($permissions) && array_intersect($allowed, $permissions) !== [], 403, 'مجوز مشاهده عملیات کلینیک برای شما فعال نیست.');
+            return $next($request);
+        }
+
         $hasPermission = is_array($permissions) && in_array($permission, $permissions, true);
         if (!$hasPermission && $permission === 'patients.clinical.view') {
             $hasPermission = is_array($permissions) && in_array('patients.clinical.manage', $permissions, true);
@@ -154,7 +160,6 @@ class DoctorAuth
         }
 
         $specific = [
-            'portal.operations.index' => 'services.view',
             'portal.operations.services.store' => 'services.manage',
             'portal.operations.treatment-items.store' => 'patients.clinical.manage',
             'portal.operations.treatment-items.update' => 'patients.clinical.manage',
