@@ -6,6 +6,7 @@ namespace App\Actions\Portal\Patient;
 
 use App\Models\Appointment;
 use App\Models\PatientEncounter;
+use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 
