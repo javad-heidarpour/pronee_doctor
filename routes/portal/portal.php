@@ -98,6 +98,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/organizations/{organization}/doctors', [ClinicOrganizationController::class, 'inviteDoctor'])->whereNumber('organization')->name('organizations.doctors.invite');
         Route::post('/organizations/{organization}/doctors/accept', [ClinicOrganizationController::class, 'acceptDoctor'])->whereNumber('organization')->name('organizations.doctors.accept');
         Route::post('/organizations/{organization}/clinics', [ClinicOrganizationController::class, 'attachClinic'])->whereNumber('organization')->name('organizations.clinics.attach');
+        Route::post('/organizations/{organization}/members', [ClinicOrganizationController::class, 'inviteMember'])->whereNumber('organization')->name('organizations.members.invite');
+        Route::delete('/organizations/{organization}/members/{member}', [ClinicOrganizationController::class, 'removeMember'])->whereNumber('organization')->whereNumber('member')->name('organizations.members.remove');
 
         Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
