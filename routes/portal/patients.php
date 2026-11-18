@@ -23,6 +23,7 @@ Route::prefix('encounters')->name('encounters.')->group(function () {
     Route::get('/appointments/{appointment}', [PatientEncounterController::class, 'index'])->whereNumber('appointment')->name('index');
     Route::get('/appointments/{appointment}/create', [PatientEncounterController::class, 'create'])->whereNumber('appointment')->name('create');
     Route::post('/appointments/{appointment}', [PatientEncounterController::class, 'store'])->whereNumber('appointment')->name('store');
+    Route::get('/{encounter}/amend', [PatientEncounterController::class, 'amend'])->whereNumber('encounter')->name('amend');
     Route::get('/{encounter}', [PatientEncounterController::class, 'show'])->whereNumber('encounter')->name('show');
     Route::put('/{encounter}', [PatientEncounterController::class, 'update'])->whereNumber('encounter')->name('update');
     Route::post('/{encounter}/sign', [PatientEncounterController::class, 'sign'])->whereNumber('encounter')->name('sign');
