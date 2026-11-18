@@ -5,7 +5,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
   providers: Object, outgoing: Array, incoming: Array, patients: Array, clinics: Array,
-  filters: Object, providerTypes: Array, stats: Object,
+  filters: Object, providerTypes: Array, stats: Object, networkIntelligence: Object,
 })
 const filter = reactive({ type: props.filters?.type || '', city: props.filters?.city || '', search: props.filters?.search || '' })
 const providerForm = useForm({ provider_type: 'laboratory', name: '', city: '', address: '', phone: '', email: '', license_number: '', specialties: '', services: '', description: '' })
@@ -57,6 +57,26 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
       </section>
 
       <section class="rounded-2xl border bg-white p-4">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div><h2 class="font-black">هوشمندی عملکرد شبکه ارجاع</h2><p class="mt-1 text-xs leading-6 text-slate-500">شاخص‌های عملیاتی بر اساس ارجاعات {{ networkIntelligence.window_days }} روز اخیر؛ این آمار معیار کیفیت تشخیص یا درمان نیست.</p></div>
+          <span class="rounded-full bg-slate-100 px-3 py-1 text-xs">حداقل نمونه معتبر: {{ networkIntelligence.minimum_sample }} ارجاع</span>
+        </div>
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="metric in networkIntelligence.providers" :key="metric.provider_id" class="rounded-xl border p-3">
+            <div class="flex items-start justify-between gap-2"><div><b class="text-sm">{{ metric.provider_name }}</b><p class="text-xs text-slate-500">{{ metric.city || 'شهر نامشخص' }} · {{ labelType(metric.provider_type) }}</p></div><span v-if="!metric.data_sufficient" class="rounded-full bg-amber-50 px-2 py-1 text-[10px] text-amber-800">نمونه ناکافی</span><span v-else class="rounded-full bg-teal-50 px-2 py-1 text-[10px] text-teal-800">داده کافی</span></div>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <p>تعداد ارجاع: <b>{{ metric.sample_size }}</b></p><p>تکمیل‌شده: <b>{{ metric.completed_count }}</b></p>
+              <p>نرخ پذیرش: <b>{{ metric.acceptance_rate === null ? '—' : metric.acceptance_rate + '%' }}</b></p>
+              <p>نرخ تکمیل: <b>{{ metric.completion_rate === null ? '—' : metric.completion_rate + '%' }}</b></p>
+              <p>میانگین پاسخ: <b>{{ metric.average_response_hours === null ? '—' : metric.average_response_hours + ' ساعت' }}</b></p>
+              <p class="text-rose-700">معطل: <b>{{ metric.overdue_count }}</b></p>
+            </div>
+          </article>
+          <p v-if="!networkIntelligence.providers.length" class="col-span-full rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">هنوز مرکز تأییدشده‌ای برای تحلیل وجود ندارد.</p>
+        </div>
+        <p class="mt-3 text-[11px] leading-6 text-slate-500">نرخ‌ها فقط با حداقل نمونه تعیین‌شده نمایش داده می‌شوند. اطلاعات بیمار در این گزارش تجمیعی نمایش داده نمی‌شود؛ «معطل» یعنی ارجاع ارسال‌شده بدون پاسخ بیش از ۴۸ ساعت یا زمان مراجعه گذشته در وضعیت باز.</p>
+      </section>
+
       <section class="rounded-2xl border bg-white p-4">
         <h2 class="mb-2 font-black">درخواست عضویت پزشک یا مرکز جدید</h2>
         <p class="mb-3 text-xs leading-6 text-slate-500">پس از ثبت، مدیر شبکه مدارک و مجوزها را بررسی می‌کند. پروفایل تا زمان تأیید در جست‌وجوی عمومی نمایش داده نمی‌شود.</p>

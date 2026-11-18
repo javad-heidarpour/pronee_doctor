@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Services\MedicalReferralWorkflow;
+use App\Services\ReferralNetworkIntelligence;
 use App\Models\Address;
 use App\Models\MedicalNetworkProvider;
 use App\Models\MedicalReferral;
@@ -24,7 +25,7 @@ final class MedicalNetworkController extends Controller
 {
     use HasActiveDoctor;
 
-    public function index(Request $request)
+    public function index(Request $request, ReferralNetworkIntelligence $intelligence)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'secretary', 'admin'], true), 403);
@@ -33,8 +34,9 @@ final class MedicalNetworkController extends Controller
             $this->authorizeSecretaryPermission('appointments.view', $doctor);
         }
 
-        $providers = MedicalNetworkProvider::query()
+        $providerQuery = MedicalNetworkProvider::query()
             ->where('status', 'active')
+            ->where('is_verified', true)
             ->when($request->filled('type'), fn ($q) => $q->where('provider_type', $request->string('type')))
             ->when($request->filled('city'), fn ($q) => $q->where('city', 'like', '%' . $request->string('city') . '%'))
             ->when($request->filled('search'), function ($q) use ($request): void {
@@ -46,8 +48,11 @@ final class MedicalNetworkController extends Controller
                 });
             })
             ->with('organization:id,name')
-            ->orderByDesc('is_verified')->orderByDesc('rating')->orderBy('name')
-            ->paginate(12)->withQueryString();
+            ->orderBy('name');
+
+        $networkProviders = (clone $providerQuery)->get(['id', 'name', 'provider_type', 'city']);
+        $networkIntelligence = $intelligence->forProviders($networkProviders);
+        $providers = (clone $providerQuery)->paginate(12)->withQueryString();
 
         $outgoing = MedicalReferral::query()
             ->where('referring_doctor_id', $doctor->id)
@@ -61,6 +66,7 @@ final class MedicalNetworkController extends Controller
 
         return Inertia::render('Portal/MedicalNetwork/Index', [
             'providers' => $providers,
+            'networkIntelligence' => $networkIntelligence,
             'outgoing' => $outgoing,
             'incoming' => $incoming,
             'patients' => Patient::query()->where('doctor_id', $doctor->id)
