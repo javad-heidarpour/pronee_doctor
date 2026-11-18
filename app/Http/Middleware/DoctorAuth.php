@@ -160,7 +160,7 @@ class DoctorAuth
             'portal.appointments.' => 'appointments',
             'portal.clinics.' => 'clinics',
             'portal.shifts.' => 'shifts',
-            'portal.working-hours.' => 'working-hours',
+            'portal.working-hours.' => 'working-hours',\n            'portal.finance.' => 'finance',
         ];
 
         foreach ($map as $prefix => $resource) {
