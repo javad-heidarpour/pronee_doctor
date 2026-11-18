@@ -18,6 +18,8 @@ class ListManagedUserPermissionsAction
             'shifts.manage' => 'مدیریت شیفت‌ها',
             'working-hours.view' => 'مشاهده ساعات کاری',
             'working-hours.manage' => 'مدیریت ساعات کاری',
+            'finance.view' => 'مشاهده امور مالی و اقساط',
+            'finance.manage' => 'ثبت دریافت، اقساط، وثایق و هزینه‌ها',
         ];
     }
 }
