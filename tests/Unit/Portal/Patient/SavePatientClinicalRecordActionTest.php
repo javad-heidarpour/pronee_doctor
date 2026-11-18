@@ -244,6 +244,46 @@ final class SavePatientClinicalRecordActionTest extends TestCase
         ], $record);
     }
 
+    public function test_it_rejects_linking_a_reaction_to_an_inactive_medication(): void
+    {
+        $doctor = $this->makeDoctor('doctor-inactive-medication');
+        $patient = $this->makePatient($doctor);
+        $medication = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_MEDICATION,
+            'title' => 'Inactive medication',
+            'is_active' => false,
+        ]);
+
+        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported reaction',
+            'related_record_id' => $medication->id,
+        ]);
+    }
+
+    public function test_it_rejects_linking_a_reaction_to_an_inactive_allergy(): void
+    {
+        $doctor = $this->makeDoctor('doctor-inactive-allergy');
+        $patient = $this->makePatient($doctor);
+        $allergy = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ALLERGY,
+            'title' => 'Inactive allergy',
+            'is_active' => false,
+        ]);
+
+        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported reaction',
+            'related_allergy_record_id' => $allergy->id,
+        ]);
+    }
+
     private function makeDoctor(string $slug): Doctor
     {
         return Doctor::query()->create(['name' => 'Test Doctor', 'slug' => $slug]);
