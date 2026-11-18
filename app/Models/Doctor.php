@@ -95,7 +95,7 @@ class Doctor extends Model
         return $this->hasOne(Contact::class);
     }
 
-    public function clinicOrganizations(): BelongsToMany\n    {\n        return $this->belongsToMany(ClinicOrganization::class, 'clinic_organization_doctors')->withPivot(['role', 'revenue_share_basis_points', 'status', 'joined_at'])->withTimestamps();\n    }\n\n    public function treatmentItems(): HasMany\n    {\n        return $this->hasMany(PatientTreatmentItem::class, 'provider_doctor_id');\n    }\n\n    public function address(): HasMany
+    public function clinicOrganizations(): BelongsToMany\n    {\n        return $this->belongsToMany(ClinicOrganization::class, 'clinic_organization_doctors', 'doctor_id', 'organization_id')->withPivot(['role', 'revenue_share_basis_points', 'status', 'joined_at'])->withTimestamps();\n    }\n\n    public function treatmentItems(): HasMany\n    {\n        return $this->hasMany(PatientTreatmentItem::class, 'provider_doctor_id');\n    }\n\n    public function address(): HasMany
     {
         return $this->hasMany(Address::class);
     }
