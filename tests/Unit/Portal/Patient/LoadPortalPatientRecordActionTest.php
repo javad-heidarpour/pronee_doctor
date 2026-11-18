@@ -104,7 +104,7 @@ final class LoadPortalPatientRecordActionTest extends TestCase
     {
         $doctor = $this->doctor('doctor-owner');
         $otherDoctor = $this->doctor('doctor-other-owner');
-        $foreignPatient = \\App\\Models\\Patient::query()->create([
+        $foreignPatient = \App\Models\Patient::query()->create([
             'doctor_id' => $otherDoctor->id,
             'name' => 'Foreign Patient',
             'phone' => '09121111111',
