@@ -12,7 +12,7 @@ class PatientFollowUpTask extends Model
     protected $fillable = [
         'doctor_id', 'patient_id', 'appointment_id', 'template_id',
         'assigned_to', 'created_by', 'plan_uuid', 'title', 'description',
-        'due_at', 'priority', 'contact_method', 'status', 'outcome',
+        'due_at', 'priority', 'contact_method', 'send_sms', 'status', 'outcome',
         'result_notes', 'completed_at', 'sms_sent_at', 'sms_attempted_at',
         'sms_attempts', 'last_sms_error',
     ];
@@ -23,6 +23,7 @@ class PatientFollowUpTask extends Model
         'sms_sent_at' => 'datetime',
         'sms_attempted_at' => 'datetime',
         'sms_attempts' => 'integer',
+        'send_sms' => 'boolean',
     ];
 
     public function doctor(): BelongsTo
