@@ -77,7 +77,7 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
                 <td class="p-3">{{ item.reorder_in_days === null ? 'نیازمند ثبت داده' : item.reorder_in_days === 0 ? 'اکنون' : item.reorder_in_days + ' روز دیگر' }}</td>
                 <td class="p-3 font-bold">{{ item.suggested_order_quantity }} {{ item.unit }}<p class="text-xs font-normal text-slate-500">{{ money(item.estimated_order_cost) }}</p></td>
                 <td class="p-3"><span class="rounded-full px-2 py-1 text-xs" :class="item.risk === 'out' || item.risk === 'critical' ? 'bg-rose-100 text-rose-700' : item.risk === 'warning' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'">{{ riskLabel(item.risk) }}</span></td>
-                <td class="p-3"><button @click="updateSettings(item)" class="text-xs font-bold text-teal-700">زمان تأمین</button></td>
+                <td class="p-3"><button v-if="permissions.inventory_manage" @click="updateSettings(item)" class="text-xs font-bold text-teal-700">زمان تأمین</button></td>
               </tr>
               <tr v-if="!forecast.items?.length"><td colspan="8" class="p-6 text-center text-slate-500">برای شعبه‌های مجاز، کالای فعالی در انبار ثبت نشده است.</td></tr>
             </tbody>
@@ -96,7 +96,7 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
           <textarea v-model="program.description" rows="2" placeholder="شرح و هدف پیشگیرانه" class="rounded-xl border-slate-300 text-sm md:col-span-2" />
           <button class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white md:col-span-2">ایجاد برنامه سلامت</button>
         </form>
-        <form @submit.prevent="enrollment.post(route('portal.intelligence.health.enroll'))" class="grid gap-3 rounded-xl border p-3 md:grid-cols-[1fr_1fr_auto]">
+        <form v-if="permissions.health_manage" @submit.prevent="enrollment.post(route('portal.intelligence.health.enroll'))" class="grid gap-3 rounded-xl border p-3 md:grid-cols-[1fr_1fr_auto]">
           <select v-model="enrollment.patient_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب بیمار</option><option v-for="patient in patients" :key="patient.id" :value="patient.id">{{ patient.name }} · {{ patient.phone }}</option></select>
           <select v-model="enrollment.program_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب برنامه</option><option v-for="item in programs" :key="item.id" :value="item.id">{{ item.title }}</option></select>
           <label class="flex items-center gap-2 text-xs"><input v-model="enrollment.consent" type="checkbox" required /> رضایت آگاهانه بیمار دریافت و ثبت شد</label>
@@ -106,7 +106,7 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
           <article v-for="reminder in reminders" :key="reminder.membership_id" class="rounded-xl border p-3">
             <div class="flex items-start justify-between gap-2"><div><b>{{ reminder.patient_name }}</b><p class="text-xs text-slate-500">{{ reminder.program_title }} · {{ reminder.phone }}</p></div><span class="rounded-full bg-teal-50 px-2 py-1 text-xs text-teal-700">{{ reminder.points }} امتیاز</span></div>
             <p class="mt-2 text-xs" :class="reminder.overdue ? 'text-rose-600' : 'text-slate-500'">موعد مراقبت پیشنهادی: {{ reminder.due_date }} <span v-if="reminder.overdue">· موعد گذشته</span></p>
-            <div class="mt-2 flex flex-wrap gap-3"><button @click="router.post(route('portal.intelligence.health.checkup', reminder.membership_id))" class="text-xs font-bold text-emerald-700">ثبت انجام چکاپ</button><button @click="award(memberships.find(m => m.id === reminder.membership_id))" class="text-xs font-bold text-teal-700">ثبت فعالیت آموزشی/پیشگیرانه</button><button @click="router.post(route('portal.intelligence.health.withdraw', reminder.membership_id))" class="text-xs font-bold text-rose-600">انصراف بیمار از برنامه</button></div>
+            <div v-if="permissions.health_manage" class="mt-2 flex flex-wrap gap-3"><button @click="router.post(route('portal.intelligence.health.checkup', reminder.membership_id))" class="text-xs font-bold text-emerald-700">ثبت انجام چکاپ</button><button @click="award(memberships.find(m => m.id === reminder.membership_id))" class="text-xs font-bold text-teal-700">ثبت فعالیت آموزشی/پیشگیرانه</button><button @click="router.post(route('portal.intelligence.health.withdraw', reminder.membership_id))" class="text-xs font-bold text-rose-600">انصراف بیمار از برنامه</button></div>
           </article>
           <p v-if="!reminders.length" class="text-sm text-slate-500">هنوز عضویت فعالی ثبت نشده است.</p>
         </div>
