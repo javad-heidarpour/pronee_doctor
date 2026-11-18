@@ -27,6 +27,11 @@ class Patient extends Model
         return $this->hasMany(Appointment::class);
     }
 
+    public function vitalSigns(): HasMany
+    {
+        return $this->hasMany(PatientVitalSign::class)->orderByDesc('measured_at')->orderByDesc('id');
+    }
+
     public function clinicalRecords(): HasMany
     {
         return $this->hasMany(PatientClinicalRecord::class)

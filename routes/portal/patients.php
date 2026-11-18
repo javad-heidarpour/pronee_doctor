@@ -22,6 +22,10 @@ Route::prefix('patients')->name('patients.')->group(function () {
         ->whereNumber('appointment')
         ->name('directory.record');
 
+    Route::post('/{patient}/vital-signs', [PatientController::class, 'storeVitalSign'])
+        ->whereNumber('patient')
+        ->name('vital-signs.store');
+
     Route::post('/{patient}/clinical-records', [PatientController::class, 'storeClinicalRecord'])
         ->whereNumber('patient')
         ->name('clinical-records.store');
