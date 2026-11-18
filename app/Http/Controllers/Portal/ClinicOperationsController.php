@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Address;
 use App\Models\ClinicInventoryItem;
 use App\Models\ClinicInventoryMovement;
+use App\Models\ClinicOrganization;
 use App\Models\ClinicService;
 use App\Models\ClinicStaffPayroll;
 use App\Models\DoctorSettlement;
@@ -32,7 +33,7 @@ class ClinicOperationsController extends Controller
     {
         $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
-        $clinicIds = $this->accessibleClinicIds($doctor);
+        $clinicIds = $this->accessibleOperationsClinicIds($doctor);
         $user = Auth::guard('web')->user();
         abort_unless(in_array($user->role, ['doctor', 'secretary'], true), 403);
         $isPrivileged = $user->role === 'doctor';
@@ -91,7 +92,7 @@ class ClinicOperationsController extends Controller
             'inventory_requirements.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
         ]);
         $clinicId = (int) $data['clinic_id'];
-        $this->authorizeClinicAccess($clinicId, $doctor);
+        $this->authorizeOperationsClinicAccess($clinicId, $doctor);
         $organizationId = Address::whereKey($clinicId)->value('organization_id');
         DB::transaction(function () use ($data, $clinicId, $organizationId): void {
             $service = ClinicService::create(collect($data)->except('inventory_requirements')->all() + ['organization_id' => $organizationId]);
@@ -115,7 +116,7 @@ class ClinicOperationsController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $treatmentPlan = PatientTreatmentPlan::query()->whereKey($plan)->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->firstOrFail();
+            ->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor))->firstOrFail();
         $data = $request->validate([
             'service_id' => ['nullable', 'integer'], 'title' => ['required', 'string', 'max:180'],
             'item_type' => ['required', Rule::in(['procedure','consultation','lab','imaging','medication','other'])],
@@ -157,7 +158,7 @@ class ClinicOperationsController extends Controller
 
         DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
             $row = PatientTreatmentItem::query()->whereKey($item)
-                ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
+                ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor)))
                 ->with('plan.patient')->lockForUpdate()->firstOrFail();
             abort_if(in_array($row->stage, ['completed', 'cancelled'], true), 422, 'مرحله نهایی‌شده قابل تغییر نیست.');
 
@@ -255,7 +256,7 @@ class ClinicOperationsController extends Controller
             'notes' => ['nullable', 'string', 'max:3000'],
         ]);
         $clinicId = (int) $data['clinic_id'];
-        $this->authorizeClinicAccess($clinicId, $doctor);
+        $this->authorizeOperationsClinicAccess($clinicId, $doctor);
         $patient = Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $clinicId))->firstOrFail();
         PatientDentalChartEntry::create($data + [
@@ -276,7 +277,7 @@ class ClinicOperationsController extends Controller
             'unit_cost' => ['nullable', 'integer', 'min:0'],
         ]);
         $clinicId = (int) $data['clinic_id'];
-        $this->authorizeClinicAccess($clinicId, $doctor);
+        $this->authorizeOperationsClinicAccess($clinicId, $doctor);
         $organizationId = Address::whereKey($clinicId)->value('organization_id');
         DB::transaction(function () use ($data, $clinicId, $organizationId, $doctor, $accounting): void {
             $item = ClinicInventoryItem::create([
@@ -314,7 +315,7 @@ class ClinicOperationsController extends Controller
         ]);
         DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
             $row = ClinicInventoryItem::query()->whereKey($item)
-                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                ->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor))
                 ->lockForUpdate()->firstOrFail();
             $delta = match ($data['movement_type']) {
                 'purchase', 'return', 'adjustment_in' => (float) $data['quantity'],
@@ -508,6 +509,33 @@ class ClinicOperationsController extends Controller
         if (is_string($permissions)) $permissions = json_decode($permissions, true) ?: [];
         return is_array($permissions) && in_array($permission, $permissions, true);
     }
+    private function accessibleOperationsClinicIds(\App\Models\Doctor $doctor): array
+    {
+        $ids = $this->accessibleClinicIds($doctor);
+        $user = Auth::guard('web')->user();
+
+        if ($user?->role === 'doctor') {
+            $organizationIds = ClinicOrganization::query()
+                ->where('owner_user_id', $user->id)
+                ->where('status', 'active')
+                ->pluck('id');
+            if ($organizationIds->isNotEmpty()) {
+                $ids = array_merge($ids, Address::query()
+                    ->whereIn('organization_id', $organizationIds)
+                    ->where('is_active', true)
+                    ->pluck('id')->map(fn ($id) => (int) $id)->all());
+            }
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    private function authorizeOperationsClinicAccess(int $clinicId, \App\Models\Doctor $doctor): void
+    {
+        abort_unless(in_array($clinicId, $this->accessibleOperationsClinicIds($doctor), true), 403,
+            'شما به این شعبه برای عملیات کلینیک دسترسی ندارید.');
+    }
+
     private function authorizeClinicRole(): void
     {
         abort_unless(in_array(Auth::guard('web')->user()?->role, ['doctor', 'secretary'], true), 403);
