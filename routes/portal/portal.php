@@ -8,6 +8,7 @@ use App\Http\Controllers\Portal\SecurityAuditController;
 use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
+use App\Http\Controllers\Portal\ClinicOrganizationController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
