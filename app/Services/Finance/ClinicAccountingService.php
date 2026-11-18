@@ -31,7 +31,7 @@ class ClinicAccountingService
             'patient_installment_payment', $paymentId, 'دریافت بیمار: ' . $description,
             $occurredAt, 'patient-payment:' . $paymentId,
             [['code' => '1000', 'debit' => $amount, 'credit' => 0],
-             ['code' => '2100', 'debit' => 0, 'credit' => $amount]]);
+             ['code' => '1100', 'debit' => 0, 'credit' => $amount]]);
     }
 
     public function recordExpense(
