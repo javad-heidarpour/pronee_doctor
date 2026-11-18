@@ -26,7 +26,7 @@ return new class extends Migration
             foreach ([
                 ['title' => 'مجموعه‌های درمانی', 'route_name' => 'portal.organizations.index', 'icon' => 'IconBuilding2', 'order' => 57, 'permissions' => ['organizations.view'], 'roles' => ['doctor']],
                 ['title' => 'عملیات تخصصی کلینیک', 'route_name' => 'portal.operations.index', 'icon' => 'IconBriefcaseMedical', 'order' => 59, 'permissions' => ['services.view'], 'roles' => ['doctor', 'secretary']],
-                ['title' => 'مدیریت مالی و اقساط', 'route_name' => 'portal.finance.index', 'icon' => 'IconWallet', 'order' => 58, 'permissions' => ['finance.view']],
+                ['title' => 'مدیریت مالی و اقساط', 'route_name' => 'portal.finance.index', 'icon' => 'IconWallet', 'order' => 58, 'permissions' => ['finance.view'], 'roles' => ['doctor', 'secretary']],
             ] as $menu) {
                 if (!DB::table('menus')->where('route_name', $menu['route_name'])->exists()) {
                     DB::table('menus')->insert([
