@@ -9,6 +9,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <Link :href="route('portal.encounters.index', appointment.id)" class="rounded-xl border px-4 py-2.5 text-sm font-bold text-slate-700">تاریخچه ویزیت‌ها</Link>
+          <Link :href="route('portal.follow-ups.index', { patient_id: patient.id, appointment_id: appointment.id })" class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-bold text-teal-800">برنامه پیگیری بیمار</Link>
           <Link :href="route('portal.patients.show', appointment.id)" class="rounded-xl border px-4 py-2.5 text-sm font-bold text-slate-700">بازگشت به نوبت</Link>
           <span v-if="readonly" class="rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-bold text-emerald-800">نهایی و قفل‌شده</span>
           <span v-if="amendsEncounter" class="rounded-xl bg-violet-100 px-4 py-2.5 text-sm font-bold text-violet-800">اصلاحیه یادداشت شماره {{ amendsEncounter.id }}</span>
