@@ -13,12 +13,12 @@ class ClinicAccountingService
 {
     private const ACCOUNTS = [
         '1000' => ['name' => 'صندوق و بانک', 'type' => 'asset'],
-        '1100' => ['name' => 'مطالبات از بیماران', 'type' => 'asset'],
+        '1100' => ['name' => 'مطالبات از بیماران', 'type' => 'asset'],\n        '1300' => ['name' => 'موجودی مواد و کالا', 'type' => 'asset'],
         '2100' => ['name' => 'پیش‌دریافت بیماران', 'type' => 'liability'],
         '2200' => ['name' => 'بدهی به پزشکان', 'type' => 'liability'],
         '2300' => ['name' => 'بدهی حقوق کارکنان', 'type' => 'liability'],
         '4000' => ['name' => 'درآمد خدمات درمانی', 'type' => 'income'],
-        '5000' => ['name' => 'هزینه‌های عملیاتی', 'type' => 'expense'],
+        '5000' => ['name' => 'هزینه‌های عملیاتی', 'type' => 'expense'],\n        '5010' => ['name' => 'هزینه مواد مصرفی', 'type' => 'expense'],
         '5100' => ['name' => 'هزینه سهم پزشکان', 'type' => 'expense'],
         '5200' => ['name' => 'هزینه حقوق کارکنان', 'type' => 'expense'],
     ];
@@ -54,6 +54,19 @@ class ClinicAccountingService
             $occurredAt, 'treatment-revenue:' . $treatmentItemId,
             [['code' => '2100', 'debit' => $amount, 'credit' => 0],
              ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
+    }
+
+    public function recordInventoryMovement(
+        ?int $organizationId, int $clinicId, int $doctorId, int $userId,
+        int $movementId, string $movementType, int $totalCost, string $description, string $occurredAt
+    ): ?ClinicJournalEntry {
+        if ($totalCost < 1 || $movementType === 'adjustment') return null;
+        $lines = in_array($movementType, ['purchase', 'return'], true)
+            ? [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '1000', 'debit' => 0, 'credit' => $totalCost]]
+            : [['code' => '5010', 'debit' => $totalCost, 'credit' => 0], ['code' => '1300', 'debit' => 0, 'credit' => $totalCost]];
+        return $this->post($organizationId, $clinicId, $doctorId, $userId,
+            'clinic_inventory_movement', $movementId, $description, $occurredAt,
+            'inventory-movement:' . $movementId, $lines);
     }
 
     public function post(
