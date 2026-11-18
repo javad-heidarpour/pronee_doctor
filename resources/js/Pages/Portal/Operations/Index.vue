@@ -6,7 +6,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({
   doctor: Object, clinics: Array, patients: Array, organizations: Array, payrollOrganizations: Array, plans: Array,
   services: Array, inventory: Array, dentalChart: Array, settlements: Array, payrolls: Array,
-  lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean,
+  lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean, canViewClinical: Boolean, canManageClinical: Boolean, canViewInventory: Boolean,
 })
 const serviceForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', code: '', specialty_module: 'dentistry', default_duration_minutes: 30, default_price: 0, doctor_share_basis_points: 7000, requires_follow_up: false, follow_up_after_days: 30 })
 const itemForm = useForm({ plan_id: '', service_id: '', title: '', item_type: 'procedure', tooth_number: '', tooth_surface: '', sequence: 1, price: 0, doctor_share_basis_points: '', follow_up_after_days: '', clinical_notes: '' })
@@ -57,9 +57,9 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <div class="mt-4 flex flex-wrap gap-2"><span v-for="service in services" :key="service.id" class="rounded-lg bg-slate-50 px-3 py-2 text-xs">{{ service.name }} · {{ money(service.default_price) }} · {{ service.default_duration_minutes }} دقیقه</span></div>
       </section>
 
-      <section class="rounded-2xl border bg-white p-5">
+      <section v-if="canViewClinical" class="rounded-2xl border bg-white p-5">
         <h2 class="mb-4 font-bold">مراحل درمان و پیگیری خودکار</h2>
-        <form v-if="canManage" @submit.prevent="saveItem" class="grid gap-3 md:grid-cols-3">
+        <form v-if="canManageClinical" @submit.prevent="saveItem" class="grid gap-3 md:grid-cols-3">
           <select v-model="itemForm.plan_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب طرح درمان</option><option v-for="p in plans" :key="p.id" :value="p.id">{{ p.patient?.name }} — {{ p.title }}</option></select>
           <select v-model="itemForm.service_id" class="rounded-xl border-slate-300 text-sm"><option value="">خدمت آزاد</option><option v-for="s in services" :key="s.id" :value="s.id">{{ s.name }}</option></select>
           <input v-model="itemForm.title" required placeholder="عنوان مرحله درمان" class="rounded-xl border-slate-300 text-sm" />
@@ -77,16 +77,16 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
             <div class="font-bold">{{ plan.patient?.name }} — {{ plan.title }}</div>
             <div v-for="item in plan.items" :key="item.id" class="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-3 text-sm">
               <div><b>{{ item.title }}</b><p class="text-xs text-slate-500">{{ item.tooth_number ? 'دندان '+item.tooth_number : '' }} · {{ money(item.price) }} · {{ statusLabel(item.stage) }}</p><p v-if="item.follow_up_due_at" class="text-xs text-teal-700">پیگیری: {{ item.follow_up_due_at }}</p></div>
-              <select v-if="canManage && !['completed','cancelled'].includes(item.stage)" :value="item.stage" @change="updateItem(item,$event.target.value)" class="rounded-lg border-slate-300 text-xs"><option value="planned">برنامه‌ریزی‌شده</option><option value="scheduled">زمان‌بندی‌شده</option><option value="in_progress">در حال انجام</option><option value="completed">انجام شد</option><option value="cancelled">لغو</option></select>
+              <select v-if="canManageClinical && !['completed','cancelled'].includes(item.stage)" :value="item.stage" @change="updateItem(item,$event.target.value)" class="rounded-lg border-slate-300 text-xs"><option value="planned">برنامه‌ریزی‌شده</option><option value="scheduled">زمان‌بندی‌شده</option><option value="in_progress">در حال انجام</option><option value="completed">انجام شد</option><option value="cancelled">لغو</option></select>
             </div>
           </article>
         </div>
       </section>
 
       <section class="grid gap-5 lg:grid-cols-2">
-        <div class="rounded-2xl border bg-white p-5">
+        <div v-if="canViewClinical" class="rounded-2xl border bg-white p-5">
           <h2 class="mb-4 font-bold">ثبت وضعیت نمودار دندان</h2>
-          <form @submit.prevent="saveDental" class="grid gap-3 sm:grid-cols-2">
+          <form v-if="canManageClinical" @submit.prevent="saveDental" class="grid gap-3 sm:grid-cols-2">
             <select v-model="dentalForm.patient_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب بیمار</option><option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }} — {{ p.phone }}</option></select>
             <select v-model="dentalForm.clinic_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
             <select v-model="dentalForm.dentition" class="rounded-xl border-slate-300 text-sm"><option value="permanent">دندان دائمی</option><option value="primary">دندان شیری</option></select>
@@ -98,7 +98,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
           </form>
           <div class="mt-4 max-h-64 space-y-2 overflow-auto"><div v-for="entry in dentalChart" :key="entry.id" class="rounded-lg bg-slate-50 p-2 text-xs">{{ entry.patient?.name }} · دندان {{ entry.tooth_number }} · {{ entry.condition }} · {{ entry.recorded_at }}</div></div>
         </div>
-        <div class="rounded-2xl border bg-white p-5">
+        <div v-if="canViewInventory" class="rounded-2xl border bg-white p-5">
           <h2 class="mb-4 font-bold">انبار و مواد مصرفی</h2>
           <form v-if="canManageInventory" @submit.prevent="saveStock" class="grid gap-3 sm:grid-cols-2">
             <select v-model="stockForm.clinic_id" class="rounded-xl border-slate-300 text-sm"><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
