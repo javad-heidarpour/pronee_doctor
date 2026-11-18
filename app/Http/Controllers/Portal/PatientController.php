@@ -229,13 +229,19 @@ class PatientController extends Controller
     public function storeClinicalRecord(
         SavePatientClinicalRecordRequest $request,
         Patient $patient,
-        SavePatientClinicalRecordAction $action
+        SavePatientClinicalRecordAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $doctor = $this->currentDoctor();
         abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
         $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
 
-        $action->handle($patient, $request->validated());
+        $record = $action->handle($patient, $request->validated());
+        $audit->handle('patient.clinical_record.created', $record, [
+            'doctor_id' => $doctor->id,
+            'record_kind' => $record->kind,
+            'linked_medication' => $record->related_record_id !== null,
+        ]);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ثبت شد.');
     }
@@ -244,7 +250,8 @@ class PatientController extends Controller
         SavePatientClinicalRecordRequest $request,
         Patient $patient,
         PatientClinicalRecord $record,
-        SavePatientClinicalRecordAction $action
+        SavePatientClinicalRecordAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
         $doctor = $this->currentDoctor();
         abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
@@ -256,7 +263,12 @@ class PatientController extends Controller
             404
         );
 
-        $action->handle($patient, $request->validated(), $record);
+        $updatedRecord = $action->handle($patient, $request->validated(), $record);
+        $audit->handle('patient.clinical_record.updated', $updatedRecord, [
+            'doctor_id' => $doctor->id,
+            'record_kind' => $updatedRecord->kind,
+            'linked_medication' => $updatedRecord->related_record_id !== null,
+        ]);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
     }
