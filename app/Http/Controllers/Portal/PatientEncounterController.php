@@ -79,7 +79,8 @@ final class PatientEncounterController extends Controller
         CreatePatientEncounterAction $action,
         RecordSecurityAuditEventAction $audit
     ) {
-        $this->authorizeAppointment($appointment);        $this->authorizeClinicalRole();
+        $this->authorizeClinicalRole();
+        $this->authorizeAppointment($appointment);
 
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
@@ -158,7 +159,8 @@ final class PatientEncounterController extends Controller
         UpdatePatientEncounterAction $action,
         RecordSecurityAuditEventAction $audit
     ) {
-        $doctor = $this->currentDoctor();        $this->authorizeClinicalRole();
+        $this->authorizeClinicalRole();
+        $doctor = $this->currentDoctor();
 
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
@@ -180,6 +182,7 @@ final class PatientEncounterController extends Controller
         SignPatientEncounterAction $action,
         RecordSecurityAuditEventAction $audit
     ) {
+        $this->authorizeClinicalRole();
         $doctor = $this->currentDoctor();
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
