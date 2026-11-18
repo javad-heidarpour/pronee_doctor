@@ -13,12 +13,14 @@ class ClinicAccountingService
 {
     private const ACCOUNTS = [
         '1000' => ['name' => 'صندوق و بانک', 'type' => 'asset'],
-        '1100' => ['name' => 'مطالبات از بیماران', 'type' => 'asset'],\n        '1300' => ['name' => 'موجودی مواد و کالا', 'type' => 'asset'],
+        '1100' => ['name' => 'مطالبات از بیماران', 'type' => 'asset'],
+        '1300' => ['name' => 'موجودی مواد و کالا', 'type' => 'asset'],
         '2100' => ['name' => 'پیش‌دریافت بیماران', 'type' => 'liability'],
         '2200' => ['name' => 'بدهی به پزشکان', 'type' => 'liability'],
         '2300' => ['name' => 'بدهی حقوق کارکنان', 'type' => 'liability'],
         '4000' => ['name' => 'درآمد خدمات درمانی', 'type' => 'income'],
-        '5000' => ['name' => 'هزینه‌های عملیاتی', 'type' => 'expense'],\n        '5010' => ['name' => 'هزینه مواد مصرفی', 'type' => 'expense'],
+        '5000' => ['name' => 'هزینه‌های عملیاتی', 'type' => 'expense'],
+        '5010' => ['name' => 'هزینه مواد مصرفی', 'type' => 'expense'],
         '5100' => ['name' => 'هزینه سهم پزشکان', 'type' => 'expense'],
         '5200' => ['name' => 'هزینه حقوق کارکنان', 'type' => 'expense'],
     ];
