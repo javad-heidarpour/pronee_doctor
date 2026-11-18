@@ -8,6 +8,7 @@ use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Patient;
+use App\Models\Doctor;
 use App\Models\PatientCarePathway;
 use App\Models\PatientClinicalRecord;
 use App\Models\PatientEncounter;
