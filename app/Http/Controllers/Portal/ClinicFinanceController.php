@@ -28,6 +28,7 @@ class ClinicFinanceController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.view', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
@@ -92,6 +93,7 @@ class ClinicFinanceController extends Controller
 
     public function storePlan(Request $request, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
         $data = $request->validate([
@@ -192,6 +194,7 @@ class ClinicFinanceController extends Controller
 
     public function revokeSmsConsent(Request $request, int $plan)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
         $data = $request->validate(['scope' => ['required', Rule::in(['installment', 'follow_up', 'all'])]]);
@@ -225,6 +228,7 @@ class ClinicFinanceController extends Controller
 
     public function recordPayment(Request $request, int $installment, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
         $data = $request->validate([
@@ -270,6 +274,7 @@ class ClinicFinanceController extends Controller
 
     public function storeCollateral(Request $request, int $plan)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
         $data = $request->validate([
@@ -288,6 +293,7 @@ class ClinicFinanceController extends Controller
 
     public function updateCollateral(Request $request, int $collateral)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
         $data = $request->validate(['status' => ['required', Rule::in(['held', 'returned', 'collected', 'cancelled'])], 'notes' => ['nullable', 'string', 'max:2000']]);
@@ -299,6 +305,7 @@ class ClinicFinanceController extends Controller
 
     public function storeExpense(Request $request, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
         $data = $request->validate([
@@ -327,4 +334,9 @@ class ClinicFinanceController extends Controller
         });
         return back()->with('success', 'هزینه شعبه ثبت شد.');
     }
+    private function authorizeClinicRole(): void
+    {
+        abort_unless(in_array(Auth::guard('web')->user()?->role, ['doctor', 'secretary'], true), 403);
+    }
+
 }
