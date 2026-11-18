@@ -45,6 +45,8 @@ final class ClinicMarketingController extends Controller
                 $campaign->share_url = route('growth.track', ['code' => $campaign->code]);
                 $campaign->conversion_rate = (int) $campaign->clicks > 0
                     ? round(((int) $campaign->bookings / (int) $campaign->clicks) * 100, 1) : 0;
+                $campaign->cost_per_booking = (int) $campaign->bookings > 0 && $campaign->budget_rial !== null
+                    ? (int) round((int) $campaign->budget_rial / (int) $campaign->bookings) : null;
                 return $campaign;
             });
 
