@@ -10,6 +10,7 @@ use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
+use App\Http\Controllers\Portal\ClinicBrainController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -78,6 +79,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
             DashboardController::class,
             'index'
         ])->name('dashboard');
+
+        Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
 
         Route::get('/operations', [ClinicOperationsController::class, 'index'])->name('operations.index');
         Route::post('/operations/services', [ClinicOperationsController::class, 'storeService'])->name('operations.services.store');
