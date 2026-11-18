@@ -129,7 +129,7 @@ return new class extends Migration
                 'is_active' => true,
                 'show_in_sidebar' => true,
                 'permissions' => json_encode(['finance.view']),
-                'roles' => json_encode(['doctor', 'secretary']),
+                'roles' => json_encode(['doctor', 'admin', 'secretary']),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
