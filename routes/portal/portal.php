@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
+use App\Http\Controllers\Portal\ClinicOperationsController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -77,6 +78,17 @@ Route::prefix('portal')->name('portal.')->group(function () {
             DashboardController::class,
             'index'
         ])->name('dashboard');
+
+        Route::get('/operations', [ClinicOperationsController::class, 'index'])->name('operations.index');
+        Route::post('/operations/services', [ClinicOperationsController::class, 'storeService'])->name('operations.services.store');
+        Route::post('/operations/treatment-plans/{plan}/items', [ClinicOperationsController::class, 'storeTreatmentItem'])->whereNumber('plan')->name('operations.treatment-items.store');
+        Route::put('/operations/treatment-items/{item}', [ClinicOperationsController::class, 'updateTreatmentItem'])->whereNumber('item')->name('operations.treatment-items.update');
+        Route::post('/operations/dental-chart', [ClinicOperationsController::class, 'storeDentalChart'])->name('operations.dental-chart.store');
+        Route::post('/operations/inventory', [ClinicOperationsController::class, 'storeInventoryItem'])->name('operations.inventory.store');
+        Route::post('/operations/inventory/{item}/movements', [ClinicOperationsController::class, 'moveStock'])->whereNumber('item')->name('operations.inventory.movements.store');
+        Route::post('/operations/settlements', [ClinicOperationsController::class, 'createSettlement'])->name('operations.settlements.store');
+        Route::post('/operations/settlements/{settlement}/approve', [ClinicOperationsController::class, 'approveSettlement'])->whereNumber('settlement')->name('operations.settlements.approve');
+        Route::post('/operations/settlements/{settlement}/pay', [ClinicOperationsController::class, 'paySettlement'])->whereNumber('settlement')->name('operations.settlements.pay');
 
         Route::get('/organizations', [ClinicOrganizationController::class, 'index'])->name('organizations.index');
         Route::post('/organizations', [ClinicOrganizationController::class, 'store'])->name('organizations.store');
