@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Portal\PatientController;
 use App\Http\Controllers\Portal\AppointmentController;
+use App\Http\Controllers\Portal\PatientFollowUpController;
 
 
 // مربوط یه portal/patients/index
