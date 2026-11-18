@@ -13,7 +13,7 @@ const planForm = useForm({
   patient_id: '', title: '', specialty_module: 'general',
   total_amount: '', discount_amount: 0, deposit_amount: 0,
   installment_count: 1, first_due_date: new Date().toISOString().slice(0, 10),
-  clinical_notes: '', financial_terms: '',
+  clinical_notes: '', financial_terms: '', sms_reminders_enabled: false, sms_consent_confirmed: false,
 })
 const expenseForm = useForm({
   clinic_id: props.clinics?.[0]?.id ?? '', category: 'اجاره',
@@ -75,7 +75,7 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
           <input v-model.number="planForm.installment_count" type="number" min="1" max="48" required placeholder="تعداد اقساط" class="rounded-xl border-slate-300 text-sm" />
           <label class="text-xs text-slate-500">سررسید اولین قسط<input v-model="planForm.first_due_date" type="date" required class="mt-1 w-full rounded-xl border-slate-300 text-sm" /></label>
           <textarea v-model="planForm.clinical_notes" rows="2" placeholder="شرح درمان / مراحل (اختیاری)" class="rounded-xl border-slate-300 text-sm md:col-span-3" />
-          <textarea v-model="planForm.financial_terms" rows="2" placeholder="شرایط مالی و توافقات" class="rounded-xl border-slate-300 text-sm md:col-span-3" />
+          <textarea v-model="planForm.financial_terms" rows="2" placeholder="شرایط مالی و توافقات" class="rounded-xl border-slate-300 text-sm md:col-span-3" />\n          <label class="flex items-center gap-2 text-xs text-slate-600 md:col-span-3"><input v-model="planForm.sms_reminders_enabled" type="checkbox" class="rounded border-slate-300" /> فعال‌سازی یادآوری پیامکی اقساط</label>\n          <label class="flex items-center gap-2 text-xs text-slate-600 md:col-span-3"><input v-model="planForm.sms_consent_confirmed" type="checkbox" class="rounded border-slate-300" /> رضایت بیمار برای پیامک ثبت و تأیید شده است</label>
           <p class="text-xs text-slate-500 md:col-span-3">مبلغ خالص: {{ money(netAmount) }} — مبلغ پس از پیش‌پرداخت به تعداد اقساط تقسیم می‌شود. پیش‌پرداخت جداگانه در دفتر مالی ثبت می‌شود.</p>
           <button :disabled="planForm.processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 md:col-span-3">ثبت طرح درمان و ساخت اقساط</button>
         </form>
