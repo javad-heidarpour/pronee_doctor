@@ -27,8 +27,16 @@
             <option value="">بدون الگو (عنوان دستی)</option>
             <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.title }} ({{ template.default_days }} روز)</option>
           </select>
-          <input v-model="form.title" :required="!form.template_id" placeholder="عنوان پیگیری" class="rounded-xl border-slate-300 text-sm" />
-          <input v-model="form.due_at" type="datetime-local" required class="rounded-xl border-slate-300 text-sm" />
+          <div class="space-y-2 md:col-span-2 xl:col-span-4">
+            <div v-for="(step, index) in form.steps" :key="index" class="grid gap-2 rounded-xl bg-slate-50 p-3 md:grid-cols-4">
+              <input v-model="step.title" required placeholder="عنوان گام؛ مثلاً تماس با بیمار" class="rounded-lg border-slate-300 text-sm" />
+              <input v-model.number="step.days" type="number" min="0" max="365" required placeholder="چند روز پس از تاریخ مبنا؟" class="rounded-lg border-slate-300 text-sm" />
+              <select v-model="step.contact_method" class="rounded-lg border-slate-300 text-sm"><option value="call">تماس تلفنی</option><option value="sms">پیامک</option><option value="in_person">مراجعه حضوری</option><option value="review">بررسی پرونده</option></select>
+              <div class="flex items-center justify-between gap-2"><label class="flex items-center gap-2 text-xs text-slate-600"><input v-model="step.send_sms" type="checkbox" class="rounded border-slate-300" /> پیامک</label><button v-if="form.steps.length > 1" type="button" @click="removeStep(index)" class="text-xs font-bold text-rose-600">حذف گام</button></div>
+            </div>
+            <button type="button" @click="addStep" class="rounded-lg border border-dashed border-teal-400 px-3 py-2 text-xs font-bold text-teal-700">افزودن گام به برنامه +</button>
+          </div>
+          <label class="flex flex-col gap-1 text-xs text-slate-500">تاریخ مبنای برنامه<input v-model="form.due_at" type="datetime-local" required class="rounded-xl border-slate-300 text-sm" /></label>
           <select v-model="form.assigned_to" class="rounded-xl border-slate-300 text-sm">
             <option value="">بدون مسئول مشخص</option>
             <option v-for="secretary in secretaries" :key="secretary.id" :value="secretary.id">{{ secretary.name }} {{ secretary.family || '' }}</option>
@@ -39,7 +47,7 @@
           <select v-model="form.contact_method" class="rounded-xl border-slate-300 text-sm">
             <option value="call">تماس تلفنی</option><option value="sms">پیامک</option><option value="in_person">مراجعه حضوری</option><option value="review">بررسی پرونده</option>
           </select>
-          <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="form.send_sms" type="checkbox" class="rounded border-slate-300" /> ارسال یادآوری پیامکی (در صورت تنظیم سرویس)</label>
+          <p class="text-xs text-slate-500">موعد هر گام بر اساس تعداد روزهای واردشده از تاریخ مبنا محاسبه می‌شود. پیامک فقط برای گام‌های انتخاب‌شده ارسال خواهد شد.</p>
           <button :disabled="processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">ثبت برنامه پیگیری</button>
         </form>
       </section>
@@ -117,7 +125,7 @@ const props = defineProps({
 })
 const processing = ref(false)
 const isDoctor = computed(() => ['doctor', 'admin'].includes(props.userRole))
-const form = reactive({ patient_id: '', template_id: '', title: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', send_sms: false })
+const form = reactive({ patient_id: '', template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false }] })
 const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false })
 const filters = reactive({ ...props.filters })
 const statItems = computed(() => [
@@ -127,6 +135,8 @@ const statItems = computed(() => [
   { label: 'انجام‌شده', value: props.stats.completed },
   { label: 'ناموفق', value: props.stats.unsuccessful },
 ])
+const addStep = () => form.steps.push({ title: '', days: 7, contact_method: 'call', send_sms: false })
+const removeStep = (index) => form.steps.splice(index, 1)
 const createTask = () => {
   processing.value = true
   router.post(route('portal.follow-ups.store'), form, { preserveScroll: true, onFinish: () => { processing.value = false } })
