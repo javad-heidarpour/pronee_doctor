@@ -316,7 +316,10 @@ class ClinicFinanceController extends Controller
         $data = $request->validate(['status' => ['required', Rule::in(['held', 'returned', 'collected', 'cancelled'])], 'notes' => ['nullable', 'string', 'max:2000']]);
         $item = PatientCollateral::query()->whereKey($collateral)->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))->firstOrFail();
         abort_if($item->status === 'returned' || $item->status === 'collected', 422, 'وضعیت نهایی وثیقه قابل تغییر نیست.');
-        $item->update($data + ['returned_at' => $data['status'] === 'returned' ? now() : null]);
+        $item->update($data + [
+            'returned_at' => $data['status'] === 'returned' ? now() : null,
+            'collected_at' => $data['status'] === 'collected' ? now() : null,
+        ]);
         return back()->with('success', 'وضعیت وثیقه به‌روزرسانی شد.');
     }
 
