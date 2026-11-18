@@ -28,21 +28,16 @@ final class ClinicGrowthEngine
         $statuses = (clone $appointments)->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')->pluck('total', 'status')->map(fn ($n) => (int) $n)->all();
 
-        $patientIds = (clone $appointments)->whereNotIn('status', ['cancelled', 'failed'])
-            ->whereNotNull('patient_id')->distinct()->pluck('patient_id');
+        $activePatients = (clone $appointments)->whereNotIn('status', ['cancelled', 'failed'])
+            ->whereNotNull('patient_id')->distinct()->count('patient_id');
 
-        $newPatients = 0;
-        if ($patientIds->isNotEmpty()) {
-            $firstVisits = DB::table('appointments')
-                ->select('patient_id')->selectRaw('MIN(appointment_date) as first_visit')
-                ->where('doctor_id', $doctorId)->whereIn('clinic_id', $scope)
-                ->whereIn('patient_id', $patientIds)->whereNotIn('status', ['cancelled', 'failed'])
-                ->groupBy('patient_id');
-            $newPatients = DB::query()->fromSub($firstVisits, 'first_visits')
-                ->whereBetween('first_visit', [$from, $to])->count();
-        }
-
-        $activePatients = $patientIds->count();
+        $firstVisits = DB::table('appointments')
+            ->select('patient_id')->selectRaw('MIN(appointment_date) as first_visit')
+            ->where('doctor_id', $doctorId)->whereIn('clinic_id', $scope)
+            ->whereNotNull('patient_id')->whereNotIn('status', ['cancelled', 'failed'])
+            ->groupBy('patient_id');
+        $newPatients = DB::query()->fromSub($firstVisits, 'first_visits')
+            ->whereBetween('first_visit', [$from, $to])->count();
         $returningPatients = max(0, $activePatients - $newPatients);
 
         $lastVisits = DB::table('appointments')
@@ -102,8 +97,15 @@ final class ClinicGrowthEngine
                 return $campaign;
             });
 
-        $clicks = (int) $campaigns->sum('clicks');
-        $bookings = (int) $campaigns->sum('bookings');
+        $campaignTotals = DB::table('clinic_marketing_events as e')
+            ->join('clinic_marketing_campaigns as c', 'c.id', '=', 'e.campaign_id')
+            ->where('c.doctor_id', $doctorId)
+            ->where(fn ($q) => $q->whereNull('c.clinic_id')->orWhereIn('c.clinic_id', $scope))
+            ->selectRaw("SUM(CASE WHEN e.event_type = 'click' THEN 1 ELSE 0 END) as clicks")
+            ->selectRaw("SUM(CASE WHEN e.event_type = 'booking' THEN 1 ELSE 0 END) as bookings")
+            ->first();
+        $clicks = (int) ($campaignTotals->clicks ?? 0);
+        $bookings = (int) ($campaignTotals->bookings ?? 0);
         $totalAppointments = array_sum($statuses);
         $cancelled = (int) ($statuses['cancelled'] ?? 0);
         $cancellationRate = $totalAppointments > 0 ? round($cancelled * 100 / $totalAppointments, 1) : null;
