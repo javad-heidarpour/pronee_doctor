@@ -125,7 +125,7 @@ final class SavePatientClinicalRecordActionTest extends TestCase
             'title' => 'Other patient medication',
         ]);
 
-        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
         app(SavePatientClinicalRecordAction::class)->handle($patient, [
             'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
             'title' => 'Reported reaction',
