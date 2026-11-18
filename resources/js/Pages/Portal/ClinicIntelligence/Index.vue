@@ -106,7 +106,7 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
           <article v-for="reminder in reminders" :key="reminder.membership_id" class="rounded-xl border p-3">
             <div class="flex items-start justify-between gap-2"><div><b>{{ reminder.patient_name }}</b><p class="text-xs text-slate-500">{{ reminder.program_title }} · {{ reminder.phone }}</p></div><span class="rounded-full bg-teal-50 px-2 py-1 text-xs text-teal-700">{{ reminder.points }} امتیاز</span></div>
             <p class="mt-2 text-xs" :class="reminder.overdue ? 'text-rose-600' : 'text-slate-500'">موعد مراقبت پیشنهادی: {{ reminder.due_date }} <span v-if="reminder.overdue">· موعد گذشته</span></p>
-            <div class="mt-2 flex flex-wrap gap-3"><button @click="award(memberships.find(m => m.id === reminder.membership_id))" class="text-xs font-bold text-teal-700">ثبت فعالیت آموزشی/پیشگیرانه</button><button @click="router.post(route('portal.intelligence.health.withdraw', reminder.membership_id))" class="text-xs font-bold text-rose-600">انصراف بیمار از برنامه</button></div>
+            <div class="mt-2 flex flex-wrap gap-3"><button @click="router.post(route('portal.intelligence.health.checkup', reminder.membership_id))" class="text-xs font-bold text-emerald-700">ثبت انجام چکاپ</button><button @click="award(memberships.find(m => m.id === reminder.membership_id))" class="text-xs font-bold text-teal-700">ثبت فعالیت آموزشی/پیشگیرانه</button><button @click="router.post(route('portal.intelligence.health.withdraw', reminder.membership_id))" class="text-xs font-bold text-rose-600">انصراف بیمار از برنامه</button></div>
           </article>
           <p v-if="!reminders.length" class="text-sm text-slate-500">هنوز عضویت فعالی ثبت نشده است.</p>
         </div>
