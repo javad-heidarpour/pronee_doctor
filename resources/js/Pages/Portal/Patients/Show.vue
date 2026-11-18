@@ -34,6 +34,17 @@
         </div>
       </div>
 
+      <section v-if="appointment.patient_id" class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-teal-50 p-4">
+        <div>
+          <p class="font-extrabold text-teal-900">ثبت و مستندسازی ویزیت پزشکی</p>
+          <p class="mt-1 text-xs text-teal-700">شرح حال، معاینه، ارزیابی، تشخیص و برنامه درمانی را در پرونده بالینی ثبت کنید.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <Link :href="route('portal.encounters.index', appointment.id)" class="rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-sm font-bold text-teal-800">تاریخچه ویزیت‌ها</Link>
+          <Link :href="route('portal.encounters.create', appointment.id)" class="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white">ثبت یادداشت ویزیت</Link>
+        </div>
+      </section>
+
       <!-- کارت اطلاعات بیمار -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div class="flex items-center gap-3 mb-6">
