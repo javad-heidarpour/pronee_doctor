@@ -74,7 +74,7 @@ class ClinicFinanceController extends Controller
         ]);
     }
 
-    public function storePlan(Request $request)
+    public function storePlan(Request $request, ClinicAccountingService $accounting)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
@@ -96,7 +96,7 @@ class ClinicFinanceController extends Controller
 
         $clinicId = (int) $data['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
-        $patient = Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
+        $organizationId = Address::query()->whereKey($clinicId)->value('organization_id');\n        $patient = Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $clinicId))->firstOrFail();
 
         $total = (int) $data['total_amount'];
@@ -105,9 +105,9 @@ class ClinicFinanceController extends Controller
         $net = $total - $discount;
         abort_if($discount > $total || $deposit > $net, 422, 'مبلغ تخفیف یا پیش‌پرداخت از مبلغ قابل پرداخت بیشتر است.');
 
-        DB::transaction(function () use ($doctor, $patient, $clinicId, $data, $total, $discount, $deposit, $net): void {
+        DB::transaction(function () use ($doctor, $patient, $clinicId, $organizationId, $data, $total, $discount, $deposit, $net, $accounting): void {
             $plan = PatientTreatmentPlan::create([
-                'doctor_id' => $doctor->id, 'clinic_id' => $clinicId, 'patient_id' => $patient->id,
+                'doctor_id' => $doctor->id, 'organization_id' => $organizationId, 'clinic_id' => $clinicId, 'patient_id' => $patient->id,
                 'created_by' => Auth::guard('web')->id(), 'title' => $data['title'],
                 'specialty_module' => $data['specialty_module'], 'status' => 'active',
                 'total_amount' => $total, 'discount_amount' => $discount, 'deposit_amount' => $deposit,
@@ -144,6 +144,10 @@ class ClinicFinanceController extends Controller
                     'debit' => 0, 'credit' => $deposit, 'occurred_at' => now(),
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
+                $accounting->recordPatientPayment(
+                    $organizationId, $clinicId, $doctor->id, (int) Auth::guard('web')->id(),
+                    $payment->id, $deposit, $plan->title . ' / پیش‌پرداخت', now()->toDateTimeString()
+                );
             }
 
             for ($i = 1; $i <= $count && $remaining > 0; $i++) {
@@ -159,7 +163,7 @@ class ClinicFinanceController extends Controller
         return back()->with('success', 'طرح درمان و برنامه اقساط ثبت شد.');
     }
 
-    public function recordPayment(Request $request, int $installment)
+    public function recordPayment(Request $request, int $installment, ClinicAccountingService $accounting)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
@@ -171,7 +175,7 @@ class ClinicFinanceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($doctor, $installment, $data): void {
+        DB::transaction(function () use ($doctor, $installment, $data, $accounting): void {
             $row = PatientTreatmentInstallment::query()->whereKey($installment)
                 ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
                 ->lockForUpdate()->firstOrFail();
@@ -195,6 +199,10 @@ class ClinicFinanceController extends Controller
                 'debit' => 0, 'credit' => $data['amount'], 'occurred_at' => $payment->paid_at,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
+            $accounting->recordPatientPayment(
+                $plan->organization_id, $plan->clinic_id, $plan->doctor_id, (int) Auth::guard('web')->id(),
+                $payment->id, (int) $data['amount'], $plan->title, $payment->paid_at->toDateTimeString()
+            );
         });
 
         return back()->with('success', 'دریافت قسط ثبت شد.');
@@ -228,7 +236,7 @@ class ClinicFinanceController extends Controller
         return back()->with('success', 'وضعیت وثیقه به‌روزرسانی شد.');
     }
 
-    public function storeExpense(Request $request)
+    public function storeExpense(Request $request, ClinicAccountingService $accounting)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
@@ -240,7 +248,7 @@ class ClinicFinanceController extends Controller
         ]);
         $clinicId = (int) $data['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
-        DB::transaction(function () use ($doctor, $clinicId, $data): void {
+        $organizationId = Address::query()->whereKey($clinicId)->value('organization_id');\n        DB::transaction(function () use ($doctor, $clinicId, $organizationId, $data, $accounting): void {
             $expense = ClinicExpense::create($data + ['doctor_id' => $doctor->id, 'recorded_by' => Auth::guard('web')->id()]);
             DB::table('clinic_financial_ledger')->insert([
                 'doctor_id' => $doctor->id, 'clinic_id' => $clinicId, 'expense_id' => $expense->id,
@@ -249,6 +257,11 @@ class ClinicFinanceController extends Controller
                 'occurred_at' => Carbon::parse($data['expense_date'])->startOfDay(),
                 'created_at' => now(), 'updated_at' => now(),
             ]);
+            $accounting->recordExpense(
+                $organizationId, $clinicId, $doctor->id, (int) Auth::guard('web')->id(),
+                $expense->id, (int) $data['amount'], $data['description'],
+                Carbon::parse($data['expense_date'])->startOfDay()->toDateTimeString()
+            );
         });
         return back()->with('success', 'هزینه شعبه ثبت شد.');
     }
