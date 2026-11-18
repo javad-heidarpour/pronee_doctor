@@ -48,7 +48,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
 
       <section v-if="canViewServices" class="rounded-2xl border bg-white p-5">
         <h2 class="mb-4 font-bold">تعریف خدمت و تعرفه</h2>
-        <form @submit.prevent="saveService" class="grid gap-3 md:grid-cols-3">
+        <form v-if="canManage" @submit.prevent="saveService" class="grid gap-3 md:grid-cols-3">
           <select v-model="serviceForm.clinic_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <input v-model="serviceForm.name" required placeholder="نام خدمت؛ مثلاً عصب‌کشی" class="rounded-xl border-slate-300 text-sm" />
           <input v-model="serviceForm.code" placeholder="کد خدمت" class="rounded-xl border-slate-300 text-sm" />
