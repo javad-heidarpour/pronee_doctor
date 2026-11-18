@@ -205,36 +205,76 @@ class ClinicOrganizationController extends Controller
             ->where('organization_members.is_active', true)
             ->get(['organization_doctors.organization_id', 'organization_members.permissions', 'organization_members.clinic_ids']);
 
+        $pivot = DB::table('doctor_user')
+            ->where('doctor_id', $doctor->id)->where('user_id', $member->id)->first();
+
         if ($assignments->isEmpty()) {
-            $doctor->secretaries()->detach($member->id);
+            if (!$pivot || !(bool) $pivot->managed_by_organization) return;
+
+            if ($pivot->base_permissions !== null || $pivot->base_clinic_ids !== null) {
+                DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $member->id)->update([
+                    'permissions' => $pivot->base_permissions ?? json_encode([]),
+                    'clinic_ids' => $pivot->base_clinic_ids ?? json_encode([]),
+                    'base_permissions' => null,
+                    'base_clinic_ids' => null,
+                    'managed_by_organization' => false,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $member->id)->delete();
+            }
             return;
         }
 
-        $permissions = [];
-        $clinicIds = [];
+        $basePermissions = $pivot
+            ? $this->decodeArray($pivot->managed_by_organization ? $pivot->base_permissions : $pivot->permissions)
+            : [];
+        $baseClinicIds = $pivot
+            ? array_map('intval', $this->decodeArray($pivot->managed_by_organization ? $pivot->base_clinic_ids : $pivot->clinic_ids))
+            : [];
+
+        $grantedPermissions = [];
+        $grantedClinicIds = [];
         foreach ($assignments as $assignment) {
-            $grantedPermissions = is_string($assignment->permissions)
-                ? (json_decode($assignment->permissions, true) ?: [])
-                : (array) $assignment->permissions;
-            $grantedClinicIds = is_string($assignment->clinic_ids)
-                ? (json_decode($assignment->clinic_ids, true) ?: [])
-                : (array) $assignment->clinic_ids;
+            $grantedPermissions = array_merge($grantedPermissions, $this->decodeArray($assignment->permissions));
+            $assignedClinicIds = array_map('intval', $this->decodeArray($assignment->clinic_ids));
             $doctorClinicIds = DB::table('clinic_organization_clinics')
                 ->join('addresses', 'addresses.id', '=', 'clinic_organization_clinics.clinic_id')
                 ->where('clinic_organization_clinics.organization_id', $assignment->organization_id)
                 ->where('addresses.doctor_id', $doctor->id)
-                ->whereIn('addresses.id', $grantedClinicIds)
+                ->whereIn('addresses.id', $assignedClinicIds)
                 ->pluck('addresses.id')->map(fn ($id) => (int) $id)->all();
-            $permissions = array_merge($permissions, $grantedPermissions);
-            $clinicIds = array_merge($clinicIds, $doctorClinicIds);
+            $grantedClinicIds = array_merge($grantedClinicIds, $doctorClinicIds);
         }
 
-        $doctor->secretaries()->syncWithoutDetaching([
-            $member->id => [
-                'permissions' => json_encode(array_values(array_unique($permissions))),
-                'clinic_ids' => json_encode(array_values(array_unique($clinicIds))),
-            ],
-        ]);
+        $values = [
+            'permissions' => json_encode(array_values(array_unique(array_merge($basePermissions, $grantedPermissions)))),
+            'clinic_ids' => json_encode(array_values(array_unique(array_merge($baseClinicIds, $grantedClinicIds)))),
+            'base_permissions' => $pivot
+                ? ($pivot->managed_by_organization ? $pivot->base_permissions : $pivot->permissions)
+                : null,
+            'base_clinic_ids' => $pivot
+                ? ($pivot->managed_by_organization ? $pivot->base_clinic_ids : $pivot->clinic_ids)
+                : null,
+            'managed_by_organization' => true,
+            'updated_at' => now(),
+        ];
+
+        if ($pivot) {
+            DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $member->id)->update($values);
+        } else {
+            DB::table('doctor_user')->insert($values + [
+                'doctor_id' => $doctor->id, 'user_id' => $member->id, 'created_at' => now(),
+            ]);
+        }
+    }
+
+    private function decodeArray(mixed $value): array
+    {
+        if (is_array($value)) return $value;
+        if (!is_string($value) || $value === '') return [];
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function authorizeOwner(ClinicOrganization $organization): void
