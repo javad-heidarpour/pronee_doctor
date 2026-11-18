@@ -200,7 +200,7 @@ class ClinicFinanceController extends Controller
                 $amount = $base + ($i <= $remainder ? 1 : 0);
                 if ($amount <= 0) continue;
                 $plan->installments()->create([
-                    'sequence' => $i, 'amount' => $amount, 'due_date' => $firstDue->copy()->addMonths($i - 1),
+                    'sequence' => $i, 'amount' => $amount, 'due_date' => $firstDue->copy()->addMonthsNoOverflow($i - 1),
                     'status' => 'pending',
                 ]);
             }
