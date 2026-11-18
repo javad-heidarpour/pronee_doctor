@@ -7,38 +7,38 @@ namespace App\Actions\Portal\Patient;
 use App\Models\Appointment;
 use App\Models\PatientEncounter;
 use App\Models\User;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class SignPatientEncounterAction
 {
     public function handle(PatientEncounter $encounter, User $signer): PatientEncounter
     {
-        if ($encounter->status !== PatientEncounter::STATUS_DRAFT) {
-            throw ValidationException::withMessages(['encounter' => 'این یادداشت قبلاً نهایی شده است.']);
-        }
-
-        if (Appointment::query()->whereKey($encounter->appointment_id)->where('status', 'cancelled')->exists()) {
-            throw ValidationException::withMessages(['encounter' => 'برای نوبت لغوشده امکان نهایی‌سازی ویزیت وجود ندارد.']);
-        }
-
-        if (!$encounter->reviewed_allergies || !$encounter->reviewed_medications || !$encounter->reviewed_vitals) {
-            throw ValidationException::withMessages(['reviewed_allergies' => 'برای نهایی‌سازی، بازبینی حساسیت‌ها، داروها و علائم حیاتی را تأیید کنید.']);
-        }
-
         return DB::transaction(function () use ($encounter, $signer): PatientEncounter {
-            $encounter->update([
+            $locked = PatientEncounter::query()->whereKey($encounter->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== PatientEncounter::STATUS_DRAFT) {
+                throw ValidationException::withMessages(['encounter' => 'این یادداشت قبلاً نهایی شده است.']);
+            }
+
+            $appointment = Appointment::query()->whereKey($locked->appointment_id)->lockForUpdate()->firstOrFail();
+            if ($appointment->status === 'cancelled') {
+                throw ValidationException::withMessages(['encounter' => 'برای نوبت لغوشده امکان نهایی‌سازی ویزیت وجود ندارد.']);
+            }
+
+            if (!$locked->reviewed_allergies || !$locked->reviewed_medications || !$locked->reviewed_vitals) {
+                throw ValidationException::withMessages(['reviewed_allergies' => 'برای نهایی‌سازی، بازبینی حساسیت‌ها، داروها و علائم حیاتی را تأیید کنید.']);
+            }
+
+            $locked->update([
                 'status' => PatientEncounter::STATUS_SIGNED,
                 'signed_at' => now(),
                 'signed_by' => $signer->id,
             ]);
 
-            Appointment::query()->whereKey($encounter->appointment_id)
-                ->where('doctor_id', $encounter->doctor_id)
-                ->where('status', '!=', 'cancelled')
-                ->update(['status' => 'visited', 'updated_at' => now()]);
+            $appointment->update(['status' => 'visited']);
 
-            return $encounter->fresh(['prescriptions', 'author', 'signer', 'clinic']);
+            return $locked->fresh(['prescriptions', 'author', 'signer', 'clinic']);
         });
     }
 }
