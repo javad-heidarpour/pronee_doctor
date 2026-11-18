@@ -30,15 +30,12 @@ class ClinicOrganizationController extends Controller
             ->withCount(['doctors', 'clinics', 'members'])
             ->latest()->get();
 
-        $ownedDoctors = $user->role === 'admin'
-            ? Doctor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'family', 'specialty_title'])
-            : $user->ownedDoctorProfiles()->where('is_active', true)->get(['id', 'name', 'family', 'specialty_title']);
+        $ownedDoctors = Doctor::query()->where('is_active', true)->orderBy('name')
+            ->get(['id', 'name', 'family', 'specialty_title']);
 
-        $ownedClinicIds = $user->role === 'admin'
-            ? \App\Models\Address::query()->where('is_active', true)->pluck('id')
-            : \App\Models\Address::query()->whereIn('doctor_id', $ownedDoctors->pluck('id'))->where('is_active', true)->pluck('id');
-
-        $clinics = \App\Models\Address::query()->whereIn('id', $ownedClinicIds)->get(['id', 'doctor_id', 'name', 'full_address']);
+        $clinics = \\App\\Models\\Address::query()
+            ->where('is_active', true)->orderBy('name')
+            ->get(['id', 'doctor_id', 'name', 'full_address']);
 
         return Inertia::render('Portal/Organizations/Index', [
             'organizations' => $organizations,
