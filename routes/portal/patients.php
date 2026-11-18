@@ -7,7 +7,7 @@ use App\Http\Controllers\Portal\PatientFollowUpController;
 use App\Http\Controllers\Portal\PatientEncounterController;
 
 
-// مربوط یه portal/patients/index
+Route::get('/clinical-risk', [ClinicalRiskRadarController::class, 'index'])->name('clinical-risk.index');\n\n// مربوط یه portal/patients/index
 Route::prefix('appointments')->name('appointments.')->group(function () {
     Route::put('/{appointment}/status', [PatientController::class, 'updateStatus'])
         ->name('status');
