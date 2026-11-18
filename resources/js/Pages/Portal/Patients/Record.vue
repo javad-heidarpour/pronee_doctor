@@ -142,7 +142,7 @@
           </label>
           <label class="space-y-1 text-xs font-bold text-slate-600">
             مقدار
-            <input v-model="vitalForm.value" type="number" step="0.01" min="0" max="1000" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+            <input v-model="vitalForm.value" type="number" step="0.01" :min="vitalRange.min" :max="vitalRange.max" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
           </label>
           <label class="space-y-1 text-xs font-bold text-slate-600">
             تاریخ و ساعت اندازه‌گیری
@@ -245,7 +245,6 @@ const patient = computed(() => {
     id: profile.id || null,
     clinical_records: profile.clinical_records || [],
     vital_signs: profile.vital_signs || [],
-    vital_signs: profile.vital_signs || [],
   };
 });
 
@@ -259,6 +258,17 @@ const vitalTypes = [
   { value: 'oxygen_saturation', label: 'اشباع اکسیژن', unit: '%' },
   { value: 'blood_glucose', label: 'قند خون', unit: 'mg/dL' },
 ];
+const vitalRanges = {
+  systolic_bp: { min: 40, max: 300 },
+  diastolic_bp: { min: 20, max: 200 },
+  heart_rate: { min: 20, max: 300 },
+  temperature: { min: 25, max: 45 },
+  weight: { min: 0.1, max: 500 },
+  height: { min: 20, max: 300 },
+  oxygen_saturation: { min: 0, max: 100 },
+  blood_glucose: { min: 0, max: 2000 },
+};
+const vitalRange = computed(() => vitalRanges[vitalForm.measurement_type] || { min: 0, max: 1000 });
 const nowForInput = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -271,7 +281,7 @@ const saveVitalSign = () => {
   router.post(route('portal.patients.vital-signs.store', { patient: patient.value.id }), { ...vitalForm }, {
     preserveScroll: true,
     onFinish: () => { savingVitalSign.value = false; },
-    onSuccess: () => { vitalForm.value = ''; vitalForm.note = ''; },
+    onSuccess: () => Object.assign(vitalForm, { value: '', note: '', measured_at: nowForInput() }),
   });
 };
 const vitalLabel = (type) => vitalTypes.find(item => item.value === type)?.label || 'اندازه‌گیری';
