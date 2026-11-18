@@ -188,6 +188,8 @@ return new class extends Migration
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('paid_by')->nullable()->constrained('users')->nullOnDelete();
             $table->dateTime('paid_at')->nullable();
+            $table->string('payment_method', 24)->nullable();
+            $table->string('payment_reference', 120)->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->unique(['organization_id', 'doctor_id', 'period_start', 'period_end'], 'doctor_settlement_period_unique');
@@ -207,6 +209,8 @@ return new class extends Migration
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('paid_by')->nullable()->constrained('users')->nullOnDelete();
             $table->dateTime('paid_at')->nullable();
+            $table->string('payment_method', 24)->nullable();
+            $table->string('payment_reference', 120)->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->index(['organization_id', 'period_start', 'status']);
