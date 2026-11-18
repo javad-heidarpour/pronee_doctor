@@ -33,7 +33,7 @@ class Address extends Model
     /**
      * Get the doctors for the city.
      */
-    public function timeSlots(): HasMany
+    public function organization(): BelongsTo\n    {\n        return $this->belongsTo(ClinicOrganization::class, 'organization_id');\n    }\n\n    public function timeSlots(): HasMany
     {
         return $this->hasMany(TimeSlot::class, 'clinic_id');
     }
