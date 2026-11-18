@@ -9,6 +9,7 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class RecordPatientVitalSignActionTest extends TestCase
@@ -45,6 +46,25 @@ final class RecordPatientVitalSignActionTest extends TestCase
             $table->string('note', 1000)->nullable();
             $table->timestamps();
         });
+    }
+
+
+    public function test_it_rejects_values_outside_the_measurement_range(): void
+    {
+        $doctor = Doctor::query()->create(['name' => 'Doctor', 'slug' => 'doctor-vitals-range']);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Patient',
+            'phone' => '09120000000',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(RecordPatientVitalSignAction::class)->handle($patient, [
+            'measurement_type' => 'oxygen_saturation',
+            'value' => 120,
+            'measured_at' => '2026-11-18 10:30:00',
+        ]);
     }
 
     public function test_it_records_a_vital_sign_with_a_server_defined_unit(): void
