@@ -23,7 +23,7 @@
             <option value="">انتخاب بیمار</option>
             <option v-for="patient in patients" :key="patient.id" :value="patient.id">{{ patient.name }} — {{ patient.phone || 'بدون تلفن' }}</option>
           </select>
-          <select v-model="form.template_id" class="rounded-xl border-slate-300 text-sm">
+          <select v-model="form.template_id" @change="applyTemplate" class="rounded-xl border-slate-300 text-sm">
             <option value="">بدون الگو (عنوان دستی)</option>
             <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.title }} ({{ template.default_days }} روز)</option>
           </select>
@@ -65,6 +65,12 @@
           <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="templateForm.send_sms" type="checkbox" class="rounded border-slate-300" /> پیامک خودکار برای این الگو</label>
           <button class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white">ذخیره الگو</button>
         </form>
+        <div v-if="templates.length" class="mt-4 flex flex-wrap gap-2 border-t pt-3">
+          <span v-for="template in templates" :key="template.id" class="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            {{ template.title }}
+            <button type="button" @click="disableTemplate(template.id)" class="font-bold text-rose-600">غیرفعال‌سازی</button>
+          </span>
+        </div>
       </section>
 
       <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
@@ -142,6 +148,12 @@ const createTask = () => {
   router.post(route('portal.follow-ups.store'), form, { preserveScroll: true, onFinish: () => { processing.value = false } })
 }
 const createTemplate = () => router.post(route('portal.follow-ups.templates.store'), templateForm, { preserveScroll: true, onSuccess: () => Object.assign(templateForm, { title: '', description: '' }) })
+const applyTemplate = () => {
+  const selected = props.templates.find((item) => String(item.id) === String(form.template_id))
+  if (!selected || !form.steps.length) return
+  Object.assign(form.steps[0], { title: selected.title, days: selected.default_days, contact_method: selected.contact_method, send_sms: selected.send_sms })
+}
+const disableTemplate = (id) => router.delete(route('portal.follow-ups.templates.destroy', id), { preserveScroll: true })
 const saveResult = (task) => router.put(route('portal.follow-ups.update', task.id), {
   status: task._status || 'completed',
   outcome: task._outcome || null,
