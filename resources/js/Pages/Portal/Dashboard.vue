@@ -275,6 +275,12 @@
             label="گالری تصاویر"
             icon="📸"
           />
+
+          <QuickAction
+            :href="route('portal.follow-ups.index')"
+            label="پیگیری بیماران"
+            icon="🔔"
+          />
         </div>
       </section>
 
