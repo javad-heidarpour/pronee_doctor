@@ -40,6 +40,11 @@ Route::prefix('patients')->name('patients.')->group(function () {
         ->whereNumber('record')
         ->name('clinical-records.archive');
 
+    Route::post('/{patient}/clinical-records/{record}/restore', [PatientController::class, 'restoreClinicalRecord'])
+        ->whereNumber('patient')
+        ->whereNumber('record')
+        ->name('clinical-records.restore');
+
     Route::get('/directory', [PatientController::class, 'directory'])
         ->name('directory');
 
