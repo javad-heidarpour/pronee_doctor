@@ -242,6 +242,7 @@ class PatientController extends Controller
             'record_kind' => $record->kind,
             'linked_medication' => $record->related_record_id !== null,
             'linked_allergy' => $record->related_allergy_record_id !== null,
+            'has_reaction_details' => $record->reaction_severity !== null || $record->reaction_date !== null || $record->action_taken !== null || $record->reaction_outcome !== null,
         ]);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ثبت شد.');
@@ -270,6 +271,7 @@ class PatientController extends Controller
             'record_kind' => $updatedRecord->kind,
             'linked_medication' => $updatedRecord->related_record_id !== null,
             'linked_allergy' => $updatedRecord->related_allergy_record_id !== null,
+            'has_reaction_details' => $updatedRecord->reaction_severity !== null || $updatedRecord->reaction_date !== null || $updatedRecord->action_taken !== null || $updatedRecord->reaction_outcome !== null,
         ]);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
