@@ -50,6 +50,18 @@ final class CreatePatientFollowUpAction
                 }
             }
 
+            $clinicId = !empty($data['appointment_id'])
+                ? $patient->appointments()->whereKey($data['appointment_id'])->value('clinic_id')
+                : $patient->appointments()->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $accessibleClinicIds)
+                    ->orderByDesc('appointment_date')->value('clinic_id');
+
+            if (!$clinicId || !in_array((int) $clinicId, $accessibleClinicIds, true)) {
+                throw ValidationException::withMessages([
+                    'patient_id' => 'مطب مجاز برای ثبت پیگیری بیمار مشخص نشد.',
+                ]);
+            }
+
             $template = null;
             if (!empty($data['template_id'])) {
                 $template = PatientFollowUpTemplate::query()
@@ -61,12 +73,17 @@ final class CreatePatientFollowUpAction
 
             $assigneeId = $data['assigned_to'] ?? null;
             if ($assigneeId !== null) {
-                $isAssignedSecretary = $doctor->secretaries()
+                $secretary = $doctor->secretaries()
                     ->where('users.id', $assigneeId)
                     ->where('users.is_active', true)
-                    ->exists();
+                    ->first();
 
-                if (!$isAssignedSecretary) {
+                $secretaryClinicIds = $secretary?->pivot?->clinic_ids ?? [];
+                if (is_string($secretaryClinicIds)) {
+                    $secretaryClinicIds = json_decode($secretaryClinicIds, true) ?: [];
+                }
+
+                if (!$secretary || !is_array($secretaryClinicIds) || !in_array((int) $clinicId, array_map('intval', $secretaryClinicIds), true)) {
                     throw ValidationException::withMessages([
                         'assigned_to' => 'مسئول انتخاب‌شده، منشی فعال و متصل به این پزشک نیست.',
                     ]);
@@ -88,6 +105,7 @@ final class CreatePatientFollowUpAction
             foreach ($steps as $step) {
                 $tasks->push(PatientFollowUpTask::create([
                     'doctor_id' => $doctor->id,
+                    'clinic_id' => $clinicId,
                     'patient_id' => $patient->id,
                     'appointment_id' => $data['appointment_id'] ?? null,
                     'template_id' => $template?->id,
