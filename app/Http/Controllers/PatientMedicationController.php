@@ -72,7 +72,7 @@ final class PatientMedicationController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $scheduled = Carbon::parse($data['scheduled_for'])->timezone($plan->timezone);
+        $scheduled = Carbon::parse($data['scheduled_for'], $plan->timezone);
         $date = $scheduled->toDateString();
         abort_unless($date >= $plan->start_date->toDateString(), 422);
         abort_if($plan->end_date && $date > $plan->end_date->toDateString(), 422);
