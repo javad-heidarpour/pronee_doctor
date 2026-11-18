@@ -29,6 +29,7 @@ Route::middleware('auth:web')->prefix('my-health')->name('patient.health.')->con
     Route::post('/medications', [PatientMedicationController::class, 'store'])->middleware('throttle:10,1')->name('medications.store');
     Route::post('/medications/{plan}/doses', [PatientMedicationController::class, 'recordDose'])->whereNumber('plan')->middleware('throttle:30,1')->name('medications.doses.store');
     Route::post('/medications/{plan}/pause', [PatientMedicationController::class, 'pause'])->whereNumber('plan')->middleware('throttle:10,1')->name('medications.pause');
+    Route::post('/pathways/{pathway}/steps/{step}/complete', 'reportCarePathwayStep')->whereNumber('pathway')->whereNumber('step')->middleware('throttle:20,1')->name('pathways.steps.complete');
     Route::post('/observations', 'storeObservation')->middleware('throttle:30,1')->name('observations.store');
     Route::delete('/observations/{observation}', 'destroyObservation')->whereNumber('observation')->middleware('throttle:30,1')->name('observations.destroy');
     Route::post('/caregivers', 'grantCaregiver')->middleware('throttle:5,1')->name('caregivers.store');

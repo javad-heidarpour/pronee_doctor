@@ -7,10 +7,15 @@ use App\Http\Controllers\Portal\PatientFollowUpController;
 use App\Http\Controllers\Portal\PatientEncounterController;
 use App\Http\Controllers\Portal\ClinicalRiskRadarController;
 use App\Http\Controllers\Portal\PredictivePatientController;
+use App\Http\Controllers\Portal\PatientCarePathwayController;
 
 
 Route::get('/clinical-risk', [ClinicalRiskRadarController::class, 'index'])->name('clinical-risk.index');
 Route::get('/predictive-patients', [PredictivePatientController::class, 'index'])->name('predictive-patients.index');
+Route::get('/care-pathways', [PatientCarePathwayController::class, 'index'])->name('care-pathways.index');
+Route::post('/care-pathways', [PatientCarePathwayController::class, 'store'])->middleware('throttle:20,1')->name('care-pathways.store');
+Route::post('/care-pathways/{pathway}/activate', [PatientCarePathwayController::class, 'activate'])->whereNumber('pathway')->name('care-pathways.activate');
+Route::post('/care-pathway-steps/{step}/verify', [PatientCarePathwayController::class, 'verifyStep'])->whereNumber('step')->name('care-pathway-steps.verify');
 
 // مربوط به portal/patients/index
 Route::prefix('appointments')->name('appointments.')->group(function () {

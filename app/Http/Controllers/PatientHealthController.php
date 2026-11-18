@@ -11,6 +11,9 @@ use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientHealthObservation;
 use App\Models\PatientMedicationPlan;
+use App\Models\PatientCarePathway;
+use App\Models\PatientCarePathwayStep;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\PatientEncounterPrescription;
 use App\Models\User;
 use App\Services\PatientHealthIntelligence;
@@ -105,6 +108,12 @@ final class PatientHealthController extends Controller
             ? PatientHealthObservation::query()->where('patient_id', $patient->id)->where('user_id', $user->id)->latest('observed_at')->limit(60)->get()
             : collect();
 
+        $carePathways = $accessType === 'owner'
+            ? PatientCarePathway::query()->where('patient_id', $patient->id)->where('status', 'active')
+                ->with(['steps' => fn ($q) => $q->orderBy('sort_order')])
+                ->orderByDesc('activated_at')->limit(10)->get()
+            : collect();
+
         $caregivers = $accessType === 'owner'
             ? PatientAccountAccess::query()->active()
                 ->where('patient_id', $patient->id)
@@ -134,9 +143,24 @@ final class PatientHealthController extends Controller
             'observations' => $observations,
             'medicationPlans' => $medicationPlans,
             'availablePrescriptions' => $availablePrescriptions,
+            'carePathways' => $carePathways,
         ]);
     }
 
+
+    public function reportCarePathwayStep(Request $request, int $pathway, int $step, RecordSecurityAuditEventAction $audit)
+    {
+        $user = Auth::guard('web')->user();
+        abort_unless($user && $user->role === 'user', 403);
+        $activePathway = PatientCarePathway::query()->whereKey($pathway)->where('status', 'active')->firstOrFail();
+        PatientAccountAccess::query()->active()->where('user_id', $user->id)
+            ->where('access_type', 'owner')->where('patient_id', $activePathway->patient_id)->firstOrFail();
+        $item = PatientCarePathwayStep::query()->whereKey($step)->where('pathway_id', $activePathway->id)->firstOrFail();
+        abort_unless($item->status === 'pending', 422, 'این گام در وضعیت قابل گزارش نیست.');
+        $item->update(['status' => 'patient_reported', 'patient_reported_at' => now()]);
+        $audit->handle('patient.care_pathway.step_reported', $item, ['pathway_id' => $pathway]);
+        return back()->with('success', 'انجام این گام برای بررسی به مرکز درمانی گزارش شد.');
+    }
 
     public function storeObservation(Request $request)
     {

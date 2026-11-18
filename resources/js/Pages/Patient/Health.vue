@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, accessType: String,
-  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array,
+  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array, carePathways: { type: Array, default: () => [] },
 })
 const linkForm = useForm({ national_code: '', phone: '' })
 const clinicToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
@@ -83,6 +83,19 @@ const statusLabel = value => ({ pending: 'در انتظار', confirmed: 'تأی
           <div class="rounded-2xl border bg-white p-4"><p class="text-xs text-slate-500">سوابق پزشکی فعال</p><p class="mt-2 text-2xl font-black">{{ patient.clinical_records?.length || 0 }}</p></div>
           <div class="rounded-2xl border bg-white p-4"><p class="text-xs text-slate-500">برنامه‌های پیگیری</p><p class="mt-2 text-2xl font-black">{{ followUps.length }}</p></div>
           <div class="rounded-2xl border bg-white p-4"><p class="text-xs text-slate-500">اندازه‌گیری‌های ثبت‌شده</p><p class="mt-2 text-2xl font-black">{{ patient.vital_signs?.length || 0 }}</p></div>
+        </section>
+        <section v-if="accessType === 'owner' && carePathways.length" class="rounded-2xl border bg-white p-5 shadow-sm">
+          <div class="mb-4"><p class="text-xs font-bold text-teal-700">PERSONALIZED CARE PATHWAY</p><h3 class="mt-1 text-lg font-black">مسیر مراقبت شخصی من</h3><p class="mt-1 text-xs leading-6 text-slate-500">این برنامه توسط پزشک شما تنظیم و فعال شده است. پس از انجام هر گام، می‌توانید آن را برای بررسی گزارش کنید.</p></div>
+          <div v-for="pathway in carePathways" :key="pathway.id" class="mb-4 rounded-xl border p-4 last:mb-0">
+            <h4 class="font-black">{{ pathway.title }}</h4><p v-if="pathway.goal" class="mt-1 text-sm text-slate-600">هدف: {{ pathway.goal }}</p>
+            <p v-if="pathway.description" class="mt-1 text-xs leading-6 text-slate-500">{{ pathway.description }}</p>
+            <div class="mt-3 space-y-2">
+              <div v-for="step in pathway.steps" :key="step.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
+                <div class="min-w-0 flex-1"><p class="text-sm font-bold">{{ step.title }}</p><p v-if="step.description" class="mt-1 text-xs text-slate-500">{{ step.description }}</p><p class="mt-1 text-xs text-teal-700">{{ pathwayStepLabel(step.status) }}</p></div>
+                <button v-if="step.status === 'pending'" @click="reportPathwayStep(pathway.id, step.id)" class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">گزارش انجام</button>
+              </div>
+            </div>
+          </div>
         </section>
         <section class="grid gap-4 lg:grid-cols-2">
           <div class="rounded-2xl border bg-white p-5"><h3 class="mb-3 font-black">داروهای ثبت‌شده</h3><div v-for="item in activeMeds" :key="item.id" class="border-b py-3 last:border-0"><p class="text-sm font-bold">{{ item.title }}</p><p class="mt-1 text-xs text-slate-500">{{ item.dosage }} · {{ item.frequency }}</p><p v-if="item.description" class="mt-1 text-xs">{{ item.description }}</p></div><p v-if="!activeMeds.length" class="text-xs text-slate-400">دارویی ثبت نشده است.</p></div>
