@@ -29,6 +29,7 @@ const pay = row => {
   if (!method) return
   router.post(route('portal.finance.installments.payments.store', row.id), { amount: Number(amount), method })
 }
+const updateCollateral = (item, status) => router.put(route('portal.finance.collaterals.update', item.id), { status })
 const revokeConsent = (plan, scope) => { if (window.confirm('ارسال پیامک‌های این نوع برای این طرح درمان متوقف شود؟')) router.post(route('portal.finance.plans.sms-consent.revoke', plan.id), { scope }) }
 const addCollateral = plan => {
   const type = window.prompt('نوع وثیقه: cheque / promissory_note / guarantor / other', 'cheque')
