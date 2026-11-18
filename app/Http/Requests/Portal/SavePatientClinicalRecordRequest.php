@@ -29,6 +29,27 @@ final class SavePatientClinicalRecordRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_active' => ['sometimes', 'boolean'],
+            'reaction_severity' => [
+                'nullable',
+                'exclude_unless:kind,adverse_reaction',
+                Rule::in(['mild', 'moderate', 'severe', 'critical']),
+            ],
+            'reaction_date' => [
+                'nullable',
+                'exclude_unless:kind,adverse_reaction',
+                'date',
+            ],
+            'action_taken' => [
+                'nullable',
+                'exclude_unless:kind,adverse_reaction',
+                'string',
+                'max:2000',
+            ],
+            'reaction_outcome' => [
+                'nullable',
+                'exclude_unless:kind,adverse_reaction',
+                Rule::in(['resolved', 'ongoing', 'unknown']),
+            ],
             'related_allergy_record_id' => [
                 'nullable',
                 'integer',
