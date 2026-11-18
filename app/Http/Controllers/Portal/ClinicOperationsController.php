@@ -296,7 +296,7 @@ class ClinicOperationsController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
         $data = $request->validate([
-            'movement_type' => ['required', Rule::in(['purchase','use','return','adjustment'])],
+            'movement_type' => ['required', Rule::in(['purchase','use','return','adjustment_in','adjustment_out'])],
             'quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
             'unit_cost' => ['nullable', 'integer', 'min:0'], 'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -306,12 +306,12 @@ class ClinicOperationsController extends Controller
                 ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
                 ->lockForUpdate()->firstOrFail();
             $delta = match ($data['movement_type']) {
-                'purchase', 'return', 'adjustment' => (float) $data['quantity'],
-                'use' => -(float) $data['quantity'],
+                'purchase', 'return', 'adjustment_in' => (float) $data['quantity'],
+                'use', 'adjustment_out' => -(float) $data['quantity'],
             };
             $newQuantity = round((float) $row->current_quantity + $delta, 3);
             abort_if($newQuantity < 0, 422, 'موجودی انبار برای این خروج کافی نیست.');
-            if ($data['movement_type'] === 'purchase' && $newQuantity > 0) {
+            if (in_array($data['movement_type'], ['purchase', 'return'], true) && $newQuantity > 0) {
                 $oldValue = (float) $row->current_quantity * (int) $row->average_unit_cost;
                 $newValue = (float) $data['quantity'] * (int) ($data['unit_cost'] ?? 0);
                 $row->average_unit_cost = (int) round(($oldValue + $newValue) / $newQuantity);
