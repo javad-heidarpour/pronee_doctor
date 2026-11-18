@@ -167,6 +167,7 @@ class ClinicOperationsController extends Controller
             if ($row->follow_up_due_at) {
                 PatientFollowUpTask::create([
                     'doctor_id' => $row->plan->doctor_id, 'clinic_id' => $row->plan->clinic_id,
+                    'treatment_plan_id' => $row->plan->id,
                     'patient_id' => $row->plan->patient_id, 'appointment_id' => $row->appointment_id,
                     'created_by' => Auth::guard('web')->id(), 'title' => 'پیگیری پس از درمان: ' . $row->title,
                     'description' => 'پیگیری دوره‌ای ایجادشده از مرحله درمان؛ نتیجه و نیاز به مراجعه مجدد ثبت شود.',
