@@ -277,11 +277,12 @@ class ClinicFinanceController extends Controller
             'identifier' => ['nullable', 'string', 'max:120'],
             'face_value' => ['nullable', 'integer', 'min:1'],
             'due_date' => ['nullable', 'date'],
+            'reminder_enabled' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
         $treatment = PatientTreatmentPlan::query()->whereKey($plan)->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->firstOrFail();
-        $treatment->collaterals()->create($data + ['received_by' => Auth::guard('web')->id(), 'status' => 'held', 'received_at' => now()]);
+        $treatment->collaterals()->create($data + ['reminder_enabled' => !empty($data['due_date']), 'received_by' => Auth::guard('web')->id(), 'status' => 'held', 'received_at' => now()]);
         return back()->with('success', 'وثیقه ثبت شد. این ثبت به‌عنوان وجه دریافتی محسوب نمی‌شود.');
     }
 
