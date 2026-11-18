@@ -173,4 +173,44 @@ final class PatientEncounterWorkflowTest extends TestCase
         $this->assertNotNull($signed->signed_at);
         $this->assertSame('visited', DB::table('appointments')->where('id', $appointment->id)->value('status'));
     }
+
+    public function test_a_correction_creates_a_new_encounter_without_mutating_the_signed_original(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 13;
+        $author = new User();
+        $author->id = 23;
+        $patient = Patient::query()->create(['doctor_id' => 13, 'name' => 'Patient']);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 13, 'patient_id' => $patient->id, 'clinic_id' => 33, 'status' => 'visited',
+        ]);
+
+        $original = PatientEncounter::query()->create([
+            'doctor_id' => 13, 'patient_id' => $patient->id, 'appointment_id' => $appointment->id,
+            'clinic_id' => 33, 'author_id' => 23, 'signed_by' => 23, 'note_type' => 'consultation',
+            'status' => 'signed', 'assessment' => 'Original assessment', 'plan' => 'Original plan',
+            'reviewed_allergies' => true, 'reviewed_medications' => true, 'reviewed_vitals' => true,
+            'signed_at' => now(),
+        ]);
+
+        $amendment = app(CreatePatientEncounterAction::class)->handle($doctor, $author, $appointment, [
+            'amends_encounter_id' => $original->id,
+            'note_type' => 'consultation',
+            'subjective' => 'Correction context',
+            'objective' => 'Objective',
+            'assessment' => 'Corrected assessment',
+            'plan' => 'Corrected plan',
+            'reviewed_allergies' => true,
+            'reviewed_medications' => true,
+            'reviewed_vitals' => true,
+            'clinical_snapshot' => [],
+            'prescriptions' => [],
+        ]);
+
+        $this->assertSame($original->id, (int) $amendment->amends_encounter_id);
+        $this->assertSame('draft', $amendment->status);
+        $this->assertSame('Original assessment', $original->fresh()->assessment);
+        $this->assertSame('signed', $original->fresh()->status);
+    }
+
 }
