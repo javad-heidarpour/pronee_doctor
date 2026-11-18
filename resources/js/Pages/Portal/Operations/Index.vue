@@ -4,7 +4,7 @@ import { router, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
-  doctor: Object, clinics: Array, patients: Array, organizations: Array, plans: Array,
+  doctor: Object, clinics: Array, patients: Array, organizations: Array, payrollOrganizations: Array, plans: Array,
   services: Array, inventory: Array, dentalChart: Array, settlements: Array, payrolls: Array,
   lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean,
 })
@@ -12,10 +12,10 @@ const serviceForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '',
 const itemForm = useForm({ plan_id: '', service_id: '', title: '', item_type: 'procedure', tooth_number: '', tooth_surface: '', sequence: 1, price: 0, doctor_share_basis_points: '', follow_up_after_days: '', clinical_notes: '' })
 const dentalForm = useForm({ patient_id: '', clinic_id: props.clinics?.[0]?.id ?? '', dentition: 'permanent', tooth_number: '', surface: '', condition: 'caries', severity: 'medium', notes: '' })
 const stockForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', sku: '', unit: 'عدد', minimum_quantity: 1, opening_quantity: 0, unit_cost: 0 })
-const settlementForm = useForm({ organization_id: props.organizations?.[0]?.id ?? '', doctor_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10) })
+const settlementForm = useForm({ organization_id: props.payrollOrganizations?.[0]?.id ?? '', doctor_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10) })
 const selectedPlan = computed(() => props.plans.find(p => String(p.id) === String(itemForm.plan_id)))
-const settlementDoctors = computed(() => props.organizations.find(o => String(o.id) === String(settlementForm.organization_id))?.doctors || [])
-const payrollStaff = computed(() => (props.organizations.find(o => String(o.id) === String(payrollForm.organization_id))?.members || []).filter(m => m.pivot?.role !== 'owner'))
+const settlementDoctors = computed(() => props.payrollOrganizations.find(o => String(o.id) === String(settlementForm.organization_id))?.doctors || [])
+const payrollStaff = computed(() => (props.payrollOrganizations.find(o => String(o.id) === String(payrollForm.organization_id))?.members || []).filter(m => m.pivot?.role !== 'owner'))
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
 const saveService = () => serviceForm.post(route('portal.operations.services.store'), { onSuccess: () => serviceForm.reset('name','code','default_price') })
 const saveItem = () => itemForm.transform(data => ({...data, price: Number(data.price), service_id: data.service_id || null, doctor_share_basis_points: data.doctor_share_basis_points === '' ? null : Number(data.doctor_share_basis_points), follow_up_after_days: data.follow_up_after_days === '' ? null : Number(data.follow_up_after_days)})).post(route('portal.operations.treatment-items.store', itemForm.plan_id), { onSuccess: () => itemForm.reset('title','tooth_number','tooth_surface','clinical_notes') })
@@ -24,7 +24,7 @@ const saveDental = () => dentalForm.post(route('portal.operations.dental-chart.s
 const saveStock = () => stockForm.post(route('portal.operations.inventory.store'), { onSuccess: () => stockForm.reset('name','sku','opening_quantity','unit_cost') })
 const moveStock = item => { const type = window.prompt('نوع گردش: purchase / use / return / adjustment', 'purchase'); if (!type) return; const quantity = window.prompt('مقدار', '1'); if (!quantity) return; const unit_cost = type === 'purchase' ? window.prompt('بهای واحد به ریال', String(item.average_unit_cost || 0)) : null; router.post(route('portal.operations.inventory.movements.store', item.id), { movement_type: type, quantity: Number(quantity), unit_cost: unit_cost === null ? null : Number(unit_cost) }) }
 const createSettlement = () => settlementForm.post(route('portal.operations.settlements.store'))
-const payrollForm = useForm({ organization_id: props.organizations?.[0]?.id ?? '', clinic_id: '', staff_user_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10), gross_amount: 0, deduction_amount: 0, notes: '' })
+const payrollForm = useForm({ organization_id: props.payrollOrganizations?.[0]?.id ?? '', clinic_id: '', staff_user_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10), gross_amount: 0, deduction_amount: 0, notes: '' })
 const savePayroll = () => payrollForm.post(route('portal.operations.payrolls.store'))
 const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled:'زمان‌بندی‌شده', in_progress:'در حال انجام', completed:'انجام‌شده', cancelled:'لغوشده'})[s] || s
 </script>
@@ -121,11 +121,11 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
           <select v-model="settlementForm.doctor_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب پزشک</option><option v-for="d in settlementDoctors" :key="d.id" :value="d.id">{{ d.name }} {{ d.family }}</option></select>
           <input v-model="settlementForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model="settlementForm.period_end" type="date" required class="rounded-xl border-slate-300 text-sm" />
-          <button :disabled="settlementForm.processing || !organizations.length" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white md:col-span-3">محاسبه پیش‌نویس تسویه از خدمات انجام‌شده</button>
+          <button :disabled="settlementForm.processing || !payrollOrganizations.length" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white md:col-span-3">محاسبه پیش‌نویس تسویه از خدمات انجام‌شده</button>
         </form>
         <h2 class="mb-3 mt-8 font-bold">حقوق و دستمزد کارکنان</h2>
         <form @submit.prevent="savePayroll" class="grid gap-3 md:grid-cols-3">
-          <select v-model="payrollForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in organizations.filter(x => x.owner_user_id)" :key="o.id" :value="o.id">{{ o.name }}</option></select>
+          <select v-model="payrollForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in payrollOrganizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
           <select v-model="payrollForm.staff_user_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب کارمند</option><option v-for="m in payrollStaff" :key="m.id" :value="m.id">{{ m.name }} {{ m.family }}</option></select>
           <select v-model="payrollForm.clinic_id" class="rounded-xl border-slate-300 text-sm"><option value="">کل مجموعه</option><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <input v-model="payrollForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
