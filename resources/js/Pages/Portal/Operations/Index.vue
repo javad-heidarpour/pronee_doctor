@@ -6,7 +6,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({
   doctor: Object, clinics: Array, patients: Array, organizations: Array, payrollOrganizations: Array, plans: Array,
   services: Array, inventory: Array, dentalChart: Array, settlements: Array, payrolls: Array,
-  lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean, canViewClinical: Boolean, canManageClinical: Boolean, canViewInventory: Boolean,
+  lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean, canViewClinical: Boolean, canManageClinical: Boolean, canViewInventory: Boolean, canViewServices: Boolean,
 })
 const serviceForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', code: '', specialty_module: 'dentistry', default_duration_minutes: 30, default_price: 0, doctor_share_basis_points: 7000, requires_follow_up: false, follow_up_after_days: 30 })
 const itemForm = useForm({ plan_id: '', service_id: '', title: '', item_type: 'procedure', tooth_number: '', tooth_surface: '', sequence: 1, price: 0, doctor_share_basis_points: '', follow_up_after_days: '', clinical_notes: '' })
@@ -40,7 +40,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <div class="rounded-2xl border bg-white p-4"><p class="text-xs text-slate-500">اقلام زیر حداقل موجودی</p><b class="mt-2 block text-xl" :class="lowStockCount ? 'text-rose-600' : 'text-emerald-700'">{{ lowStockCount }}</b></div>
       </section>
 
-      <section v-if="canManage" class="rounded-2xl border bg-white p-5">
+      <section v-if="canViewServices" class="rounded-2xl border bg-white p-5">
         <h2 class="mb-4 font-bold">تعریف خدمت و تعرفه</h2>
         <form @submit.prevent="saveService" class="grid gap-3 md:grid-cols-3">
           <select v-model="serviceForm.clinic_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
