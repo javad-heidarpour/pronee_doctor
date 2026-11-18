@@ -133,6 +133,52 @@
           <span class="rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700">محرمانه</span>
         </div>
 
+        <div v-if="patient.vital_signs?.length" class="space-y-3 rounded-xl border border-slate-100 p-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-black text-slate-800">نمودار روند اندازه‌گیری</h3>
+              <p class="mt-1 text-[11px] text-slate-500">نمایش حداکثر ۳۰ اندازه‌گیری اخیر از یک شاخص؛ بدون تفسیر یا تشخیص خودکار</p>
+            </div>
+            <select v-model="selectedVitalType" class="min-w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <option v-for="item in vitalTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </div>
+
+          <div v-if="vitalChartPoints.length" class="space-y-3">
+            <div class="grid grid-cols-3 gap-2">
+              <div class="rounded-lg bg-slate-50 p-3">
+                <p class="text-[10px] text-slate-500">آخرین مقدار</p>
+                <p class="mt-1 text-sm font-black text-teal-700" dir="ltr">{{ vitalChartStats.latest }} {{ vitalChartStats.unit }}</p>
+              </div>
+              <div class="rounded-lg bg-slate-50 p-3">
+                <p class="text-[10px] text-slate-500">کمترین مقدار</p>
+                <p class="mt-1 text-sm font-black text-slate-700" dir="ltr">{{ vitalChartStats.min }} {{ vitalChartStats.unit }}</p>
+              </div>
+              <div class="rounded-lg bg-slate-50 p-3">
+                <p class="text-[10px] text-slate-500">بیشترین مقدار</p>
+                <p class="mt-1 text-sm font-black text-slate-700" dir="ltr">{{ vitalChartStats.max }} {{ vitalChartStats.unit }}</p>
+              </div>
+            </div>
+            <div class="overflow-hidden rounded-xl bg-slate-50 p-2">
+              <svg viewBox="0 0 600 180" class="h-44 w-full" role="img" :aria-label="`نمودار روند ${vitalLabel(selectedVitalType)}`">
+                <line x1="12" y1="12" x2="588" y2="12" stroke="#e2e8f0" stroke-dasharray="4 5" />
+                <line x1="12" y1="80" x2="588" y2="80" stroke="#e2e8f0" stroke-dasharray="4 5" />
+                <line x1="12" y1="148" x2="588" y2="148" stroke="#e2e8f0" stroke-dasharray="4 5" />
+                <polyline :points="vitalChartPolyline" fill="none" stroke="#0f766e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                <circle v-for="point in vitalChartPoints" :key="point.id" :cx="point.x" :cy="point.y" r="4" fill="#0f766e" stroke="#ffffff" stroke-width="2">
+                  <title>{{ point.value }} {{ point.unit }} - {{ formatVitalDate(point.measured_at) }}</title>
+                </circle>
+              </svg>
+              <div class="flex justify-between px-2 text-[10px] text-slate-400" dir="ltr">
+                <span>{{ vitalChartStats.firstDate }}</span>
+                <span>{{ vitalChartStats.lastDate }}</span>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-400">تعداد نقاط نمایش‌داده‌شده: {{ vitalChartPoints.length.toLocaleString('fa-IR') }}</p>
+          </div>
+          <p v-else class="rounded-lg bg-slate-50 p-4 text-center text-xs text-slate-500">برای این شاخص هنوز اندازه‌گیری ثبت نشده است.</p>
+        </div>
+
         <form v-if="canManageClinicalRecords" @submit.prevent="saveVitalSign" class="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
           <label class="space-y-1 text-xs font-bold text-slate-600">
             نوع اندازه‌گیری
@@ -269,6 +315,39 @@ const vitalRanges = {
   blood_glucose: { min: 0, max: 2000 },
 };
 const vitalRange = computed(() => vitalRanges[vitalForm.measurement_type] || { min: 0, max: 1000 });
+const selectedVitalType = ref('systolic_bp');
+const vitalChartHistory = computed(() => (patient.value.vital_signs || [])
+  .filter(item => item.measurement_type === selectedVitalType.value)
+  .slice()
+  .sort((a, b) => new Date(a.measured_at) - new Date(b.measured_at))
+  .slice(-30));
+const vitalChartPoints = computed(() => {
+  const records = vitalChartHistory.value;
+  if (!records.length) return [];
+  const values = records.map(item => Number(item.value));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min || 1;
+  return records.map((item, index) => ({
+    ...item,
+    x: records.length === 1 ? 300 : 12 + (index * 576) / (records.length - 1),
+    y: 148 - ((Number(item.value) - min) / spread) * 136,
+  }));
+});
+const vitalChartPolyline = computed(() => vitalChartPoints.value.map(point => `${point.x},${point.y}`).join(' '));
+const vitalChartStats = computed(() => {
+  const records = vitalChartHistory.value;
+  if (!records.length) return { latest: '—', min: '—', max: '—', unit: '', firstDate: '', lastDate: '' };
+  const values = records.map(item => Number(item.value));
+  return {
+    latest: records[records.length - 1].value,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    unit: records[records.length - 1].unit,
+    firstDate: formatVitalDate(records[0].measured_at),
+    lastDate: formatVitalDate(records[records.length - 1].measured_at),
+  };
+});
 const nowForInput = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
