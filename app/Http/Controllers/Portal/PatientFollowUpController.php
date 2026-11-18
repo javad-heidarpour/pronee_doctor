@@ -37,7 +37,7 @@ class PatientFollowUpController extends Controller
         $query = PatientFollowUpTask::query()
             ->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)
-            ->with(['patient:id,name,phone', 'assignee:id,name,family', 'appointment:id,appointment_date,appointment_time'])
+            ->with(['patient:id,name,phone', 'clinic:id,name', 'assignee:id,name,family', 'appointment:id,appointment_date,appointment_time'])
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when(($filters['scope'] ?? null) === 'overdue', fn ($q) => $q->overdue())
             ->when(($filters['scope'] ?? null) === 'today', fn ($q) => $q->whereDate('due_at', today())->where('status', 'pending'))
@@ -118,9 +118,18 @@ class PatientFollowUpController extends Controller
         ]);
 
         if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== null) {
-            $allowed = $doctor->secretaries()->where('users.id', $data['assigned_to'])
-                ->where('users.is_active', true)->exists();
-            abort_unless($allowed, 422, 'مسئول پیگیری به این پزشک متصل نیست.');
+            $secretary = $doctor->secretaries()->where('users.id', $data['assigned_to'])
+                ->where('users.is_active', true)->first();
+            $secretaryClinicIds = $secretary?->pivot?->clinic_ids ?? [];
+            if (is_string($secretaryClinicIds)) {
+                $secretaryClinicIds = json_decode($secretaryClinicIds, true) ?: [];
+            }
+            abort_unless(
+                $secretary && is_array($secretaryClinicIds) &&
+                in_array((int) $followUp->clinic_id, array_map('intval', $secretaryClinicIds), true),
+                422,
+                'مسئول پیگیری به مطب این برنامه دسترسی ندارد.'
+            );
         }
 
         $followUp->fill($data);
