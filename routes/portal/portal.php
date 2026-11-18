@@ -11,6 +11,7 @@ use App\Http\Controllers\Portal\ClinicFinanceController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
+use App\Http\Controllers\Portal\ClinicIntelligenceController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -80,7 +81,14 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'index'
         ])->name('dashboard');
 
-        Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');\n\n        Route::get('/intelligence', [ClinicIntelligenceController::class, 'index'])->name('intelligence.index');\n        Route::post('/intelligence/inventory/{item}/settings', [ClinicIntelligenceController::class, 'updateInventorySettings'])->whereNumber('item')->name('intelligence.inventory.settings');\n        Route::post('/intelligence/health/programs', [ClinicIntelligenceController::class, 'storeProgram'])->name('intelligence.health.programs.store');\n        Route::post('/intelligence/health/enroll', [ClinicIntelligenceController::class, 'enrollPatient'])->name('intelligence.health.enroll');\n        Route::post('/intelligence/health/memberships/{membership}/points', [ClinicIntelligenceController::class, 'awardWellnessPoints'])->whereNumber('membership')->name('intelligence.health.points');\n        Route::post('/intelligence/economic-simulation', [ClinicIntelligenceController::class, 'simulateEconomics'])->name('intelligence.simulate');
+        Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+
+        Route::get('/intelligence', [ClinicIntelligenceController::class, 'index'])->name('intelligence.index');
+        Route::post('/intelligence/inventory/{item}/settings', [ClinicIntelligenceController::class, 'updateInventorySettings'])->whereNumber('item')->name('intelligence.inventory.settings');
+        Route::post('/intelligence/health/programs', [ClinicIntelligenceController::class, 'storeProgram'])->name('intelligence.health.programs.store');
+        Route::post('/intelligence/health/enroll', [ClinicIntelligenceController::class, 'enrollPatient'])->name('intelligence.health.enroll');
+        Route::post('/intelligence/health/memberships/{membership}/points', [ClinicIntelligenceController::class, 'awardWellnessPoints'])->whereNumber('membership')->name('intelligence.health.points');
+        Route::post('/intelligence/economic-simulation', [ClinicIntelligenceController::class, 'simulateEconomics'])->name('intelligence.simulate');\n\n        Route::get('/intelligence', [ClinicIntelligenceController::class, 'index'])->name('intelligence.index');\n        Route::post('/intelligence/inventory/{item}/settings', [ClinicIntelligenceController::class, 'updateInventorySettings'])->whereNumber('item')->name('intelligence.inventory.settings');\n        Route::post('/intelligence/health/programs', [ClinicIntelligenceController::class, 'storeProgram'])->name('intelligence.health.programs.store');\n        Route::post('/intelligence/health/enroll', [ClinicIntelligenceController::class, 'enrollPatient'])->name('intelligence.health.enroll');\n        Route::post('/intelligence/health/memberships/{membership}/points', [ClinicIntelligenceController::class, 'awardWellnessPoints'])->whereNumber('membership')->name('intelligence.health.points');\n        Route::post('/intelligence/economic-simulation', [ClinicIntelligenceController::class, 'simulateEconomics'])->name('intelligence.simulate');
         Route::post('/clinic-brain/waitlist', [ClinicBrainController::class, 'storeWaitlist'])->name('clinic-brain.waitlist.store');
         Route::post('/clinic-brain/waitlist/{entry}/close', [ClinicBrainController::class, 'closeWaitlist'])->whereNumber('entry')->name('clinic-brain.waitlist.close');
 
