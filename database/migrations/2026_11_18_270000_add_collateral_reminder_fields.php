@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::table('patient_collaterals', function (Blueprint $table): void {
             $table->boolean('reminder_enabled')->default(true);
             $table->dateTime('last_reminded_at')->nullable();
+            $table->dateTime('collected_at')->nullable();
             $table->index(['status', 'reminder_enabled', 'due_date'], 'collateral_reminder_due_idx');
         });
     }
@@ -21,7 +22,7 @@ return new class extends Migration
     {
         Schema::table('patient_collaterals', function (Blueprint $table): void {
             $table->dropIndex('collateral_reminder_due_idx');
-            $table->dropColumn(['reminder_enabled', 'last_reminded_at']);
+            $table->dropColumn(['reminder_enabled', 'last_reminded_at', 'collected_at']);
         });
     }
 };
