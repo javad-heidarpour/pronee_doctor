@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 final class SignPatientEncounterAction
 {
-    public function handle(PatientEncounter $encounter): PatientEncounter
+    public function handle(PatientEncounter $encounter, User $signer): PatientEncounter
     {
         if ($encounter->status !== PatientEncounter::STATUS_DRAFT) {
             throw ValidationException::withMessages(['encounter' => 'این یادداشت قبلاً نهایی شده است.']);
@@ -21,10 +21,11 @@ final class SignPatientEncounterAction
             throw ValidationException::withMessages(['reviewed_allergies' => 'برای نهایی‌سازی، بازبینی حساسیت‌ها، داروها و علائم حیاتی را تأیید کنید.']);
         }
 
-        return DB::transaction(function () use ($encounter): PatientEncounter {
+        return DB::transaction(function () use ($encounter, $signer): PatientEncounter {
             $encounter->update([
                 'status' => PatientEncounter::STATUS_SIGNED,
                 'signed_at' => now(),
+                'signed_by' => $signer->id,
             ]);
 
             Appointment::query()->whereKey($encounter->appointment_id)
@@ -32,7 +33,7 @@ final class SignPatientEncounterAction
                 ->where('status', '!=', 'cancelled')
                 ->update(['status' => 'visited', 'updated_at' => now()]);
 
-            return $encounter->fresh(['prescriptions', 'author', 'clinic']);
+            return $encounter->fresh(['prescriptions', 'author', 'signer', 'clinic']);
         });
     }
 }
