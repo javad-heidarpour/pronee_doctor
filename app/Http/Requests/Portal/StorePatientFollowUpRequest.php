@@ -27,11 +27,13 @@ class StorePatientFollowUpRequest extends FormRequest
             'contact_method' => ['required', Rule::in(['call', 'sms', 'in_person', 'review'])],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'send_sms' => ['sometimes', 'boolean'],
+            'sms_consent_confirmed' => ['sometimes', 'boolean'],
             'steps' => ['nullable', 'array', 'min:1', 'max:12'],
             'steps.*.title' => ['required_with:steps', 'string', 'max:160'],
             'steps.*.days' => ['required_with:steps', 'integer', 'min:0', 'max:365'],
             'steps.*.contact_method' => ['required_with:steps', Rule::in(['call', 'sms', 'in_person', 'review'])],
             'steps.*.send_sms' => ['sometimes', 'boolean'],
+            'steps.*.sms_consent_confirmed' => ['sometimes', 'boolean'],
         ];
     }
 }
