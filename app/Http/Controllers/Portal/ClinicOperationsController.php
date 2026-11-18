@@ -83,12 +83,27 @@ class ClinicOperationsController extends Controller
             'default_price' => ['required', 'integer', 'min:0', 'max:999999999999'],
             'doctor_share_basis_points' => ['required', 'integer', 'min:0', 'max:10000'],
             'requires_follow_up' => ['boolean'], 'follow_up_after_days' => ['nullable', 'required_if:requires_follow_up,1', 'integer', 'min:1', 'max:3650'],
+            'inventory_requirements' => ['nullable', 'array', 'max:30'],
+            'inventory_requirements.*.inventory_item_id' => ['required', 'integer', 'distinct'],
+            'inventory_requirements.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
         ]);
         $clinicId = (int) $data['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
         $organizationId = Address::whereKey($clinicId)->value('organization_id');
-        ClinicService::create($data + ['organization_id' => $organizationId]);
-        return back()->with('success', 'خدمت به فهرست خدمات شعبه اضافه شد.');
+        DB::transaction(function () use ($data, $clinicId, $organizationId): void {
+            $service = ClinicService::create(collect($data)->except('inventory_requirements')->all() + ['organization_id' => $organizationId]);
+            $requirements = $data['inventory_requirements'] ?? [];
+            $itemIds = collect($requirements)->pluck('inventory_item_id')->map(fn ($id) => (int) $id)->unique();
+            $validIds = ClinicInventoryItem::query()->where('clinic_id', $clinicId)->whereIn('id', $itemIds)->pluck('id')->map(fn ($id) => (int) $id);
+            abort_unless($validIds->count() === $itemIds->count(), 422, 'مواد مصرفی باید از انبار همین شعبه انتخاب شوند.');
+            foreach ($requirements as $requirement) {
+                $service->inventoryRequirements()->create([
+                    'inventory_item_id' => $requirement['inventory_item_id'],
+                    'quantity' => $requirement['quantity'],
+                ]);
+            }
+        }, 3);
+        return back()->with('success', 'خدمت، تعرفه و مواد مصرفی استاندارد آن ثبت شد.');
     }
 
     public function storeTreatmentItem(Request $request, int $plan, ClinicAccountingService $accounting)
