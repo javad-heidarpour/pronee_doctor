@@ -29,6 +29,8 @@ final class ClinicIntelligenceController extends Controller
         $permissions = $this->secretaryPermissions($doctor);
         $canInventory = $user->role === 'doctor' || in_array('inventory.view', $permissions, true) || in_array('inventory.manage', $permissions, true);
         $canHealth = $user->role === 'doctor' || in_array('patients.view', $permissions, true) || in_array('patients.manage', $permissions, true);
+        $canManageInventory = $user->role === 'doctor' || in_array('inventory.manage', $permissions, true);
+        $canManageHealth = $user->role === 'doctor' || in_array('patients.manage', $permissions, true);
         abort_unless($canInventory || $canHealth || $user->role === 'doctor', 403);
 
         $forecast = $canInventory ? $forecaster->forecast($doctor->id, $clinicIds, $request->integer('horizon', 30)) : [
@@ -90,7 +92,11 @@ final class ClinicIntelligenceController extends Controller
             'memberships' => $memberships,
             'reminders' => $reminders,
             'scenarios' => $scenarios,
-            'permissions' => ['inventory' => $canInventory, 'health' => $canHealth, 'simulator' => $user->role === 'doctor'],
+            'permissions' => [
+                'inventory' => $canInventory, 'inventory_manage' => $canManageInventory,
+                'health' => $canHealth, 'health_manage' => $canManageHealth,
+                'simulator' => $user->role === 'doctor',
+            ],
             'baseline' => [
                 'appointments_90d' => $appointmentCount,
                 'monthly_appointments' => round($appointmentCount / 3, 1),
