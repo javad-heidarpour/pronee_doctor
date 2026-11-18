@@ -87,6 +87,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/intelligence/inventory/{item}/settings', [ClinicIntelligenceController::class, 'updateInventorySettings'])->whereNumber('item')->name('intelligence.inventory.settings');
         Route::post('/intelligence/health/programs', [ClinicIntelligenceController::class, 'storeProgram'])->name('intelligence.health.programs.store');
         Route::post('/intelligence/health/enroll', [ClinicIntelligenceController::class, 'enrollPatient'])->name('intelligence.health.enroll');
+        Route::post('/intelligence/health/memberships/{membership}/checkup', [ClinicIntelligenceController::class, 'recordPreventiveCheckup'])->whereNumber('membership')->name('intelligence.health.checkup');
         Route::post('/intelligence/health/memberships/{membership}/withdraw', [ClinicIntelligenceController::class, 'withdrawMembership'])->whereNumber('membership')->name('intelligence.health.withdraw');
         Route::post('/intelligence/health/memberships/{membership}/points', [ClinicIntelligenceController::class, 'awardWellnessPoints'])->whereNumber('membership')->name('intelligence.health.points');
         Route::post('/intelligence/economic-simulation', [ClinicIntelligenceController::class, 'simulateEconomics'])->name('intelligence.simulate');
