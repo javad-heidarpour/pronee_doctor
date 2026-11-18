@@ -184,6 +184,13 @@ final class PatientEncounterWorkflowTest extends TestCase
         $this->assertSame(22, (int) $signed->signed_by);
         $this->assertNotNull($signed->signed_at);
         $this->assertSame('visited', DB::table('appointments')->where('id', $appointment->id)->value('status'));
+
+        try {
+            $signed->update(['assessment' => 'Tampered']);
+            $this->fail('Signed clinical notes must be immutable.');
+        } catch (ValidationException) {
+            $this->assertSame('Assessment', $signed->fresh()->assessment);
+        }
     }
 
     public function test_a_correction_creates_a_new_encounter_without_mutating_the_signed_original(): void
