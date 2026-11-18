@@ -27,13 +27,37 @@ class ClinicAccountingService
 
     public function recordPatientPayment(
         ?int $organizationId, int $clinicId, int $doctorId, int $userId,
-        int $paymentId, int $amount, string $description, string $occurredAt
+        int $paymentId, int $planId, int $amount, string $description, string $occurredAt
     ): ClinicJournalEntry {
-        return $this->post($organizationId, $clinicId, $doctorId, $userId,
-            'patient_installment_payment', $paymentId, 'دریافت بیمار: ' . $description,
-            $occurredAt, 'patient-payment:' . $paymentId,
-            [['code' => '1000', 'debit' => $amount, 'credit' => 0],
-             ['code' => '1100', 'debit' => 0, 'credit' => $amount]]);
+        return DB::transaction(function () use ($organizationId, $clinicId, $doctorId, $userId, $paymentId, $planId, $amount, $description, $occurredAt): ClinicJournalEntry {
+            $key = 'patient-payment:' . $paymentId;
+            $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
+            if ($existing) return $existing->load('lines.account');
+
+            $remaining = $amount;
+            $receivableApplied = 0;
+            $items = PatientTreatmentItem::query()->where('treatment_plan_id', $planId)
+                ->where('stage', 'completed')->whereColumn('paid_applied_amount', '<', 'recognized_amount')
+                ->orderBy('performed_at')->lockForUpdate()->get();
+            foreach ($items as $item) {
+                if ($remaining < 1) break;
+                $outstanding = max(0, (int) $item->recognized_amount - (int) $item->paid_applied_amount);
+                $applied = min($remaining, $outstanding);
+                if ($applied > 0) {
+                    $item->increment('paid_applied_amount', $applied);
+                    $remaining -= $applied;
+                    $receivableApplied += $applied;
+                }
+            }
+
+            $lines = [['code' => '1000', 'debit' => $amount, 'credit' => 0]];
+            if ($receivableApplied > 0) $lines[] = ['code' => '1100', 'debit' => 0, 'credit' => $receivableApplied];
+            if ($remaining > 0) $lines[] = ['code' => '2100', 'debit' => 0, 'credit' => $remaining];
+
+            return $this->post($organizationId, $clinicId, $doctorId, $userId,
+                'patient_installment_payment', $paymentId, 'دریافت بیمار: ' . $description,
+                $occurredAt, $key, $lines);
+        }, 3);
     }
 
     public function recordExpense(
@@ -49,13 +73,42 @@ class ClinicAccountingService
 
     public function recordTreatmentRevenue(
         ?int $organizationId, int $clinicId, int $doctorId, int $userId,
-        int $treatmentItemId, int $amount, string $description, string $occurredAt
+        int $treatmentItemId, int $planId, int $amount, string $description, string $occurredAt
     ): ClinicJournalEntry {
-        return $this->post($organizationId, $clinicId, $doctorId, $userId,
-            'patient_treatment_item', $treatmentItemId, 'شناسایی درآمد: ' . $description,
-            $occurredAt, 'treatment-revenue:' . $treatmentItemId,
-            [['code' => '1100', 'debit' => $amount, 'credit' => 0],
-             ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
+        return DB::transaction(function () use ($organizationId, $clinicId, $doctorId, $userId, $treatmentItemId, $planId, $amount, $description, $occurredAt): ClinicJournalEntry {
+            $key = 'treatment-revenue:' . $treatmentItemId;
+            $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
+            if ($existing) return $existing->load('lines.account');
+
+            $item = PatientTreatmentItem::query()->whereKey($treatmentItemId)
+                ->where('treatment_plan_id', $planId)->lockForUpdate()->firstOrFail();
+            if ((int) $item->recognized_amount > 0) {
+                throw ValidationException::withMessages(['finance' => 'درآمد این مرحله قبلاً شناسایی شده است.']);
+            }
+
+            $collected = (int) PatientInstallmentPayment::query()
+                ->whereHas('installment', fn ($q) => $q->where('treatment_plan_id', $planId))
+                ->sum('amount');
+            $alreadyApplied = (int) PatientTreatmentItem::query()
+                ->where('treatment_plan_id', $planId)->sum('paid_applied_amount');
+            $availableAdvance = max(0, $collected - $alreadyApplied);
+            $advanceApplied = min($amount, $availableAdvance);
+            $receivableCreated = $amount - $advanceApplied;
+
+            $item->update([
+                'recognized_amount' => $amount,
+                'paid_applied_amount' => $advanceApplied,
+            ]);
+
+            $lines = [];
+            if ($advanceApplied > 0) $lines[] = ['code' => '2100', 'debit' => $advanceApplied, 'credit' => 0];
+            if ($receivableCreated > 0) $lines[] = ['code' => '1100', 'debit' => $receivableCreated, 'credit' => 0];
+            $lines[] = ['code' => '4000', 'debit' => 0, 'credit' => $amount];
+
+            return $this->post($organizationId, $clinicId, $doctorId, $userId,
+                'patient_treatment_item', $treatmentItemId, 'شناسایی درآمد: ' . $description,
+                $occurredAt, $key, $lines);
+        }, 3);
     }
 
     public function recordInventoryMovement(
