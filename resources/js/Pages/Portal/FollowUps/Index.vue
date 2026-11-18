@@ -62,7 +62,7 @@
           <input v-model.number="templateForm.default_days" type="number" min="0" max="365" class="rounded-xl border-slate-300 text-sm" placeholder="فاصله پیش‌فرض (روز)" />
           <input v-model="templateForm.description" placeholder="توضیح برای مسئول پیگیری" class="rounded-xl border-slate-300 text-sm md:col-span-2" />
           <select v-model="templateForm.contact_method" class="rounded-xl border-slate-300 text-sm"><option value="call">تماس</option><option value="sms">پیامک</option><option value="review">بررسی پرونده</option><option value="in_person">مراجعه حضوری</option></select>
-          <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="templateForm.send_sms" type="checkbox" class="rounded border-slate-300" /> پیامک خودکار برای این الگو</label>
+          <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="templateForm.send_sms" type="checkbox" class="rounded border-slate-300" /> پیشنهاد پیامک برای این الگو (نیازمند رضایت ثبت‌شده بیمار)</label>
           <button class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white">{{ editingTemplateId ? 'ذخیره تغییرات' : 'ذخیره الگو' }}</button>
           <button v-if="editingTemplateId" type="button" @click="cancelTemplateEdit" class="rounded-xl border px-4 py-3 text-sm font-bold">انصراف</button>
         </form>
@@ -92,7 +92,7 @@
               <div>
                 <h3 class="font-extrabold text-slate-900">{{ task.title }}</h3>
                 <p class="mt-1 text-sm text-slate-600">{{ task.patient?.name }} · {{ task.patient?.phone || 'بدون شماره تماس' }}</p>
-                <p class="mt-1 text-xs text-slate-500">موعد: {{ formatDate(task.due_at) }} · مسئول: {{ task.assignee ? (task.assignee.name + ' ' + (task.assignee.family || '')) : 'تعیین نشده' }}</p>
+                <p class="mt-1 text-xs text-slate-500">موعد: {{ formatDate(task.due_at) }} · مطب: {{ task.clinic?.name || 'ثبت نشده' }} · مسئول: {{ task.assignee ? (task.assignee.name + ' ' + (task.assignee.family || '')) : 'تعیین نشده' }}</p>
                 <p v-if="task.description" class="mt-2 text-sm text-slate-500">{{ task.description }}</p>
                 <p class="mt-1 text-[11px] text-slate-400">کد برنامه: {{ task.plan_uuid?.slice(0, 8) }} · {{ task.send_sms ? (task.sms_sent_at ? 'پیامک ارسال شده' : (task.last_sms_error ? 'خطای ارسال پیامک' : 'پیامک در صف بررسی')) : 'بدون پیامک' }}</p>
                 <p v-if="task.result_notes" class="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">نتیجه: {{ task.result_notes }}</p>
@@ -126,6 +126,8 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({
   doctor: Object,
   userRole: String,
+  selectedPatientId: Number,
+  selectedAppointmentId: Number,
   tasks: Object,
   patients: Array,
   templates: Array,
@@ -135,7 +137,7 @@ const props = defineProps({
 })
 const processing = ref(false)
 const isDoctor = computed(() => ['doctor', 'admin'].includes(props.userRole))
-const form = reactive({ patient_id: '', template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false, sms_consent_confirmed: false }] })
+const form = reactive({ patient_id: props.selectedPatientId || '', appointment_id: props.selectedAppointmentId || null, template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false, sms_consent_confirmed: false }] })
 const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false })
 const editingTemplateId = ref(null)
 const filters = reactive({ ...props.filters })
