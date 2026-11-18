@@ -32,15 +32,17 @@ class ClinicOperationsController extends Controller
     {
         $doctor = $this->currentDoctor();
         $clinicIds = $this->accessibleClinicIds($doctor);
-        $this->authorizeSecretaryPermission('services.view', $doctor);
         $user = Auth::guard('web')->user();
+        $isPrivileged = in_array($user->role, ['doctor', 'admin'], true);
+        $hasAnyModulePermission = $isPrivileged || collect(['services.view','services.manage','inventory.view','inventory.manage','patients.clinical.view','patients.clinical.manage'])->contains(fn ($permission) => $this->secretaryHas($doctor, $permission));
+        abort_unless($hasAnyModulePermission, 403, 'مجوز مشاهده عملیات کلینیک برای شما فعال نیست.');
         $organizations = $doctor->clinicOrganizations()->wherePivot('status', 'active')
             ->with(['doctors' => fn ($q) => $q->where('clinic_organization_doctors.status', 'active')])
             ->get(['clinic_organizations.id', 'clinic_organizations.name', 'clinic_organizations.owner_user_id']);
         $ownedOrganizationIds = $organizations->where('owner_user_id', $user->id)->pluck('id')->values();
         $payrollOrganizations = $organizations->whereIn('id', $ownedOrganizationIds)->values();
         $payrollOrganizations->load(['members' => fn ($q) => $q->where('clinic_organization_members.is_active', true)]);
-        $isPrivileged = in_array($user->role, ['doctor', 'admin'], true);
+        $canViewServices = $isPrivileged || $this->secretaryHas($doctor, 'services.view') || $this->secretaryHas($doctor, 'services.manage');
         $canViewClinical = $isPrivileged || $this->secretaryHas($doctor, 'patients.clinical.view') || $this->secretaryHas($doctor, 'patients.clinical.manage');
         $canManageClinical = $isPrivileged || $this->secretaryHas($doctor, 'patients.clinical.manage');
         $canViewInventory = $isPrivileged || $this->secretaryHas($doctor, 'inventory.view') || $this->secretaryHas($doctor, 'inventory.manage');
@@ -54,13 +56,14 @@ class ClinicOperationsController extends Controller
             'payrollOrganizations' => $payrollOrganizations,
             'settlements' => DoctorSettlement::query()->whereIn('organization_id', $ownedOrganizationIds)->with('doctor:id,name,family')->latest()->limit(20)->get(),
             'payrolls' => ClinicStaffPayroll::query()->whereIn('organization_id', $ownedOrganizationIds)->with('staff:id,name,family')->latest()->limit(20)->get(),
-            'services' => ClinicService::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->orderBy('name')->get(),
+            'services' => $canViewServices ? ClinicService::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->orderBy('name')->get() : collect(),
             'plans' => PatientTreatmentPlan::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
                 ->with(['patient:id,name,phone', 'items'])->latest()->limit(30)->get(),
             'inventory' => $canViewInventory ? ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->with('clinic:id,name')->orderBy('name')->get() : collect(),
             'lowStockCount' => $canViewInventory ? ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->lowStock()->count() : 0,
             'dentalChart' => $canViewClinical ? PatientDentalChartEntry::query()->where('doctor_id', $doctor->id)->latest('recorded_at')->limit(60)->with('patient:id,name')->get() : collect(),
             'canManage' => $isPrivileged || $this->secretaryHas($doctor, 'services.manage'),
+            'canViewServices' => $canViewServices,
             'canViewClinical' => $canViewClinical,
             'canManageClinical' => $canManageClinical,
             'canViewInventory' => $canViewInventory,
