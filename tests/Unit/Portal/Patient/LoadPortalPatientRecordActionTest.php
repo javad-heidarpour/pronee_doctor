@@ -100,6 +100,25 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         );
     }
 
+    public function test_it_does_not_eager_load_a_patient_owned_by_another_doctor(): void
+    {
+        $doctor = $this->doctor('doctor-owner');
+        $otherDoctor = $this->doctor('doctor-other-owner');
+        $foreignPatient = \\App\\Models\\Patient::query()->create([
+            'doctor_id' => $otherDoctor->id,
+            'name' => 'Foreign Patient',
+            'phone' => '09121111111',
+        ]);
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => $foreignPatient->id,
+        ]);
+
+        $visits = app(LoadPortalPatientRecordAction::class)->handle($reference, [10]);
+
+        $this->assertCount(1, $visits);
+        $this->assertNull($visits->first()->patient);
+    }
+
     public function test_it_uses_phone_only_when_the_reference_has_no_national_code(): void
     {
         $doctor = $this->doctor('doctor-phone');

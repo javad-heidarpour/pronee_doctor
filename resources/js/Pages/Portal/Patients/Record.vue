@@ -124,6 +124,117 @@
         برای ثبت اطلاعات پزشکی مستقل، ابتدا نوبت‌های قدیمی را به پرونده‌های بیماران متصل کنید.
       </section>
 
+      <section v-if="patient.id && canViewClinicalRecords" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-black text-slate-900">پایش علائم حیاتی</h2>
+            <p class="mt-1 text-xs text-slate-500">ثبت و مشاهده روند اندازه‌گیری‌های بیمار</p>
+          </div>
+          <span class="rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700">محرمانه</span>
+        </div>
+
+        <div v-if="bmiSummary" class="grid grid-cols-1 gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div>
+            <h3 class="text-sm font-black text-slate-800">شاخص توده بدنی (BMI)</h3>
+            <p class="mt-1 text-xs leading-6 text-slate-600">محاسبه اطلاعاتی بر اساس آخرین قد و وزن ثبت‌شده؛ این عدد به‌تنهایی ابزار تشخیص پزشکی نیست.</p>
+            <p class="mt-1 text-[10px] leading-6 text-slate-500">قد: {{ bmiSummary.height }} سانتی‌متر ({{ bmiSummary.heightDate }}) · وزن: {{ bmiSummary.weight }} کیلوگرم ({{ bmiSummary.weightDate }})</p>
+          </div>
+          <div class="rounded-xl bg-white px-5 py-3 text-center shadow-sm">
+            <p class="text-[10px] font-bold text-slate-500">مقدار محاسبه‌شده</p>
+            <p class="mt-1 text-2xl font-black text-sky-800" dir="ltr">{{ bmiSummary.value }}</p>
+          </div>
+        </div>
+
+        <div v-if="patient.vital_signs?.length" class="space-y-3 rounded-xl border border-slate-100 p-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-black text-slate-800">نمودار روند اندازه‌گیری</h3>
+              <p class="mt-1 text-[11px] text-slate-500">نمایش حداکثر ۳۰ اندازه‌گیری اخیر از یک شاخص؛ بدون تفسیر یا تشخیص خودکار</p>
+            </div>
+            <select v-model="selectedVitalType" class="min-w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <option v-for="item in vitalTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </div>
+
+          <div v-if="vitalChartPoints.length" class="space-y-3">
+            <div class="grid grid-cols-3 gap-2">
+              <div class="rounded-lg bg-slate-50 p-3">
+                <p class="text-[10px] text-slate-500">آخرین مقدار</p>
+                <p class="mt-1 text-sm font-black text-teal-700" dir="ltr">{{ vitalChartStats.latest }} {{ vitalChartStats.unit }}</p>
+              </div>
+              <div class="rounded-lg bg-slate-50 p-3">
+                <p class="text-[10px] text-slate-500">کمترین مقدار</p>
+                <p class="mt-1 text-sm font-black text-slate-700" dir="ltr">{{ vitalChartStats.min }} {{ vitalChartStats.unit }}</p>
+              </div>
+              <div class="rounded-lg bg-slate-50 p-3">
+                <p class="text-[10px] text-slate-500">بیشترین مقدار</p>
+                <p class="mt-1 text-sm font-black text-slate-700" dir="ltr">{{ vitalChartStats.max }} {{ vitalChartStats.unit }}</p>
+              </div>
+            </div>
+            <div class="overflow-hidden rounded-xl bg-slate-50 p-2">
+              <svg viewBox="0 0 600 180" class="h-44 w-full" role="img" :aria-label="`نمودار روند ${vitalLabel(selectedVitalType)}`">
+                <line x1="12" y1="12" x2="588" y2="12" stroke="#e2e8f0" stroke-dasharray="4 5" />
+                <line x1="12" y1="80" x2="588" y2="80" stroke="#e2e8f0" stroke-dasharray="4 5" />
+                <line x1="12" y1="148" x2="588" y2="148" stroke="#e2e8f0" stroke-dasharray="4 5" />
+                <polyline :points="vitalChartPolyline" fill="none" stroke="#0f766e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                <circle v-for="point in vitalChartPoints" :key="point.id" :cx="point.x" :cy="point.y" r="4" fill="#0f766e" stroke="#ffffff" stroke-width="2">
+                  <title>{{ point.value }} {{ point.unit }} - {{ formatVitalDate(point.measured_at) }}</title>
+                </circle>
+              </svg>
+              <div class="flex justify-between px-2 text-[10px] text-slate-400" dir="ltr">
+                <span>{{ vitalChartStats.firstDate }}</span>
+                <span>{{ vitalChartStats.lastDate }}</span>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-400">تعداد نقاط نمایش‌داده‌شده: {{ vitalChartPoints.length.toLocaleString('fa-IR') }}</p>
+          </div>
+          <p v-else class="rounded-lg bg-slate-50 p-4 text-center text-xs text-slate-500">برای این شاخص هنوز اندازه‌گیری ثبت نشده است.</p>
+        </div>
+
+        <form v-if="canManageClinicalRecords" @submit.prevent="saveVitalSign" class="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
+          <label class="space-y-1 text-xs font-bold text-slate-600">
+            نوع اندازه‌گیری
+            <select v-model="vitalForm.measurement_type" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+              <option v-for="item in vitalTypes" :key="item.value" :value="item.value">{{ item.label }} ({{ item.unit }})</option>
+            </select>
+          </label>
+          <label class="space-y-1 text-xs font-bold text-slate-600">
+            مقدار
+            <input v-model="vitalForm.value" type="number" step="0.01" :min="vitalRange.min" :max="vitalRange.max" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+          </label>
+          <label class="space-y-1 text-xs font-bold text-slate-600">
+            تاریخ و ساعت اندازه‌گیری
+            <input v-model="vitalForm.measured_at" type="datetime-local" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+          </label>
+          <label class="space-y-1 text-xs font-bold text-slate-600">
+            توضیح (اختیاری)
+            <input v-model="vitalForm.note" maxlength="1000" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="مثلاً پس از استراحت پنج دقیقه‌ای" />
+          </label>
+          <div class="sm:col-span-2">
+            <button type="submit" :disabled="savingVitalSign" class="rounded-lg bg-teal-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">
+              {{ savingVitalSign ? 'در حال ثبت...' : 'ثبت اندازه‌گیری' }}
+            </button>
+          </div>
+        </form>
+
+        <div v-if="patient.vital_signs?.length" class="overflow-x-auto">
+          <table class="w-full min-w-[560px] text-right text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500">
+              <tr><th class="p-3">شاخص</th><th class="p-3">مقدار</th><th class="p-3">زمان ثبت</th><th class="p-3">توضیح</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="item in patient.vital_signs" :key="item.id">
+                <td class="p-3 font-bold text-slate-700">{{ vitalLabel(item.measurement_type) }}</td>
+                <td class="p-3 font-extrabold text-teal-700">{{ item.value }} {{ item.unit }}</td>
+                <td class="p-3 text-xs text-slate-500" dir="ltr">{{ formatVitalDate(item.measured_at) }}</td>
+                <td class="p-3 text-xs text-slate-500">{{ item.note || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-xs text-slate-500">هنوز اندازه‌گیری‌ای ثبت نشده است.</p>
+      </section>
+
       <section class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
           <div>
@@ -191,8 +302,105 @@ const patient = computed(() => {
     patient_national_code: profile.national_code || latestVisit.patient_national_code || '',
     id: profile.id || null,
     clinical_records: profile.clinical_records || [],
+    vital_signs: profile.vital_signs || [],
   };
 });
+
+const vitalTypes = [
+  { value: 'systolic_bp', label: 'فشار خون سیستولیک', unit: 'mmHg' },
+  { value: 'diastolic_bp', label: 'فشار خون دیاستولیک', unit: 'mmHg' },
+  { value: 'heart_rate', label: 'ضربان قلب', unit: 'bpm' },
+  { value: 'temperature', label: 'دمای بدن', unit: '°C' },
+  { value: 'weight', label: 'وزن', unit: 'kg' },
+  { value: 'height', label: 'قد', unit: 'cm' },
+  { value: 'oxygen_saturation', label: 'اشباع اکسیژن', unit: '%' },
+  { value: 'blood_glucose', label: 'قند خون', unit: 'mg/dL' },
+];
+const vitalRanges = {
+  systolic_bp: { min: 40, max: 300 },
+  diastolic_bp: { min: 20, max: 200 },
+  heart_rate: { min: 20, max: 300 },
+  temperature: { min: 25, max: 45 },
+  weight: { min: 0.1, max: 500 },
+  height: { min: 20, max: 300 },
+  oxygen_saturation: { min: 0, max: 100 },
+  blood_glucose: { min: 0, max: 2000 },
+};
+const vitalRange = computed(() => vitalRanges[vitalForm.measurement_type] || { min: 0, max: 1000 });
+const selectedVitalType = ref('systolic_bp');
+const vitalChartHistory = computed(() => (patient.value.vital_signs || [])
+  .filter(item => item.measurement_type === selectedVitalType.value)
+  .slice()
+  .sort((a, b) => new Date(a.measured_at) - new Date(b.measured_at))
+  .slice(-30));
+const vitalChartPoints = computed(() => {
+  const records = vitalChartHistory.value;
+  if (!records.length) return [];
+  const values = records.map(item => Number(item.value));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min || 1;
+  return records.map((item, index) => ({
+    ...item,
+    x: records.length === 1 ? 300 : 12 + (index * 576) / (records.length - 1),
+    y: 148 - ((Number(item.value) - min) / spread) * 136,
+  }));
+});
+const vitalChartPolyline = computed(() => vitalChartPoints.value.map(point => `${point.x},${point.y}`).join(' '));
+const bmiSummary = computed(() => {
+  const records = patient.value.vital_signs || [];
+  const latestOf = (type) => records
+    .filter(item => item.measurement_type === type)
+    .slice()
+    .sort((a, b) => new Date(b.measured_at) - new Date(a.measured_at))[0];
+
+  const heightRecord = latestOf('height');
+  const weightRecord = latestOf('weight');
+  if (!heightRecord || !weightRecord) return null;
+
+  const heightMeters = Number(heightRecord.value) / 100;
+  const weightKg = Number(weightRecord.value);
+  if (!Number.isFinite(heightMeters) || !Number.isFinite(weightKg) || heightMeters <= 0 || weightKg <= 0) return null;
+
+  return {
+    value: (weightKg / (heightMeters * heightMeters)).toFixed(1),
+    height: Number(heightRecord.value),
+    weight: weightKg,
+    heightDate: formatVitalDate(heightRecord.measured_at),
+    weightDate: formatVitalDate(weightRecord.measured_at),
+  };
+});
+
+const vitalChartStats = computed(() => {
+  const records = vitalChartHistory.value;
+  if (!records.length) return { latest: '—', min: '—', max: '—', unit: '', firstDate: '', lastDate: '' };
+  const values = records.map(item => Number(item.value));
+  return {
+    latest: records[records.length - 1].value,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    unit: records[records.length - 1].unit,
+    firstDate: formatVitalDate(records[0].measured_at),
+    lastDate: formatVitalDate(records[records.length - 1].measured_at),
+  };
+});
+const nowForInput = () => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+};
+const savingVitalSign = ref(false);
+const vitalForm = reactive({ measurement_type: 'systolic_bp', value: '', measured_at: nowForInput(), note: '' });
+const saveVitalSign = () => {
+  savingVitalSign.value = true;
+  router.post(route('portal.patients.vital-signs.store', { patient: patient.value.id }), { ...vitalForm }, {
+    preserveScroll: true,
+    onFinish: () => { savingVitalSign.value = false; },
+    onSuccess: () => Object.assign(vitalForm, { value: '', note: '', measured_at: nowForInput() }),
+  });
+};
+const vitalLabel = (type) => vitalTypes.find(item => item.value === type)?.label || 'اندازه‌گیری';
+const formatVitalDate = (value) => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
 
 const editingClinicalRecordId = ref(null);
 const savingClinicalRecord = ref(false);

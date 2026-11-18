@@ -23,6 +23,8 @@ use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\PatientClinicalRecord;
 use App\Actions\Portal\Patient\SavePatientClinicalRecordAction;
+use App\Actions\Portal\Patient\RecordPatientVitalSignAction;
+use App\Http\Requests\Portal\StorePatientVitalSignRequest;
 use App\Http\Requests\Portal\SavePatientClinicalRecordRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
@@ -176,13 +178,17 @@ class PatientController extends Controller
             $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
 
         if ($canViewClinicalRecords) {
-            $visits->loadMissing('patient.clinicalRecords');
+            $visits->loadMissing(['patient.clinicalRecords', 'patient.vitalSigns']);
             $audit->handle('patient.clinical_records.viewed', $appointment, [
+                'doctor_id' => $doctor->id,
+            ]);
+            $audit->handle('patient.vital_signs.viewed', $appointment, [
                 'doctor_id' => $doctor->id,
             ]);
         } else {
             $visits->each(function (Appointment $visit): void {
                 $visit->patient?->setRelation('clinicalRecords', collect());
+                $visit->patient?->setRelation('vitalSigns', collect());
             });
         }
 
@@ -196,6 +202,26 @@ class PatientController extends Controller
             'canViewClinicalRecords' => $canViewClinicalRecords,
             'canManageClinicalRecords' => $canManageClinicalRecords,
         ]);
+    }
+
+    public function storeVitalSign(
+        StorePatientVitalSignRequest $request,
+        Patient $patient,
+        RecordPatientVitalSignAction $action,
+        RecordSecurityAuditEventAction $audit
+    ) {
+        $doctor = $this->currentDoctor();
+        abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
+        $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
+
+        $vitalSign = $action->handle($patient, $request->validated());
+
+        $audit->handle('patient.vital_sign.recorded', $vitalSign, [
+            'doctor_id' => $doctor->id,
+            'changed_fields' => ['measurement_type'],
+        ]);
+
+        return back()->with('success', 'اندازه‌گیری علائم حیاتی ثبت شد.');
     }
 
     public function storeClinicalRecord(
