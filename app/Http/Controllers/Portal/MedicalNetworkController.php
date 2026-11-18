@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Services\MedicalReferralWorkflow;
 use App\Services\ReferralNetworkIntelligence;
+use App\Services\ReferralCollaborationOpportunityFinder;
 use App\Models\Address;
 use App\Models\MedicalNetworkProvider;
 use App\Models\MedicalReferral;
@@ -25,7 +26,7 @@ final class MedicalNetworkController extends Controller
 {
     use HasActiveDoctor;
 
-    public function index(Request $request, ReferralNetworkIntelligence $intelligence)
+    public function index(Request $request, ReferralNetworkIntelligence $intelligence, ReferralCollaborationOpportunityFinder $opportunityFinder)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'secretary', 'admin'], true), 403);
@@ -52,6 +53,11 @@ final class MedicalNetworkController extends Controller
 
         $networkProviders = (clone $providerQuery)->get(['id', 'name', 'provider_type', 'city']);
         $networkIntelligence = $intelligence->forProviders($networkProviders);
+        $collaborationOpportunities = $opportunityFinder->find(
+            (int) $doctor->id,
+            (int) $user->id,
+            $doctor->city?->name
+        );
         $providers = (clone $providerQuery)->paginate(12)->withQueryString();
 
         $outgoing = MedicalReferral::query()
@@ -67,6 +73,7 @@ final class MedicalNetworkController extends Controller
         return Inertia::render('Portal/MedicalNetwork/Index', [
             'providers' => $providers,
             'networkIntelligence' => $networkIntelligence,
+            'collaborationOpportunities' => $collaborationOpportunities,
             'outgoing' => $outgoing,
             'incoming' => $incoming,
             'patients' => Patient::query()->where('doctor_id', $doctor->id)

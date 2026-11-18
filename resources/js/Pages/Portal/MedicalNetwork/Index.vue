@@ -5,7 +5,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
   providers: Object, outgoing: Array, incoming: Array, patients: Array, clinics: Array,
-  filters: Object, providerTypes: Array, stats: Object, networkIntelligence: Object,
+  filters: Object, providerTypes: Array, stats: Object, networkIntelligence: Object, collaborationOpportunities: Object,
 })
 const filter = reactive({ type: props.filters?.type || '', city: props.filters?.city || '', search: props.filters?.search || '' })
 const providerForm = useForm({ provider_type: 'laboratory', name: '', city: '', address: '', phone: '', email: '', license_number: '', specialties: '', services: '', description: '' })
@@ -75,6 +75,26 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
           <p v-if="!networkIntelligence.providers.length" class="col-span-full rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">هنوز مرکز تأییدشده‌ای برای تحلیل وجود ندارد.</p>
         </div>
         <p class="mt-3 text-[11px] leading-6 text-slate-500">نرخ‌ها فقط با حداقل نمونه تعیین‌شده نمایش داده می‌شوند. اطلاعات بیمار در این گزارش تجمیعی نمایش داده نمی‌شود؛ «معطل» یعنی ارجاع ارسال‌شده بدون پاسخ بیش از ۴۸ ساعت یا زمان مراجعه گذشته در وضعیت باز.</p>
+      </section>
+
+      <section class="rounded-2xl border bg-white p-4">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div><h2 class="font-black">فرصت‌های هوشمند همکاری</h2><p class="mt-1 text-xs leading-6 text-slate-500">پیشنهادها از تقاضای واقعی ارجاعات مطب شما در {{ collaborationOpportunities.window_days }} روز اخیر استخراج شده‌اند؛ امتیاز فقط تناسب کسب‌وکاری و جغرافیایی است.</p></div>
+          <span class="rounded-full bg-teal-50 px-3 py-1 text-xs text-teal-800">پیشنهاد مبتنی بر داده</span>
+        </div>
+        <div v-for="group in collaborationOpportunities.items" :key="group.service_type" class="mt-4">
+          <div class="mb-2 flex items-center justify-between gap-2"><h3 class="text-sm font-bold">{{ labelType(group.service_type === 'consultation' ? 'doctor' : group.service_type) }}</h3><span class="text-xs text-slate-500">{{ group.demand_count }} ارجاع مرتبط</span></div>
+          <div class="grid gap-3 md:grid-cols-2">
+            <article v-for="candidate in group.opportunities" :key="candidate.provider_id" class="rounded-xl border p-3">
+              <div class="flex items-start justify-between gap-2"><div><b class="text-sm">{{ candidate.name }}</b><p class="mt-1 text-xs text-slate-500">{{ candidate.city || 'شهر ثبت نشده' }} · {{ labelType(candidate.provider_type) }}</p></div><span class="rounded-full bg-slate-100 px-2 py-1 text-xs">تناسب {{ candidate.fit_score }} از ۱۰۰</span></div>
+              <p class="mt-2 text-xs leading-6 text-slate-600">{{ candidate.reasons.join(' · ') }}</p>
+              <div v-if="candidate.services?.length" class="mt-2 flex flex-wrap gap-1"><span v-for="service in candidate.services.slice(0,3)" :key="service" class="rounded-full bg-slate-50 px-2 py-1 text-[10px]">{{ service }}</span></div>
+              <div class="mt-3 flex items-center justify-between gap-2"><span class="text-[11px] text-slate-500">{{ candidate.phone || 'تلفن ثبت نشده' }} <span v-if="candidate.average_response_hours !== null">· پاسخ میانگین {{ candidate.average_response_hours }} ساعت</span></span><button @click="chooseProvider({ id: candidate.provider_id, provider_type: candidate.provider_type })" class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">انتخاب برای ارجاع</button></div>
+            </article>
+          </div>
+        </div>
+        <p v-if="!collaborationOpportunities.items.length" class="mt-3 rounded-xl bg-slate-50 p-4 text-xs leading-6 text-slate-500">برای پیشنهاد همکاری، هنوز تقاضای ارجاع کافی در بازه اخیر ثبت نشده یا مرکز تأییدشده منطبق در شبکه وجود ندارد.</p>
+        <p class="mt-3 text-[11px] leading-6 text-slate-500">امتیاز از ترکیب حجم تقاضا (حداکثر ۴۰)، هم‌شهری بودن (۳۰)، سابقه ارجاع شبکه (حداکثر ۱۵) و نرخ تکمیل با حداقل ۵ نمونه (حداکثر ۱۵) محاسبه می‌شود. این امتیاز تضمین ظرفیت، کیفیت درمان یا پذیرش مرکز نیست.</p>
       </section>
 
       <section class="rounded-2xl border bg-white p-4">
