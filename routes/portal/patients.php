@@ -35,6 +35,11 @@ Route::prefix('patients')->name('patients.')->group(function () {
         ->whereNumber('record')
         ->name('clinical-records.update');
 
+    Route::delete('/{patient}/clinical-records/{record}', [PatientController::class, 'archiveClinicalRecord'])
+        ->whereNumber('patient')
+        ->whereNumber('record')
+        ->name('clinical-records.archive');
+
     Route::get('/directory', [PatientController::class, 'directory'])
         ->name('directory');
 
