@@ -36,6 +36,7 @@ class PatientClinicalRecord extends Model
         'end_date',
         'is_active',
         'related_record_id',
+        'related_allergy_record_id',
     ];
 
     protected $casts = [
@@ -43,6 +44,11 @@ class PatientClinicalRecord extends Model
         'end_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
+
+    public function relatedAllergyRecord(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'related_allergy_record_id');
+    }
 
     public function relatedRecord(): BelongsTo
     {
