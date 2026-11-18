@@ -20,6 +20,11 @@ class ListManagedUserPermissionsAction
             'working-hours.manage' => 'مدیریت ساعات کاری',
             'finance.view' => 'مشاهده امور مالی و اقساط',
             'finance.manage' => 'ثبت دریافت، اقساط، وثایق و هزینه‌ها',
+            'services.view' => 'مشاهده خدمات و عملیات کلینیک',
+            'services.manage' => 'مدیریت خدمات کلینیک',
+            'inventory.view' => 'مشاهده انبار و موجودی',
+            'inventory.manage' => 'مدیریت کالا و گردش انبار',
+            'organizations.view' => 'مشاهده مجموعه درمانی',
         ];
     }
 }
