@@ -85,6 +85,8 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
           <input v-model.number="planForm.total_amount" required type="number" min="1" placeholder="مبلغ کل (ریال)" class="rounded-xl border-slate-300 text-sm" />
           <input v-model.number="planForm.discount_amount" type="number" min="0" placeholder="تخفیف (ریال)" class="rounded-xl border-slate-300 text-sm" />
           <input v-model.number="planForm.deposit_amount" type="number" min="0" :max="netAmount" placeholder="پیش‌پرداخت (ریال)" class="rounded-xl border-slate-300 text-sm" />
+          <select v-model="planForm.deposit_method" class="rounded-xl border-slate-300 text-sm"><option value="cash">نقد</option><option value="card">کارتخوان</option><option value="transfer">انتقال بانکی</option><option value="online">آنلاین</option><option value="cheque">چک</option></select>
+          <input v-model="planForm.deposit_reference" placeholder="شماره پیگیری پیش‌پرداخت (اختیاری)" class="rounded-xl border-slate-300 text-sm" />
           <input v-model.number="planForm.installment_count" type="number" min="1" max="48" required placeholder="تعداد اقساط" class="rounded-xl border-slate-300 text-sm" />
           <label class="text-xs text-slate-500">سررسید اولین قسط<input v-model="planForm.first_due_date" type="date" required class="mt-1 w-full rounded-xl border-slate-300 text-sm" /></label>
           <textarea v-model="planForm.clinical_notes" rows="2" placeholder="شرح درمان / مراحل (اختیاری)" class="rounded-xl border-slate-300 text-sm md:col-span-3" />
