@@ -14,13 +14,14 @@ class PatientTreatmentPlan extends Model
         'doctor_id', 'clinic_id', 'patient_id', 'created_by', 'title',
         'specialty_module', 'status', 'total_amount', 'discount_amount',
         'deposit_amount', 'installment_count', 'clinical_notes',
-        'financial_terms', 'started_at', 'completed_at',
+        'financial_terms', 'sms_reminders_enabled', 'sms_consent_confirmed', 'started_at', 'completed_at',
     ];
 
     protected $casts = [
         'total_amount' => 'integer', 'discount_amount' => 'integer',
         'deposit_amount' => 'integer', 'installment_count' => 'integer',
         'started_at' => 'date', 'completed_at' => 'date',
+        'sms_reminders_enabled' => 'boolean', 'sms_consent_confirmed' => 'boolean',
     ];
 
     public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
