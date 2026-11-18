@@ -121,6 +121,25 @@
           </article>
         </div>
         <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-xs text-slate-500">هنوز اطلاعات پزشکی مستقلی برای این بیمار ثبت نشده است.</p>
+
+        <details v-if="canManageClinicalRecords && patient.archived_clinical_records.length" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <summary class="cursor-pointer text-sm font-bold text-slate-700">
+            سوابق بایگانی‌شده ({{ patient.archived_clinical_records.length.toLocaleString('fa-IR') }})
+          </summary>
+          <div class="mt-3 space-y-2">
+            <article v-for="record in patient.archived_clinical_records" :key="record.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-slate-700">{{ record.title }}</p>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  {{ clinicalKindLabel(record.kind) }} · بایگانی در {{ formatDate(record.deleted_at?.slice(0, 10)) }}
+                </p>
+              </div>
+              <button type="button" @click="restoreClinicalRecord(record)" :disabled="restoringClinicalRecordId === record.id" class="rounded-lg border border-teal-200 px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-50 disabled:opacity-50">
+                {{ restoringClinicalRecordId === record.id ? 'در حال بازیابی...' : 'بازیابی سابقه' }}
+              </button>
+            </article>
+          </div>
+        </details>
       </section>
       <section v-else-if="patient.id && !canViewClinicalRecords" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
         مجوز مشاهده اطلاعات پزشکی محرمانه برای حساب شما فعال نیست.
@@ -307,6 +326,7 @@ const patient = computed(() => {
     patient_national_code: profile.national_code || latestVisit.patient_national_code || '',
     id: profile.id || null,
     clinical_records: profile.clinical_records || [],
+    archived_clinical_records: profile.archived_clinical_records || [],
     vital_signs: profile.vital_signs || [],
   };
 });
@@ -461,6 +481,19 @@ const archiveClinicalRecord = (record) => {
     onSuccess: () => {
       if (editingClinicalRecordId.value === record.id) resetClinicalForm();
     },
+  });
+};
+
+const restoringClinicalRecordId = ref(null);
+const restoreClinicalRecord = (record) => {
+  if (!window.confirm('این سابقه دوباره به فهرست اطلاعات پزشکی فعال بازگردانده می‌شود. ادامه می‌دهید؟')) return;
+  restoringClinicalRecordId.value = record.id;
+  router.post(route('portal.patients.clinical-records.restore', {
+    patient: patient.value.id,
+    record: record.id,
+  }), {}, {
+    preserveScroll: true,
+    onFinish: () => { restoringClinicalRecordId.value = null; },
   });
 };
 
