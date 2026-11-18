@@ -251,18 +251,21 @@ class ClinicOperationsController extends Controller
         $this->authorizeDoctorOnly();
         $data = $request->validate([
             'organization_id' => ['required', 'integer', 'exists:clinic_organizations,id'],
+            'doctor_id' => ['required', 'integer', 'exists:doctors,id'],
             'period_start' => ['required', 'date'], 'period_end' => ['required', 'date', 'after_or_equal:period_start'],
         ]);
         $organization = $doctor->clinicOrganizations()->whereKey($data['organization_id'])->wherePivot('status', 'active')->firstOrFail();
         abort_unless($organization->owner_user_id === Auth::guard('web')->id(), 403);
-        $share = (int) ($organization->pivot->revenue_share_basis_points ?? 7000);
-        $items = PatientTreatmentItem::query()->where('provider_doctor_id', $doctor->id)->where('stage', 'completed')
+        $targetDoctor = $organization->doctors()->whereKey($data['doctor_id'])->wherePivot('status', 'active')->firstOrFail();
+        $share = (int) ($targetDoctor->pivot->revenue_share_basis_points ?? 7000);
+        $items = PatientTreatmentItem::query()->where('provider_doctor_id', $targetDoctor->id)->where('stage', 'completed')
             ->whereBetween('performed_at', [$data['period_start'] . ' 00:00:00', $data['period_end'] . ' 23:59:59'])
             ->whereHas('plan', fn ($q) => $q->where('organization_id', $organization->id))->get();
         $gross = (int) $items->sum('price');
+        abort_if($gross < 1, 422, 'در بازه انتخاب‌شده خدمت انجام‌شده‌ای برای تسویه وجود ندارد.');
         $doctorShare = (int) $items->sum(fn ($item) => (int) round($item->price * (($item->doctor_share_basis_points ?? $share) / 10000)));
-        $settlement = DoctorSettlement::firstOrCreate([
-            'organization_id' => $organization->id, 'doctor_id' => $doctor->id,
+        DoctorSettlement::firstOrCreate([
+            'organization_id' => $organization->id, 'doctor_id' => $targetDoctor->id,
             'period_start' => $data['period_start'], 'period_end' => $data['period_end'],
         ], [
             'gross_amount' => $gross, 'clinic_share_amount' => $gross - $doctorShare,
@@ -271,32 +274,96 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'پیش‌نویس تسویه پزشک ساخته شد.');
     }
 
+    public function approveSettlement(int $settlement)
+    {
+        $this->authorizeDoctorOnly();
+        $row = DoctorSettlement::query()->whereKey($settlement)->where('status', 'draft')
+            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+            ->firstOrFail();
+        $row->update(['status' => 'approved', 'approved_by' => Auth::guard('web')->id()]);
+        return back()->with('success', 'تسویه تأیید شد.');
+    }
+
     public function paySettlement(int $settlement, ClinicAccountingService $accounting)
     {
-        $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
-        $row = DoctorSettlement::query()->whereKey($settlement)->where('doctor_id', $doctor->id)
-            ->where('status', 'approved')->firstOrFail();
+        $row = DoctorSettlement::query()->whereKey($settlement)->where('status', 'approved')
+            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+            ->firstOrFail();
         DB::transaction(function () use ($row, $accounting): void {
             $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now()]);
-            $accounting->post(
-                $row->organization_id, null, $row->doctor_id, (int) Auth::guard('web')->id(),
-                'doctor_settlement', $row->id, 'تسویه سهم پزشک', now()->toDateTimeString(),
-                'doctor-settlement:' . $row->id,
-                [['code' => '5100', 'debit' => (int) $row->net_amount, 'credit' => 0],
-                 ['code' => '1000', 'debit' => 0, 'credit' => (int) $row->net_amount]]
-            );
-        });
+            if ((int) $row->net_amount > 0) {
+                $accounting->post(
+                    $row->organization_id, null, $row->doctor_id, (int) Auth::guard('web')->id(),
+                    'doctor_settlement', $row->id, 'تسویه سهم پزشک', now()->toDateTimeString(),
+                    'doctor-settlement:' . $row->id,
+                    [['code' => '5100', 'debit' => (int) $row->net_amount, 'credit' => 0],
+                     ['code' => '1000', 'debit' => 0, 'credit' => (int) $row->net_amount]]
+                );
+            }
+        }, 3);
         return back()->with('success', 'تسویه پزشک پرداخت و ثبت حسابداری شد.');
     }
 
-    public function approveSettlement(int $settlement)
+    public function createPayroll(Request $request)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
-        $row = DoctorSettlement::query()->whereKey($settlement)->where('doctor_id', $doctor->id)->where('status', 'draft')->firstOrFail();
+        $data = $request->validate([
+            'organization_id' => ['required', 'integer', 'exists:clinic_organizations,id'],
+            'clinic_id' => ['nullable', 'integer'], 'staff_user_id' => ['required', 'integer', 'exists:users,id'],
+            'period_start' => ['required', 'date'], 'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'gross_amount' => ['required', 'integer', 'min:0', 'max:999999999999'],
+            'deduction_amount' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $organization = $doctor->clinicOrganizations()->whereKey($data['organization_id'])->wherePivot('status', 'active')->firstOrFail();
+        abort_unless($organization->owner_user_id === Auth::guard('web')->id(), 403);
+        $staff = $organization->members()->whereKey($data['staff_user_id'])->wherePivot('is_active', true)->firstOrFail();
+        if (!empty($data['clinic_id'])) {
+            abort_unless($organization->clinics()->whereKey($data['clinic_id'])->exists(), 403);
+        }
+        $gross = (int) $data['gross_amount'];
+        $deduction = (int) ($data['deduction_amount'] ?? 0);
+        abort_if($deduction > $gross, 422, 'کسورات حقوق نمی‌تواند از مبلغ ناخالص بیشتر باشد.');
+        ClinicStaffPayroll::create([
+            'organization_id' => $organization->id, 'clinic_id' => $data['clinic_id'] ?? null,
+            'staff_user_id' => $staff->id, 'period_start' => $data['period_start'], 'period_end' => $data['period_end'],
+            'gross_amount' => $gross, 'deduction_amount' => $deduction, 'net_amount' => $gross - $deduction,
+            'status' => 'draft', 'notes' => $data['notes'] ?? null,
+        ]);
+        return back()->with('success', 'پیش‌نویس حقوق کارکنان ثبت شد.');
+    }
+
+    public function approvePayroll(int $payroll)
+    {
+        $this->authorizeDoctorOnly();
+        $row = ClinicStaffPayroll::query()->whereKey($payroll)->where('status', 'draft')
+            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+            ->firstOrFail();
         $row->update(['status' => 'approved', 'approved_by' => Auth::guard('web')->id()]);
-        return back()->with('success', 'تسویه تأیید شد.');
+        return back()->with('success', 'حقوق تأیید شد.');
+    }
+
+    public function payPayroll(int $payroll, ClinicAccountingService $accounting)
+    {
+        $this->authorizeDoctorOnly();
+        $row = ClinicStaffPayroll::query()->whereKey($payroll)->where('status', 'approved')
+            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+            ->firstOrFail();
+        DB::transaction(function () use ($row, $accounting): void {
+            $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now()]);
+            if ((int) $row->net_amount > 0) {
+                $accounting->post(
+                    $row->organization_id, $row->clinic_id, null, (int) Auth::guard('web')->id(),
+                    'clinic_staff_payroll', $row->id, 'پرداخت حقوق کارکنان', now()->toDateTimeString(),
+                    'staff-payroll:' . $row->id,
+                    [['code' => '5200', 'debit' => (int) $row->net_amount, 'credit' => 0],
+                     ['code' => '1000', 'debit' => 0, 'credit' => (int) $row->net_amount]]
+                );
+            }
+        }, 3);
+        return back()->with('success', 'حقوق پرداخت و در دفتر مالی ثبت شد.');
     }
 
     private function secretaryHas($doctor, string $permission): bool
