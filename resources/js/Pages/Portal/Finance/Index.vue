@@ -35,7 +35,8 @@ const addCollateral = plan => {
   if (!type) return
   const identifier = window.prompt('شناسه / شماره چک یا سفته (اختیاری)', '') || ''
   const face_value = window.prompt('مبلغ اسمی وثیقه به ریال (اختیاری)', '') || ''
-  router.post(route('portal.finance.collaterals.store', plan.id), { type, identifier, face_value: face_value || null })
+  const due_date = window.prompt('تاریخ سررسید (YYYY-MM-DD؛ اختیاری)', '') || ''
+  router.post(route('portal.finance.collaterals.store', plan.id), { type, identifier, face_value: face_value || null, due_date: due_date || null, reminder_enabled: Boolean(due_date) })
 }
 const planSubmit = () => planForm.post(route('portal.finance.plans.store'), { onSuccess: () => planForm.reset('patient_id', 'title', 'total_amount', 'discount_amount', 'deposit_amount', 'clinical_notes', 'financial_terms') })
 const expenseSubmit = () => expenseForm.post(route('portal.finance.expenses.store'), { onSuccess: () => expenseForm.reset('description', 'amount', 'reference', 'notes') })
