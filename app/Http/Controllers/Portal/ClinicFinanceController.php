@@ -51,6 +51,12 @@ class ClinicFinanceController extends Controller
 
         return Inertia::render('Portal/Finance/Index', [
             'doctor' => $doctor,
+            'canManage' => Auth::guard('web')->user()?->role !== 'secretary' || (function () use ($doctor) {
+                $assignment = Auth::guard('web')->user()->doctors()->where('doctors.id', $doctor->id)->first();
+                $permissions = $assignment?->pivot?->permissions ?? [];
+                if (is_string($permissions)) $permissions = json_decode($permissions, true) ?: [];
+                return is_array($permissions) && in_array('finance.manage', $permissions, true);
+            })(),
             'clinics' => $doctor->address()->whereIn('id', $clinicIds)->get(['id', 'name']),
             'patients' => Patient::query()->where('doctor_id', $doctor->id)
                 ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))
