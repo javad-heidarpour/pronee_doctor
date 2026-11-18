@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Portal\PatientController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\PatientFollowUpController;
+use App\Http\Controllers\Portal\PatientEncounterController;
 
 
 // مربوط یه portal/patients/index
@@ -17,6 +18,15 @@ Route::prefix('appointments')->name('appointments.')->group(function () {
 
 });
 
+
+Route::prefix('encounters')->name('encounters.')->group(function () {
+    Route::get('/appointments/{appointment}', [PatientEncounterController::class, 'index'])->whereNumber('appointment')->name('index');
+    Route::get('/appointments/{appointment}/create', [PatientEncounterController::class, 'create'])->whereNumber('appointment')->name('create');
+    Route::post('/appointments/{appointment}', [PatientEncounterController::class, 'store'])->whereNumber('appointment')->name('store');
+    Route::get('/{encounter}', [PatientEncounterController::class, 'show'])->whereNumber('encounter')->name('show');
+    Route::put('/{encounter}', [PatientEncounterController::class, 'update'])->whereNumber('encounter')->name('update');
+    Route::post('/{encounter}/sign', [PatientEncounterController::class, 'sign'])->whereNumber('encounter')->name('sign');
+});
 
 Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
     Route::get('/', [PatientFollowUpController::class, 'index'])->name('index');
