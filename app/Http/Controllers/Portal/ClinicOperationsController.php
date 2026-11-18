@@ -30,6 +30,7 @@ class ClinicOperationsController extends Controller
 
     public function index()
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $clinicIds = $this->accessibleClinicIds($doctor);
         $user = Auth::guard('web')->user();
@@ -75,6 +76,7 @@ class ClinicOperationsController extends Controller
 
     public function storeService(Request $request)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('services.manage', $doctor);
         $data = $request->validate([
@@ -109,6 +111,7 @@ class ClinicOperationsController extends Controller
 
     public function storeTreatmentItem(Request $request, int $plan, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $treatmentPlan = PatientTreatmentPlan::query()->whereKey($plan)->where('doctor_id', $doctor->id)
@@ -141,6 +144,7 @@ class ClinicOperationsController extends Controller
 
     public function updateTreatmentItem(Request $request, int $item, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $data = $request->validate([
@@ -231,6 +235,7 @@ class ClinicOperationsController extends Controller
 
     public function storeDentalChart(Request $request)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $dentition = $request->input('dentition');
@@ -258,6 +263,7 @@ class ClinicOperationsController extends Controller
 
     public function storeInventoryItem(Request $request, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
         $data = $request->validate([
@@ -294,6 +300,7 @@ class ClinicOperationsController extends Controller
 
     public function moveStock(Request $request, int $item, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
         $data = $request->validate([
@@ -335,6 +342,7 @@ class ClinicOperationsController extends Controller
 
     public function createSettlement(Request $request)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
         $data = $request->validate([
@@ -364,6 +372,7 @@ class ClinicOperationsController extends Controller
 
     public function approveSettlement(int $settlement)
     {
+        $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
         $row = DoctorSettlement::query()->whereKey($settlement)->where('status', 'draft')
             ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
@@ -374,6 +383,7 @@ class ClinicOperationsController extends Controller
 
     public function paySettlement(int $settlement, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
         $row = DoctorSettlement::query()->whereKey($settlement)->where('status', 'approved')
             ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
@@ -395,6 +405,7 @@ class ClinicOperationsController extends Controller
 
     public function createPayroll(Request $request)
     {
+        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
         $data = $request->validate([
@@ -425,6 +436,7 @@ class ClinicOperationsController extends Controller
 
     public function approvePayroll(int $payroll)
     {
+        $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
         $row = ClinicStaffPayroll::query()->whereKey($payroll)->where('status', 'draft')
             ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
@@ -435,6 +447,7 @@ class ClinicOperationsController extends Controller
 
     public function payPayroll(int $payroll, ClinicAccountingService $accounting)
     {
+        $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
         $row = ClinicStaffPayroll::query()->whereKey($payroll)->where('status', 'approved')
             ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
@@ -462,4 +475,9 @@ class ClinicOperationsController extends Controller
         if (is_string($permissions)) $permissions = json_decode($permissions, true) ?: [];
         return is_array($permissions) && in_array($permission, $permissions, true);
     }
+    private function authorizeClinicRole(): void
+    {
+        abort_unless(in_array(Auth::guard('web')->user()?->role, ['doctor', 'secretary'], true), 403);
+    }
+
 }
