@@ -49,6 +49,7 @@ Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
 });
 
 Route::prefix('patients')->name('patients.')->group(function () {
+    Route::get('/{patient}/360', [\\App\\Http\\Controllers\\Portal\\Patient360Controller::class, 'show'])->whereNumber('patient')->name('360');
     Route::get('/directory/record/{appointment}', [PatientController::class, 'record'])
         ->whereNumber('appointment')
         ->name('directory.record');
