@@ -2,7 +2,7 @@
 import { useForm, router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
-const props = defineProps({ organizations: Array, doctors: Array, clinics: Array, isAdmin: Boolean })
+const props = defineProps({ organizations: Array, doctors: Array, clinics: Array, isAdmin: Boolean, currentDoctorId: Number })
 const form = useForm({ name: '', legal_name: '', registration_number: '', phone: '', email: '', clinic_ids: [] })
 const inviteForms = {}
 const create = () => form.post(route('portal.organizations.store'))
@@ -29,7 +29,7 @@ const acceptDoctor = organization => router.post(route('portal.organizations.doc
       </section>
       <section v-for="organization in organizations" :key="organization.id" class="space-y-4 rounded-2xl border bg-white p-5">
         <div class="flex flex-wrap items-center justify-between gap-2"><div><h2 class="font-extrabold">{{ organization.name }}</h2><p class="text-xs text-slate-500">{{ organization.legal_name || 'مجموعه درمانی' }} · {{ organization.doctors_count }} پزشک · {{ organization.clinics_count }} شعبه · {{ organization.members_count }} عضو</p></div><span class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">{{ organization.status }}</span></div>
-        <div><h3 class="mb-2 text-sm font-bold">پزشکان مجموعه</h3><div class="grid gap-2 md:grid-cols-2"><div v-for="doctor in organization.doctors" :key="doctor.id" class="rounded-xl bg-slate-50 p-3 text-sm"><b>{{ doctor.name }} {{ doctor.family }}</b><p class="text-xs text-slate-500">{{ doctor.specialty_title || 'پزشک' }} · {{ doctor.pivot.role }} · {{ doctor.pivot.status === 'active' ? 'فعال' : 'در انتظار تأیید' }} · سهم توافقی {{ (doctor.pivot.revenue_share_basis_points/100).toFixed(0) }}٪</p></div></div></div>
+        <div><h3 class="mb-2 text-sm font-bold">پزشکان مجموعه</h3><button v-if="organization.doctors.some(d => d.id === currentDoctorId && d.pivot.status === 'pending')" @click="acceptDoctor(organization)" class="mb-2 rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">تأیید عضویت من در این مجموعه</button><div class="grid gap-2 md:grid-cols-2"><div v-for="doctor in organization.doctors" :key="doctor.id" class="rounded-xl bg-slate-50 p-3 text-sm"><b>{{ doctor.name }} {{ doctor.family }}</b><p class="text-xs text-slate-500">{{ doctor.specialty_title || 'پزشک' }} · {{ doctor.pivot.role }} · {{ doctor.pivot.status === 'active' ? 'فعال' : 'در انتظار تأیید' }} · سهم توافقی {{ (doctor.pivot.revenue_share_basis_points/100).toFixed(0) }}٪</p></div></div></div>
         <div><h3 class="mb-2 text-sm font-bold">شعبه‌ها</h3><div class="flex flex-wrap gap-2"><span v-for="clinic in organization.clinics" :key="clinic.id" class="rounded-lg border px-3 py-2 text-xs">{{ clinic.name }} — {{ clinic.full_address || 'نشانی ثبت نشده' }}</span></div></div>
         <div v-if="!isAdmin" class="grid gap-3 border-t pt-4 md:grid-cols-2">
           <form @submit.prevent="inviteDoctor(organization, $event)" class="space-y-2 rounded-xl bg-slate-50 p-3">
@@ -45,7 +45,7 @@ const acceptDoctor = organization => router.post(route('portal.organizations.doc
             <button class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">اتصال شعبه</button>
           </form>
         </div>
-        <div v-for="organization in []" :key="organization.id"></div>
+
         <p class="text-xs leading-6 text-amber-800">افزودن پزشک جدید از مسیر دعوت و تأیید خود پزشک انجام می‌شود. در این نسخه، برای حفظ سازگاری با نوبت‌دهی موجود، هر پزشک همچنان برنامه و پرونده عملیاتی مستقل خود را دارد؛ گزارش تجمیعی مجموعه بر اساس پیوند شعبه‌ها و پزشکان توسعه می‌یابد.</p>
       </section>
       <div v-if="!organizations.length" class="rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">هنوز مجموعه درمانی ثبت نشده است.</div>
