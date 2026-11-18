@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Services\MedicalReferralWorkflow;
 use App\Models\Address;
 use App\Models\MedicalNetworkProvider;
 use App\Models\MedicalReferral;
@@ -49,20 +51,33 @@ final class MedicalNetworkController extends Controller
 
         $outgoing = MedicalReferral::query()
             ->where('referring_doctor_id', $doctor->id)
-            ->with(['patient:id,name,phone', 'targetProvider:id,name,provider_type,city'])
+            ->with(['patient:id,name,phone', 'targetProvider:id,name,provider_type,city', 'sourceClinic:id,name', 'events' => fn ($q) => $q->orderByDesc('created_at')->limit(5)])
             ->latest()->limit(40)->get();
 
         $incoming = MedicalReferral::query()
             ->whereHas('targetProvider', fn ($q) => $q->where('created_by_user_id', $user->id))
-            ->with(['patient:id,name', 'referringDoctor:id,name,family', 'targetProvider:id,name,provider_type'])
+            ->with(['patient:id,name', 'referringDoctor:id,name,family', 'targetProvider:id,name,provider_type', 'events' => fn ($q) => $q->orderByDesc('created_at')->limit(5)])
             ->latest()->limit(40)->get();
 
         return Inertia::render('Portal/MedicalNetwork/Index', [
             'providers' => $providers,
             'outgoing' => $outgoing,
             'incoming' => $incoming,
-            'patients' => Patient::query()->where('doctor_id', $doctor->id)->orderBy('name')->get(['id', 'name', 'phone']),
-            'clinics' => Address::query()->whereIn('id', $this->accessibleClinicIds($doctor))->get(['id', 'name']),
+            'patients' => Patient::query()->where('doctor_id', $doctor->id)
+                ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
+                ->orderBy('name')->get(['id', 'name', 'phone']),
+            'clinics' => Address::query()->whereIn('id', $this->accessibleClinicIds($doctor))->orderBy('name')->get(['id', 'name']),
+            'stats' => [
+                'outgoing_open' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
+                'incoming_open' => MedicalReferral::query()->whereHas('targetProvider', fn ($q) => $q->where('created_by_user_id', $user->id))->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
+                'overdue' => MedicalReferral::query()->where(function ($q) use ($doctor, $user): void {
+                    $q->where('referring_doctor_id', $doctor->id)->orWhereHas('targetProvider', fn ($provider) => $provider->where('created_by_user_id', $user->id));
+                })->where(function ($q): void {
+                    $q->where(fn ($sent) => $sent->where('status','sent')->where('created_at','<=',now()->subHours(48)))
+                      ->orWhere(fn ($scheduled) => $scheduled->whereIn('status',['accepted','scheduled'])->whereNotNull('scheduled_at')->where('scheduled_at','<',now()));
+                })->count(),
+                'completed_month' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->where('status','completed')->whereBetween('completed_at',[now()->startOfMonth(),now()->endOfMonth()])->count(),
+            ],
             'filters' => $request->only(['type', 'city', 'search']),
             'providerTypes' => [
                 ['value' => 'doctor', 'label' => 'پزشک'],
@@ -73,7 +88,7 @@ final class MedicalNetworkController extends Controller
         ]);
     }
 
-    public function storeProvider(Request $request)
+    public function storeProvider(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'doctor', 403);
@@ -103,10 +118,11 @@ final class MedicalNetworkController extends Controller
             'is_verified' => false,
         ]);
 
+        $audit->handle('medical_network.provider_submitted', $provider, ['doctor_id' => $doctor->id, 'changed_fields' => ['provider_submitted']]);
         return back()->with('success', 'مرکز برای بررسی و تأیید در شبکه ثبت شد. پس از تأیید، در جست‌وجوی همکاران نمایش داده می‌شود.');
     }
 
-    public function storeReferral(Request $request)
+    public function storeReferral(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'secretary'], true), 403);
@@ -115,8 +131,10 @@ final class MedicalNetworkController extends Controller
             $this->authorizeSecretaryPermission('appointments.manage', $doctor);
         }
 
+        $clinicIds = $this->accessibleClinicIds($doctor);
         $data = $request->validate([
             'patient_id' => ['required', 'integer', Rule::exists('patients', 'id')->where('doctor_id', $doctor->id)],
+            'source_clinic_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('doctor_id', $doctor->id)->where('is_active', true)],
             'target_provider_id' => ['required', 'integer', Rule::exists('medical_network_providers', 'id')->where('status', 'active')],
             'service_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation', 'consultation'])],
             'priority' => ['required', Rule::in(['normal', 'urgent'])],
@@ -126,8 +144,13 @@ final class MedicalNetworkController extends Controller
             'consent_confirmed' => ['accepted'],
         ]);
 
+        abort_unless(in_array((int) $data['source_clinic_id'], $clinicIds, true), 403, 'به مطب مبدأ دسترسی ندارید.');
+        Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
+            ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $data['source_clinic_id']))->firstOrFail();
         $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->firstOrFail();
         abort_if($provider->doctor_id === $doctor->id, 422, 'ارجاع به پروفایل خودتان امکان‌پذیر نیست.');
+        $expectedService = $provider->provider_type === 'doctor' ? 'consultation' : $provider->provider_type;
+        abort_unless($data['service_type'] === $expectedService, 422, 'نوع خدمت با نوع مرکز مقصد همخوانی ندارد.');
 
         $referral = DB::transaction(function () use ($data, $doctor, $user): MedicalReferral {
             $referral = MedicalReferral::query()->create([
@@ -135,6 +158,7 @@ final class MedicalNetworkController extends Controller
                 'patient_id' => $data['patient_id'],
                 'referring_doctor_id' => $doctor->id,
                 'target_provider_id' => $data['target_provider_id'],
+                'source_clinic_id' => $data['source_clinic_id'],
                 'created_by_user_id' => $user->id,
                 'service_type' => $data['service_type'],
                 'priority' => $data['priority'],
@@ -155,54 +179,82 @@ final class MedicalNetworkController extends Controller
             return $referral;
         });
 
+        $audit->handle('medical_network.referral_created', $referral, ['doctor_id' => $doctor->id, 'changed_fields' => ['referral_created']]);
         return back()->with('success', 'ارجاع با کد رهگیری ' . $referral->tracking_code . ' ثبت شد.');
     }
 
-    public function updateReferral(Request $request, MedicalReferral $referral)
-    {
+    public function updateReferral(
+        Request $request,
+        MedicalReferral $referral,
+        MedicalReferralWorkflow $workflow,
+        RecordSecurityAuditEventAction $audit
+    ) {
         $user = Auth::guard('web')->user();
         abort_unless($user, 401);
-        $referral->loadMissing('targetProvider');
-        $isSender = (int) $referral->referring_doctor_id === (int) $this->currentDoctor()->id;
-        $isRecipient = (int) $referral->targetProvider->created_by_user_id === (int) $user->id;
-        abort_unless($isSender || $isRecipient, 403);
-
         $data = $request->validate([
-            'status' => ['required', Rule::in(['accepted', 'in_progress', 'completed', 'rejected', 'cancelled'])],
+            'status' => ['required', Rule::in(['accepted', 'scheduled', 'in_progress', 'completed', 'rejected', 'cancelled'])],
+            'scheduled_at' => ['nullable', 'date', 'after:now', 'required_if:status,scheduled'],
             'provider_response' => ['nullable', 'string', 'max:2000'],
+            'result_summary' => ['nullable', 'string', 'max:4000', 'required_if:status,completed'],
+            'patient_instructions' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $from = $referral->status;
-        $allowed = [
-            'sent' => ['accepted', 'rejected', 'cancelled'],
-            'accepted' => ['in_progress', 'completed', 'rejected', 'cancelled'],
-            'in_progress' => ['completed', 'rejected', 'cancelled'],
-        ];
-        abort_unless(in_array($data['status'], $allowed[$from] ?? [], true), 422, 'تغییر وضعیت انتخاب‌شده مجاز نیست.');
-        abort_unless(!$isSender || in_array($data['status'], ['cancelled'], true), 403, 'ارجاع‌دهنده فقط می‌تواند ارجاع را لغو کند.');
-        abort_unless(!$isRecipient || $data['status'] !== 'cancelled', 403, 'مرکز مقصد نمی‌تواند ارجاع را به نام پزشک لغو کند.');
+        DB::transaction(function () use ($referral, $data, $user, $workflow): void {
+            $locked = MedicalReferral::query()->whereKey($referral->id)->lockForUpdate()->with(['targetProvider', 'referringDoctor'])->firstOrFail();
+            $senderSecretary = false;
+            if ($user->role === 'secretary' && (int) session('active_doctor_id') === (int) $locked->referring_doctor_id) {
+                $assignment = $user->doctors()->where('doctors.id', $locked->referring_doctor_id)->first();
+                $permissions = $assignment?->pivot?->permissions ?? [];
+                if (is_string($permissions)) {
+                    $permissions = json_decode($permissions, true) ?: [];
+                }
+                $senderSecretary = is_array($permissions) && in_array('appointments.manage', $permissions, true);
+            }
+            $isSender = (int) $locked->referringDoctor?->user_id === (int) $user->id || $senderSecretary;
+            $isRecipient = (int) $locked->targetProvider?->created_by_user_id === (int) $user->id;
+            abort_unless($isSender || $isRecipient, 403, 'به این ارجاع دسترسی ندارید.');
 
-        DB::transaction(function () use ($referral, $data, $user, $from): void {
+            $from = $locked->status;
+            $workflow->assertCanTransition($from, $data['status'], $isSender, $isRecipient);
+            if ($data['status'] === 'completed') {
+                abort_unless($isRecipient && filled($data['result_summary'] ?? null), 422, 'برای تکمیل ارجاع، ثبت نتیجه خدمت الزامی است.');
+            }
+
             $updates = ['status' => $data['status']];
             if ($data['status'] === 'accepted') $updates['accepted_at'] = now();
-            if ($data['status'] === 'completed') $updates['completed_at'] = now();
+            if ($data['status'] === 'scheduled') $updates['scheduled_at'] = $data['scheduled_at'];
+            if ($data['status'] === 'completed') {
+                $updates['completed_at'] = now();
+                $updates['result_summary'] = $data['result_summary'];
+                $updates['patient_instructions'] = $data['patient_instructions'] ?? null;
+            }
             if (array_key_exists('provider_response', $data)) $updates['provider_response'] = $data['provider_response'];
             if ($data['status'] === 'cancelled') $updates['cancelled_at'] = now();
-            $referral->update($updates);
+            $locked->update($updates);
+
             MedicalReferralEvent::query()->create([
-                'medical_referral_id' => $referral->id,
+                'medical_referral_id' => $locked->id,
                 'user_id' => $user->id,
                 'event' => 'status_changed',
                 'from_status' => $from,
                 'to_status' => $data['status'],
-                'description' => $data['provider_response'] ?? null,
+                'description' => $data['provider_response'] ?? $data['result_summary'] ?? null,
+                'metadata' => array_filter([
+                    'scheduled_at' => $data['scheduled_at'] ?? null,
+                    'has_result' => filled($data['result_summary'] ?? null),
+                ], fn ($value) => $value !== null),
                 'created_at' => now(),
             ]);
             if ($data['status'] === 'completed') {
-                $referral->targetProvider()->increment('completed_referrals_count');
+                $locked->targetProvider()->increment('completed_referrals_count');
             }
         });
 
+        $audit->handle('medical_network.referral_status_changed', $referral, [
+            'doctor_id' => (int) session('active_doctor_id'),
+            'status_changed' => true,
+            'changed_fields' => ['status'],
+        ]);
         return back()->with('success', 'وضعیت ارجاع به‌روزرسانی شد.');
     }
 
@@ -216,15 +268,16 @@ final class MedicalNetworkController extends Controller
         ]);
     }
 
-    public function approveProvider(MedicalNetworkProvider $provider)
+    public function approveProvider(MedicalNetworkProvider $provider, RecordSecurityAuditEventAction $audit)
     {
         abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
         abort_unless($provider->status === 'pending', 422);
         $provider->update(['status' => 'active', 'is_verified' => true]);
+        $audit->handle('medical_network.provider_approved', $provider, ['changed_fields' => ['status', 'is_verified']]);
         return back()->with('success', 'مرکز پس از بررسی اطلاعات و مجوزها تأیید و در شبکه فعال شد.');
     }
 
-    public function rejectProvider(Request $request, MedicalNetworkProvider $provider)
+    public function rejectProvider(Request $request, MedicalNetworkProvider $provider, RecordSecurityAuditEventAction $audit)
     {
         abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
         abort_unless($provider->status === 'pending', 422);
