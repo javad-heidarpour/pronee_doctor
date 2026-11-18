@@ -387,16 +387,20 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'تسویه تأیید شد.');
     }
 
-    public function paySettlement(int $settlement, ClinicAccountingService $accounting)
+    public function paySettlement(Request $request, int $settlement, ClinicAccountingService $accounting)
     {
         $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
-        DB::transaction(function () use ($settlement, $accounting): void {
+        $payment = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash','card','transfer','online','cheque'])],
+            'payment_reference' => ['nullable', 'string', 'max:120'],
+        ]);
+        DB::transaction(function () use ($settlement, $accounting, $payment): void {
             $row = DoctorSettlement::query()->whereKey($settlement)->lockForUpdate()
                 ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
                 ->firstOrFail();
             abort_unless($row->status === 'approved', 409, 'فقط تسویه تأییدشده قابل پرداخت است.');
-            $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now()]);
+            $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now(), 'payment_method' => $payment['payment_method'], 'payment_reference' => $payment['payment_reference'] ?? null]);
             if ((int) $row->net_amount > 0) {
                 $accounting->post(
                     $row->organization_id, null, $row->doctor_id, (int) Auth::guard('web')->id(),
@@ -469,11 +473,15 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'حقوق تأیید شد.');
     }
 
-    public function payPayroll(int $payroll, ClinicAccountingService $accounting)
+    public function payPayroll(Request $request, int $payroll, ClinicAccountingService $accounting)
     {
         $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
-        DB::transaction(function () use ($payroll, $accounting): void {
+        $payment = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash','card','transfer','online','cheque'])],
+            'payment_reference' => ['nullable', 'string', 'max:120'],
+        ]);
+        DB::transaction(function () use ($payroll, $accounting, $payment): void {
             $row = ClinicStaffPayroll::query()->whereKey($payroll)->lockForUpdate()
                 ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
                 ->firstOrFail();
