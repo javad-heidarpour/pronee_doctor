@@ -39,6 +39,7 @@
           <select v-model="form.contact_method" class="rounded-xl border-slate-300 text-sm">
             <option value="call">تماس تلفنی</option><option value="sms">پیامک</option><option value="in_person">مراجعه حضوری</option><option value="review">بررسی پرونده</option>
           </select>
+          <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="form.send_sms" type="checkbox" class="rounded border-slate-300" /> ارسال یادآوری پیامکی (در صورت تنظیم سرویس)</label>
           <button :disabled="processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">ثبت برنامه پیگیری</button>
         </form>
       </section>
@@ -53,6 +54,7 @@
           <input v-model.number="templateForm.default_days" type="number" min="0" max="365" class="rounded-xl border-slate-300 text-sm" placeholder="فاصله پیش‌فرض (روز)" />
           <input v-model="templateForm.description" placeholder="توضیح برای مسئول پیگیری" class="rounded-xl border-slate-300 text-sm md:col-span-2" />
           <select v-model="templateForm.contact_method" class="rounded-xl border-slate-300 text-sm"><option value="call">تماس</option><option value="sms">پیامک</option><option value="review">بررسی پرونده</option><option value="in_person">مراجعه حضوری</option></select>
+          <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="templateForm.send_sms" type="checkbox" class="rounded border-slate-300" /> پیامک خودکار برای این الگو</label>
           <button class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white">ذخیره الگو</button>
         </form>
       </section>
@@ -105,6 +107,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
   doctor: Object,
+  userRole: String,
   tasks: Object,
   patients: Array,
   templates: Array,
@@ -113,9 +116,9 @@ const props = defineProps({
   stats: Object,
 })
 const processing = ref(false)
-const isDoctor = computed(() => ['doctor', 'admin'].includes(window?.__proneexRole || 'doctor'))
-const form = reactive({ patient_id: '', template_id: '', title: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call' })
-const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call' })
+const isDoctor = computed(() => ['doctor', 'admin'].includes(props.userRole))
+const form = reactive({ patient_id: '', template_id: '', title: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', send_sms: false })
+const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false })
 const filters = reactive({ ...props.filters })
 const statItems = computed(() => [
   { label: 'در انتظار', value: props.stats.pending },
