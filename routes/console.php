@@ -22,3 +22,8 @@ Schedule::command('appointments:send-reminders')
 Schedule::command('patients:send-follow-up-reminders')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+// یادآوری اقساط نزدیک به سررسید و معوق، فقط با رضایت ثبت‌شده بیمار.
+Schedule::command('finance:send-installment-reminders')
+    ->dailyAt('09:15')
+    ->withoutOverlapping();
