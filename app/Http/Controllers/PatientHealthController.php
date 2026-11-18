@@ -10,6 +10,8 @@ use App\Models\PatientAccessRequest;
 use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientHealthObservation;
+use App\Models\PatientMedicationPlan;
+use App\Models\PatientEncounterPrescription;
 use App\Models\User;
 use App\Services\PatientHealthIntelligence;
 use Illuminate\Http\Request;
@@ -84,6 +86,21 @@ final class PatientHealthController extends Controller
                 'id', 'title', 'description', 'due_at', 'priority', 'status',
             ]);
 
+        $medicationPlans = $accessType === 'owner'
+            ? PatientMedicationPlan::query()->where('patient_id', $patient->id)->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->with(['prescription:id,encounter_id,medication_name,strength,dosage,route,frequency,duration_days,instructions',
+                    'doses' => fn ($q) => $q->whereDate('scheduled_for', now()->toDateString())])
+                ->orderByDesc('created_at')->get()
+            : collect();
+
+        $availablePrescriptions = $accessType === 'owner'
+            ? PatientEncounterPrescription::query()
+                ->whereHas('encounter', fn ($q) => $q->where('patient_id', $patient->id)->where('status', PatientEncounter::STATUS_SIGNED))
+                ->with('encounter:id,signed_at')->latest('created_at')->limit(50)
+                ->get(['id','encounter_id','medication_name','strength','dosage','route','frequency','duration_days','instructions'])
+            : collect();
+
         $observations = $accessType === 'owner'
             ? PatientHealthObservation::query()->where('patient_id', $patient->id)->where('user_id', $user->id)->latest('observed_at')->limit(60)->get()
             : collect();
@@ -115,6 +132,8 @@ final class PatientHealthController extends Controller
             'caregivers' => $caregivers,
             'intelligence' => $intelligence,
             'observations' => $observations,
+            'medicationPlans' => $medicationPlans,
+            'availablePrescriptions' => $availablePrescriptions,
         ]);
     }
 
