@@ -28,6 +28,7 @@ final class PatientEncounterController extends Controller
 
     public function index(Appointment $appointment, RecordSecurityAuditEventAction $audit)
     {
+        $this->authorizeClinicalRole();
         $this->authorizeAppointment($appointment);
         $doctor = $this->currentDoctor();
         $this->authorizeClinicalView($doctor);
@@ -53,6 +54,7 @@ final class PatientEncounterController extends Controller
 
     public function create(Appointment $appointment)
     {
+        $this->authorizeClinicalRole();
         $this->authorizeAppointment($appointment);
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
@@ -77,7 +79,8 @@ final class PatientEncounterController extends Controller
         CreatePatientEncounterAction $action,
         RecordSecurityAuditEventAction $audit
     ) {
-        $this->authorizeAppointment($appointment);
+        $this->authorizeAppointment($appointment);        $this->authorizeClinicalRole();
+
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         abort_unless($appointment->patient_id && $appointment->status !== 'cancelled', 422);
@@ -113,6 +116,7 @@ final class PatientEncounterController extends Controller
 
     public function show(PatientEncounter $encounter)
     {
+        $this->authorizeClinicalRole();
         $doctor = $this->currentDoctor();
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeClinicalView($doctor);
@@ -131,6 +135,7 @@ final class PatientEncounterController extends Controller
 
     public function amend(PatientEncounter $encounter)
     {
+        $this->authorizeClinicalRole();
         $doctor = $this->currentDoctor();
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
@@ -153,7 +158,8 @@ final class PatientEncounterController extends Controller
         UpdatePatientEncounterAction $action,
         RecordSecurityAuditEventAction $audit
     ) {
-        $doctor = $this->currentDoctor();
+        $doctor = $this->currentDoctor();        $this->authorizeClinicalRole();
+
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $patient = $encounter->patient()->firstOrFail();
@@ -186,6 +192,15 @@ final class PatientEncounterController extends Controller
         ]);
 
         return back()->with('success', 'یادداشت ویزیت نهایی و قفل شد.');
+    }
+
+    private function authorizeClinicalRole(): void
+    {
+        abort_unless(
+            in_array(Auth::guard('web')->user()?->role, ['doctor', 'secretary'], true),
+            403,
+            'دسترسی به پرونده بالینی فقط برای پزشک و منشی مجاز تعریف‌شده امکان‌پذیر است.'
+        );
     }
 
     private function authorizeEncounter(PatientEncounter $encounter, $doctor): void
