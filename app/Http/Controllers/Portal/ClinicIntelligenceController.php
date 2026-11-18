@@ -46,7 +46,7 @@ final class ClinicIntelligenceController extends Controller
             ->orderByDesc('m.enrolled_at')->limit(100)->get() : collect();
 
         $reminders = $memberships->map(function ($membership) {
-            $due = \Illuminate\Support\Carbon::parse($membership->enrolled_at)->addDays((int) $membership->interval_days);
+            $due = \Illuminate\Support\Carbon::parse($membership->last_checkup_at ?: $membership->enrolled_at)->addDays((int) $membership->interval_days);
             return [
                 'membership_id' => (int) $membership->id, 'patient_name' => $membership->patient_name,
                 'phone' => $membership->phone, 'program_title' => $membership->program_title,
@@ -63,7 +63,7 @@ final class ClinicIntelligenceController extends Controller
             ->where('doctor_id', $doctor->id)->latest()->limit(10)->get() : collect();
 
         $appointments = DB::table('appointments')->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)->where('appointment_date', '>=', now()->subDays(90)->toDateString())
+            ->whereIn('clinic_id', $clinicIds)->whereBetween('appointment_date', [now()->subDays(90)->toDateString(), today()->toDateString()])
             ->whereNotIn('status', ['cancelled', 'rejected']);
         $appointmentCount = (clone $appointments)->count();
         $paidPayments = DB::table('appointment_payments as payments')
@@ -230,7 +230,7 @@ final class ClinicIntelligenceController extends Controller
         ]);
 
         $last90 = DB::table('appointments')->where('doctor_id', $doctor->id)
-            ->where('appointment_date', '>=', now()->subDays(90)->toDateString())
+            ->whereBetween('appointment_date', [now()->subDays(90)->toDateString(), today()->toDateString()])
             ->whereNotIn('status', ['cancelled', 'rejected'])
             ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('clinic_id', $clinicId));
         $baselineCount = (int) (clone $last90)->count();
