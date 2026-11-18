@@ -42,7 +42,12 @@ class PatientFollowUpTask extends Model
         return $this->belongsTo(Patient::class);
     }
 
-    public function treatmentPlan(): BelongsTo\n    {\n        return $this->belongsTo(PatientTreatmentPlan::class, 'treatment_plan_id');\n    }\n\n    public function appointment(): BelongsTo
+    public function treatmentPlan(): BelongsTo
+    {
+        return $this->belongsTo(PatientTreatmentPlan::class, 'treatment_plan_id');
+    }
+
+    public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
     }
