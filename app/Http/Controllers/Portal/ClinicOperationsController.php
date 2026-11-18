@@ -37,8 +37,9 @@ class ClinicOperationsController extends Controller
             'doctor' => $doctor,
             'clinics' => Address::query()->whereIn('id', $clinicIds)->get(['id', 'name', 'organization_id']),
             'patients' => Patient::query()->where('doctor_id', $doctor->id)->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))->orderBy('name')->get(['id', 'name', 'phone']),
-            'organizations' => $doctor->clinicOrganizations()->wherePivot('status', 'active')->get(['clinic_organizations.id', 'clinic_organizations.name']),
-            'settlements' => DoctorSettlement::query()->where('doctor_id', $doctor->id)->latest()->limit(12)->get(),
+            'organizations' => $doctor->clinicOrganizations()->wherePivot('status', 'active')->with(['doctors' => fn ($q) => $q->wherePivot('status', 'active'), 'members' => fn ($q) => $q->wherePivot('is_active', true)])->get(['clinic_organizations.id', 'clinic_organizations.name', 'clinic_organizations.owner_user_id']),
+            'settlements' => DoctorSettlement::query()->whereIn('organization_id', $doctor->clinicOrganizations()->where('clinic_organization_doctors.status', 'active')->select('clinic_organizations.id'))->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))->with('doctor:id,name,family')->latest()->limit(20)->get(),
+            'payrolls' => ClinicStaffPayroll::query()->whereIn('organization_id', $doctor->clinicOrganizations()->where('clinic_organization_doctors.status', 'active')->select('clinic_organizations.id'))->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))->with('staff:id,name,family')->latest()->limit(20)->get(),
             'services' => ClinicService::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->orderBy('name')->get(),
             'plans' => PatientTreatmentPlan::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
                 ->with(['patient:id,name,phone', 'items'])->latest()->limit(30)->get(),
