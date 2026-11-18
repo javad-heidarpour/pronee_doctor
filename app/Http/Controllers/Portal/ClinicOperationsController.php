@@ -374,10 +374,13 @@ class ClinicOperationsController extends Controller
     {
         $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
-        $row = DoctorSettlement::query()->whereKey($settlement)->where('status', 'draft')
-            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
-            ->firstOrFail();
-        $row->update(['status' => 'approved', 'approved_by' => Auth::guard('web')->id()]);
+        DB::transaction(function () use ($settlement): void {
+            $row = DoctorSettlement::query()->whereKey($settlement)->lockForUpdate()
+                ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+                ->firstOrFail();
+            abort_unless($row->status === 'draft', 409, 'این تسویه قبلاً بررسی شده است.');
+            $row->update(['status' => 'approved', 'approved_by' => Auth::guard('web')->id()]);
+        }, 3);
         return back()->with('success', 'تسویه تأیید شد.');
     }
 
@@ -385,10 +388,11 @@ class ClinicOperationsController extends Controller
     {
         $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
-        $row = DoctorSettlement::query()->whereKey($settlement)->where('status', 'approved')
-            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
-            ->firstOrFail();
-        DB::transaction(function () use ($row, $accounting): void {
+        DB::transaction(function () use ($settlement, $accounting): void {
+            $row = DoctorSettlement::query()->whereKey($settlement)->lockForUpdate()
+                ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+                ->firstOrFail();
+            abort_unless($row->status === 'approved', 409, 'فقط تسویه تأییدشده قابل پرداخت است.');
             $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now()]);
             if ((int) $row->net_amount > 0) {
                 $accounting->post(
@@ -438,10 +442,13 @@ class ClinicOperationsController extends Controller
     {
         $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
-        $row = ClinicStaffPayroll::query()->whereKey($payroll)->where('status', 'draft')
-            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
-            ->firstOrFail();
-        $row->update(['status' => 'approved', 'approved_by' => Auth::guard('web')->id()]);
+        DB::transaction(function () use ($payroll): void {
+            $row = ClinicStaffPayroll::query()->whereKey($payroll)->lockForUpdate()
+                ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+                ->firstOrFail();
+            abort_unless($row->status === 'draft', 409, 'این فیش حقوقی قبلاً بررسی شده است.');
+            $row->update(['status' => 'approved', 'approved_by' => Auth::guard('web')->id()]);
+        }, 3);
         return back()->with('success', 'حقوق تأیید شد.');
     }
 
@@ -449,10 +456,11 @@ class ClinicOperationsController extends Controller
     {
         $this->authorizeClinicRole();
         $this->authorizeDoctorOnly();
-        $row = ClinicStaffPayroll::query()->whereKey($payroll)->where('status', 'approved')
-            ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
-            ->firstOrFail();
-        DB::transaction(function () use ($row, $accounting): void {
+        DB::transaction(function () use ($payroll, $accounting): void {
+            $row = ClinicStaffPayroll::query()->whereKey($payroll)->lockForUpdate()
+                ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
+                ->firstOrFail();
+            abort_unless($row->status === 'approved', 409, 'فقط فیش حقوقی تأییدشده قابل پرداخت است.');
             $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now()]);
             if ((int) $row->net_amount > 0) {
                 $accounting->post(
