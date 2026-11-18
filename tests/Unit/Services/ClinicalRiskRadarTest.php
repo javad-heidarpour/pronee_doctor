@@ -63,4 +63,17 @@ final class ClinicalRiskRadarTest extends TestCase
         $this->assertSame('review', $result['priority']);
         $this->assertTrue(collect($result['flags'])->contains(fn ($flag) => $flag['source'] === 'medication'));
     }
+    public function test_missing_recent_data_is_not_classified_as_routine(): void
+    {
+        $patient = new Patient();
+        $patient->setAttribute('id', 15);
+        $patient->setAttribute('name', 'بیمار بدون داده');
+        $patient->setRelation('vitalSigns', new Collection());
+
+        $result = app(ClinicalRiskRadar::class)->evaluate($patient, new Collection(), new Collection(), new Collection());
+
+        $this->assertSame('unknown', $result['priority']);
+        $this->assertSame('داده کافی نیست', $result['priority_label']);
+    }
+
 }

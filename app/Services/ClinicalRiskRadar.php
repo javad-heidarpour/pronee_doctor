@@ -136,9 +136,10 @@ final class ClinicalRiskRadar
             );
         }
 
+        $hasData = $clinicVitals->isNotEmpty() || $observations->isNotEmpty() || $followUps->isNotEmpty() || $medicationPlans->isNotEmpty();
         $priority = collect($flags)->contains(fn ($flag) => $flag['level'] === 'urgent')
             ? 'urgent'
-            : (count($flags) ? 'review' : 'routine');
+            : (count($flags) ? 'review' : ($hasData ? 'routine' : 'unknown'));
 
         $latestVital = $clinicVitals->sortByDesc(fn ($item) => $item->measured_at?->timestamp ?? 0)->first();
 
@@ -146,7 +147,7 @@ final class ClinicalRiskRadar
             'patient_id' => $patient->id,
             'patient_name' => $patient->name,
             'priority' => $priority,
-            'priority_label' => ['urgent' => 'بررسی فوری', 'review' => 'نیازمند بررسی', 'routine' => 'بدون پرچم فعال'][$priority],
+            'priority_label' => ['urgent' => 'بررسی فوری', 'review' => 'نیازمند بررسی', 'routine' => 'بدون پرچم فعال', 'unknown' => 'داده کافی نیست'][$priority],
             'flags_count' => count($flags),
             'flags' => $flags,
             'last_clinic_measurement_at' => $latestVital?->measured_at?->toIso8601String(),

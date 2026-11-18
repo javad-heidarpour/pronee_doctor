@@ -12,11 +12,12 @@
             <div class="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-slate-100">آخرین محاسبه: {{ formatDateTime(generatedAt) }}</div>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-px bg-slate-200 sm:grid-cols-4">
+        <div class="grid grid-cols-2 gap-px bg-slate-200 sm:grid-cols-5">
           <div class="bg-white p-4"><p class="text-xs text-slate-500">کل بیماران</p><p class="mt-2 text-2xl font-black text-slate-800">{{ fa(stats.total) }}</p></div>
           <div class="bg-white p-4"><p class="text-xs text-rose-600">نیازمند بررسی فوری</p><p class="mt-2 text-2xl font-black text-rose-700">{{ fa(stats.urgent) }}</p></div>
           <div class="bg-white p-4"><p class="text-xs text-amber-600">نیازمند بررسی</p><p class="mt-2 text-2xl font-black text-amber-700">{{ fa(stats.review) }}</p></div>
           <div class="bg-white p-4"><p class="text-xs text-emerald-600">بدون پرچم فعال</p><p class="mt-2 text-2xl font-black text-emerald-700">{{ fa(stats.routine) }}</p></div>
+          <div class="bg-white p-4"><p class="text-xs text-slate-500">داده ناکافی</p><p class="mt-2 text-2xl font-black text-slate-600">{{ fa(stats.unknown) }}</p></div>
         </div>
       </section>
 
@@ -28,6 +29,7 @@
             <option value="urgent">بررسی فوری</option>
             <option value="review">نیازمند بررسی</option>
             <option value="routine">بدون پرچم فعال</option>
+            <option value="unknown">داده کافی نیست</option>
           </select>
           <button class="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-800">اعمال فیلتر</button>
           <button type="button" @click="clearFilters" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200">پاک کردن</button>
@@ -55,6 +57,7 @@
               <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500"><span v-if="flag.value_label">مقدار: {{ flag.value_label }}</span><span v-if="flag.recorded_at">زمان ثبت: {{ formatDateTime(flag.recorded_at) }}</span></div>
             </div>
           </div>
+          <div v-else-if="patient.priority === 'unknown'" class="px-5 pb-4 text-xs text-slate-600">برای این بیمار داده‌های اخیر کافی جهت غربالگری در دسترس نیست؛ نبود پرچم به معنی کم‌خطر بودن بیمار نیست.</div>
           <div v-else class="px-5 pb-4 text-xs text-emerald-700">بر اساس داده‌های در دسترس، پرچم فعالی برای بازبینی ثبت نشده است. این وضعیت به معنی تأیید سلامت بیمار نیست.</div>
         </article>
       </section>
@@ -85,7 +88,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({
   doctor: { type: Object, required: true },
   patients: { type: Array, default: () => [] },
-  stats: { type: Object, default: () => ({ total: 0, urgent: 0, review: 0, routine: 0 }) },
+  stats: { type: Object, default: () => ({ total: 0, urgent: 0, review: 0, routine: 0, unknown: 0 }) },
   filters: { type: Object, default: () => ({ search: '', priority: 'all' }) },
   generatedAt: { type: String, default: null },
 })
@@ -96,5 +99,5 @@ const clearFilters = () => { search.value = ''; priority.value = 'all'; applyFil
 const fa = value => Number(value || 0).toLocaleString('fa-IR')
 const initials = value => (value || '؟').trim().split(/\s+/).map(part => part[0]).slice(0, 2).join('')
 const formatDateTime = value => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
-const priorityClass = value => ({ urgent: 'bg-rose-100 text-rose-800', review: 'bg-amber-100 text-amber-800', routine: 'bg-emerald-100 text-emerald-800' }[value] || 'bg-slate-100 text-slate-700')
+const priorityClass = value => ({ urgent: 'bg-rose-100 text-rose-800', review: 'bg-amber-100 text-amber-800', routine: 'bg-emerald-100 text-emerald-800', unknown: 'bg-slate-100 text-slate-700' }[value] || 'bg-slate-100 text-slate-700')
 </script>

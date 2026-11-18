@@ -31,7 +31,7 @@ final class ClinicalRiskRadarController extends Controller
 
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
-            'priority' => ['nullable', 'in:all,urgent,review,routine'],
+            'priority' => ['nullable', 'in:all,urgent,review,routine,unknown'],
         ]);
 
         $patients = Patient::query()
@@ -56,7 +56,6 @@ final class ClinicalRiskRadarController extends Controller
                 })
                 ->whereIn('patient_id', $patientIds)
                 ->whereIn('status', ['pending', 'in_progress'])
-                ->where('due_at', '<', now())
                 ->orderBy('due_at')
                 ->get(['id', 'patient_id', 'title', 'due_at', 'status'])
                 ->groupBy('patient_id');
@@ -91,6 +90,7 @@ final class ClinicalRiskRadarController extends Controller
             'urgent' => $results->where('priority', 'urgent')->count(),
             'review' => $results->where('priority', 'review')->count(),
             'routine' => $results->where('priority', 'routine')->count(),
+            'unknown' => $results->where('priority', 'unknown')->count(),
         ];
 
         $search = trim((string) ($filters['search'] ?? ''));
@@ -103,7 +103,7 @@ final class ClinicalRiskRadarController extends Controller
             $results = $results->where('priority', $priority);
         }
 
-        $priorityOrder = ['urgent' => 0, 'review' => 1, 'routine' => 2];
+        $priorityOrder = ['urgent' => 0, 'review' => 1, 'routine' => 2, 'unknown' => 3];
         $results = $results->sortBy(fn ($item) => sprintf('%d-%05d-%s', $priorityOrder[$item['priority']] ?? 9, 99999 - $item['flags_count'], $item['patient_name']))->values();
 
         $audit->handle('clinical_risk_radar.viewed', null, [
