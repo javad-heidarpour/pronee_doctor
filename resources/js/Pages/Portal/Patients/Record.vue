@@ -61,6 +61,37 @@
         </div>
         <p v-else class="mt-2 text-xs text-slate-600">برای داروهای فعال، مورد ناقص یا دارای تاریخ پایان گذشته در داده‌های ثبت‌شده پیدا نشد.</p>
       </section>
+      <section v-if="canViewClinicalRecords && adverseReactionTimeline.length" class="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-black text-slate-900">خط زمانی واکنش‌های ناخواسته گزارش‌شده</h2>
+            <p class="mt-1 text-xs leading-5 text-slate-500">مرتب‌شده بر اساس تاریخ وقوع ثبت‌شده؛ در نبود آن، تاریخ ثبت سابقه استفاده می‌شود.</p>
+          </div>
+          <span class="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">{{ adverseReactionTimeline.length.toLocaleString('fa-IR') }} گزارش</span>
+        </div>
+        <ol class="mt-4 space-y-3">
+          <li v-for="(reaction, index) in adverseReactionTimeline" :key="reaction.id" class="relative rounded-xl border border-slate-100 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-xs font-black text-amber-800">{{ (index + 1).toLocaleString('fa-IR') }}</span>
+                <h3 class="text-sm font-bold text-slate-800">{{ reaction.title }}</h3>
+              </div>
+              <span class="text-[11px] text-slate-500">{{ formatDate(reaction.reaction_date || reaction.created_at?.slice(0, 10)) }}</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <span v-if="reaction.reaction_severity" class="rounded-md bg-amber-50 px-2 py-1 font-bold text-amber-800">شدت: {{ reactionSeverityLabel(reaction.reaction_severity) }}</span>
+              <span v-if="reaction.reaction_outcome" class="rounded-md bg-slate-100 px-2 py-1 text-slate-700">پیامد: {{ reactionOutcomeLabel(reaction.reaction_outcome) }}</span>
+              <span v-if="reaction.related_record" class="rounded-md bg-sky-50 px-2 py-1 text-sky-800">دارو: {{ reaction.related_record.title }}</span>
+              <span v-if="reaction.related_allergy_record" class="rounded-md bg-rose-50 px-2 py-1 text-rose-800">حساسیت مرتبط: {{ reaction.related_allergy_record.title }}</span>
+              <span v-if="!reaction.is_active" class="rounded-md bg-slate-100 px-2 py-1 text-slate-500">غیرفعال</span>
+            </div>
+            <p v-if="reaction.action_taken" class="mt-2 whitespace-pre-line text-xs leading-5 text-slate-600">اقدام گزارش‌شده: {{ reaction.action_taken }}</p>
+            <p v-if="reaction.description" class="mt-1 whitespace-pre-line text-xs leading-5 text-slate-600">{{ reaction.description }}</p>
+            <p class="mt-2 text-[10px] text-amber-700">این مورد یک گزارش ثبت‌شده است و به‌تنهایی رابطه علت و معلولی دارو و واکنش را اثبات نمی‌کند.</p>
+          </li>
+        </ol>
+      </section>
+
       <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <p class="text-xs font-bold text-slate-500">شماره تماس</p>
@@ -445,6 +476,16 @@ const activeAllergies = computed(() => (patient.value.clinical_records || [])
 
 const activeMedicationRecords = computed(() => (patient.value.clinical_records || [])
   .filter(record => record.kind === 'medication' && record.is_active));
+
+const adverseReactionTimeline = computed(() => (patient.value.clinical_records || [])
+  .filter(record => record.kind === 'adverse_reaction')
+  .slice()
+  .sort((a, b) => {
+    const dateA = a.reaction_date || a.created_at || '';
+    const dateB = b.reaction_date || b.created_at || '';
+    const byDate = String(dateB).localeCompare(String(dateA));
+    return byDate || Number(b.id || 0) - Number(a.id || 0);
+  }));
 
 const medicationReviewItems = computed(() => {
   const activeMedications = (patient.value.clinical_records || [])
