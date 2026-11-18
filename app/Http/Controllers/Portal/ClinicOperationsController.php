@@ -187,7 +187,7 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'وضعیت دندان در نمودار بیمار ثبت شد.');
     }
 
-    public function storeInventoryItem(Request $request)
+    public function storeInventoryItem(Request $request, ClinicAccountingService $accounting)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
@@ -200,20 +200,26 @@ class ClinicOperationsController extends Controller
         $clinicId = (int) $data['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
         $organizationId = Address::whereKey($clinicId)->value('organization_id');
-        DB::transaction(function () use ($data, $clinicId, $organizationId): void {
+        DB::transaction(function () use ($data, $clinicId, $organizationId, $doctor, $accounting): void {
             $item = ClinicInventoryItem::create([
                 'organization_id' => $organizationId, 'clinic_id' => $clinicId, 'name' => $data['name'],
                 'sku' => $data['sku'] ?? null, 'unit' => $data['unit'], 'minimum_quantity' => $data['minimum_quantity'],
                 'current_quantity' => $data['opening_quantity'] ?? 0, 'average_unit_cost' => $data['unit_cost'] ?? 0,
             ]);
             if (($data['opening_quantity'] ?? 0) > 0) {
-                $item->movements()->create([
+                $movement = $item->movements()->create([
                     'recorded_by' => Auth::guard('web')->id(), 'movement_type' => 'opening',
                     'quantity' => $data['opening_quantity'], 'unit_cost' => $data['unit_cost'] ?? 0,
                     'occurred_at' => now(), 'notes' => 'موجودی افتتاحیه',
                 ]);
+                $accounting->recordInventoryMovement(
+                    $organizationId, $clinicId, $doctor->id, (int) Auth::guard('web')->id(),
+                    $movement->id, 'opening',
+                    (int) round((float) $data['opening_quantity'] * (int) ($data['unit_cost'] ?? 0)),
+                    'موجودی افتتاحیه: ' . $item->name, now()->toDateTimeString()
+                );
             }
-        });
+        }, 3);
         return back()->with('success', 'کالای انبار ثبت شد.');
     }
 
