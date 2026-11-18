@@ -27,3 +27,8 @@ Schedule::command('patients:send-follow-up-reminders')
 Schedule::command('finance:send-installment-reminders')
     ->dailyAt('09:15')
     ->withoutOverlapping();
+
+// Create internal tasks for collateral dates approaching or already overdue.
+Schedule::command('finance:create-collateral-reminders')
+    ->dailyAt('09:20')
+    ->withoutOverlapping();
