@@ -136,6 +136,7 @@ return new class extends Migration
             $table->foreignId('organization_id')->nullable()->constrained('clinic_organizations')->cascadeOnDelete();
             $table->foreignId('clinic_id')->nullable()->constrained('addresses')->nullOnDelete();
             $table->string('code', 32);
+            $table->string('scope_key', 160)->unique();
             $table->string('name', 120);
             $table->string('type', 20);
             $table->boolean('is_system')->default(false);
