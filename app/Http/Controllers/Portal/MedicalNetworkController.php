@@ -80,7 +80,7 @@ final class MedicalNetworkController extends Controller
         $doctor = $this->currentDoctor();
 
         $data = $request->validate([
-            'provider_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation'])],
+            'provider_type' => ['required', Rule::in(['doctor', 'laboratory', 'imaging', 'rehabilitation'])],
             'name' => ['required', 'string', 'max:180'],
             'city' => ['nullable', 'string', 'max:100'],
             'address' => ['nullable', 'string', 'max:500'],

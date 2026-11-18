@@ -31,7 +31,25 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
       </header>
 
       <section class="rounded-2xl border bg-white p-4">
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="font-black">جست‌وجوی همکاران شبکه</h2><span class="text-xs text-slate-500">نمایش مراکز تأییدشده</span></div>
+  
+      <section class="rounded-2xl border bg-white p-4">
+        <h2 class="mb-2 font-black">درخواست عضویت پزشک یا مرکز جدید</h2>
+        <p class="mb-3 text-xs leading-6 text-slate-500">پس از ثبت، مدیر شبکه مدارک و مجوزها را بررسی می‌کند. پروفایل تا زمان تأیید در جست‌وجوی عمومی نمایش داده نمی‌شود.</p>
+        <form @submit.prevent="submitProvider" class="grid gap-3 md:grid-cols-2">
+          <label class="text-xs font-semibold">نوع عضو<select v-model="providerForm.provider_type" class="mt-1 w-full rounded-xl border-slate-300 text-sm"><option value="doctor">پزشک</option><option value="laboratory">آزمایشگاه</option><option value="imaging">مرکز تصویربرداری</option><option value="rehabilitation">مرکز توان‌بخشی</option></select></label>
+          <label class="text-xs font-semibold">نام پزشک یا مرکز<input v-model="providerForm.name" required maxlength="180" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="نام کامل و رسمی"></label>
+          <input v-model="providerForm.city" class="rounded-xl border-slate-300 text-sm" placeholder="شهر">
+          <input v-model="providerForm.phone" class="rounded-xl border-slate-300 text-sm" placeholder="تلفن تماس">
+          <input v-model="providerForm.email" type="email" class="rounded-xl border-slate-300 text-sm" placeholder="ایمیل">
+          <input v-model="providerForm.license_number" class="rounded-xl border-slate-300 text-sm" placeholder="شماره مجوز / نظام پزشکی">
+          <input v-model="providerForm.address" class="rounded-xl border-slate-300 text-sm md:col-span-2" placeholder="نشانی">
+          <input v-model="providerForm.specialties" class="rounded-xl border-slate-300 text-sm" placeholder="تخصص‌ها (با ویرگول جدا کنید)">
+          <input v-model="providerForm.services" class="rounded-xl border-slate-300 text-sm" placeholder="خدمات (با ویرگول جدا کنید)">
+          <textarea v-model="providerForm.description" rows="2" class="rounded-xl border-slate-300 text-sm md:col-span-2" placeholder="معرفی کوتاه و امکانات مرکز"></textarea>
+          <button :disabled="providerForm.processing" class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 md:col-span-2">ارسال درخواست عضویت برای بررسی</button>
+        </form>
+      </section>
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="font-black">جست‌وجوی همکاران شبکه</h2><span class="text-xs text-slate-500">نمایش مراکز تأییدشده</span></div>
         <form class="grid gap-2 md:grid-cols-4" @submit.prevent="submitFilters">
           <input v-model="filter.search" class="rounded-xl border-slate-300 text-sm" placeholder="نام مرکز، خدمت یا نشانی">
           <select v-model="filter.type" class="rounded-xl border-slate-300 text-sm"><option value="">همه گروه‌ها</option><option v-for="type in providerTypes" :key="type.value" :value="type.value">{{ type.label }}</option></select>
