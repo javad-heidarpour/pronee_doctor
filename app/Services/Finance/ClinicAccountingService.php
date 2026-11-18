@@ -63,9 +63,11 @@ class ClinicAccountingService
         int $movementId, string $movementType, int $totalCost, string $description, string $occurredAt
     ): ?ClinicJournalEntry {
         if ($totalCost < 1 || $movementType === 'adjustment') return null;
-        $lines = in_array($movementType, ['purchase', 'return'], true)
-            ? [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '1000', 'debit' => 0, 'credit' => $totalCost]]
-            : [['code' => '5010', 'debit' => $totalCost, 'credit' => 0], ['code' => '1300', 'debit' => 0, 'credit' => $totalCost]];
+        $lines = match ($movementType) {
+            'purchase' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '1000', 'debit' => 0, 'credit' => $totalCost]],
+            'return' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '5010', 'debit' => 0, 'credit' => $totalCost]],
+            default => [['code' => '5010', 'debit' => $totalCost, 'credit' => 0], ['code' => '1300', 'debit' => 0, 'credit' => $totalCost]],
+        };
         return $this->post($organizationId, $clinicId, $doctorId, $userId,
             'clinic_inventory_movement', $movementId, $description, $occurredAt,
             'inventory-movement:' . $movementId, $lines);
@@ -110,9 +112,14 @@ class ClinicAccountingService
             ]);
 
             foreach ($normalized as $line) {
+                $scopeKey = ($organizationId ?? 0) . ':' . ($clinicId ?? 0) . ':' . $line['code'];
                 $account = ClinicFinancialAccount::query()->firstOrCreate(
-                    ['organization_id' => $organizationId, 'clinic_id' => $clinicId, 'code' => $line['code']],
-                    ['name' => self::ACCOUNTS[$line['code']]['name'], 'type' => self::ACCOUNTS[$line['code']]['type'], 'is_system' => true, 'is_active' => true]
+                    ['scope_key' => $scopeKey],
+                    [
+                        'organization_id' => $organizationId, 'clinic_id' => $clinicId,
+                        'code' => $line['code'], 'name' => self::ACCOUNTS[$line['code']]['name'],
+                        'type' => self::ACCOUNTS[$line['code']]['type'], 'is_system' => true, 'is_active' => true,
+                    ]
                 );
                 $entry->lines()->create([
                     'account_id' => $account->id,
