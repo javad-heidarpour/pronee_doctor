@@ -14,5 +14,6 @@ class ClinicService extends Model
     protected $casts = ['default_price' => 'integer','requires_follow_up' => 'boolean','is_active' => 'boolean'];
     public function organization(): BelongsTo { return $this->belongsTo(ClinicOrganization::class, 'organization_id'); }
     public function clinic(): BelongsTo { return $this->belongsTo(Address::class, 'clinic_id'); }
+    public function inventoryRequirements(): HasMany { return $this->hasMany(ClinicServiceInventoryRequirement::class, 'service_id')->with('inventoryItem'); }
     public function treatmentItems(): HasMany { return $this->hasMany(PatientTreatmentItem::class, 'service_id'); }
 }
