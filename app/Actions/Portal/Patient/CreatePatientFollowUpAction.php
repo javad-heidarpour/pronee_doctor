@@ -12,12 +12,14 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Collection;
+use Carbon\Carbon;
 
 final class CreatePatientFollowUpAction
 {
-    public function handle(Doctor $doctor, User $actor, array $data, array $accessibleClinicIds): PatientFollowUpTask
+    public function handle(Doctor $doctor, User $actor, array $data, array $accessibleClinicIds): Collection
     {
-        return DB::transaction(function () use ($doctor, $actor, $data, $accessibleClinicIds): PatientFollowUpTask {
+        return DB::transaction(function () use ($doctor, $actor, $data, $accessibleClinicIds): Collection {
             $patient = Patient::query()
                 ->whereKey($data['patient_id'])
                 ->where('doctor_id', $doctor->id)
@@ -71,22 +73,37 @@ final class CreatePatientFollowUpAction
                 }
             }
 
-            return PatientFollowUpTask::create([
-                'doctor_id' => $doctor->id,
-                'patient_id' => $patient->id,
-                'appointment_id' => $data['appointment_id'] ?? null,
-                'template_id' => $template?->id,
-                'assigned_to' => $assigneeId,
-                'created_by' => $actor->id,
-                'plan_uuid' => (string) Str::uuid(),
+            $planUuid = (string) Str::uuid();
+            $steps = $data['steps'] ?? [[
                 'title' => $template?->title ?? $data['title'],
-                'description' => $template?->description ?? ($data['description'] ?? null),
-                'due_at' => $data['due_at'],
-                'priority' => $data['priority'] ?? 'normal',
+                'days' => 0,
                 'contact_method' => $template?->contact_method ?? ($data['contact_method'] ?? 'call'),
                 'send_sms' => (bool) ($data['send_sms'] ?? false) || (bool) ($template?->send_sms ?? false),
-                'status' => 'pending',
-            ]);
+            ]];
+
+            $baseDate = Carbon::parse($data['due_at']);
+            $tasks = collect();
+
+            foreach ($steps as $step) {
+                $tasks->push(PatientFollowUpTask::create([
+                    'doctor_id' => $doctor->id,
+                    'patient_id' => $patient->id,
+                    'appointment_id' => $data['appointment_id'] ?? null,
+                    'template_id' => $template?->id,
+                    'assigned_to' => $assigneeId,
+                    'created_by' => $actor->id,
+                    'plan_uuid' => $planUuid,
+                    'title' => $step['title'],
+                    'description' => $template?->description ?? ($data['description'] ?? null),
+                    'due_at' => $baseDate->copy()->addDays((int) ($step['days'] ?? 0)),
+                    'priority' => $data['priority'] ?? 'normal',
+                    'contact_method' => $step['contact_method'] ?? 'call',
+                    'send_sms' => (bool) ($step['send_sms'] ?? false),
+                    'status' => 'pending',
+                ]));
+            }
+
+            return $tasks;
         });
     }
 }
