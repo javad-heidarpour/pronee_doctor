@@ -107,39 +107,46 @@ class ClinicOperationsController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $row = PatientTreatmentItem::query()->whereKey($item)
-            ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
-            ->with('plan.patient')->firstOrFail();
-        abort_if($row->stage === 'completed' || $row->stage === 'cancelled', 422, 'مرحله نهایی‌شده قابل تغییر نیست.');
         $data = $request->validate([
             'stage' => ['required', Rule::in(['planned','scheduled','in_progress','completed','cancelled'])],
             'appointment_id' => ['nullable', 'integer'], 'clinical_notes' => ['nullable', 'string', 'max:5000'],
         ]);
-        if (!empty($data['appointment_id'])) {
-            $appointment = $row->plan->doctor->appointments()->whereKey($data['appointment_id'])
-                ->where('clinic_id', $row->plan->clinic_id)->firstOrFail();
-            $row->appointment_id = $appointment->id;
-        }
-        $row->stage = $data['stage'];
-        $row->clinical_notes = $data['clinical_notes'] ?? $row->clinical_notes;
-        if ($data['stage'] === 'completed') {
-            $row->performed_at = now();
-            $days = $row->follow_up_after_days;
-            if ($days) $row->follow_up_due_at = now()->addDays($days);
-        }
-        $row->save();
 
-        if ($data['stage'] === 'completed') {
-            $clinicId = $row->plan->clinic_id;
-            $orgId = $row->plan->organization_id;
-            $accounting->recordTreatmentRevenue(
-                $orgId, $clinicId, $row->provider_doctor_id ?: $doctor->id,
-                (int) Auth::guard('web')->id(), $row->id, $row->plan->id, (int) $row->price,
-                $row->title, $row->performed_at->toDateTimeString()
-            );
+        DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
+            $row = PatientTreatmentItem::query()->whereKey($item)
+                ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
+                ->with('plan.patient')->lockForUpdate()->firstOrFail();
+            abort_if(in_array($row->stage, ['completed', 'cancelled'], true), 422, 'مرحله نهایی‌شده قابل تغییر نیست.');
+
+            if (!empty($data['appointment_id'])) {
+                $appointment = $row->plan->doctor->appointments()->whereKey($data['appointment_id'])
+                    ->where('clinic_id', $row->plan->clinic_id)->firstOrFail();
+                $row->appointment_id = $appointment->id;
+            }
+            $row->stage = $data['stage'];
+            $row->clinical_notes = $data['clinical_notes'] ?? $row->clinical_notes;
+            if ($data['stage'] === 'completed') {
+                $row->performed_at = now();
+                if ($row->follow_up_after_days) {
+                    $row->follow_up_due_at = now()->addDays($row->follow_up_after_days);
+                }
+            }
+            $row->save();
+
+            if ($data['stage'] !== 'completed') return;
+
+            if ((int) $row->price > 0) {
+                $accounting->recordTreatmentRevenue(
+                    $row->plan->organization_id, $row->plan->clinic_id,
+                    $row->provider_doctor_id ?: $doctor->id, (int) Auth::guard('web')->id(),
+                    $row->id, $row->plan->id, (int) $row->price,
+                    $row->title, $row->performed_at->toDateTimeString()
+                );
+            }
+
             if ($row->follow_up_due_at) {
                 PatientFollowUpTask::create([
-                    'doctor_id' => $row->plan->doctor_id, 'clinic_id' => $clinicId,
+                    'doctor_id' => $row->plan->doctor_id, 'clinic_id' => $row->plan->clinic_id,
                     'patient_id' => $row->plan->patient_id, 'appointment_id' => $row->appointment_id,
                     'created_by' => Auth::guard('web')->id(), 'title' => 'پیگیری پس از درمان: ' . $row->title,
                     'description' => 'پیگیری دوره‌ای ایجادشده از مرحله درمان؛ نتیجه و نیاز به مراجعه مجدد ثبت شود.',
@@ -148,7 +155,8 @@ class ClinicOperationsController extends Controller
                     'status' => 'pending',
                 ]);
             }
-        }
+        }, 3);
+
         return back()->with('success', 'وضعیت مرحله درمان به‌روزرسانی شد.');
     }
 
@@ -156,10 +164,14 @@ class ClinicOperationsController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
+        $dentition = $request->input('dentition');
+        $validTeeth = $dentition === 'primary'
+            ? ['51','52','53','54','55','61','62','63','64','65','71','72','73','74','75','81','82','83','84','85']
+            : ['11','12','13','14','15','16','17','18','21','22','23','24','25','26','27','28','31','32','33','34','35','36','37','38','41','42','43','44','45','46','47','48'];
         $data = $request->validate([
             'patient_id' => ['required', 'integer'], 'clinic_id' => ['required', 'integer'],
             'dentition' => ['required', Rule::in(['permanent','primary'])],
-            'tooth_number' => ['required', 'string', 'max:8'],
+            'tooth_number' => ['required', Rule::in($validTeeth)],
             'surface' => ['nullable', Rule::in(['M','D','O','I','B','L','F','P'])],
             'condition' => ['required', Rule::in(['healthy','caries','filled','crown','missing','root_canal','implant','fracture','watch'])],
             'severity' => ['nullable', Rule::in(['low','medium','high'])],
