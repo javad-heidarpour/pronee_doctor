@@ -34,9 +34,7 @@ class ClinicOrganizationController extends Controller
 
         $availableDoctors = Doctor::query()->where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'family', 'specialty_title']);
-        $ownedDoctorIds = $user->role === 'admin'
-            ? $availableDoctors->pluck('id')
-            : $user->ownedDoctorProfiles()->pluck('doctors.id');
+        $ownedDoctorIds = $user->ownedDoctorProfiles()->pluck('doctors.id');
         $organizationDoctorIds = $organizations->flatMap(
             fn ($organization) => $organization->doctors->filter(fn ($member) => $member->pivot->status === 'active')->pluck('id')
         );
