@@ -184,6 +184,41 @@ final class BookAppointmentAction
                 now()->addMinutes(30)->timestamp
             );
 
+            $campaignId = (int) session('proneex_marketing_campaign_id', 0);
+            $campaignDoctorId = (int) session('proneex_marketing_doctor_id', 0);
+            $campaignExpiresAt = (int) session('proneex_marketing_expires_at', 0);
+
+            if ($campaignId > 0 && $campaignDoctorId === (int) $appointment->doctor_id && $campaignExpiresAt >= now()->timestamp) {
+                $campaign = DB::table('clinic_marketing_campaigns')
+                    ->where('id', $campaignId)
+                    ->where('doctor_id', $appointment->doctor_id)
+                    ->where('status', 'active')
+                    ->where(function ($query) {
+                        $query->whereNull('starts_at')->orWhere('starts_at', '<=', now());
+                    })
+                    ->where(function ($query) {
+                        $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+                    })
+                    ->first();
+
+                if ($campaign) {
+                    DB::table('clinic_marketing_events')->insertOrIgnore([
+                        'campaign_id' => $campaignId,
+                        'appointment_id' => $appointment->id,
+                        'event_type' => 'booking',
+                        'occurred_at' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            session()->forget([
+                'proneex_marketing_campaign_id',
+                'proneex_marketing_doctor_id',
+                'proneex_marketing_expires_at',
+            ]);
+
             return $appointment;
         } catch (ValidationException $exception) {
             throw $exception;
