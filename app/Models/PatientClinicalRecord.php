@@ -37,11 +37,16 @@ class PatientClinicalRecord extends Model
         'is_active',
         'related_record_id',
         'related_allergy_record_id',
+        'reaction_severity',
+        'reaction_date',
+        'action_taken',
+        'reaction_outcome',
     ];
 
     protected $casts = [
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
+        'reaction_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
 
