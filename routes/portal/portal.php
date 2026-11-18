@@ -81,6 +81,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         ])->name('dashboard');
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+        Route::post('/clinic-brain/waitlist', [ClinicBrainController::class, 'storeWaitlist'])->name('clinic-brain.waitlist.store');
+        Route::post('/clinic-brain/waitlist/{entry}/close', [ClinicBrainController::class, 'closeWaitlist'])->whereNumber('entry')->name('clinic-brain.waitlist.close');
 
         Route::get('/operations', [ClinicOperationsController::class, 'index'])->name('operations.index');
         Route::post('/operations/services', [ClinicOperationsController::class, 'storeService'])->name('operations.services.store');

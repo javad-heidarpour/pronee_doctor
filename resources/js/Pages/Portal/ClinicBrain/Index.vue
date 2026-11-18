@@ -85,6 +85,48 @@
         </div>
       </section>
 
+      <section class="grid gap-5 xl:grid-cols-[1fr_1.2fr]">
+        <form @submit.prevent="submitWaitlist" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div><h2 class="font-black text-slate-900">افزودن به فهرست انتظار هوشمند</h2><p class="mt-1 text-xs leading-6 text-slate-500">ثبت درخواست بیمار و یافتن زمان‌های آزاد منطبق؛ تماس فقط با رضایت بیمار انجام می‌شود.</p></div>
+          <label class="block text-xs font-bold text-slate-600">بیمار
+            <select v-model="waitlistForm.patient_id" required class="mt-2 w-full rounded-xl border-slate-300 text-sm">
+              <option value="">انتخاب بیمار</option><option v-for="patient in patients" :key="patient.id" :value="patient.id">{{ patient.name }} · {{ patient.phone || 'بدون تلفن' }}</option>
+            </select>
+          </label>
+          <label class="block text-xs font-bold text-slate-600">شعبه ترجیحی
+            <select v-model="waitlistForm.clinic_id" class="mt-2 w-full rounded-xl border-slate-300 text-sm">
+              <option value="">همه شعب مجاز</option><option v-for="clinic in clinics" :key="clinic.id" :value="clinic.id">{{ clinic.name }}</option>
+            </select>
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-slate-600">از تاریخ<input v-model="waitlistForm.preferred_from" type="date" required class="mt-2 w-full rounded-xl border-slate-300 text-sm"/></label>
+            <label class="text-xs font-bold text-slate-600">تا تاریخ<input v-model="waitlistForm.preferred_until" type="date" required class="mt-2 w-full rounded-xl border-slate-300 text-sm"/></label>
+          </div>
+          <label class="block text-xs font-bold text-slate-600">بازه زمانی
+            <select v-model="waitlistForm.preferred_period" class="mt-2 w-full rounded-xl border-slate-300 text-sm"><option value="any">فرقی ندارد</option><option value="morning">صبح</option><option value="afternoon">بعدازظهر</option></select>
+          </label>
+          <label class="flex items-start gap-2 text-xs leading-6 text-slate-600"><input v-model="waitlistForm.contact_consent" type="checkbox" required class="mt-1 rounded border-slate-300 text-teal-700"/> بیمار برای قرارگرفتن در فهرست انتظار و تماس درباره نوبت جایگزین رضایت داده است.</label>
+          <button :disabled="waitlistSubmitting" class="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50">{{ waitlistSubmitting ? 'در حال ثبت…' : 'ثبت درخواست انتظار' }}</button>
+        </form>
+
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-3"><div><h2 class="font-black text-slate-900">فهرست انتظار و زمان‌های منطبق</h2><p class="mt-1 text-xs text-slate-500">پیشنهادها از اسلات‌های آزاد همین پزشک و شعب مجاز استخراج می‌شوند.</p></div><span class="rounded-lg bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700">{{ waitlist.length }} درخواست</span></div>
+          <div v-if="waitlist.length" class="mt-4 divide-y divide-slate-100">
+            <article v-for="entry in waitlist" :key="entry.id" class="py-4">
+              <div class="flex items-start justify-between gap-3">
+                <div><div class="text-sm font-extrabold text-slate-800">{{ entry.patient?.name || 'بیمار' }}</div><div class="mt-1 text-xs text-slate-500">{{ entry.clinic?.name || 'تمام شعب مجاز' }} · {{ formatDate(entry.preferred_from) }} تا {{ formatDate(entry.preferred_until) }}</div><div class="mt-1 text-xs text-slate-500">{{ entry.preferred_period === 'morning' ? 'صبح' : entry.preferred_period === 'afternoon' ? 'بعدازظهر' : 'هر ساعت' }}</div></div>
+                <button @click="closeWaitlist(entry.id)" class="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50">بستن درخواست</button>
+              </div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <span v-for="slot in entry.matching_slots" :key="slot.id" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">{{ slot.clinic_name }} · {{ formatDate(slot.date) }} · {{ slot.start_time }}</span>
+                <span v-if="!entry.matching_slots?.length" class="text-xs text-slate-400">فعلاً زمان آزادی با ترجیحات این بیمار منطبق نیست.</span>
+              </div>
+            </article>
+          </div>
+          <p v-else class="py-10 text-center text-sm text-slate-400">درخواست فعالی در فهرست انتظار وجود ندارد.</p>
+        </div>
+      </section>
+
       <details class="rounded-2xl border border-slate-200 bg-white p-4 text-sm">
         <summary class="cursor-pointer font-extrabold text-slate-800">روش محاسبه و محدودیت‌های تحلیل</summary>
         <ul class="mt-3 list-disc space-y-2 pr-5 text-xs leading-6 text-slate-600">
@@ -105,6 +147,8 @@ defineProps({
   doctor: { type: Object, default: null },
   clinics: { type: Array, default: () => [] },
   selectedClinicId: { type: Number, default: null },
+  patients: { type: Array, default: () => [] },
+  waitlist: { type: Array, default: () => [] },
   brain: { type: Object, default: () => ({ period: {}, metrics: {}, days: [], available_slots: [], insights: [], methodology: [] }) },
 })
 
@@ -119,6 +163,18 @@ const MetricCard = defineComponent({
     ])
   },
 })
+
+const waitlistSubmitting = ref(false)
+const waitlistForm = reactive({ patient_id: '', clinic_id: '', preferred_from: '', preferred_until: '', preferred_period: 'any', contact_consent: false })
+const submitWaitlist = () => {
+  waitlistSubmitting.value = true
+  router.post(route('portal.clinic-brain.waitlist.store'), waitlistForm, {
+    preserveScroll: true,
+    onFinish: () => { waitlistSubmitting.value = false },
+    onSuccess: () => Object.assign(waitlistForm, { patient_id: '', clinic_id: '', preferred_from: '', preferred_until: '', preferred_period: 'any', contact_consent: false }),
+  })
+}
+const closeWaitlist = (id) => router.post(route('portal.clinic-brain.waitlist.close', id), {}, { preserveScroll: true })
 
 const number = (value) => new Intl.NumberFormat('fa-IR').format(Number(value || 0))
 const percent = (value) => value === null || value === undefined ? 'داده کافی نیست' : number(value) + '٪'
