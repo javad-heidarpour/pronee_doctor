@@ -176,15 +176,7 @@ class ClinicOrganizationController extends Controller
             ]);
             $doctors = $organization->doctors()->wherePivot('status', 'active')->get();
             foreach ($doctors as $doctor) {
-                $doctorClinicIds = $organization->clinics()->where('addresses.doctor_id', $doctor->id)
-                    ->whereIn('addresses.id', $clinicIds)->pluck('addresses.id')->all();
-                if (!$doctorClinicIds) continue;
-                $doctor->secretaries()->syncWithoutDetaching([
-                    $member->id => [
-                        'permissions' => json_encode(array_values(array_unique($data['permissions']))),
-                        'clinic_ids' => json_encode($doctorClinicIds),
-                    ],
-                ]);
+                $this->syncSecretaryDoctorAccess($member, $doctor);
             }
         });
         return back()->with('success', 'کارمند به مجموعه و شعبه‌های انتخاب‌شده متصل شد.');
@@ -196,47 +188,53 @@ class ClinicOrganizationController extends Controller
         $user = $organization->members()->whereKey($member)->firstOrFail();
         DB::transaction(function () use ($organization, $user): void {
             foreach ($organization->doctors()->get() as $doctor) {
-                $remainingAssignments = DB::table('clinic_organization_doctors as organization_doctors')
-                    ->join('clinic_organization_members as organization_members', 'organization_members.organization_id', '=', 'organization_doctors.organization_id')
-                    ->where('organization_doctors.doctor_id', $doctor->id)
-                    ->where('organization_members.user_id', $user->id)
-                    ->where('organization_doctors.status', 'active')
-                    ->where('organization_members.is_active', true)
-                    ->where('organization_doctors.organization_id', '!=', $organization->id)
-                    ->get(['organization_doctors.organization_id', 'organization_members.permissions', 'organization_members.clinic_ids']);
-
-                if ($remainingAssignments->isEmpty()) {
-                    $doctor->secretaries()->detach($user->id);
-                    continue;
-                }
-
-                $permissions = [];
-                $clinicIds = [];
-                foreach ($remainingAssignments as $assignment) {
-                    $assignedPermissions = is_string($assignment->permissions)
-                        ? (json_decode($assignment->permissions, true) ?: [])
-                        : (array) $assignment->permissions;
-                    $assignedClinicIds = is_string($assignment->clinic_ids)
-                        ? (json_decode($assignment->clinic_ids, true) ?: [])
-                        : (array) $assignment->clinic_ids;
-                    $doctorClinicIds = DB::table('clinic_organization_clinics')
-                        ->join('addresses', 'addresses.id', '=', 'clinic_organization_clinics.clinic_id')
-                        ->where('clinic_organization_clinics.organization_id', $assignment->organization_id)
-                        ->where('addresses.doctor_id', $doctor->id)
-                        ->whereIn('addresses.id', $assignedClinicIds)
-                        ->pluck('addresses.id')->map(fn ($id) => (int) $id)->all();
-                    $permissions = array_merge($permissions, $assignedPermissions);
-                    $clinicIds = array_merge($clinicIds, $doctorClinicIds);
-                }
-
-                $doctor->secretaries()->updateExistingPivot($user->id, [
-                    'permissions' => json_encode(array_values(array_unique($permissions))),
-                    'clinic_ids' => json_encode(array_values(array_unique($clinicIds))),
-                ]);
+                $this->syncSecretaryDoctorAccess($user, $doctor);
             }
             $organization->members()->detach($user->id);
         });
         return back()->with('success', 'دسترسی کارمند به مجموعه لغو شد.');
+    }
+
+    private function syncSecretaryDoctorAccess(User $member, Doctor $doctor): void
+    {
+        $assignments = DB::table('clinic_organization_doctors as organization_doctors')
+            ->join('clinic_organization_members as organization_members', 'organization_members.organization_id', '=', 'organization_doctors.organization_id')
+            ->where('organization_doctors.doctor_id', $doctor->id)
+            ->where('organization_members.user_id', $member->id)
+            ->where('organization_doctors.status', 'active')
+            ->where('organization_members.is_active', true)
+            ->get(['organization_doctors.organization_id', 'organization_members.permissions', 'organization_members.clinic_ids']);
+
+        if ($assignments->isEmpty()) {
+            $doctor->secretaries()->detach($member->id);
+            return;
+        }
+
+        $permissions = [];
+        $clinicIds = [];
+        foreach ($assignments as $assignment) {
+            $grantedPermissions = is_string($assignment->permissions)
+                ? (json_decode($assignment->permissions, true) ?: [])
+                : (array) $assignment->permissions;
+            $grantedClinicIds = is_string($assignment->clinic_ids)
+                ? (json_decode($assignment->clinic_ids, true) ?: [])
+                : (array) $assignment->clinic_ids;
+            $doctorClinicIds = DB::table('clinic_organization_clinics')
+                ->join('addresses', 'addresses.id', '=', 'clinic_organization_clinics.clinic_id')
+                ->where('clinic_organization_clinics.organization_id', $assignment->organization_id)
+                ->where('addresses.doctor_id', $doctor->id)
+                ->whereIn('addresses.id', $grantedClinicIds)
+                ->pluck('addresses.id')->map(fn ($id) => (int) $id)->all();
+            $permissions = array_merge($permissions, $grantedPermissions);
+            $clinicIds = array_merge($clinicIds, $doctorClinicIds);
+        }
+
+        $doctor->secretaries()->syncWithoutDetaching([
+            $member->id => [
+                'permissions' => json_encode(array_values(array_unique($permissions))),
+                'clinic_ids' => json_encode(array_values(array_unique($clinicIds))),
+            ],
+        ]);
     }
 
     private function authorizeOwner(ClinicOrganization $organization): void
