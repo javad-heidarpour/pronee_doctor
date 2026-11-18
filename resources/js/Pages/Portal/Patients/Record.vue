@@ -12,6 +12,32 @@
         </Link>
       </header>
 
+      <section v-if="canViewClinicalRecords" class="rounded-2xl border p-4" :class="activeAllergies.length ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50'">
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" :class="activeAllergies.length ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-600'">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.1a2 2 0 0 0-3.4 0Z" />
+            </svg>
+          </span>
+          <div class="min-w-0 flex-1">
+            <h2 class="text-sm font-black" :class="activeAllergies.length ? 'text-rose-800' : 'text-slate-700'">
+              {{ activeAllergies.length ? 'هشدار حساسیت‌های ثبت‌شده' : 'وضعیت حساسیت در پرونده' }}
+            </h2>
+            <div v-if="activeAllergies.length" class="mt-2 flex flex-wrap gap-2">
+              <span v-for="allergy in activeAllergies" :key="allergy.id" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-800">
+                {{ allergy.title }}
+              </span>
+            </div>
+            <p v-else class="mt-1 text-xs leading-6 text-slate-600">
+              در این پرونده حساسیت فعالی ثبت نشده است؛ این موضوع به‌تنهایی به معنی تأیید نبود حساسیت در بیمار نیست.
+            </p>
+            <p v-if="activeAllergies.length" class="mt-2 text-[11px] leading-5 text-rose-700">
+              پیش از تجویز یا انجام اقدام درمانی، اطلاعات حساسیت را با بیمار و منابع معتبر تطبیق دهید.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <p class="text-xs font-bold text-slate-500">شماره تماس</p>
@@ -330,6 +356,9 @@ const patient = computed(() => {
     vital_signs: profile.vital_signs || [],
   };
 });
+
+const activeAllergies = computed(() => (patient.value.clinical_records || [])
+  .filter(record => record.kind === 'allergy' && record.is_active));
 
 const vitalTypes = [
   { value: 'systolic_bp', label: 'فشار خون سیستولیک', unit: 'mmHg' },
