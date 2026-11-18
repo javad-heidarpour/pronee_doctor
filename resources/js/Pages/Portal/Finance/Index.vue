@@ -4,7 +4,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
-  doctor: Object, clinics: Array, patients: Array, plans: Object,
+  doctor: Object, canManage: Boolean, clinics: Array, patients: Array, plans: Object,
   installments: Array, expenses: Array, stats: Object,
 })
 
@@ -87,7 +87,7 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
         <div v-else class="space-y-3">
           <article v-for="row in installments" :key="row.id" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
             <div><p class="font-bold text-slate-800">{{ row.plan?.patient?.name }} — {{ row.plan?.title }}</p><p class="mt-1 text-xs text-slate-500">{{ row.plan?.clinic?.name }} · قسط {{ row.sequence || 'پیش‌پرداخت' }} · سررسید {{ row.due_date }}</p><p class="mt-1 text-xs text-slate-600">مبلغ: {{ money(row.amount) }} · پرداخت‌شده: {{ money(row.paid_amount) }} · مانده: {{ money(row.amount-row.paid_amount) }}</p></div>
-            <button @click="pay(row)" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">ثبت دریافت</button>
+            <button v-if="canManage" @click="pay(row)" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">ثبت دریافت</button>
           </article>
         </div>
       </section>
@@ -95,7 +95,7 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
       <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 class="mb-4 font-extrabold">طرح‌های درمان و وثایق</h2>
         <div v-for="plan in plans.data" :key="plan.id" class="mb-3 rounded-xl border border-slate-200 p-3">
-          <div class="flex flex-wrap items-center justify-between gap-2"><div><p class="font-bold">{{ plan.patient?.name }} — {{ plan.title }}</p><p class="text-xs text-slate-500">{{ plan.clinic?.name }} · {{ plan.specialty_module }} · مبلغ خالص {{ money(plan.net_amount ?? (plan.total_amount-plan.discount_amount)) }}</p></div><button @click="addCollateral(plan)" class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800">ثبت وثیقه +</button></div>
+          <div class="flex flex-wrap items-center justify-between gap-2"><div><p class="font-bold">{{ plan.patient?.name }} — {{ plan.title }}</p><p class="text-xs text-slate-500">{{ plan.clinic?.name }} · {{ plan.specialty_module }} · مبلغ خالص {{ money(plan.net_amount ?? (plan.total_amount-plan.discount_amount)) }}</p></div><button v-if="canManage" @click="addCollateral(plan)" class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800">ثبت وثیقه +</button></div>
           <div v-if="plan.collaterals?.length" class="mt-3 flex flex-wrap gap-2"><span v-for="item in plan.collaterals" :key="item.id" class="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900">{{ item.type }} · {{ item.identifier || 'بدون شناسه' }} · {{ item.status }}</span></div>
         </div>
         <div v-if="plans.links?.length" class="mt-4 flex flex-wrap gap-2"><button v-for="link in plans.links" :key="link.label" :disabled="!link.url" @click="router.get(link.url)" class="rounded-lg border px-3 py-2 text-xs disabled:opacity-40" v-html="link.label" /></div>
