@@ -66,7 +66,13 @@ final class ClinicIntelligenceController extends Controller
             ->whereIn('clinic_id', $clinicIds)->where('appointment_date', '>=', now()->subDays(90)->toDateString())
             ->whereNotIn('status', ['cancelled', 'rejected']);
         $appointmentCount = (clone $appointments)->count();
-        $revenue = (int) (clone $appointments)->sum('fee_rial');
+        $paidPayments = DB::table('appointment_payments as payments')
+            ->join('appointments as a', 'a.id', '=', 'payments.appointment_id')
+            ->where('a.doctor_id', $doctor->id)->whereIn('a.clinic_id', $clinicIds)
+            ->where('payments.status', 'paid')->whereNotNull('payments.paid_at')
+            ->where('payments.paid_at', '>=', now()->subDays(90));
+        $revenue = (int) (clone $paidPayments)->sum('payments.amount_rial');
+        $paidAppointmentCount = (int) (clone $paidPayments)->distinct('a.id')->count('a.id');
         $expenses = (int) DB::table('clinic_expenses')->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())->sum('amount');
 
@@ -85,7 +91,7 @@ final class ClinicIntelligenceController extends Controller
                 'monthly_appointments' => round($appointmentCount / 3, 1),
                 'monthly_revenue' => (int) round($revenue / 3),
                 'monthly_expenses' => (int) round($expenses / 3),
-                'average_fee' => $appointmentCount > 0 ? (int) round($revenue / $appointmentCount) : 0,
+                'average_fee' => $paidAppointmentCount > 0 ? (int) round($revenue / $paidAppointmentCount) : 0,
             ],
         ]);
     }
@@ -217,7 +223,12 @@ final class ClinicIntelligenceController extends Controller
             ->whereNotIn('status', ['cancelled', 'rejected'])
             ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('clinic_id', $clinicId));
         $baselineCount = (int) (clone $last90)->count();
-        $baselineRevenue = (int) (clone $last90)->sum('fee_rial') / 3;
+        $paidPayments = DB::table('appointment_payments as payments')
+            ->join('appointments as a', 'a.id', '=', 'payments.appointment_id')
+            ->where('a.doctor_id', $doctor->id)->where('payments.status', 'paid')
+            ->whereNotNull('payments.paid_at')->where('payments.paid_at', '>=', now()->subDays(90))
+            ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('a.clinic_id', $clinicId));
+        $baselineRevenue = (int) (clone $paidPayments)->sum('payments.amount_rial') / 3;
         $expenseQuery = DB::table('clinic_expenses')->where('doctor_id', $doctor->id)
             ->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())
             ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('clinic_id', $clinicId));
