@@ -45,6 +45,7 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
       <header class="rounded-2xl bg-gradient-to-l from-teal-900 to-cyan-800 p-6 text-white">
         <p class="text-xs font-bold text-teal-100">PRONEEX MEDICAL NETWORK</p>
         <h1 class="mt-2 text-2xl font-black">شبکه همکاری و ارجاع پزشکی</h1>
+        <a :href="route('portal.medical-network.contracts.index')" class="mt-3 inline-flex rounded-lg bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25">مدیریت قراردادها و تسویه همکاری</a>
         <p class="mt-2 max-w-3xl text-sm leading-7 text-teal-50">اتصال حرفه‌ای پزشکان، آزمایشگاه‌ها، مراکز تصویربرداری و توان‌بخشی؛ ثبت ارجاع قابل رهگیری و پیگیری پاسخ مرکز مقصد.</p>
         <div class="mt-4 flex flex-wrap gap-3 text-xs"><span class="rounded-full bg-white/15 px-3 py-2">{{ providers.total }} مرکز فعال در فهرست</span><span class="rounded-full bg-white/15 px-3 py-2">{{ receivedCount }} ارجاع دریافتی باز</span><span class="rounded-full bg-white/15 px-3 py-2">{{ outgoing.length }} ارجاع ارسالی اخیر</span></div>
       </header>
