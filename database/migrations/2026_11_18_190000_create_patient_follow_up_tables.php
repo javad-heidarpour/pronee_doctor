@@ -71,6 +71,7 @@ return new class extends Migration
         Schema::create('patient_follow_up_tasks', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('doctor_id')->constrained('doctors')->cascadeOnDelete();
+            $table->foreignId('clinic_id')->nullable()->constrained('addresses')->nullOnDelete();
             $table->foreignId('patient_id')->constrained('patients')->cascadeOnDelete();
             $table->foreignId('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
             $table->foreignId('template_id')->nullable()->constrained('patient_follow_up_templates')->nullOnDelete();
@@ -93,7 +94,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('sms_attempts')->default(0);
             $table->string('last_sms_error', 500)->nullable();
             $table->timestamps();
-            $table->index(['doctor_id', 'status', 'due_at']);
+            $table->index(['doctor_id', 'clinic_id', 'status', 'due_at']);
             $table->index(['patient_id', 'due_at']);
             $table->index(['assigned_to', 'status', 'due_at']);
             $table->index(['sms_sent_at', 'sms_attempted_at', 'due_at'], 'follow_up_sms_dispatch_index');
