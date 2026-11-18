@@ -26,6 +26,6 @@ class RegisteredUserController extends Controller
         $data = RegisterPublicUserData::fromValidated($request->validated());
         $action->handle($data);
 
-        return redirect()->route('home');
+        return redirect()->route('patient.health.index');
     }
 }

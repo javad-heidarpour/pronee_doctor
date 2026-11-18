@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
+use App\Http\Controllers\PatientHealthController;
 
 require __DIR__ . '/template.php';
 require __DIR__ . '/portal/portal.php';
@@ -20,6 +21,13 @@ Route::get('/c/{code}', [ClinicMarketingController::class, 'track'])->where('cod
 
 Route::get('/', [HomeController::class, 'Home'])
     ->name('home');
+
+Route::middleware('auth:web')->prefix('my-health')->name('patient.health.')->controller(PatientHealthController::class)->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::post('/access-request', 'requestAccess')->middleware('throttle:5,1')->name('access.request');
+    Route::post('/caregivers', 'grantCaregiver')->middleware('throttle:5,1')->name('caregivers.store');
+    Route::delete('/caregivers/{access}', 'revokeCaregiver')->whereNumber('access')->name('caregivers.revoke');
+});
 
 Route::get('/{doctor:slug}', [HomeController::class, 'showDoctor'])
     ->name('home1');

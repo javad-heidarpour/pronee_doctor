@@ -33,7 +33,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('home', absolute: false));
+        $destination = $request->user()?->role === 'user'
+            ? route('patient.health.index', absolute: false)
+            : route('home', absolute: false);
+
+        return redirect()->intended($destination);
     }
 
     /**

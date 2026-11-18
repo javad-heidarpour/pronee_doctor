@@ -218,6 +218,16 @@
           </Link>
 
           <Link
+            v-if="['doctor', 'secretary', 'admin'].includes(currentUser.role)"
+            :href="route('portal.patient-access-requests.index')"
+            @click="closeMobileMenu"
+            class="relative flex items-center gap-3 rounded-xl px-3 py-3 text-slate-600 hover:bg-teal-50 hover:text-teal-700 transition-all"
+          >
+            <span class="w-6 h-6 shrink-0 flex items-center justify-center text-lg">🪪</span>
+            <span v-if="!isSidebarCollapsed" class="flex-1 text-[13px] font-medium truncate">درخواست‌های دسترسی بیماران</span>
+          </Link>
+
+          <Link
             :href="route('portal.security.sessions')"
             @click="closeMobileMenu"
             :class="[

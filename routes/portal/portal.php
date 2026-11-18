@@ -14,6 +14,7 @@ use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
 use App\Http\Controllers\Portal\MedicalNetworkController;
+use App\Http\Controllers\Portal\PatientAccessRequestController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -84,6 +85,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         ])->name('dashboard');
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+
+        Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
+        Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');
+        Route::patch('/patient-access-requests/{accessRequest}/reject', [PatientAccessRequestController::class, 'reject'])->whereNumber('accessRequest')->name('patient-access-requests.reject');
 
         Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');
         Route::get('/medical-network/review', [MedicalNetworkController::class, 'review'])->name('medical-network.review');
