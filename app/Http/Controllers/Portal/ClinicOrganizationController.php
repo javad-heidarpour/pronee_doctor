@@ -44,6 +44,7 @@ class ClinicOrganizationController extends Controller
             'clinics' => $clinics,
             'isAdmin' => $user->role === 'admin',
             'currentDoctorId' => $user->doctorProfile()->value('id'),
+            'availableStaff' => User::query()->where('role', 'secretary')->where('is_active', true)->orderBy('name')->get(['id','name','family','phone']),
         ]);
     }
 
@@ -131,6 +132,66 @@ class ClinicOrganizationController extends Controller
         $organization->clinics()->syncWithoutDetaching([$clinic->id => ['branch_code' => $data['branch_code'] ?? null, 'status' => 'active']]);
         $clinic->update(['organization_id' => $organization->id]);
         return back()->with('success', 'شعبه به مجموعه متصل شد.');
+    }
+
+    public function inviteMember(Request $request, ClinicOrganization $organization)
+    {
+        $this->authorizeOwner($organization);
+        $allowed = [
+            'appointments.view','appointments.manage','patients.view','patients.manage',
+            'patients.clinical.view','patients.clinical.manage','clinics.view',
+            'shifts.view','shifts.manage','working-hours.view','working-hours.manage',
+            'finance.view','finance.manage','services.view','services.manage',
+            'inventory.view','inventory.manage',
+        ];
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'role' => [Rule::in(['receptionist','accountant','clinic_manager','inventory_manager','secretary'])],
+            'permissions' => ['required', 'array', 'min:1'],
+            'permissions.*' => [Rule::in($allowed)],
+            'clinic_ids' => ['required', 'array', 'min:1'],
+            'clinic_ids.*' => ['integer', 'distinct'],
+        ]);
+        $member = User::query()->whereKey($data['user_id'])->where('role', 'secretary')->where('is_active', true)->firstOrFail();
+        $clinicIds = $organization->clinics()->whereIn('addresses.id', $data['clinic_ids'])->pluck('addresses.id')->map(fn ($id) => (int) $id)->all();
+        abort_unless(count($clinicIds) === count($data['clinic_ids']), 422, 'یکی از شعب انتخاب‌شده متعلق به این مجموعه نیست.');
+
+        DB::transaction(function () use ($organization, $member, $data, $clinicIds): void {
+            $organization->members()->syncWithoutDetaching([
+                $member->id => [
+                    'role' => $data['role'] ?? 'secretary',
+                    'permissions' => json_encode(array_values(array_unique($data['permissions']))),
+                    'clinic_ids' => json_encode($clinicIds),
+                    'is_active' => true,
+                ],
+            ]);
+            $doctors = $organization->doctors()->wherePivot('status', 'active')->get();
+            foreach ($doctors as $doctor) {
+                $doctorClinicIds = $organization->clinics()->where('addresses.doctor_id', $doctor->id)
+                    ->whereIn('addresses.id', $clinicIds)->pluck('addresses.id')->all();
+                if (!$doctorClinicIds) continue;
+                $doctor->secretaries()->syncWithoutDetaching([
+                    $member->id => [
+                        'permissions' => json_encode(array_values(array_unique($data['permissions']))),
+                        'clinic_ids' => json_encode($doctorClinicIds),
+                    ],
+                ]);
+            }
+        });
+        return back()->with('success', 'کارمند به مجموعه و شعبه‌های انتخاب‌شده متصل شد.');
+    }
+
+    public function removeMember(ClinicOrganization $organization, int $member)
+    {
+        $this->authorizeOwner($organization);
+        $user = $organization->members()->whereKey($member)->firstOrFail();
+        DB::transaction(function () use ($organization, $user): void {
+            foreach ($organization->doctors()->get() as $doctor) {
+                $doctor->secretaries()->detach($user->id);
+            }
+            $organization->members()->detach($user->id);
+        });
+        return back()->with('success', 'دسترسی کارمند به مجموعه لغو شد.');
     }
 
     private function authorizeOwner(ClinicOrganization $organization): void
