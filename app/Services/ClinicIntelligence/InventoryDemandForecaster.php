@@ -79,11 +79,15 @@ final class InventoryDemandForecaster
             $daysRemaining = $dailyDemand > 0 ? $stock / $dailyDemand : null;
             $lead = max(1, (int) $item->lead_time_days);
             $safety = max(0, (int) $item->safety_stock_days);
-            $reorderIn = $daysRemaining === null ? null : max(0, (int) floor($daysRemaining - $lead - $safety));
+            $belowMinimum = $stock <= (float) $item->minimum_quantity;
+            $reorderIn = $belowMinimum ? 0 : ($daysRemaining === null ? null : max(0, (int) floor($daysRemaining - $lead - $safety)));
             $targetDays = $lead + $safety + $horizonDays;
             $suggestedQty = max(0, (int) ceil(($dailyDemand * $targetDays) - $stock));
+            if ($belowMinimum) {
+                $suggestedQty = max($suggestedQty, (int) ceil(((float) $item->minimum_quantity * 2) - $stock));
+            }
             $risk = $stock <= 0 ? 'out' : (($daysRemaining !== null && $daysRemaining <= $lead) ? 'critical' :
-                (($daysRemaining !== null && $daysRemaining <= ($lead + $safety)) ? 'warning' : 'healthy'));
+                (($belowMinimum || ($daysRemaining !== null && $daysRemaining <= ($lead + $safety))) ? 'warning' : 'healthy'));
 
             $rows[] = [
                 'id' => (int) $item->id, 'clinic_id' => (int) $item->clinic_id,
