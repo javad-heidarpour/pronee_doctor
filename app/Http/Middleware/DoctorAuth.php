@@ -153,6 +153,22 @@ class DoctorAuth
             return 'patients.clinical.manage';
         }
 
+        $specific = [
+            'portal.operations.index' => 'services.view',
+            'portal.operations.services.store' => 'services.manage',
+            'portal.operations.treatment-items.store' => 'patients.clinical.manage',
+            'portal.operations.treatment-items.update' => 'patients.clinical.manage',
+            'portal.operations.dental-chart.store' => 'patients.clinical.manage',
+            'portal.operations.inventory.store' => 'inventory.manage',
+            'portal.operations.inventory.movements.store' => 'inventory.manage',
+            'portal.operations.settlements.store' => 'finance.manage',
+            'portal.operations.settlements.approve' => 'finance.manage',
+            'portal.operations.settlements.pay' => 'finance.manage',
+        ];
+        if (isset($specific[$routeName])) {
+            return $specific[$routeName];
+        }
+
         $map = [
             'portal.patients.' => 'patients',
             'portal.follow-ups.' => 'patients',
