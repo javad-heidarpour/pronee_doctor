@@ -147,7 +147,7 @@ final class PatientEncounterController extends Controller
             'doctor' => $doctor,
             'appointment' => $encounter->appointment->load('clinic:id,name'),
             'patient' => $encounter->patient,
-            'context' => $encounter->clinical_snapshot ?? [],
+            'context' => $this->clinicalContext($encounter->patient, $doctor->id),
             'encounter' => null,
             'amendsEncounter' => $encounter,
         ]);
