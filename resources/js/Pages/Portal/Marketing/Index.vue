@@ -62,7 +62,7 @@ const submit = () => form.post(route('portal.marketing.store'), { onSuccess: () 
             <a :href="campaign.share_url" target="_blank" rel="noopener" class="break-all text-xs font-semibold text-teal-700 underline">{{ campaign.share_url }}</a>
             <button @click="copyLink(campaign.share_url)" class="rounded-lg bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800">کپی لینک</button>
           </div>
-          <p v-if="campaign.budget_rial" class="mt-2 text-xs text-slate-500">بودجه ثبت‌شده: {{ money(campaign.budget_rial) }}</p>
+          <p v-if="campaign.budget_rial" class="mt-2 text-xs text-slate-500">بودجه ثبت‌شده: {{ money(campaign.budget_rial) }} <span v-if="campaign.cost_per_booking !== null">· هزینه هر نوبت منتسب: {{ money(campaign.cost_per_booking) }}</span></p>
         </article>
         <div v-if="!campaigns.length" class="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">هنوز کمپینی ثبت نشده است. اولین لینک بازاریابی خود را بسازید.</div>
       </section>
