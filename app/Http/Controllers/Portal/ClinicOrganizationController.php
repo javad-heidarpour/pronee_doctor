@@ -111,7 +111,7 @@ class ClinicOrganizationController extends Controller
             'revenue_share_basis_points' => ['required', 'integer', 'min:0', 'max:10000'],
             'role' => ['required', Rule::in(['practitioner', 'clinical_lead', 'manager'])],
         ]);
-        $doctor = Doctor::query()->whereKey($data['doctor_id'])->where('is_active', true)->firstOrFail();
+        $doctor = Doctor::query()->whereKey($data['doctor_id'])->where('is_active', true)->whereHas('user', fn ($q) => $q->where('is_active', true))->firstOrFail();
         abort_if($organization->doctors()->whereKey($doctor->id)->exists(), 409, 'این پزشک قبلاً به مجموعه اضافه شده است.');
         $organization->doctors()->attach($doctor->id, [
             'role' => $data['role'], 'status' => 'pending',
