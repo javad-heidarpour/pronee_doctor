@@ -26,13 +26,14 @@ class ClinicRevenueOptimizerController extends Controller
 
         $validated = $request->validate([
             'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'to' => ['nullable', 'date'],
             'clinic_id' => ['nullable', 'integer'],
         ]);
 
         $to = isset($validated['to']) ? Carbon::parse($validated['to'])->toDateString() : today()->toDateString();
         $from = isset($validated['from']) ? Carbon::parse($validated['from'])->toDateString() : today()->subDays(29)->toDateString();
 
+        abort_if($to < $from, 422, 'تاریخ پایان باید مساوی یا بعد از تاریخ شروع باشد.');
         abort_if(Carbon::parse($from)->diffInDays(Carbon::parse($to)) > 365, 422, 'بازه گزارش نمی‌تواند بیشتر از ۳۶۶ روز باشد.');
 
         $clinicId = isset($validated['clinic_id']) ? (int) $validated['clinic_id'] : null;
