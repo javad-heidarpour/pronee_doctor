@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('appointment_id')->constrained('appointments')->cascadeOnDelete();
             $table->foreignId('clinic_id')->constrained('addresses')->restrictOnDelete();
             $table->foreignId('author_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('signed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('note_type', 32)->default('consultation');
             $table->string('status', 16)->default('draft');
             $table->text('subjective')->nullable();
