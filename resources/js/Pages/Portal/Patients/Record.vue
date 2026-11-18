@@ -133,6 +133,18 @@
           <span class="rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700">محرمانه</span>
         </div>
 
+        <div v-if="bmiSummary" class="grid grid-cols-1 gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div>
+            <h3 class="text-sm font-black text-slate-800">شاخص توده بدنی (BMI)</h3>
+            <p class="mt-1 text-xs leading-6 text-slate-600">محاسبه اطلاعاتی بر اساس آخرین قد و وزن ثبت‌شده؛ این عدد به‌تنهایی ابزار تشخیص پزشکی نیست.</p>
+            <p class="mt-1 text-[10px] text-slate-500">قد: {{ bmiSummary.height }} سانتی‌متر · وزن: {{ bmiSummary.weight }} کیلوگرم</p>
+          </div>
+          <div class="rounded-xl bg-white px-5 py-3 text-center shadow-sm">
+            <p class="text-[10px] font-bold text-slate-500">مقدار محاسبه‌شده</p>
+            <p class="mt-1 text-2xl font-black text-sky-800" dir="ltr">{{ bmiSummary.value }}</p>
+          </div>
+        </div>
+
         <div v-if="patient.vital_signs?.length" class="space-y-3 rounded-xl border border-slate-100 p-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -335,6 +347,28 @@ const vitalChartPoints = computed(() => {
   }));
 });
 const vitalChartPolyline = computed(() => vitalChartPoints.value.map(point => `${point.x},${point.y}`).join(' '));
+const bmiSummary = computed(() => {
+  const records = patient.value.vital_signs || [];
+  const latestOf = (type) => records
+    .filter(item => item.measurement_type === type)
+    .slice()
+    .sort((a, b) => new Date(b.measured_at) - new Date(a.measured_at))[0];
+
+  const heightRecord = latestOf('height');
+  const weightRecord = latestOf('weight');
+  if (!heightRecord || !weightRecord) return null;
+
+  const heightMeters = Number(heightRecord.value) / 100;
+  const weightKg = Number(weightRecord.value);
+  if (!Number.isFinite(heightMeters) || !Number.isFinite(weightKg) || heightMeters <= 0 || weightKg <= 0) return null;
+
+  return {
+    value: (weightKg / (heightMeters * heightMeters)).toFixed(1),
+    height: Number(heightRecord.value),
+    weight: weightKg,
+  };
+});
+
 const vitalChartStats = computed(() => {
   const records = vitalChartHistory.value;
   if (!records.length) return { latest: '—', min: '—', max: '—', unit: '', firstDate: '', lastDate: '' };
