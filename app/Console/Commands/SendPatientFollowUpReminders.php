@@ -27,9 +27,12 @@ class SendPatientFollowUpReminders extends Command
         $counts = ['sent' => 0, 'failed' => 0];
         PatientFollowUpTask::query()
             ->where('status', 'pending')
-            ->whereIn('contact_method', ['sms', 'call'])
+            ->where('send_sms', true)
             ->whereNull('sms_sent_at')
-            ->whereNull('sms_attempted_at')
+            ->where('sms_attempts', '<', 3)
+            ->where(function ($q): void {
+                $q->whereNull('sms_attempted_at')->orWhere('sms_attempted_at', '<=', now()->subMinutes(30));
+            })
             ->where('due_at', '<=', now())
             ->whereHas('patient', fn ($q) => $q->whereNotNull('phone')->where('phone', '!=', ''))
             ->with('patient:id,name,phone')
@@ -38,7 +41,12 @@ class SendPatientFollowUpReminders extends Command
                 foreach ($tasks as $task) {
                     // Claim before sending so overlapping scheduler runs cannot duplicate a message.
                     $claimed = PatientFollowUpTask::query()
-                        ->whereKey($task->id)->whereNull('sms_attempted_at')
+                        ->whereKey($task->id)
+                        ->whereNull('sms_sent_at')
+                        ->where('sms_attempts', '<', 3)
+                        ->where(function ($q): void {
+                            $q->whereNull('sms_attempted_at')->orWhere('sms_attempted_at', '<=', now()->subMinutes(30));
+                        })
                         ->update(['sms_attempted_at' => now(), 'sms_attempts' => $task->sms_attempts + 1]);
 
                     if (!$claimed) {
