@@ -137,6 +137,7 @@ class ClinicOrganizationController extends Controller
         $data = $request->validate(['clinic_id' => ['required', 'integer', 'exists:addresses,id'], 'branch_code' => ['nullable', 'string', 'max:40']]);
         $doctorIds = $organization->doctors()->wherePivot('status', 'active')->pluck('doctors.id');
         $clinic = \App\Models\Address::query()->whereKey($data['clinic_id'])->whereIn('doctor_id', $doctorIds)->firstOrFail();
+        abort_if($clinic->organization_id && (int) $clinic->organization_id !== (int) $organization->id, 409, 'این شعبه قبلاً به مجموعه دیگری متصل شده است.');
         $organization->clinics()->syncWithoutDetaching([$clinic->id => ['branch_code' => $data['branch_code'] ?? null, 'status' => 'active']]);
         $clinic->update(['organization_id' => $organization->id]);
         return back()->with('success', 'شعبه به مجموعه متصل شد.');
