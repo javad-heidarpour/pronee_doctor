@@ -6,6 +6,7 @@ namespace App\Actions\Portal\Patient;
 
 use App\Models\Patient;
 use App\Models\PatientClinicalRecord;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 final class SavePatientClinicalRecordAction
@@ -35,7 +36,7 @@ final class SavePatientClinicalRecordAction
                 if (!$relatedRecord ||
                     ($record && (int) $record->id === (int) $relatedRecordId) ||
                     ($data['kind'] ?? null) !== PatientClinicalRecord::KIND_ADVERSE_REACTION) {
-                    throw new \\Illuminate\\Database\\Eloquent\\ModelNotFoundException('Related medication record not found.');
+                    throw new ModelNotFoundException('Related medication record not found.');
                 }
             }
 
