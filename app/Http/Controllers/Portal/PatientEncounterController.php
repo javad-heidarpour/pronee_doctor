@@ -38,7 +38,7 @@ final class PatientEncounterController extends Controller
             ->where('doctor_id', $doctor->id)
             ->where('patient_id', $appointment->patient_id)
             ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
-            ->with(['author:id,name,family', 'clinic:id,name', 'prescriptions'])
+            ->with(['author:id,name,family', 'clinic:id,name', 'prescriptions', 'amendedFrom:id'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -117,7 +117,7 @@ final class PatientEncounterController extends Controller
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeClinicalView($doctor);
 
-        $encounter->load(['patient', 'appointment', 'clinic', 'author:id,name,family', 'prescriptions']);
+        $encounter->load(['patient', 'appointment', 'clinic', 'author:id,name,family', 'signer:id,name,family', 'prescriptions']);
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,
