@@ -42,6 +42,7 @@ class SendPatientFollowUpReminders extends Command
                     // Claim before sending so overlapping scheduler runs cannot duplicate a message.
                     $claimed = PatientFollowUpTask::query()
                         ->whereKey($task->id)
+                        ->where('status', 'pending')
                         ->whereNull('sms_sent_at')
                         ->where('sms_attempts', '<', 3)
                         ->where(function ($q): void {
