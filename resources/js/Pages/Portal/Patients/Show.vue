@@ -41,6 +41,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <Link :href="route('portal.encounters.index', appointment.id)" class="rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-sm font-bold text-teal-800">تاریخچه ویزیت‌ها</Link>
+          <Link v-if="appointment.patient_id" :href="route('portal.patients.360', appointment.patient_id)" class="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-bold text-indigo-800">پرونده ۳۶۰ درجه بیمار</Link>
           <Link :href="route('portal.encounters.create', appointment.id)" class="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white">ثبت یادداشت ویزیت</Link>
         </div>
       </section>

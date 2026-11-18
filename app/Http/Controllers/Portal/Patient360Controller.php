@@ -40,8 +40,8 @@ final class Patient360Controller extends Controller
         $user = Auth::guard('web')->user();
         $isSecretary = $user?->role === 'secretary';
         $canViewClinical = !$isSecretary
-            || $this->hasSecretaryPermission($doctor, 'patients.clinical.view')
-            || $this->hasSecretaryPermission($doctor, 'patients.clinical.manage');
+            || $this->secretaryHasPermission($doctor, 'patients.clinical.view')
+            || $this->secretaryHasPermission($doctor, 'patients.clinical.manage');
 
         $appointments = $patient->appointments()
             ->whereIn('clinic_id', $clinicIds)
@@ -176,7 +176,7 @@ final class Patient360Controller extends Controller
                 ])->values(),
             ])->values(),
             'appointments' => $appointments->map(fn ($item) => [
-                'id'=>$item->id,'date'=>$item->appointment_date?->format('Y-m-d'),
+                'id'=>$item->id,'date'=>$item->appointment_date ? Carbon::parse($item->appointment_date)->toDateString() : null,
                 'time'=>$item->appointment_time,'status'=>$item->status,'clinic'=>$item->clinic?->name,
                 'visit_number'=>$item->visit_number,
             ])->values(),
@@ -206,6 +206,22 @@ final class Patient360Controller extends Controller
                 'generated_at' => now()->toIso8601String(),
             ],
         ]);
+    }
+
+    private function secretaryHasPermission(Doctor $doctor, string $permission): bool
+    {
+        $user = Auth::guard('web')->user();
+        if (!$user || $user->role !== 'secretary') {
+            return true;
+        }
+
+        $assignment = $user->doctors()->where('doctors.id', $doctor->id)->first();
+        $permissions = $assignment?->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        return is_array($permissions) && in_array($permission, $permissions, true);
     }
 
     private function timelineItem(string $type, $date, string $title, ?string $description, string $status, int $id): array
