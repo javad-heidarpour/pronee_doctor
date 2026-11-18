@@ -211,6 +211,7 @@ return new class extends Migration
             $table->timestamps();
             $table->index(['organization_id', 'period_start', 'status']);
             $table->index(['staff_user_id', 'period_start']);
+            $table->unique(['organization_id', 'staff_user_id', 'period_start', 'period_end'], 'clinic_staff_payroll_period_unique');
         });
 
         Schema::create('clinic_inventory_items', function (Blueprint $table): void {
