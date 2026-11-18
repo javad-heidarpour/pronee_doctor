@@ -104,6 +104,7 @@
               <select v-model="task._outcome" class="rounded-lg border-slate-300 text-sm"><option value="">نتیجه تماس</option><option value="reached">ارتباط برقرار شد</option><option value="no_answer">پاسخ نداد</option><option value="rescheduled">زمان جدید تعیین شد</option><option value="referred">ارجاع شد</option><option value="needs_visit">نیازمند مراجعه</option><option value="other">سایر</option></select>
               <input v-model="task._notes" placeholder="شرح نتیجه یا اقدام بعدی" class="rounded-lg border-slate-300 text-sm" />
               <select v-model="task.assigned_to" class="rounded-lg border-slate-300 text-sm"><option value="">بدون مسئول مشخص</option><option v-for="secretary in secretaries" :key="secretary.id" :value="secretary.id">{{ secretary.name }} {{ secretary.family || '' }}</option></select>
+              <input v-model="task._due_at" type="datetime-local" class="rounded-lg border-slate-300 text-sm" aria-label="زمان جدید پیگیری" />
               <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-bold text-white">ثبت نتیجه</button>
             </form>
           </article>
@@ -175,6 +176,7 @@ const saveResult = (task) => router.put(route('portal.follow-ups.update', task.i
   outcome: task._outcome || null,
   result_notes: task._notes || null,
   assigned_to: task.assigned_to || null,
+  ...(task._due_at ? { due_at: task._due_at } : {}),
 }, { preserveScroll: true })
 const applyFilters = () => router.get(route('portal.follow-ups.index'), filters, { preserveState: true, replace: true })
 const formatDate = (value) => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
