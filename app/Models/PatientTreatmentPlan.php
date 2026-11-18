@@ -14,7 +14,7 @@ class PatientTreatmentPlan extends Model
         'doctor_id', 'clinic_id', 'patient_id', 'created_by', 'title',
         'specialty_module', 'status', 'total_amount', 'discount_amount',
         'deposit_amount', 'installment_count', 'clinical_notes',
-        'organization_id', 'financial_terms', 'sms_reminders_enabled', 'sms_consent_confirmed', 'sms_consent_confirmed_at', 'sms_consent_recorded_by', 'follow_up_sms_enabled', 'follow_up_sms_consent_confirmed', 'follow_up_sms_consent_confirmed_at', 'follow_up_sms_consent_recorded_by', 'started_at', 'completed_at',
+        'organization_id', 'financial_terms', 'sms_reminders_enabled', 'sms_consent_confirmed', 'sms_consent_confirmed_at', 'sms_consent_recorded_by', 'sms_consent_revoked_at', 'follow_up_sms_enabled', 'follow_up_sms_consent_confirmed', 'follow_up_sms_consent_confirmed_at', 'follow_up_sms_consent_recorded_by', 'follow_up_sms_consent_revoked_at', 'started_at', 'completed_at',
     ];
 
     protected $casts = [
@@ -22,8 +22,8 @@ class PatientTreatmentPlan extends Model
         'deposit_amount' => 'integer', 'installment_count' => 'integer',
         'started_at' => 'date', 'completed_at' => 'date',
         'sms_reminders_enabled' => 'boolean', 'sms_consent_confirmed' => 'boolean',
-        'sms_consent_confirmed_at' => 'datetime', 'follow_up_sms_enabled' => 'boolean',
-        'follow_up_sms_consent_confirmed' => 'boolean', 'follow_up_sms_consent_confirmed_at' => 'datetime',
+        'sms_consent_confirmed_at' => 'datetime', 'sms_consent_revoked_at' => 'datetime', 'follow_up_sms_enabled' => 'boolean',
+        'follow_up_sms_consent_confirmed' => 'boolean', 'follow_up_sms_consent_confirmed_at' => 'datetime', 'follow_up_sms_consent_revoked_at' => 'datetime',
     ];
 
     public function organization(): BelongsTo { return $this->belongsTo(ClinicOrganization::class, 'organization_id'); }
