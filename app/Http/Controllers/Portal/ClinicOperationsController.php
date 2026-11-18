@@ -186,7 +186,7 @@ class ClinicOperationsController extends Controller
             }
 
             if ($row->service_id) {
-                $requirements = \\App\\Models\\ClinicServiceInventoryRequirement::query()
+                $requirements = \App\Models\ClinicServiceInventoryRequirement::query()
                     ->where('service_id', $row->service_id)->with('inventoryItem')->get();
                 foreach ($requirements as $requirement) {
                     $stock = ClinicInventoryItem::query()->whereKey($requirement->inventory_item_id)
