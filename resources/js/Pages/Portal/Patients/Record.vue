@@ -38,6 +38,29 @@
         </div>
       </section>
 
+      <section v-if="canViewClinicalRecords" class="rounded-2xl border p-4" :class="medicationReviewItems.length ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-black" :class="medicationReviewItems.length ? 'text-amber-900' : 'text-slate-700'">بازبینی اطلاعات داروها</h2>
+            <p class="mt-1 text-xs leading-6 text-slate-600">کنترل کامل‌بودن اطلاعات ثبت‌شده و تاریخ پایان؛ این بخش تداخل دارویی یا ایمنی بالینی داروها را ارزیابی نمی‌کند.</p>
+          </div>
+          <span class="rounded-lg px-3 py-1.5 text-xs font-bold" :class="medicationReviewItems.length ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'">
+            {{ medicationReviewItems.length ? medicationReviewItems.length.toLocaleString('fa-IR') + ' مورد نیازمند بازبینی' : 'مورد ناقصی شناسایی نشد' }}
+          </span>
+        </div>
+        <div v-if="medicationReviewItems.length" class="mt-3 space-y-2">
+          <article v-for="item in medicationReviewItems" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white p-3">
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-slate-800">{{ item.title }}</p>
+              <ul class="mt-1 list-inside list-disc space-y-1 text-xs leading-5 text-amber-800">
+                <li v-for="reason in item.reasons" :key="reason">{{ reason }}</li>
+              </ul>
+            </div>
+            <button v-if="canManageClinicalRecords" type="button" @click="editClinicalRecord(item.record)" class="shrink-0 rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50">بازبینی و ویرایش</button>
+          </article>
+        </div>
+        <p v-else class="mt-2 text-xs text-slate-600">برای داروهای فعال، مورد ناقص یا دارای تاریخ پایان گذشته در داده‌های ثبت‌شده پیدا نشد.</p>
+      </section>
       <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <p class="text-xs font-bold text-slate-500">شماره تماس</p>
@@ -360,6 +383,26 @@ const patient = computed(() => {
 const activeAllergies = computed(() => (patient.value.clinical_records || [])
   .filter(record => record.kind === 'allergy' && record.is_active));
 
+const medicationReviewItems = computed(() => {
+  const activeMedications = (patient.value.clinical_records || [])
+    .filter(record => record.kind === 'medication' && record.is_active);
+  const normalizedTitles = activeMedications.map(record => String(record.title || '').trim().toLocaleLowerCase());
+  const date = new Date();
+  const today = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+
+  return activeMedications.map((record, index) => {
+    const reasons = [];
+    if (!String(record.dosage || '').trim()) reasons.push('مقدار یا دوز دارو ثبت نشده است.');
+    if (!String(record.frequency || '').trim()) reasons.push('دفعات مصرف ثبت نشده است.');
+    if (record.end_date && String(record.end_date).slice(0, 10) < today) {
+      reasons.push('تاریخ پایان ثبت‌شده گذشته است؛ وضعیت دارو را بررسی کنید.');
+    }
+    if (normalizedTitles.filter(title => title && title === normalizedTitles[index]).length > 1) {
+      reasons.push('عنوان مشابهی برای داروی فعال دیگری نیز ثبت شده است؛ احتمال ثبت تکراری را بررسی کنید.');
+    }
+    return { id: record.id, title: record.title, record, reasons };
+  }).filter(item => item.reasons.length > 0);
+});
 const vitalTypes = [
   { value: 'systolic_bp', label: 'فشار خون سیستولیک', unit: 'mmHg' },
   { value: 'diastolic_bp', label: 'فشار خون دیاستولیک', unit: 'mmHg' },
