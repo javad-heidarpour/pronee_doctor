@@ -171,7 +171,9 @@ class ClinicOperationsController extends Controller
                     'created_by' => Auth::guard('web')->id(), 'title' => 'پیگیری پس از درمان: ' . $row->title,
                     'description' => 'پیگیری دوره‌ای ایجادشده از مرحله درمان؛ نتیجه و نیاز به مراجعه مجدد ثبت شود.',
                     'due_at' => $row->follow_up_due_at, 'priority' => 'normal',
-                    'contact_method' => 'call', 'send_sms' => false, 'sms_consent_confirmed' => false,
+                    'contact_method' => 'call',
+                    'send_sms' => (bool) $row->plan->follow_up_sms_enabled && (bool) $row->plan->follow_up_sms_consent_confirmed,
+                    'sms_consent_confirmed' => (bool) $row->plan->follow_up_sms_consent_confirmed,
                     'status' => 'pending',
                 ]);
             }
