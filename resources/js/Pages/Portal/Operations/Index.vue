@@ -8,16 +8,19 @@ const props = defineProps({
   services: Array, inventory: Array, dentalChart: Array, settlements: Array, payrolls: Array,
   lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean, canViewClinical: Boolean, canManageClinical: Boolean, canViewInventory: Boolean, canViewServices: Boolean,
 })
-const serviceForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', code: '', specialty_module: 'dentistry', default_duration_minutes: 30, default_price: 0, doctor_share_basis_points: 7000, requires_follow_up: false, follow_up_after_days: 30 })
+const serviceForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', code: '', specialty_module: 'dentistry', default_duration_minutes: 30, default_price: 0, doctor_share_basis_points: 7000, requires_follow_up: false, follow_up_after_days: 30, inventory_requirements: [] })
 const itemForm = useForm({ plan_id: '', service_id: '', title: '', item_type: 'procedure', tooth_number: '', tooth_surface: '', sequence: 1, price: 0, doctor_share_basis_points: '', follow_up_after_days: '', clinical_notes: '' })
 const dentalForm = useForm({ patient_id: '', clinic_id: props.clinics?.[0]?.id ?? '', dentition: 'permanent', tooth_number: '', surface: '', condition: 'caries', severity: 'medium', notes: '' })
 const stockForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', sku: '', unit: 'عدد', minimum_quantity: 1, opening_quantity: 0, unit_cost: 0 })
 const settlementForm = useForm({ organization_id: props.payrollOrganizations?.[0]?.id ?? '', doctor_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10) })
 const selectedPlan = computed(() => props.plans.find(p => String(p.id) === String(itemForm.plan_id)))
+const selectedClinicInventory = computed(() => props.inventory.filter(item => String(item.clinic_id) === String(serviceForm.clinic_id)))
+const addInventoryRequirement = () => serviceForm.inventory_requirements.push({ inventory_item_id: '', quantity: 1 })
+const removeInventoryRequirement = index => serviceForm.inventory_requirements.splice(index, 1)
 const settlementDoctors = computed(() => props.payrollOrganizations.find(o => String(o.id) === String(settlementForm.organization_id))?.doctors || [])
 const payrollStaff = computed(() => (props.payrollOrganizations.find(o => String(o.id) === String(payrollForm.organization_id))?.members || []).filter(m => m.pivot?.role !== 'owner'))
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
-const saveService = () => serviceForm.post(route('portal.operations.services.store'), { onSuccess: () => serviceForm.reset('name','code','default_price') })
+const saveService = () => serviceForm.transform(data => ({...data, inventory_requirements: data.inventory_requirements.filter(row => row.inventory_item_id && Number(row.quantity) > 0).map(row => ({ inventory_item_id: Number(row.inventory_item_id), quantity: Number(row.quantity) }))})).post(route('portal.operations.services.store'), { onSuccess: () => serviceForm.reset('name','code','default_price','inventory_requirements') })
 const saveItem = () => itemForm.transform(data => ({...data, price: Number(data.price), service_id: data.service_id || null, doctor_share_basis_points: data.doctor_share_basis_points === '' ? null : Number(data.doctor_share_basis_points), follow_up_after_days: data.follow_up_after_days === '' ? null : Number(data.follow_up_after_days)})).post(route('portal.operations.treatment-items.store', itemForm.plan_id), { onSuccess: () => itemForm.reset('title','tooth_number','tooth_surface','clinical_notes') })
 const updateItem = (item, stage) => router.put(route('portal.operations.treatment-items.update', item.id), { stage, clinical_notes: item.clinical_notes || '' })
 const saveDental = () => dentalForm.post(route('portal.operations.dental-chart.store'), { onSuccess: () => dentalForm.reset('tooth_number','surface','notes') })
@@ -52,6 +55,15 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
           <label class="text-xs text-slate-500">سهم پزشک درصد<input :value="serviceForm.doctor_share_basis_points/100" type="number" min="0" max="100" @input="serviceForm.doctor_share_basis_points = Math.round(Number($event.target.value)*100)" class="mt-1 w-full rounded-xl border-slate-300 text-sm" /></label>
           <label class="flex items-center gap-2 text-sm"><input v-model="serviceForm.requires_follow_up" type="checkbox" /> نیازمند پیگیری دوره‌ای</label>
           <input v-model.number="serviceForm.follow_up_after_days" type="number" min="1" max="3650" placeholder="روز تا پیگیری" class="rounded-xl border-slate-300 text-sm" />
+          <div v-if="canManageInventory && selectedClinicInventory.length" class="rounded-xl border border-dashed p-3 md:col-span-3">
+            <div class="mb-2 flex items-center justify-between"><b class="text-sm">مواد مصرفی استاندارد هر بار ارائه خدمت</b><button type="button" @click="addInventoryRequirement" class="text-xs font-bold text-teal-700">افزودن ماده</button></div>
+            <div v-for="(requirement,index) in serviceForm.inventory_requirements" :key="index" class="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_130px_auto]">
+              <select v-model="requirement.inventory_item_id" class="rounded-lg border-slate-300 text-sm"><option value="">انتخاب کالا از انبار همین شعبه</option><option v-for="stock in selectedClinicInventory" :key="stock.id" :value="stock.id">{{ stock.name }} ({{ stock.unit }})</option></select>
+              <input v-model.number="requirement.quantity" type="number" min="0.001" step="0.001" class="rounded-lg border-slate-300 text-sm" placeholder="مقدار مصرف" />
+              <button type="button" @click="removeInventoryRequirement(index)" class="rounded-lg px-3 text-xs text-rose-600">حذف</button>
+            </div>
+            <p class="text-xs text-slate-500">هنگام تکمیل مرحله درمان، این مقدار از موجودی کم و بهای مصرف در حسابداری ثبت می‌شود.</p>
+          </div>
           <button :disabled="serviceForm.processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white md:col-span-3">ثبت خدمت</button>
         </form>
         <div class="mt-4 flex flex-wrap gap-2"><span v-for="service in services" :key="service.id" class="rounded-lg bg-slate-50 px-3 py-2 text-xs">{{ service.name }} · {{ money(service.default_price) }} · {{ service.default_duration_minutes }} دقیقه</span></div>
