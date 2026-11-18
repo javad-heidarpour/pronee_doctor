@@ -25,6 +25,8 @@ Route::get('/', [HomeController::class, 'Home'])
 Route::middleware('auth:web')->prefix('my-health')->name('patient.health.')->controller(PatientHealthController::class)->group(function () {
     Route::get('/', 'index')->name('index');
     Route::post('/access-request', 'requestAccess')->middleware('throttle:5,1')->name('access.request');
+    Route::post('/observations', 'storeObservation')->middleware('throttle:30,1')->name('observations.store');
+    Route::delete('/observations/{observation}', 'destroyObservation')->whereNumber('observation')->middleware('throttle:30,1')->name('observations.destroy');
     Route::post('/caregivers', 'grantCaregiver')->middleware('throttle:5,1')->name('caregivers.store');
     Route::delete('/caregivers/{access}', 'revokeCaregiver')->whereNumber('access')->name('caregivers.revoke');
 });

@@ -1,12 +1,34 @@
 <script setup>
 import { useForm, router } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, accessType: String,
-  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object,
+  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array,
 })
 const linkForm = useForm({ national_code: '', phone: '' })
+
+const observationOptions = [
+  { value: 'weight', label: 'وزن', unit: 'kg', min: 20, max: 350 },
+  { value: 'systolic_bp', label: 'فشار سیستولیک', unit: 'mmHg', min: 50, max: 280 },
+  { value: 'diastolic_bp', label: 'فشار دیاستولیک', unit: 'mmHg', min: 30, max: 180 },
+  { value: 'blood_glucose', label: 'قند خون', unit: 'mg/dL', min: 20, max: 700 },
+  { value: 'pulse', label: 'ضربان قلب', unit: 'bpm', min: 25, max: 240 },
+  { value: 'temperature', label: 'دمای بدن', unit: '°C', min: 30, max: 45 },
+  { value: 'spo2', label: 'اکسیژن خون', unit: '%', min: 50, max: 100 },
+]
+const localDateTime = () => {
+  const date = new Date()
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+  return date.toISOString().slice(0, 16)
+}
+const observationForm = useForm({ measurement_type: 'weight', value: '', observed_at: localDateTime(), note: '' })
+const selectedObservation = computed(() => observationOptions.find(item => item.value === observationForm.measurement_type))
+const saveObservation = () => observationForm.post(route('patient.health.observations.store'), { onSuccess: () => observationForm.reset('value', 'note') })
+const deleteObservation = item => {
+  if (window.confirm('این ثبت خانگی حذف شود؟')) router.delete(route('patient.health.observations.destroy', item.id))
+}
+const observationLabel = value => observationOptions.find(item => item.value === value)?.label || value
 const caregiverForm = useForm({ email: '' })
 const requestAccess = () => linkForm.post(route('patient.health.access.request'))
 const grantCaregiver = () => caregiverForm.post(route('patient.health.caregivers.store'), { onSuccess: () => caregiverForm.reset() })
@@ -60,6 +82,37 @@ const statusLabel = value => ({ pending: 'در انتظار', confirmed: 'تأی
           <div class="rounded-2xl border bg-white p-5"><h3 class="mb-3 font-black">حساسیت‌ها</h3><div v-for="item in allergies" :key="item.id" class="mb-2 rounded-xl bg-rose-50 p-3"><p class="text-sm font-bold text-rose-800">{{ item.title }}</p><p class="mt-1 text-xs text-rose-700">{{ item.description }}</p></div><p v-if="!allergies.length" class="text-xs text-slate-400">حساسیتی در پرونده ثبت نشده است.</p></div>
         </section>
         <section v-if="accessType === 'owner'" class="rounded-2xl border bg-white p-5"><h3 class="mb-3 font-black">روند علائم و اندازه‌گیری‌های من</h3><div class="grid gap-2 sm:grid-cols-2"><article v-for="vital in latestVitals" :key="vital.id" class="rounded-xl bg-slate-50 p-3"><div class="flex justify-between gap-2"><b class="text-sm">{{ vital.measurement_type }}</b><span class="text-xs text-slate-500">{{ dateLabel(vital.measured_at) }}</span></div><p class="mt-2 text-lg font-black text-teal-800">{{ vital.value }} <span class="text-xs font-medium">{{ vital.unit }}</span></p><p v-if="vital.note" class="mt-1 text-xs text-slate-500">{{ vital.note }}</p></article></div><p v-if="!latestVitals.length" class="text-xs text-slate-400">اندازه‌گیری‌ای ثبت نشده است.</p></section>
+
+        <section v-if="accessType === 'owner'" class="space-y-4 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+          <div><p class="text-xs font-bold tracking-wider text-sky-700">PRONEEX HOME HEALTH TRACKER</p><h3 class="mt-1 text-lg font-black">دفتر پایش سلامت در خانه</h3><p class="mt-1 text-xs leading-6 text-slate-500">اندازه‌گیری‌های دستگاه یا ابزار خانگی خود را ثبت کنید تا در روند سلامت شما جدا از داده‌های ثبت‌شده توسط مرکز درمانی تحلیل شوند.</p></div>
+          <form @submit.prevent="saveObservation" class="grid gap-3 sm:grid-cols-2">
+            <label class="text-xs font-bold text-slate-600">نوع اندازه‌گیری
+              <select v-model="observationForm.measurement_type" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
+                <option v-for="item in observationOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+            <label class="text-xs font-bold text-slate-600">مقدار ({{ selectedObservation?.unit }})
+              <input v-model="observationForm.value" type="number" step="0.01" :min="selectedObservation?.min" :max="selectedObservation?.max" required class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="مقدار اندازه‌گیری">
+              <span class="mt-1 block font-normal text-slate-400">محدوده ثبت: {{ selectedObservation?.min }} تا {{ selectedObservation?.max }}</span>
+            </label>
+            <label class="text-xs font-bold text-slate-600">زمان اندازه‌گیری
+              <input v-model="observationForm.observed_at" type="datetime-local" required :max="localDateTime()" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
+            </label>
+            <label class="text-xs font-bold text-slate-600">توضیح (اختیاری)
+              <input v-model="observationForm.note" maxlength="500" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="مثلاً قبل از صبحانه">
+            </label>
+            <div class="sm:col-span-2"><p v-if="observationForm.errors.value || observationForm.errors.measurement_type || observationForm.errors.observed_at" class="mb-2 text-xs text-rose-600">{{ observationForm.errors.value || observationForm.errors.measurement_type || observationForm.errors.observed_at }}</p><button :disabled="observationForm.processing" class="rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">ثبت اندازه‌گیری خانگی</button></div>
+          </form>
+          <div class="space-y-2">
+            <h4 class="text-sm font-black">ثبت‌های اخیر من</h4>
+            <article v-for="item in observations" :key="item.id" class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-50 p-3">
+              <div><p class="text-sm font-bold">{{ observationLabel(item.measurement_type) }}: {{ item.value }} {{ item.unit }}</p><p class="mt-1 text-[11px] text-slate-500">{{ dateLabel(item.observed_at) }} · ثبت‌شده توسط بیمار</p><p v-if="item.note" class="mt-1 text-xs text-slate-600">{{ item.note }}</p></div>
+              <button type="button" @click="deleteObservation(item)" class="text-xs font-bold text-rose-600">حذف</button>
+            </article>
+            <p v-if="!observations?.length" class="text-xs text-slate-400">هنوز اندازه‌گیری خانگی ثبت نکرده‌اید.</p>
+          </div>
+          <p class="rounded-lg bg-amber-50 p-3 text-[11px] leading-6 text-amber-900">مقادیر واردشده توسط بیمار، خوداظهاری هستند و جایگزین اندازه‌گیری بالینی نیستند. در صورت مشاهده مقدار نگران‌کننده یا بروز علائم، برای ارزیابی با پزشک یا خدمات اورژانس تماس بگیرید.</p>
+        </section>
         <section class="rounded-2xl border bg-white p-5"><h3 class="mb-3 font-black">برنامه پیگیری من</h3><div v-for="task in followUps" :key="task.id" class="flex flex-wrap justify-between gap-2 border-b py-3 last:border-0"><div><p class="text-sm font-bold">{{ task.title }}</p><p class="mt-1 text-xs text-slate-500">{{ task.description }}</p></div><span class="text-xs text-teal-700">{{ dateLabel(task.due_at) }}</span></div><p v-if="!followUps.length" class="text-xs text-slate-400">پیگیری فعالی ثبت نشده است.</p></section>
         <section class="rounded-2xl border bg-white p-5"><h3 class="mb-3 font-black">خط زمانی مراجعات</h3><div v-for="visit in patient.appointments" :key="visit.id" class="flex flex-wrap justify-between gap-2 border-b py-3 last:border-0"><div><p class="text-sm font-bold">{{ visit.clinic?.name || 'مرکز درمانی' }}</p><p class="mt-1 text-xs text-slate-500">{{ visit.appointment_time }} · {{ visit.visit_number || 'ویزیت' }}</p></div><div class="text-left"><p class="text-xs">{{ dateLabel(visit.appointment_date) }}</p><span class="mt-1 inline-block rounded-full bg-slate-100 px-2 py-1 text-[11px]">{{ statusLabel(visit.status) }}</span></div></div><p v-if="!patient.appointments?.length" class="text-xs text-slate-400">مراجعه‌ای ثبت نشده است.</p></section>
         <section class="rounded-2xl border bg-white p-5"><h3 class="mb-3 font-black">سوابق ویزیت نهایی‌شده</h3><article v-for="encounter in encounters" :key="encounter.id" class="mb-3 rounded-xl bg-slate-50 p-4"><div class="flex flex-wrap justify-between gap-2"><b class="text-sm">{{ encounter.diagnosis || encounter.subjective || 'یادداشت ویزیت' }}</b><span class="text-xs text-slate-500">{{ dateLabel(encounter.signed_at) }}</span></div><p class="mt-2 text-xs leading-6">{{ encounter.plan }}</p><p class="mt-2 text-xs text-slate-500">{{ encounter.doctor?.name }} {{ encounter.doctor?.family }}</p></article><p v-if="!encounters.length" class="text-xs text-slate-400">یادداشت نهایی‌شده‌ای در دسترس نیست.</p></section>

@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Patient;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Carbon;
 
 final class PatientHealthIntelligence
 {
@@ -16,7 +15,7 @@ final class PatientHealthIntelligence
      * @param Collection<int, mixed> $followUps
      * @return array{summary: array<int, array<string, string|int>>, insights: array<int, array<string, string>>, trends: array<int, array<string, string>>}
      */
-    public function build(Patient $patient, Collection $followUps): array
+    public function build(Patient $patient, Collection $followUps, Collection $observations = new Collection()): array
     {
         $now = now();
         $vitals = $patient->vitalSigns ?? collect();
@@ -24,7 +23,8 @@ final class PatientHealthIntelligence
         $upcoming = $followUps->filter(fn ($task) => $task->due_at && $task->due_at->between($now, $now->copy()->addDays(7)));
 
         $summary = [
-            ['label' => 'اندازه‌گیری‌ها', 'value' => $vitals->count(), 'caption' => 'داده‌های بارگذاری‌شده'],
+            ['label' => 'اندازه‌گیری‌های مرکز', 'value' => $vitals->count(), 'caption' => 'ثبت‌شده توسط کادر درمان'],
+            ['label' => 'ثبت‌های خانگی', 'value' => $observations->count(), 'caption' => 'ثبت‌شده توسط خود بیمار'],
             ['label' => 'پیگیری عقب‌افتاده', 'value' => $overdue->count(), 'caption' => 'نیازمند هماهنگی با مرکز'],
             ['label' => 'پیگیری این هفته', 'value' => $upcoming->count(), 'caption' => 'در هفت روز آینده'],
         ];
@@ -55,18 +55,34 @@ final class PatientHealthIntelligence
                 'action' => 'اگر پزشک اندازه‌گیری دوره‌ای توصیه کرده، زمان ثبت بعدی را از او بپرسید.',
             ];
         }
-        if ($vitals->isEmpty()) {
+        if ($vitals->isEmpty() && $observations->isEmpty()) {
             $insights[] = [
                 'level' => 'info',
                 'title' => 'هنوز داده‌ای برای تحلیل روند نداریم',
-                'description' => 'اندازه‌گیری‌های علائم حیاتی در پرونده شما ثبت نشده است.',
+                'description' => 'هنوز اندازه‌گیری مرکز درمانی یا ثبت خانگی برای شما موجود نیست.',
                 'action' => 'در صورت نیاز، اندازه‌گیری را در مراجعه بعدی از پزشک بخواهید ثبت کند.',
             ];
         }
 
-        $trends = $vitals
+        $trendEntries = $vitals->map(fn ($item) => (object) [
+            'measurement_type' => $item->measurement_type,
+            'value' => $item->value,
+            'unit' => $item->unit,
+            'measured_at' => $item->measured_at,
+            'source_label' => 'ثبت‌شده توسط مرکز درمانی',
+            'source_key' => 'clinic',
+        ])->concat($observations->map(fn ($item) => (object) [
+            'measurement_type' => $item->measurement_type,
+            'value' => $item->value,
+            'unit' => $item->unit,
+            'measured_at' => $item->observed_at,
+            'source_label' => 'ثبت‌شده توسط بیمار',
+            'source_key' => 'patient',
+        ]));
+
+        $trends = $trendEntries
             ->filter(fn ($item) => is_numeric($item->value) && $item->measured_at)
-            ->groupBy(fn ($item) => mb_strtolower(trim((string) $item->measurement_type)).'|'.trim((string) $item->unit))
+            ->groupBy(fn ($item) => mb_strtolower(trim((string) $item->measurement_type)).'|'.trim((string) $item->unit).'|'.$item->source_key)
             ->map(function ($items, $key) {
                 $ordered = $items->sortByDesc(fn ($item) => $item->measured_at->timestamp)->values();
                 if ($ordered->count() < 2) {
@@ -88,11 +104,12 @@ final class PatientHealthIntelligence
                     'latest_date' => $latest->measured_at->format('Y/m/d'),
                     'previous_date' => $previous->measured_at->format('Y/m/d'),
                     'direction' => $direction,
+                    'source_label' => $latest->source_label,
                     'change_label' => $direction === 'same' ? 'بدون تغییر عددی' : 'تغییر '.$change.' '.(string) $latest->unit,
                 ];
             })
             ->filter()
-            ->take(6)
+            ->take(8)
             ->values()
             ->all();
 

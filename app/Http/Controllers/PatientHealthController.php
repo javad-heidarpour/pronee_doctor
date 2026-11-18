@@ -9,12 +9,12 @@ use App\Models\PatientAccountAccess;
 use App\Models\PatientAccessRequest;
 use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
+use App\Models\PatientHealthObservation;
 use App\Models\User;
 use App\Services\PatientHealthIntelligence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 final class PatientHealthController extends Controller
@@ -83,6 +83,10 @@ final class PatientHealthController extends Controller
                 'id', 'title', 'description', 'due_at', 'priority', 'status',
             ]);
 
+        $observations = $accessType === 'owner'
+            ? PatientHealthObservation::query()->where('patient_id', $patient->id)->where('user_id', $user->id)->latest('observed_at')->limit(60)->get()
+            : collect();
+
         $caregivers = $accessType === 'owner'
             ? PatientAccountAccess::query()->active()
                 ->where('patient_id', $patient->id)
@@ -92,7 +96,7 @@ final class PatientHealthController extends Controller
             : collect();
 
         $intelligence = $accessType === 'owner'
-            ? app(PatientHealthIntelligence::class)->build($patient, $followUps)
+            ? app(PatientHealthIntelligence::class)->build($patient, $followUps, $observations)
             : ['summary' => [], 'insights' => [], 'trends' => []];
 
         return Inertia::render('Patient/Health', [
@@ -109,7 +113,68 @@ final class PatientHealthController extends Controller
             'followUps' => $followUps,
             'caregivers' => $caregivers,
             'intelligence' => $intelligence,
+            'observations' => $observations,
         ]);
+    }
+
+
+    public function storeObservation(Request $request)
+    {
+        $user = Auth::guard('web')->user();
+        abort_unless($user && $user->role === 'user', 403);
+
+        $ownerAccess = PatientAccountAccess::query()->active()
+            ->where('user_id', $user->id)
+            ->where('access_type', 'owner')
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'measurement_type' => ['required', 'string', Rule::in(array_keys(PatientHealthObservation::MEASUREMENTS))],
+            'value' => ['required', 'numeric'],
+            'observed_at' => ['required', 'date', 'before_or_equal:now', 'after_or_equal:'.now()->subYears(2)->toDateTimeString()],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $definition = PatientHealthObservation::MEASUREMENTS[$validated['measurement_type']];
+        abort_if(
+            (float) $validated['value'] < $definition['min'] ||
+            (float) $validated['value'] > $definition['max'],
+            422,
+            'مقدار واردشده خارج از محدوده قابل ثبت است؛ واحد و مقدار را بررسی کنید.'
+        );
+
+        PatientHealthObservation::query()->create([
+            'patient_id' => $ownerAccess->patient_id,
+            'user_id' => $user->id,
+            'measurement_type' => $validated['measurement_type'],
+            'value' => $validated['value'],
+            'unit' => $definition['unit'],
+            'observed_at' => $validated['observed_at'],
+            'note' => $validated['note'] ?? null,
+        ]);
+
+        return back()->with('success', 'اندازه‌گیری شخصی شما ثبت شد و با برچسب «ثبت‌شده توسط بیمار» در تحلیل‌ها نمایش داده می‌شود.');
+    }
+
+    public function destroyObservation(int $observation)
+    {
+        $user = Auth::guard('web')->user();
+        abort_unless($user && $user->role === 'user', 403);
+
+        $ownerAccess = PatientAccountAccess::query()->active()
+            ->where('user_id', $user->id)
+            ->where('access_type', 'owner')
+            ->firstOrFail();
+
+        $record = PatientHealthObservation::query()
+            ->whereKey($observation)
+            ->where('patient_id', $ownerAccess->patient_id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $record->delete();
+
+        return back()->with('success', 'اندازه‌گیری شخصی حذف شد.');
     }
 
     public function requestAccess(Request $request)
