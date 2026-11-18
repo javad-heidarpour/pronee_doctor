@@ -25,6 +25,7 @@ return new class extends Migration
         if (Schema::hasTable('menus')) {
             foreach ([
                 ['title' => 'مجموعه‌های درمانی', 'route_name' => 'portal.organizations.index', 'icon' => 'IconBuilding2', 'order' => 57, 'permissions' => ['organizations.view']],
+                ['title' => 'عملیات تخصصی کلینیک', 'route_name' => 'portal.operations.index', 'icon' => 'IconBriefcaseMedical', 'order' => 59, 'permissions' => ['services.view']],
                 ['title' => 'مدیریت مالی و اقساط', 'route_name' => 'portal.finance.index', 'icon' => 'IconWallet', 'order' => 58, 'permissions' => ['finance.view']],
             ] as $menu) {
                 if (!DB::table('menus')->where('route_name', $menu['route_name'])->exists()) {
@@ -46,7 +47,7 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasTable('menus')) {
-            DB::table('menus')->whereIn('route_name', ['portal.organizations.index', 'portal.finance.index'])->delete();
+            DB::table('menus')->whereIn('route_name', ['portal.organizations.index', 'portal.operations.index'])->delete();
         }
         Schema::table('clinic_financial_ledger', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('organization_id');
