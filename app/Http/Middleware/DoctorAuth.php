@@ -112,8 +112,13 @@ class DoctorAuth
             $permissions = json_decode($permissions, true) ?: [];
         }
 
+        $hasPermission = is_array($permissions) && in_array($permission, $permissions, true);
+        if (!$hasPermission && $permission === 'patients.clinical.view') {
+            $hasPermission = is_array($permissions) && in_array('patients.clinical.manage', $permissions, true);
+        }
+
         abort_unless(
-            is_array($permissions) && in_array($permission, $permissions, true),
+            $hasPermission,
             403,
             'مجوز انجام این عملیات برای شما فعال نیست.'
         );
@@ -142,6 +147,10 @@ class DoctorAuth
             'portal.patients.available-slots',
         ], true)) {
             return 'shifts.view';
+        }
+
+        if ($routeName === 'portal.encounters.create') {
+            return 'patients.clinical.manage';
         }
 
         $map = [
