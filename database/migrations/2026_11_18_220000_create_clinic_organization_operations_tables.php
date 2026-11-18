@@ -101,6 +101,8 @@ return new class extends Migration
             $table->unsignedSmallInteger('sequence')->default(1);
             $table->string('stage', 32)->default('planned');
             $table->unsignedBigInteger('price')->default(0);
+            $table->unsignedBigInteger('recognized_amount')->default(0);
+            $table->unsignedBigInteger('paid_applied_amount')->default(0);
             $table->unsignedSmallInteger('doctor_share_basis_points')->nullable();
             $table->unsignedSmallInteger('follow_up_after_days')->nullable();
             $table->dateTime('performed_at')->nullable();
