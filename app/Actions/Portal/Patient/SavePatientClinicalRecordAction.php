@@ -32,7 +32,9 @@ final class SavePatientClinicalRecordAction
                     ->lockForUpdate()
                     ->first();
 
-                if (!$relatedRecord || ($data['kind'] ?? null) !== PatientClinicalRecord::KIND_ADVERSE_REACTION) {
+                if (!$relatedRecord ||
+                    ($record && (int) $record->id === (int) $relatedRecordId) ||
+                    ($data['kind'] ?? null) !== PatientClinicalRecord::KIND_ADVERSE_REACTION) {
                     throw new \\Illuminate\\Database\\Eloquent\\ModelNotFoundException('Related medication record not found.');
                 }
             }
