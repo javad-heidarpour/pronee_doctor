@@ -29,6 +29,14 @@ final class SavePatientClinicalRecordRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_active' => ['sometimes', 'boolean'],
+            'related_record_id' => [
+                'nullable',
+                'integer',
+                'prohibited_unless:kind,adverse_reaction',
+                Rule::exists('patient_clinical_records', 'id')
+                    ->where('patient_id', $this->route('patient')?->id)
+                    ->where('kind', PatientClinicalRecord::KIND_MEDICATION),
+            ],
         ];
     }
 }
