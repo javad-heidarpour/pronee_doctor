@@ -26,6 +26,8 @@ return new class extends Migration
             $table->unsignedSmallInteger('installment_count')->default(1);
             $table->text('clinical_notes')->nullable();
             $table->text('financial_terms')->nullable();
+            $table->boolean('sms_reminders_enabled')->default(false);
+            $table->boolean('sms_consent_confirmed')->default(false);
             $table->date('started_at')->nullable();
             $table->date('completed_at')->nullable();
             $table->timestamps();
