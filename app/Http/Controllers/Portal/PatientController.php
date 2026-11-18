@@ -241,6 +241,7 @@ class PatientController extends Controller
             'doctor_id' => $doctor->id,
             'record_kind' => $record->kind,
             'linked_medication' => $record->related_record_id !== null,
+            'linked_allergy' => $record->related_allergy_record_id !== null,
         ]);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ثبت شد.');
@@ -268,6 +269,7 @@ class PatientController extends Controller
             'doctor_id' => $doctor->id,
             'record_kind' => $updatedRecord->kind,
             'linked_medication' => $updatedRecord->related_record_id !== null,
+            'linked_allergy' => $updatedRecord->related_allergy_record_id !== null,
         ]);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
