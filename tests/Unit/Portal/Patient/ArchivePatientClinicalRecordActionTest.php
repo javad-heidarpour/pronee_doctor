@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Portal\Patient\ArchivePatientClinicalRecordAction;
+use App\Actions\Portal\Patient\RestorePatientClinicalRecordAction;
 use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\PatientClinicalRecord;
@@ -118,4 +119,43 @@ final class ArchivePatientClinicalRecordActionTest extends TestCase
 
         app(ArchivePatientClinicalRecordAction::class)->handle($patient, $record);
     }
+    public function test_it_restores_an_archived_record_for_its_patient(): void
+    {
+        $doctor = Doctor::query()->create(['name' => 'Doctor', 'slug' => 'doctor-restore']);
+        $patient = Patient::query()->create(['doctor_id' => $doctor->id, 'name' => 'Patient']);
+        $record = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ALLERGY,
+            'title' => 'Archived allergy',
+        ]);
+        $record->delete();
+
+        $restored = app(RestorePatientClinicalRecordAction::class)->handle($patient, $record);
+
+        $this->assertNull($restored->deleted_at);
+        $this->assertDatabaseHas('patient_clinical_records', [
+            'id' => $record->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_it_rejects_restoring_a_record_from_another_patient(): void
+    {
+        $doctor = Doctor::query()->create(['name' => 'Doctor', 'slug' => 'doctor-restore-scope']);
+        $patient = Patient::query()->create(['doctor_id' => $doctor->id, 'name' => 'Patient A']);
+        $otherPatient = Patient::query()->create(['doctor_id' => $doctor->id, 'name' => 'Patient B']);
+        $record = PatientClinicalRecord::query()->create([
+            'patient_id' => $otherPatient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_HISTORY,
+            'title' => 'Foreign archived record',
+        ]);
+        $record->delete();
+
+        $this->expectException(ModelNotFoundException::class);
+
+        app(RestorePatientClinicalRecordAction::class)->handle($patient, $record);
+    }
+
 }
