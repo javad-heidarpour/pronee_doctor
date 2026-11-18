@@ -84,6 +84,8 @@ class ClinicFinanceController extends Controller
             'first_due_date' => ['required', 'date', 'after_or_equal:today'],
             'clinical_notes' => ['nullable', 'string', 'max:5000'],
             'financial_terms' => ['nullable', 'string', 'max:3000'],
+            'sms_reminders_enabled' => ['nullable', 'boolean'],
+            'sms_consent_confirmed' => ['nullable', 'boolean'],
         ]);
 
         $clinicId = (int) $data['clinic_id'];
@@ -105,7 +107,10 @@ class ClinicFinanceController extends Controller
                 'total_amount' => $total, 'discount_amount' => $discount, 'deposit_amount' => $deposit,
                 'installment_count' => $data['installment_count'],
                 'clinical_notes' => $data['clinical_notes'] ?? null,
-                'financial_terms' => $data['financial_terms'] ?? null, 'started_at' => today(),
+                'financial_terms' => $data['financial_terms'] ?? null,
+                'sms_reminders_enabled' => (bool) ($data['sms_reminders_enabled'] ?? false) && (bool) ($data['sms_consent_confirmed'] ?? false),
+                'sms_consent_confirmed' => (bool) ($data['sms_consent_confirmed'] ?? false),
+                'started_at' => today(),
             ]);
 
             $remaining = $net - $deposit;
