@@ -78,7 +78,8 @@ final class CreatePatientFollowUpAction
                 'title' => $template?->title ?? $data['title'],
                 'days' => 0,
                 'contact_method' => $template?->contact_method ?? ($data['contact_method'] ?? 'call'),
-                'send_sms' => (bool) ($data['send_sms'] ?? false) || (bool) ($template?->send_sms ?? false),
+                'send_sms' => ((bool) ($data['send_sms'] ?? false) || (bool) ($template?->send_sms ?? false)) && (bool) ($data['sms_consent_confirmed'] ?? false),
+                'sms_consent_confirmed' => (bool) ($data['sms_consent_confirmed'] ?? false),
             ]];
 
             $baseDate = Carbon::parse($data['due_at']);
@@ -98,7 +99,8 @@ final class CreatePatientFollowUpAction
                     'due_at' => $baseDate->copy()->addDays((int) ($step['days'] ?? 0)),
                     'priority' => $data['priority'] ?? 'normal',
                     'contact_method' => $step['contact_method'] ?? 'call',
-                    'send_sms' => (bool) ($step['send_sms'] ?? false),
+                    'send_sms' => (bool) ($step['send_sms'] ?? false) && (bool) ($step['sms_consent_confirmed'] ?? false),
+                    'sms_consent_confirmed' => (bool) ($step['sms_consent_confirmed'] ?? false),
                     'status' => 'pending',
                 ]));
             }
