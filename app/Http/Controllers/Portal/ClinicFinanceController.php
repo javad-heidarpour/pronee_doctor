@@ -181,6 +181,39 @@ class ClinicFinanceController extends Controller
         return back()->with('success', 'طرح درمان و برنامه اقساط ثبت شد.');
     }
 
+    public function revokeSmsConsent(Request $request, int $plan)
+    {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('finance.manage', $doctor);
+        $data = $request->validate(['scope' => ['required', Rule::in(['installment', 'follow_up', 'all'])]]);
+
+        DB::transaction(function () use ($doctor, $plan, $data): void {
+            $treatment = PatientTreatmentPlan::query()->whereKey($plan)->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->lockForUpdate()->firstOrFail();
+
+            if (in_array($data['scope'], ['installment', 'all'], true)) {
+                $treatment->update([
+                    'sms_reminders_enabled' => false,
+                    'sms_consent_confirmed' => false,
+                    'sms_consent_revoked_at' => now(),
+                ]);
+            }
+
+            if (in_array($data['scope'], ['follow_up', 'all'], true)) {
+                $treatment->update([
+                    'follow_up_sms_enabled' => false,
+                    'follow_up_sms_consent_confirmed' => false,
+                    'follow_up_sms_consent_revoked_at' => now(),
+                ]);
+                PatientFollowUpTask::query()->where('treatment_plan_id', $treatment->id)
+                    ->where('status', 'pending')
+                    ->update(['send_sms' => false, 'sms_consent_confirmed' => false]);
+            }
+        }, 3);
+
+        return back()->with('success', 'رضایت پیامکی انتخاب‌شده لغو شد و پیامک‌های زمان‌بندی‌شده مرتبط متوقف شدند.');
+    }
+
     public function recordPayment(Request $request, int $installment, ClinicAccountingService $accounting)
     {
         $doctor = $this->currentDoctor();
