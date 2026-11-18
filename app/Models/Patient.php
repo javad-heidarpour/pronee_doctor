@@ -42,4 +42,12 @@ class Patient extends Model
             ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
+
+    public function archivedClinicalRecords(): HasMany
+    {
+        return $this->hasMany(PatientClinicalRecord::class)
+            ->onlyTrashed()
+            ->orderByDesc('deleted_at')
+            ->orderByDesc('id');
+    }
 }
