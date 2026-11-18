@@ -1,0 +1,77 @@
+<script setup>
+import { computed, reactive } from 'vue'
+import { router, useForm } from '@inertiajs/vue3'
+import PortalLayout from '@/Layouts/PortalLayout.vue'
+
+const props = defineProps({
+  providers: Object, outgoing: Array, incoming: Array, patients: Array, clinics: Array,
+  filters: Object, providerTypes: Array,
+})
+const filter = reactive({ type: props.filters?.type || '', city: props.filters?.city || '', search: props.filters?.search || '' })
+const providerForm = useForm({ provider_type: 'laboratory', name: '', city: '', address: '', phone: '', email: '', license_number: '', specialties: '', services: '', description: '' })
+const referralForm = useForm({ patient_id: '', target_provider_id: '', service_type: 'laboratory', priority: 'normal', reason: '', clinical_summary: '', patient_message: '', consent_confirmed: false })
+const labelType = value => ({ doctor: 'پزشک', laboratory: 'آزمایشگاه', imaging: 'تصویربرداری', rehabilitation: 'توان‌بخشی' }[value] || value)
+const labelStatus = value => ({ sent: 'ارسال‌شده', accepted: 'پذیرفته‌شده', in_progress: 'در حال انجام', completed: 'تکمیل‌شده', rejected: 'ردشده', cancelled: 'لغوشده' }[value] || value)
+const submitFilters = () => router.get(route('portal.medical-network.index'), filter, { preserveState: true, preserveScroll: true })
+const submitProvider = () => providerForm.transform(data => ({ ...data, specialties: data.specialties.split(/[,،]/).map(x => x.trim()).filter(Boolean), services: data.services.split(/[,،]/).map(x => x.trim()).filter(Boolean) })).post(route('portal.medical-network.providers.store'), { onSuccess: () => providerForm.reset() })
+const submitReferral = () => referralForm.post(route('portal.medical-network.referrals.store'), { onSuccess: () => referralForm.reset() })
+const updateReferral = (item, status) => router.patch(route('portal.medical-network.referrals.update', item.id), { status, provider_response: item.provider_response || null }, { preserveScroll: true })
+const canRespond = item => ['sent','accepted','in_progress'].includes(item.status)
+const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepted','in_progress'].includes(x.status)).length)
+</script>
+
+<template>
+  <PortalLayout>
+    <main dir="rtl" class="mx-auto max-w-7xl space-y-6 p-4">
+      <header class="rounded-2xl bg-gradient-to-l from-teal-900 to-cyan-800 p-6 text-white">
+        <p class="text-xs font-bold text-teal-100">PRONEEX MEDICAL NETWORK</p>
+        <h1 class="mt-2 text-2xl font-black">شبکه همکاری و ارجاع پزشکی</h1>
+        <p class="mt-2 max-w-3xl text-sm leading-7 text-teal-50">اتصال حرفه‌ای پزشکان، آزمایشگاه‌ها، مراکز تصویربرداری و توان‌بخشی؛ ثبت ارجاع قابل رهگیری و پیگیری پاسخ مرکز مقصد.</p>
+        <div class="mt-4 flex flex-wrap gap-3 text-xs"><span class="rounded-full bg-white/15 px-3 py-2">{{ providers.total }} مرکز فعال در فهرست</span><span class="rounded-full bg-white/15 px-3 py-2">{{ receivedCount }} ارجاع دریافتی باز</span><span class="rounded-full bg-white/15 px-3 py-2">{{ outgoing.length }} ارجاع ارسالی اخیر</span></div>
+      </header>
+
+      <section class="rounded-2xl border bg-white p-4">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="font-black">جست‌وجوی همکاران شبکه</h2><span class="text-xs text-slate-500">نمایش مراکز تأییدشده</span></div>
+        <form class="grid gap-2 md:grid-cols-4" @submit.prevent="submitFilters">
+          <input v-model="filter.search" class="rounded-xl border-slate-300 text-sm" placeholder="نام مرکز، خدمت یا نشانی">
+          <select v-model="filter.type" class="rounded-xl border-slate-300 text-sm"><option value="">همه گروه‌ها</option><option v-for="type in providerTypes" :key="type.value" :value="type.value">{{ type.label }}</option></select>
+          <input v-model="filter.city" class="rounded-xl border-slate-300 text-sm" placeholder="شهر">
+          <button class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white">جست‌وجو</button>
+        </form>
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="provider in providers.data" :key="provider.id" class="rounded-xl border p-4">
+            <div class="flex items-start justify-between gap-2"><div><span class="text-xs font-bold text-teal-700">{{ labelType(provider.provider_type) }}</span><h3 class="mt-1 font-extrabold">{{ provider.name }}</h3></div><span v-if="provider.is_verified" class="rounded-full bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700">تأییدشده</span></div>
+            <p class="mt-2 text-xs leading-6 text-slate-500">{{ provider.city || 'شهر ثبت نشده' }} · {{ provider.address || 'نشانی ثبت نشده' }}</p>
+            <p v-if="provider.organization" class="text-xs text-slate-500">{{ provider.organization.name }}</p>
+            <p class="mt-2 text-xs leading-6">{{ provider.description }}</p>
+            <div class="mt-3 flex flex-wrap gap-1"><span v-for="service in (provider.services || []).slice(0,4)" :key="service" class="rounded-full bg-slate-100 px-2 py-1 text-[11px]">{{ service }}</span></div>
+            <p class="mt-3 text-xs text-slate-500">{{ provider.phone || 'تلفن ثبت نشده' }} <span v-if="provider.rating">· امتیاز {{ provider.rating }}</span></p>
+            <button @click="referralForm.target_provider_id = provider.id; referralForm.service_type = provider.provider_type" class="mt-3 w-full rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">ثبت ارجاع به این مرکز</button>
+          </article>
+          <p v-if="!providers.data.length" class="col-span-full rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">مرکز فعالی با این مشخصات یافت نشد.</p>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border bg-white p-4">
+        <h2 class="mb-3 font-black">ثبت ارجاع الکترونیکی بیمار</h2>
+        <form @submit.prevent="submitReferral" class="grid gap-3 md:grid-cols-2">
+          <label class="text-xs font-semibold">بیمار<select v-model="referralForm.patient_id" required class="mt-1 w-full rounded-xl border-slate-300 text-sm"><option value="">انتخاب بیمار</option><option v-for="patient in patients" :key="patient.id" :value="patient.id">{{ patient.name }} · {{ patient.phone || 'بدون تلفن' }}</option></select></label>
+          <label class="text-xs font-semibold">مرکز مقصد<select v-model="referralForm.target_provider_id" required class="mt-1 w-full rounded-xl border-slate-300 text-sm"><option value="">انتخاب مرکز</option><option v-for="provider in providers.data" :key="provider.id" :value="provider.id">{{ provider.name }} ({{ labelType(provider.provider_type) }})</option></select></label>
+          <label class="text-xs font-semibold">نوع خدمت<select v-model="referralForm.service_type" class="mt-1 w-full rounded-xl border-slate-300 text-sm"><option value="laboratory">آزمایش</option><option value="imaging">تصویربرداری</option><option value="rehabilitation">توان‌بخشی</option><option value="consultation">مشاوره تخصصی</option></select></label>
+          <label class="text-xs font-semibold">اولویت<select v-model="referralForm.priority" class="mt-1 w-full rounded-xl border-slate-300 text-sm"><option value="normal">عادی</option><option value="urgent">فوری</option></select></label>
+          <label class="text-xs font-semibold md:col-span-2">علت ارجاع<input v-model="referralForm.reason" required maxlength="240" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="علت و خدمت موردنیاز"></label>
+          <label class="text-xs font-semibold md:col-span-2">خلاصه بالینی (فقط اطلاعات ضروری)<textarea v-model="referralForm.clinical_summary" rows="3" maxlength="4000" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="اطلاعات مرتبط برای انجام خدمت"></textarea></label>
+          <label class="text-xs font-semibold md:col-span-2">پیام برای مرکز مقصد<textarea v-model="referralForm.patient_message" rows="2" maxlength="1000" class="mt-1 w-full rounded-xl border-slate-300 text-sm"></textarea></label>
+          <label class="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-900 md:col-span-2"><input v-model="referralForm.consent_confirmed" type="checkbox" required class="mt-1"><span>تأیید می‌کنم رضایت آگاهانه بیمار برای ارسال این ارجاع و اطلاعات بالینی ضروری دریافت شده است. اطلاعات بیمار فقط برای رسیدگی به همین ارجاع در اختیار مرکز مقصد قرار می‌گیرد.</span></label>
+          <button :disabled="referralForm.processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 md:col-span-2">ثبت و ارسال ارجاع</button>
+        </form>
+      </section>
+
+      <section class="grid gap-4 xl:grid-cols-2">
+        <div class="rounded-2xl border bg-white p-4"><h2 class="mb-3 font-black">ارجاعات ارسالی من</h2><div v-for="item in outgoing" :key="item.id" class="mb-2 rounded-xl bg-slate-50 p-3"><div class="flex flex-wrap justify-between gap-2"><b class="text-sm">{{ item.patient?.name }} ← {{ item.target_provider?.name }}</b><span class="text-xs text-teal-700">{{ labelStatus(item.status) }}</span></div><p class="mt-1 text-xs text-slate-500">کد رهگیری: {{ item.tracking_code }} · {{ item.reason }}</p><button v-if="['sent','accepted','in_progress'].includes(item.status)" @click="updateReferral(item,'cancelled')" class="mt-2 text-xs text-rose-600">لغو ارجاع</button></div><p v-if="!outgoing.length" class="text-xs text-slate-500">هنوز ارجاعی ثبت نشده است.</p></div>
+        <div class="rounded-2xl border bg-white p-4"><h2 class="mb-3 font-black">ارجاعات دریافتی مراکز من</h2><div v-for="item in incoming" :key="item.id" class="mb-2 rounded-xl bg-slate-50 p-3"><div class="flex flex-wrap justify-between gap-2"><b class="text-sm">{{ item.patient?.name }} · {{ item.referring_doctor?.name }} {{ item.referring_doctor?.family }}</b><span class="text-xs text-teal-700">{{ labelStatus(item.status) }}</span></div><p class="mt-1 text-xs text-slate-500">کد {{ item.tracking_code }} · {{ item.reason }}</p><p v-if="item.clinical_summary" class="mt-2 text-xs leading-6">{{ item.clinical_summary }}</p><div v-if="canRespond(item)" class="mt-3 flex flex-wrap gap-2"><button v-if="item.status==='sent'" @click="updateReferral(item,'accepted')" class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">پذیرش</button><button v-if="item.status==='accepted'" @click="updateReferral(item,'in_progress')" class="rounded-lg border px-3 py-2 text-xs">شروع خدمت</button><button @click="updateReferral(item,'completed')" class="rounded-lg border px-3 py-2 text-xs">تکمیل خدمت</button><button @click="updateReferral(item,'rejected')" class="rounded-lg border border-rose-200 px-3 py-2 text-xs text-rose-600">عدم پذیرش</button></div></div><p v-if="!incoming.length" class="text-xs text-slate-500">ارجاع دریافتی وجود ندارد.</p></div>
+      </section>
+      <p class="rounded-xl bg-slate-100 p-3 text-xs leading-6 text-slate-600">توجه: پروفایل مراکز جدید پس از بررسی مدیر شبکه فعال می‌شود. ارجاع پزشکی جایگزین تماس در شرایط اورژانسی نیست. برای استفاده عملیاتی باید رضایت بیمار و سیاست‌های محرمانگی و دسترسی مرکز رعایت شود.</p>
+    </main>
+  </PortalLayout>
+</template>

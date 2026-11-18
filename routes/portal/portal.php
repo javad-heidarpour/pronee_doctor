@@ -13,6 +13,7 @@ use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
+use App\Http\Controllers\Portal\MedicalNetworkController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -83,6 +84,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
         ])->name('dashboard');
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+
+        Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');
+        Route::post('/medical-network/providers', [MedicalNetworkController::class, 'storeProvider'])->name('medical-network.providers.store');
+        Route::post('/medical-network/referrals', [MedicalNetworkController::class, 'storeReferral'])->middleware('throttle:20,1')->name('medical-network.referrals.store');
+        Route::patch('/medical-network/referrals/{referral}', [MedicalNetworkController::class, 'updateReferral'])->middleware('throttle:30,1')->name('medical-network.referrals.update');
 
         Route::get('/marketing', [ClinicMarketingController::class, 'index'])->name('marketing.index');
         Route::post('/marketing/campaigns', [ClinicMarketingController::class, 'store'])->name('marketing.store');
