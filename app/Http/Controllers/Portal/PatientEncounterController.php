@@ -67,6 +67,7 @@ final class PatientEncounterController extends Controller
             'patient' => $patient,
             'context' => $this->clinicalContext($patient, $doctor->id),
             'encounter' => null,
+            'amendsEncounter' => null,
         ]);
     }
 
@@ -84,6 +85,19 @@ final class PatientEncounterController extends Controller
         $patient = Patient::query()->whereKey($appointment->patient_id)
             ->where('doctor_id', $doctor->id)->firstOrFail();
         $data = $request->validated();
+        if (!empty($data['amends_encounter_id'])) {
+            $original = PatientEncounter::query()
+                ->whereKey($data['amends_encounter_id'])
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->where('appointment_id', $appointment->id)
+                ->where('clinic_id', $appointment->clinic_id)
+                ->where('status', PatientEncounter::STATUS_SIGNED)
+                ->firstOrFail();
+            $data['amends_encounter_id'] = $original->id;
+        } else {
+            $data['amends_encounter_id'] = null;
+        }
         $data['clinical_snapshot'] = $this->clinicalContext($patient, $doctor->id);
 
         $encounter = $action->handle($doctor, Auth::guard('web')->user(), $appointment, $data);
@@ -111,6 +125,25 @@ final class PatientEncounterController extends Controller
             'patient' => $encounter->patient,
             'context' => $encounter->clinical_snapshot ?? [],
             'encounter' => $encounter,
+            'amendsEncounter' => null,
+        ]);
+    }
+
+    public function amend(PatientEncounter $encounter)
+    {
+        $doctor = $this->currentDoctor();
+        $this->authorizeEncounter($encounter, $doctor);
+        $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
+        abort_unless($encounter->status === PatientEncounter::STATUS_SIGNED, 409);
+        $encounter->load(['patient', 'appointment', 'clinic', 'prescriptions']);
+
+        return Inertia::render('Portal/Encounters/Editor', [
+            'doctor' => $doctor,
+            'appointment' => $encounter->appointment->load('clinic:id,name'),
+            'patient' => $encounter->patient,
+            'context' => $encounter->clinical_snapshot ?? [],
+            'encounter' => null,
+            'amendsEncounter' => $encounter,
         ]);
     }
 
