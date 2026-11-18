@@ -14,7 +14,7 @@ class PatientTreatmentPlan extends Model
         'doctor_id', 'clinic_id', 'patient_id', 'created_by', 'title',
         'specialty_module', 'status', 'total_amount', 'discount_amount',
         'deposit_amount', 'installment_count', 'clinical_notes',
-        'financial_terms', 'sms_reminders_enabled', 'sms_consent_confirmed', 'started_at', 'completed_at',
+        'organization_id', 'financial_terms', 'sms_reminders_enabled', 'sms_consent_confirmed', 'started_at', 'completed_at',
     ];
 
     protected $casts = [
@@ -24,7 +24,7 @@ class PatientTreatmentPlan extends Model
         'sms_reminders_enabled' => 'boolean', 'sms_consent_confirmed' => 'boolean',
     ];
 
-    public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
+    public function organization(): BelongsTo { return $this->belongsTo(ClinicOrganization::class, 'organization_id'); }\n    public function items(): HasMany { return $this->hasMany(PatientTreatmentItem::class, 'treatment_plan_id')->orderBy('sequence'); }\n\n    public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
     public function clinic(): BelongsTo { return $this->belongsTo(Address::class, 'clinic_id'); }
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }
     public function installments(): HasMany { return $this->hasMany(PatientTreatmentInstallment::class, 'treatment_plan_id')->orderBy('sequence'); }
