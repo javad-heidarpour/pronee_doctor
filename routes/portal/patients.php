@@ -17,6 +17,14 @@ Route::prefix('appointments')->name('appointments.')->group(function () {
 });
 
 
+Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
+    Route::get('/', [PatientFollowUpController::class, 'index'])->name('index');
+    Route::post('/', [PatientFollowUpController::class, 'store'])->name('store');
+    Route::put('/{task}', [PatientFollowUpController::class, 'update'])->whereNumber('task')->name('update');
+    Route::post('/templates', [PatientFollowUpController::class, 'storeTemplate'])->name('templates.store');
+    Route::delete('/templates/{template}', [PatientFollowUpController::class, 'destroyTemplate'])->whereNumber('template')->name('templates.destroy');
+});
+
 Route::prefix('patients')->name('patients.')->group(function () {
     Route::get('/directory/record/{appointment}', [PatientController::class, 'record'])
         ->whereNumber('appointment')
