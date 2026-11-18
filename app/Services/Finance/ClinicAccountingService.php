@@ -6,6 +6,8 @@ namespace App\Services\Finance;
 
 use App\Models\ClinicFinancialAccount;
 use App\Models\ClinicJournalEntry;
+use App\Models\PatientInstallmentPayment;
+use App\Models\PatientTreatmentItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
