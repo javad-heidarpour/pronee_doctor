@@ -134,6 +134,47 @@ final class SavePatientClinicalRecordActionTest extends TestCase
         ]);
     }
 
+    public function test_it_links_a_reaction_to_an_allergy_for_the_same_patient(): void
+    {
+        $doctor = $this->makeDoctor('doctor-allergy-link');
+        $patient = $this->makePatient($doctor);
+        $allergy = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ALLERGY,
+            'title' => 'Penicillin allergy',
+        ]);
+
+        $reaction = app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported rash',
+            'related_allergy_record_id' => $allergy->id,
+        ]);
+
+        $this->assertSame($allergy->id, $reaction->related_allergy_record_id);
+        $this->assertSame('Penicillin allergy', $reaction->relatedAllergyRecord->title);
+    }
+
+    public function test_it_rejects_an_allergy_link_from_another_patient(): void
+    {
+        $doctor = $this->makeDoctor('doctor-allergy-scope');
+        $patient = $this->makePatient($doctor);
+        $otherPatient = $this->makePatient($doctor);
+        $allergy = PatientClinicalRecord::query()->create([
+            'patient_id' => $otherPatient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ALLERGY,
+            'title' => 'Other patient allergy',
+        ]);
+
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported reaction',
+            'related_allergy_record_id' => $allergy->id,
+        ]);
+    }
+
     public function test_it_rejects_a_record_belonging_to_another_patient(): void
     {
         $doctor = $this->makeDoctor('doctor-c');
