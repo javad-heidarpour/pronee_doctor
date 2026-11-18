@@ -13,8 +13,13 @@ class PatientTreatmentItem extends Model
     protected static function booted(): void
     {
         static::updating(function (self $item): void {
-            if (in_array($item->getOriginal('stage'), ['completed', 'cancelled'], true)) {
-                throw ValidationException::withMessages(['treatment' => 'مرحله نهایی درمان قابل ویرایش نیست.']);
+            if ($item->getOriginal('stage') === 'completed') {
+                $allowedFinancialFields = ['recognized_amount', 'paid_applied_amount', 'updated_at'];
+                if (array_diff(array_keys($item->getDirty()), $allowedFinancialFields) !== []) {
+                    throw ValidationException::withMessages(['treatment' => 'اطلاعات بالینی مرحله تکمیل‌شده قابل ویرایش نیست.']);
+                }
+            } elseif ($item->getOriginal('stage') === 'cancelled') {
+                throw ValidationException::withMessages(['treatment' => 'مرحله لغوشده قابل ویرایش نیست.']);
             }
         });
         static::deleting(function (self $item): void {
