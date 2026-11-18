@@ -18,7 +18,9 @@ const selectedClinicInventory = computed(() => props.inventory.filter(item => St
 const addInventoryRequirement = () => serviceForm.inventory_requirements.push({ inventory_item_id: '', quantity: 1 })
 const removeInventoryRequirement = index => serviceForm.inventory_requirements.splice(index, 1)
 const settlementDoctors = computed(() => props.payrollOrganizations.find(o => String(o.id) === String(settlementForm.organization_id))?.doctors || [])
-const payrollOrganization = computed(() => props.payrollOrganizations.find(o => String(o.id) === String(payrollForm.organization_id)))\nconst payrollStaff = computed(() => (payrollOrganization.value?.members || []).filter(m => m.pivot?.role !== 'owner'))\nconst payrollClinics = computed(() => payrollOrganization.value?.clinics || [])
+const payrollOrganization = computed(() => props.payrollOrganizations.find(o => String(o.id) === String(payrollForm.organization_id)))
+const payrollStaff = computed(() => (payrollOrganization.value?.members || []).filter(m => m.pivot?.role !== 'owner'))
+const payrollClinics = computed(() => payrollOrganization.value?.clinics || [])
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
 const saveService = () => serviceForm.transform(data => ({...data, inventory_requirements: data.inventory_requirements.filter(row => row.inventory_item_id && Number(row.quantity) > 0).map(row => ({ inventory_item_id: Number(row.inventory_item_id), quantity: Number(row.quantity) }))})).post(route('portal.operations.services.store'), { onSuccess: () => serviceForm.reset('name','code','default_price','inventory_requirements') })
 const saveItem = () => itemForm.transform(data => ({...data, price: Number(data.price), service_id: data.service_id || null, doctor_share_basis_points: data.doctor_share_basis_points === '' ? null : Number(data.doctor_share_basis_points), follow_up_after_days: data.follow_up_after_days === '' ? null : Number(data.follow_up_after_days)})).post(route('portal.operations.treatment-items.store', itemForm.plan_id), { onSuccess: () => itemForm.reset('title','tooth_number','tooth_surface','clinical_notes') })
@@ -129,7 +131,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
       <section v-if="canManageFinance" class="rounded-2xl border bg-white p-5">
         <h2 class="mb-3 font-bold">تسویه دوره‌ای پزشک</h2>
         <form @submit.prevent="createSettlement" class="grid gap-3 md:grid-cols-3">
-          <select v-model="settlementForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in organizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
+          <select v-model="settlementForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in payrollOrganizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
           <select v-model="settlementForm.doctor_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب پزشک</option><option v-for="d in settlementDoctors" :key="d.id" :value="d.id">{{ d.name }} {{ d.family }}</option></select>
           <input v-model="settlementForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model="settlementForm.period_end" type="date" required class="rounded-xl border-slate-300 text-sm" />
@@ -139,7 +141,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <form @submit.prevent="savePayroll" class="grid gap-3 md:grid-cols-3">
           <select v-model="payrollForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in payrollOrganizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
           <select v-model="payrollForm.staff_user_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب کارمند</option><option v-for="m in payrollStaff" :key="m.id" :value="m.id">{{ m.name }} {{ m.family }}</option></select>
-          <select v-model="payrollForm.clinic_id" class="rounded-xl border-slate-300 text-sm"><option value="">کل مجموعه</option><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
+          <select v-model="payrollForm.clinic_id" class="rounded-xl border-slate-300 text-sm"><option value="">کل مجموعه</option><option v-for="c in payrollClinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <input v-model="payrollForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model="payrollForm.period_end" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model.number="payrollForm.gross_amount" type="number" min="0" required placeholder="حقوق ناخالص (ریال)" class="rounded-xl border-slate-300 text-sm" />
