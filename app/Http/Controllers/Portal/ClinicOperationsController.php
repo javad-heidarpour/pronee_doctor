@@ -486,7 +486,7 @@ class ClinicOperationsController extends Controller
                 ->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))
                 ->firstOrFail();
             abort_unless($row->status === 'approved', 409, 'فقط فیش حقوقی تأییدشده قابل پرداخت است.');
-            $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now()]);
+            $row->update(['status' => 'paid', 'paid_by' => Auth::guard('web')->id(), 'paid_at' => now(), 'payment_method' => $payment['payment_method'], 'payment_reference' => $payment['payment_reference'] ?? null]);
             if ((int) $row->net_amount > 0) {
                 $accounting->post(
                     $row->organization_id, $row->clinic_id, null, (int) Auth::guard('web')->id(),
