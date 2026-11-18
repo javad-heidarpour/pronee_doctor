@@ -22,7 +22,7 @@ class Patient extends Model
         return $this->belongsTo(Doctor::class);
     }
 
-    public function appointments(): HasMany
+    public function dentalChartEntries(): HasMany\n    {\n        return $this->hasMany(PatientDentalChartEntry::class)->orderByDesc('recorded_at');\n    }\n\n    public function treatmentPlans(): HasMany\n    {\n        return $this->hasMany(PatientTreatmentPlan::class);\n    }\n\n    public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
     }
