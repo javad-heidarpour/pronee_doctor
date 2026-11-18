@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Portal\ClinicMarketingController;
 
 require __DIR__ . '/template.php';
 require __DIR__ . '/portal/portal.php';
@@ -14,6 +15,8 @@ require __DIR__ . '/auth.php';
 | Home Routes
 |--------------------------------------------------------------------------
 */
+
+Route::get('/c/{code}', [ClinicMarketingController::class, 'track'])->where('code', '[A-Za-z0-9]{8}')->name('growth.track');
 
 Route::get('/', [HomeController::class, 'Home'])
     ->name('home');
