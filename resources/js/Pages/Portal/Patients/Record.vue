@@ -124,7 +124,7 @@
         برای ثبت اطلاعات پزشکی مستقل، ابتدا نوبت‌های قدیمی را به پرونده‌های بیماران متصل کنید.
       </section>
 
-      <section v-if="patient.id && canManageClinicalRecords" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section v-if="patient.id && canViewClinicalRecords" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="font-black text-slate-900">پایش علائم حیاتی</h2>
@@ -133,7 +133,7 @@
           <span class="rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700">محرمانه</span>
         </div>
 
-        <form @submit.prevent="saveVitalSign" class="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
+        <form v-if="canManageClinicalRecords" @submit.prevent="saveVitalSign" class="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
           <label class="space-y-1 text-xs font-bold text-slate-600">
             نوع اندازه‌گیری
             <select v-model="vitalForm.measurement_type" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
