@@ -32,7 +32,7 @@ final class SavePatientClinicalRecordRequest extends FormRequest
             'related_record_id' => [
                 'nullable',
                 'integer',
-                'prohibited_unless:kind,adverse_reaction',
+                'exclude_unless:kind,adverse_reaction',
                 Rule::exists('patient_clinical_records', 'id')
                     ->where('patient_id', $this->route('patient')?->id)
                     ->where('kind', PatientClinicalRecord::KIND_MEDICATION),
