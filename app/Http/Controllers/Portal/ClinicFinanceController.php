@@ -140,7 +140,7 @@ class ClinicFinanceController extends Controller
                     'paid_at' => now(), 'notes' => 'پیش‌پرداخت طرح درمان',
                 ]);
                 DB::table('clinic_financial_ledger')->insert([
-                    'doctor_id' => $doctor->id, 'clinic_id' => $clinicId, 'patient_id' => $patient->id,
+                    'doctor_id' => $doctor->id, 'organization_id' => $organizationId, 'clinic_id' => $clinicId, 'patient_id' => $patient->id,
                     'treatment_plan_id' => $plan->id, 'installment_payment_id' => $payment->id,
                     'recorded_by' => Auth::guard('web')->id(), 'entry_type' => 'patient_payment',
                     'description' => 'پیش‌پرداخت طرح درمان: ' . $plan->title,
@@ -195,7 +195,7 @@ class ClinicFinanceController extends Controller
 
             $plan = $row->plan;
             DB::table('clinic_financial_ledger')->insert([
-                'doctor_id' => $plan->doctor_id, 'clinic_id' => $plan->clinic_id,
+                'doctor_id' => $plan->doctor_id, 'organization_id' => $plan->organization_id, 'clinic_id' => $plan->clinic_id,
                 'patient_id' => $plan->patient_id, 'treatment_plan_id' => $plan->id,
                 'installment_payment_id' => $payment->id, 'recorded_by' => Auth::guard('web')->id(),
                 'entry_type' => 'patient_payment', 'description' => 'دریافت قسط طرح درمان: ' . $plan->title,
@@ -255,7 +255,7 @@ class ClinicFinanceController extends Controller
         DB::transaction(function () use ($doctor, $clinicId, $organizationId, $data, $accounting): void {
             $expense = ClinicExpense::create($data + ['doctor_id' => $doctor->id, 'recorded_by' => Auth::guard('web')->id()]);
             DB::table('clinic_financial_ledger')->insert([
-                'doctor_id' => $doctor->id, 'clinic_id' => $clinicId, 'expense_id' => $expense->id,
+                'doctor_id' => $doctor->id, 'organization_id' => $organizationId, 'clinic_id' => $clinicId, 'expense_id' => $expense->id,
                 'recorded_by' => Auth::guard('web')->id(), 'entry_type' => 'clinic_expense',
                 'description' => $data['description'], 'debit' => $data['amount'], 'credit' => 0,
                 'occurred_at' => Carbon::parse($data['expense_date'])->startOfDay(),
