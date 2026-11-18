@@ -128,6 +128,24 @@ final class ClinicAccountingServiceTest extends TestCase
         $this->assertSame(0, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '2100'))->sum('credit'));
     }
 
+    public function test_completed_treatment_details_are_immutable_but_financial_allocation_is_allowed(): void
+    {
+        $item = PatientTreatmentItem::query()->create([
+            'treatment_plan_id' => 99, 'stage' => 'completed', 'price' => 500,
+            'recognized_amount' => 500, 'paid_applied_amount' => 0,
+        ]);
+
+        $item->update(['paid_applied_amount' => 250]);
+        $this->assertSame(250, (int) $item->fresh()->paid_applied_amount);
+
+        try {
+            $item->update(['price' => 600]);
+            $this->fail('Completed treatment prices must not be mutable.');
+        } catch (ValidationException) {
+            $this->assertSame(250, (int) $item->fresh()->paid_applied_amount);
+        }
+    }
+
     public function test_journal_rejects_unbalanced_entries(): void
     {
         $this->expectException(ValidationException::class);
