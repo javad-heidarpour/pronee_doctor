@@ -146,6 +146,7 @@ class DoctorAuth
 
         $map = [
             'portal.patients.' => 'patients',
+            'portal.follow-ups.' => 'patients',
             'portal.appointments.' => 'appointments',
             'portal.clinics.' => 'clinics',
             'portal.shifts.' => 'shifts',
