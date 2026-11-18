@@ -114,26 +114,16 @@ class ClinicFinanceController extends Controller
             $remainder = $remaining % $count;
             $firstDue = Carbon::parse($data['first_due_date']);
 
-            for ($i = 1; $i <= $count && $remaining > 0; $i++) {
-                $amount = $base + ($i <= $remainder ? 1 : 0);
-                if ($amount <= 0) continue;
-                $plan->installments()->create([
-                    'sequence' => $i, 'amount' => $amount, 'due_date' => $firstDue->copy()->addMonths($i - 1),
-                    'status' => 'pending',
-                ]);
-            }
-
             if ($deposit > 0) {
+                $depositRow = $plan->installments()->create([
+                    'sequence' => 0, 'amount' => $deposit, 'paid_amount' => $deposit,
+                    'due_date' => today(), 'status' => 'paid',
+                ]);
                 $payment = PatientInstallmentPayment::create([
-                    'installment_id' => $plan->installments()->firstOrFail()->id,
+                    'installment_id' => $depositRow->id,
                     'received_by' => Auth::guard('web')->id(), 'amount' => $deposit,
                     'method' => 'cash', 'reference' => 'DEPOSIT-' . $plan->id,
                     'paid_at' => now(), 'notes' => 'پیش‌پرداخت طرح درمان',
-                ]);
-                // The deposit is recorded separately; it is not silently netted against a scheduled installment.
-                $plan->installments()->first()->increment('paid_amount', $deposit);
-                $plan->installments()->first()->refresh()->update([
-                    'status' => $plan->installments()->first()->paid_amount >= $plan->installments()->first()->amount ? 'paid' : 'partial',
                 ]);
                 DB::table('clinic_financial_ledger')->insert([
                     'doctor_id' => $doctor->id, 'clinic_id' => $clinicId, 'patient_id' => $patient->id,
@@ -142,6 +132,15 @@ class ClinicFinanceController extends Controller
                     'description' => 'پیش‌پرداخت طرح درمان: ' . $plan->title,
                     'debit' => 0, 'credit' => $deposit, 'occurred_at' => now(),
                     'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+
+            for ($i = 1; $i <= $count && $remaining > 0; $i++) {
+                $amount = $base + ($i <= $remainder ? 1 : 0);
+                if ($amount <= 0) continue;
+                $plan->installments()->create([
+                    'sequence' => $i, 'amount' => $amount, 'due_date' => $firstDue->copy()->addMonths($i - 1),
+                    'status' => 'pending',
                 ]);
             }
         });
