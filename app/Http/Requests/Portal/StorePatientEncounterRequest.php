@@ -17,6 +17,7 @@ final class StorePatientEncounterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'amends_encounter_id' => ['nullable', 'integer'],
             'note_type' => ['required', Rule::in(['consultation', 'progress', 'emergency', 'procedure', 'discharge'])],
             'subjective' => ['nullable', 'string', 'max:12000'],
             'objective' => ['nullable', 'string', 'max:12000'],
