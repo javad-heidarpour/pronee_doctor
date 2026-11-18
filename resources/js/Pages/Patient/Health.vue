@@ -4,7 +4,7 @@ import { computed } from 'vue'
 
 const props = defineProps({
   hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, accessType: String,
-  patient: Object, encounters: Array, followUps: Array, caregivers: Array,
+  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object,
 })
 const linkForm = useForm({ national_code: '', phone: '' })
 const caregiverForm = useForm({ email: '' })
@@ -67,6 +67,32 @@ const statusLabel = value => ({ pending: 'در انتظار', confirmed: 'تأی
           <h3 class="font-black">دسترسی خانواده و مراقب</h3><p class="mt-1 text-xs leading-6 text-slate-500">با ایمیل حساب کاربری پرونیکس، دسترسی محدود و فقط‌خواندنی به خلاصه سلامت، مراجعات و پیگیری‌ها بدهید. دسترسی پس از ۹۰ روز منقضی می‌شود.</p>
           <form @submit.prevent="grantCaregiver" class="mt-3 flex flex-col gap-2 sm:flex-row"><input v-model="caregiverForm.email" type="email" placeholder="ایمیل حساب مراقب" class="min-w-0 flex-1 rounded-xl border-slate-300 text-sm"><button :disabled="caregiverForm.processing" class="rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white">اعطای دسترسی</button></form>
           <div v-for="access in caregivers" :key="access.id" class="mt-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><div><p class="text-sm font-bold">{{ access.user?.name }} {{ access.user?.family }}</p><p class="text-xs text-slate-500">{{ access.user?.email }}</p></div><button @click="revoke(access)" class="text-xs font-bold text-rose-600">لغو دسترسی</button></div>
+        </section>
+        <section v-if="accessType === 'owner'" class="space-y-4 rounded-2xl border border-teal-100 bg-gradient-to-br from-white to-teal-50 p-5 shadow-sm">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div><p class="text-xs font-bold tracking-wider text-teal-700">PRONEEX HEALTH INTELLIGENCE</p><h3 class="mt-1 text-lg font-black">مغز هوشمند سلامت شخصی من</h3><p class="mt-1 text-xs leading-6 text-slate-500">تحلیل روند داده‌های ثبت‌شده و یادآوری پیگیری‌ها؛ بدون تشخیص خودکار یا تغییر درمان.</p></div>
+            <span class="rounded-full bg-teal-100 px-3 py-1.5 text-xs font-bold text-teal-800">تحلیل مبتنی بر پرونده</span>
+          </div>
+          <div class="grid gap-2 sm:grid-cols-3">
+            <div v-for="item in (intelligence?.summary || [])" :key="item.label" class="rounded-xl border border-teal-100 bg-white p-3"><p class="text-xs text-slate-500">{{ item.label }}</p><p class="mt-1 text-xl font-black text-teal-900">{{ item.value }}</p><p class="mt-1 text-[11px] text-slate-500">{{ item.caption }}</p></div>
+          </div>
+          <div v-if="intelligence?.insights?.length" class="space-y-2">
+            <h4 class="text-sm font-black">اقدام‌ها و نکته‌های قابل توجه</h4>
+            <article v-for="(insight, index) in intelligence.insights" :key="index" class="rounded-xl border p-3" :class="insight.level === 'warning' ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'">
+              <p class="text-sm font-bold" :class="insight.level === 'warning' ? 'text-amber-900' : 'text-slate-800'">{{ insight.title }}</p>
+              <p class="mt-1 text-xs leading-6 text-slate-600">{{ insight.description }}</p>
+              <p v-if="insight.action" class="mt-2 text-xs font-bold text-teal-800">{{ insight.action }}</p>
+            </article>
+          </div>
+          <p v-else class="rounded-xl bg-white p-3 text-xs text-slate-500">فعلاً داده کافی برای تولید نکته شخصی وجود ندارد. با ثبت منظم اندازه‌گیری‌ها و پیگیری‌ها، تحلیل‌ها کامل‌تر می‌شوند.</p>
+          <div v-if="intelligence?.trends?.length" class="space-y-2">
+            <h4 class="text-sm font-black">مقایسه آخرین اندازه‌گیری‌ها</h4>
+            <div v-for="trend in intelligence.trends" :key="trend.key" class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3">
+              <div><p class="text-sm font-bold">{{ trend.label }}</p><p class="mt-1 text-[11px] text-slate-500">{{ trend.previous_date }} ← {{ trend.latest_date }}</p></div>
+              <div class="text-left"><p class="text-sm font-black text-slate-800">{{ trend.latest }} {{ trend.unit }}</p><p class="mt-1 text-xs" :class="trend.direction === 'up' ? 'text-amber-700' : trend.direction === 'down' ? 'text-sky-700' : 'text-slate-500'">{{ trend.change_label }}</p></div>
+            </div>
+            <p class="text-[11px] leading-5 text-slate-400">این مقایسه صرفاً تغییر عددی را نشان می‌دهد؛ بالا یا پایین بودن مقدار به نوع اندازه‌گیری، شرایط فرد و نظر پزشک وابسته است.</p>
+          </div>
         </section>
         <section class="rounded-xl bg-amber-50 p-4 text-xs leading-6 text-amber-900">اطلاعات این صفحه برای مشاهده سوابق است و جایگزین تشخیص یا توصیه پزشکی نیست. در صورت وضعیت اورژانسی با خدمات اورژانس تماس بگیرید. مقادیر آزمایش و علائم حیاتی باید توسط پزشک تفسیر شوند.</section>
       </template>

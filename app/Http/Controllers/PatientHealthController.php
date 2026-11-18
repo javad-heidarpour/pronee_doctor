@@ -10,6 +10,7 @@ use App\Models\PatientAccessRequest;
 use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
 use App\Models\User;
+use App\Services\PatientHealthIntelligence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +91,10 @@ final class PatientHealthController extends Controller
                 ->get()
             : collect();
 
+        $intelligence = $accessType === 'owner'
+            ? app(PatientHealthIntelligence::class)->build($patient, $followUps)
+            : ['summary' => [], 'insights' => [], 'trends' => []];
+
         return Inertia::render('Patient/Health', [
             'hasAccess' => true,
             'pendingRequest' => $pending,
@@ -103,6 +108,7 @@ final class PatientHealthController extends Controller
             'encounters' => $encounters,
             'followUps' => $followUps,
             'caregivers' => $caregivers,
+            'intelligence' => $intelligence,
         ]);
     }
 
