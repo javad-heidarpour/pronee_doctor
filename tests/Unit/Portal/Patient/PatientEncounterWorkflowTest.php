@@ -31,6 +31,12 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('addresses', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->timestamps();
+        });
+
         Schema::create('patients', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -158,6 +164,9 @@ final class PatientEncounterWorkflowTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
+        DB::table('addresses')->insert([
+            'id' => 32, 'name' => 'Test Clinic', 'created_at' => now(), 'updated_at' => now(),
+        ]);
         $patient = Patient::query()->create(['doctor_id' => 12, 'name' => 'Patient']);
         $appointment = Appointment::query()->create([
             'doctor_id' => 12, 'patient_id' => $patient->id, 'clinic_id' => 32, 'status' => 'confirmed',
