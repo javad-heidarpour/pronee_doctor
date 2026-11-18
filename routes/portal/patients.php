@@ -23,6 +23,7 @@ Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
     Route::post('/', [PatientFollowUpController::class, 'store'])->name('store');
     Route::put('/{task}', [PatientFollowUpController::class, 'update'])->whereNumber('task')->name('update');
     Route::post('/templates', [PatientFollowUpController::class, 'storeTemplate'])->name('templates.store');
+    Route::put('/templates/{template}', [PatientFollowUpController::class, 'updateTemplate'])->whereNumber('template')->name('templates.update');
     Route::delete('/templates/{template}', [PatientFollowUpController::class, 'destroyTemplate'])->whereNumber('template')->name('templates.destroy');
 });
 
