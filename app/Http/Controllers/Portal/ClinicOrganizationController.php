@@ -20,7 +20,7 @@ class ClinicOrganizationController extends Controller
     public function index()
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user && in_array($user->role, ['doctor', 'admin'], true), 403);
+        abort_unless($user && $user->role === 'doctor', 403);
 
         $organizations = ClinicOrganization::query()
             ->where(function ($q) use ($user): void {
@@ -59,10 +59,8 @@ class ClinicOrganizationController extends Controller
     public function store(Request $request)
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user && in_array($user->role, ['doctor', 'admin'], true), 403);
-        $ownedDoctor = $user->role === 'admin'
-            ? Doctor::query()->whereKey($request->input('doctor_id'))->firstOrFail()
-            : $user->ownedDoctorProfiles()->firstOrFail();
+        abort_unless($user && $user->role === 'doctor', 403);
+        $ownedDoctor = $user->ownedDoctorProfiles()->firstOrFail();
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:180'],
@@ -70,7 +68,7 @@ class ClinicOrganizationController extends Controller
             'registration_number' => ['nullable', 'string', 'max:80'],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255'],
-            'doctor_id' => [Rule::requiredIf($user->role === 'admin'), 'nullable', 'integer', 'exists:doctors,id'],
+            
             'clinic_ids' => ['nullable', 'array'],
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
@@ -280,6 +278,6 @@ class ClinicOrganizationController extends Controller
     private function authorizeOwner(ClinicOrganization $organization): void
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user && ($user->role === 'admin' || $organization->owner_user_id === $user->id), 403);
+        abort_unless($user && $user->role === 'doctor' && (int) $organization->owner_user_id === (int) $user->id, 403);
     }
 }
