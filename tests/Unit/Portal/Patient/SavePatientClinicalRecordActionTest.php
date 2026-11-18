@@ -45,6 +45,7 @@ final class SavePatientClinicalRecordActionTest extends TestCase
             $table->date('end_date')->nullable();
             $table->boolean('is_active')->default(true);
             $table->unsignedBigInteger('related_record_id')->nullable();
+            $table->unsignedBigInteger('related_allergy_record_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
