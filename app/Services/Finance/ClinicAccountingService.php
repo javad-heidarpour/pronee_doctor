@@ -54,7 +54,7 @@ class ClinicAccountingService
         return $this->post($organizationId, $clinicId, $doctorId, $userId,
             'patient_treatment_item', $treatmentItemId, 'شناسایی درآمد: ' . $description,
             $occurredAt, 'treatment-revenue:' . $treatmentItemId,
-            [['code' => '2100', 'debit' => $amount, 'credit' => 0],
+            [['code' => '1100', 'debit' => $amount, 'credit' => 0],
              ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
     }
 
