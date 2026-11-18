@@ -131,6 +131,36 @@
             <span class="block text-[10px] font-normal text-slate-500">در صورت ارتباط، یکی از حساسیت‌های فعال همین پرونده را انتخاب کنید.</span>
           </label>
 
+          <div v-if="clinicalForm.kind === 'adverse_reaction'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              شدت گزارش‌شده
+              <select v-model="clinicalForm.reaction_severity" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="">ثبت نشده</option>
+                <option value="mild">خفیف</option>
+                <option value="moderate">متوسط</option>
+                <option value="severe">شدید</option>
+                <option value="critical">بحرانی</option>
+              </select>
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              تاریخ وقوع واکنش
+              <input v-model="clinicalForm.reaction_date" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600 sm:col-span-2">
+              پیامد گزارش‌شده
+              <select v-model="clinicalForm.reaction_outcome" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="">ثبت نشده</option>
+                <option value="resolved">برطرف شده</option>
+                <option value="ongoing">ادامه دارد</option>
+                <option value="unknown">نامشخص</option>
+              </select>
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600 sm:col-span-2">
+              اقدام انجام‌شده
+              <textarea v-model="clinicalForm.action_taken" rows="2" maxlength="2000" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="اقدام یا پیگیری گزارش‌شده، در صورت وجود"></textarea>
+            </label>
+          </div>
+
           <label class="block space-y-1 text-xs font-bold text-slate-600">
             توضیحات
             <textarea v-model="clinicalForm.description" rows="3" maxlength="5000" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="توضیحات تکمیلی، واکنش حساسیتی یا جزئیات سابقه"></textarea>
@@ -177,6 +207,14 @@
                 <p v-if="record.related_record" class="mt-2 text-xs font-bold text-amber-700">داروی مرتبط: {{ record.related_record.title }}</p>
                 <p v-if="record.related_allergy_record" class="mt-1 text-xs font-bold text-rose-700">حساسیت مرتبط: {{ record.related_allergy_record.title }}</p>
                 <p v-if="record.kind === 'adverse_reaction'" class="mt-1 text-[10px] text-amber-700">گزارش واکنش؛ رابطه علت و معلولی با دارو تأیید پزشکی نشده است.</p>
+                <div v-if="record.kind === 'adverse_reaction' && (record.reaction_severity || record.reaction_date || record.reaction_outcome || record.action_taken)" class="mt-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                  <div class="flex flex-wrap gap-x-4 gap-y-1">
+                    <span v-if="record.reaction_severity">شدت گزارش‌شده: {{ reactionSeverityLabel(record.reaction_severity) }}</span>
+                    <span v-if="record.reaction_date">تاریخ وقوع: {{ formatDate(record.reaction_date) }}</span>
+                    <span v-if="record.reaction_outcome">پیامد: {{ reactionOutcomeLabel(record.reaction_outcome) }}</span>
+                  </div>
+                  <p v-if="record.action_taken" class="mt-2 whitespace-pre-line leading-5">اقدام انجام‌شده: {{ record.action_taken }}</p>
+                </div>
                 <p v-if="record.description" class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ record.description }}</p>
                 <p v-if="record.start_date || record.end_date" class="mt-2 text-[11px] text-slate-400">
                   {{ record.start_date || 'تاریخ شروع ثبت نشده' }} تا {{ record.end_date || 'بدون تاریخ پایان' }}
@@ -537,6 +575,10 @@ const clinicalForm = reactive({
   is_active: true,
   related_record_id: '',
   related_allergy_record_id: '',
+  reaction_severity: '',
+  reaction_date: '',
+  action_taken: '',
+  reaction_outcome: '',
 });
 
 const resetClinicalForm = () => {
@@ -552,6 +594,10 @@ const resetClinicalForm = () => {
     is_active: true,
     related_record_id: '',
     related_allergy_record_id: '',
+  reaction_severity: '',
+  reaction_date: '',
+  action_taken: '',
+  reaction_outcome: '',
   });
 };
 
@@ -568,6 +614,10 @@ const editClinicalRecord = (record) => {
     is_active: Boolean(record.is_active),
     related_record_id: record.related_record_id ? String(record.related_record_id) : '',
     related_allergy_record_id: record.related_allergy_record_id ? String(record.related_allergy_record_id) : '',
+    reaction_severity: record.reaction_severity || '',
+    reaction_date: record.reaction_date || '',
+    action_taken: record.action_taken || '',
+    reaction_outcome: record.reaction_outcome || '',
   });
 };
 
@@ -625,6 +675,17 @@ const clinicalKindLabel = (kind) => ({
   medical_history: 'سابقه پزشکی',
   adverse_reaction: 'واکنش ناخواسته دارویی',
 }[kind] || 'اطلاعات پزشکی');
+const reactionSeverityLabel = (value) => ({
+  mild: 'خفیف',
+  moderate: 'متوسط',
+  severe: 'شدید',
+  critical: 'بحرانی',
+}[value] || 'نامشخص');
+const reactionOutcomeLabel = (value) => ({
+  resolved: 'برطرف شده',
+  ongoing: 'ادامه دارد',
+  unknown: 'نامشخص',
+}[value] || 'نامشخص');
 const formatDate = (value) => {
   if (!value) return '—';
   const date = new Date(value + 'T00:00:00');
