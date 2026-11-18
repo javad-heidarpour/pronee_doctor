@@ -125,6 +125,14 @@
         </div>
       </div>
 
+      <div v-if="appointment.patient_id" class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-teal-50 p-4">
+        <div>
+          <p class="font-extrabold text-teal-900">پیگیری پس از ویزیت</p>
+          <p class="mt-1 text-xs text-teal-700">برای این بیمار یک برنامه چندمرحله‌ای پیگیری بسازید.</p>
+        </div>
+        <Link :href="route('portal.follow-ups.index', { patient_id: appointment.patient_id, appointment_id: appointment.id })" class="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white">ساخت برنامه پیگیری</Link>
+      </div>
+
       <!-- کارت اطلاعات نوبت -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div class="flex items-center gap-3 mb-6">
