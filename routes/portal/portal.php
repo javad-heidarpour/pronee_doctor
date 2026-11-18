@@ -18,6 +18,7 @@ use App\Http\Controllers\Portal\MedicalNetworkController;
 use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
 use App\Http\Controllers\Portal\PatientRetentionController;
+use App\Http\Controllers\Portal\ClinicGrowthController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -89,12 +90,18 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
         Route::get('/patient-retention', [PatientRetentionController::class, 'index'])->name('patient-retention.index');
+        Route::get('/growth', [ClinicGrowthController::class, 'index'])->name('growth.index');
 
         Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
         Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');
         Route::patch('/patient-access-requests/{accessRequest}/reject', [PatientAccessRequestController::class, 'reject'])->whereNumber('accessRequest')->name('patient-access-requests.reject');
 
-        Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');\n        Route::get('/medical-network/contracts', [MedicalCollaborationContractController::class, 'index'])->name('medical-network.contracts.index');\n        Route::post('/medical-network/contracts', [MedicalCollaborationContractController::class, 'store'])->middleware('throttle:10,1')->name('medical-network.contracts.store');\n        Route::patch('/medical-network/contracts/{contract}/respond', [MedicalCollaborationContractController::class, 'respond'])->whereNumber('contract')->name('medical-network.contracts.respond');\n        Route::post('/medical-network/contracts/generate-settlements', [MedicalCollaborationContractController::class, 'generate'])->middleware('throttle:5,1')->name('medical-network.contracts.generate');\n        Route::patch('/medical-network/settlements/{settlement}/paid', [MedicalCollaborationContractController::class, 'markPaid'])->whereNumber('settlement')->name('medical-network.settlements.paid');
+        Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');
+        Route::get('/medical-network/contracts', [MedicalCollaborationContractController::class, 'index'])->name('medical-network.contracts.index');
+        Route::post('/medical-network/contracts', [MedicalCollaborationContractController::class, 'store'])->middleware('throttle:10,1')->name('medical-network.contracts.store');
+        Route::patch('/medical-network/contracts/{contract}/respond', [MedicalCollaborationContractController::class, 'respond'])->whereNumber('contract')->name('medical-network.contracts.respond');
+        Route::post('/medical-network/contracts/generate-settlements', [MedicalCollaborationContractController::class, 'generate'])->middleware('throttle:5,1')->name('medical-network.contracts.generate');
+        Route::patch('/medical-network/settlements/{settlement}/paid', [MedicalCollaborationContractController::class, 'markPaid'])->whereNumber('settlement')->name('medical-network.settlements.paid');
         Route::get('/medical-network/review', [MedicalNetworkController::class, 'review'])->name('medical-network.review');
         Route::patch('/medical-network/providers/{provider}/approve', [MedicalNetworkController::class, 'approveProvider'])->whereNumber('provider')->name('medical-network.providers.approve');
         Route::patch('/medical-network/providers/{provider}/reject', [MedicalNetworkController::class, 'rejectProvider'])->whereNumber('provider')->name('medical-network.providers.reject');
