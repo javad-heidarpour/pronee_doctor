@@ -29,6 +29,7 @@ const pay = row => {
   if (!method) return
   router.post(route('portal.finance.installments.payments.store', row.id), { amount: Number(amount), method })
 }
+const revokeConsent = (plan, scope) => { if (window.confirm('ارسال پیامک‌های این نوع برای این طرح درمان متوقف شود؟')) router.post(route('portal.finance.plans.sms-consent.revoke', plan.id), { scope }) }
 const addCollateral = plan => {
   const type = window.prompt('نوع وثیقه: cheque / promissory_note / guarantor / other', 'cheque')
   if (!type) return
@@ -113,6 +114,10 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
         <div v-for="plan in plans.data" :key="plan.id" class="mb-3 rounded-xl border border-slate-200 p-3">
           <div class="flex flex-wrap items-center justify-between gap-2"><div><p class="font-bold">{{ plan.patient?.name }} — {{ plan.title }}</p><p class="text-xs text-slate-500">{{ plan.clinic?.name }} · {{ plan.specialty_module }} · مبلغ خالص {{ money(plan.net_amount ?? (plan.total_amount-plan.discount_amount)) }}</p></div><button v-if="canManage" @click="addCollateral(plan)" class="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800">ثبت وثیقه +</button></div>
           <div v-if="plan.collaterals?.length" class="mt-3 flex flex-wrap gap-2"><span v-for="item in plan.collaterals" :key="item.id" class="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900">{{ item.type }} · {{ item.identifier || 'بدون شناسه' }} · {{ item.status }}</span></div>
+          <div v-if="canManage" class="mt-3 flex flex-wrap gap-2">
+            <button v-if="plan.sms_reminders_enabled" @click="revokeConsent(plan,'installment')" class="rounded-lg border border-rose-200 px-3 py-2 text-xs text-rose-700">لغو پیامک اقساط</button>
+            <button v-if="plan.follow_up_sms_enabled" @click="revokeConsent(plan,'follow_up')" class="rounded-lg border border-rose-200 px-3 py-2 text-xs text-rose-700">لغو پیامک پیگیری درمان</button>
+          </div>
         </div>
         <div v-if="plans.links?.length" class="mt-4 flex flex-wrap gap-2"><button v-for="link in plans.links" :key="link.label" :disabled="!link.url" @click="router.get(link.url)" class="rounded-lg border px-3 py-2 text-xs disabled:opacity-40" v-html="link.label" /></div>
       </section>
