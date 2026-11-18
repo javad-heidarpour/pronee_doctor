@@ -14,7 +14,8 @@ use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
-use App\Http\Controllers\Portal\MedicalNetworkController;\nuse App\\Http\\Controllers\\Portal\\MedicalCollaborationContractController;
+use App\Http\Controllers\Portal\MedicalNetworkController;
+use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
 use App\Http\Controllers\Portal\PatientRetentionController;
 
