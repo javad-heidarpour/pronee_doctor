@@ -15,18 +15,30 @@ use Illuminate\Validation\ValidationException;
 
 final class CreatePatientFollowUpAction
 {
-    public function handle(Doctor $doctor, User $actor, array $data): PatientFollowUpTask
+    public function handle(Doctor $doctor, User $actor, array $data, array $accessibleClinicIds): PatientFollowUpTask
     {
-        return DB::transaction(function () use ($doctor, $actor, $data): PatientFollowUpTask {
+        return DB::transaction(function () use ($doctor, $actor, $data, $accessibleClinicIds): PatientFollowUpTask {
             $patient = Patient::query()
                 ->whereKey($data['patient_id'])
                 ->where('doctor_id', $doctor->id)
                 ->firstOrFail();
 
+            $hasAccessibleVisit = $patient->appointments()
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $accessibleClinicIds)
+                ->exists();
+
+            if (!$hasAccessibleVisit) {
+                throw ValidationException::withMessages([
+                    'patient_id' => 'برای این بیمار در مطب‌های مجاز شما سابقه مراجعه‌ای یافت نشد.',
+                ]);
+            }
+
             if (!empty($data['appointment_id'])) {
                 $appointmentExists = $patient->appointments()
                     ->whereKey($data['appointment_id'])
                     ->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $accessibleClinicIds)
                     ->exists();
 
                 if (!$appointmentExists) {
@@ -72,6 +84,7 @@ final class CreatePatientFollowUpAction
                 'due_at' => $data['due_at'],
                 'priority' => $data['priority'] ?? 'normal',
                 'contact_method' => $template?->contact_method ?? ($data['contact_method'] ?? 'call'),
+                'send_sms' => (bool) ($data['send_sms'] ?? false) || (bool) ($template?->send_sms ?? false),
                 'status' => 'pending',
             ]);
         });
