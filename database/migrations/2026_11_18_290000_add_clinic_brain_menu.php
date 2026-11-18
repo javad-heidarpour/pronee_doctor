@@ -23,7 +23,7 @@ return new class extends Migration
                 'guard' => 'doctor',
                 'is_active' => true,
                 'show_in_sidebar' => true,
-                'permissions' => json_encode(['appointments.view']),
+                'permissions' => json_encode(['appointments.view', 'appointments.manage', 'shifts.view']),
                 'roles' => json_encode(['doctor', 'secretary']),
                 'created_at' => now(),
                 'updated_at' => now(),
