@@ -31,9 +31,32 @@ class PatientFollowUpController extends Controller
             'status' => ['nullable', Rule::in(['pending', 'completed', 'unsuccessful', 'cancelled'])],
             'scope' => ['nullable', Rule::in(['all', 'overdue', 'today', 'mine'])],
             'search' => ['nullable', 'string', 'max:100'],
+            'patient_id' => ['nullable', 'integer'],
+            'appointment_id' => ['nullable', 'integer'],
         ]);
 
         $clinicIds = $this->accessibleClinicIds($doctor);
+        $selectedPatientId = null;
+        $selectedAppointmentId = null;
+
+        if (!empty($filters['patient_id'])) {
+            $selectedPatientId = Patient::query()
+                ->whereKey($filters['patient_id'])
+                ->where('doctor_id', $doctor->id)
+                ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))
+                ->value('id');
+            abort_unless($selectedPatientId, 404);
+
+            if (!empty($filters['appointment_id'])) {
+                $selectedAppointmentId = $doctor->appointments()
+                    ->whereKey($filters['appointment_id'])
+                    ->where('patient_id', $selectedPatientId)
+                    ->whereIn('clinic_id', $clinicIds)
+                    ->value('id');
+                abort_unless($selectedAppointmentId, 404);
+            }
+        }
+
         $query = PatientFollowUpTask::query()
             ->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)
@@ -65,6 +88,8 @@ class PatientFollowUpController extends Controller
         return Inertia::render('Portal/FollowUps/Index', [
             'doctor' => $doctor,
             'userRole' => Auth::guard('web')->user()?->role,
+            'selectedPatientId' => $selectedPatientId,
+            'selectedAppointmentId' => $selectedAppointmentId,
             'tasks' => $tasks,
             'patients' => $patients,
             'templates' => $templates,
