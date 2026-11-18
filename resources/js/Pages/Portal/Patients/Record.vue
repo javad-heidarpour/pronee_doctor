@@ -111,7 +111,12 @@
                   {{ record.start_date || 'تاریخ شروع ثبت نشده' }} تا {{ record.end_date || 'بدون تاریخ پایان' }}
                 </p>
               </div>
-              <button v-if="canManageClinicalRecords" type="button" @click="editClinicalRecord(record)" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ویرایش</button>
+              <div v-if="canManageClinicalRecords" class="flex shrink-0 flex-wrap gap-2">
+                <button type="button" @click="editClinicalRecord(record)" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ویرایش</button>
+                <button type="button" @click="archiveClinicalRecord(record)" :disabled="archivingClinicalRecordId === record.id" class="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                  {{ archivingClinicalRecordId === record.id ? 'در حال بایگانی...' : 'بایگانی' }}
+                </button>
+              </div>
             </div>
           </article>
         </div>
@@ -440,6 +445,22 @@ const editClinicalRecord = (record) => {
     start_date: record.start_date || '',
     end_date: record.end_date || '',
     is_active: Boolean(record.is_active),
+  });
+};
+
+const archivingClinicalRecordId = ref(null);
+const archiveClinicalRecord = (record) => {
+  if (!window.confirm('این سابقه از فهرست فعال خارج و به‌صورت بایگانی‌شده نگهداری می‌شود. ادامه می‌دهید؟')) return;
+  archivingClinicalRecordId.value = record.id;
+  router.delete(route('portal.patients.clinical-records.archive', {
+    patient: patient.value.id,
+    record: record.id,
+  }), {
+    preserveScroll: true,
+    onFinish: () => { archivingClinicalRecordId.value = null; },
+    onSuccess: () => {
+      if (editingClinicalRecordId.value === record.id) resetClinicalForm();
+    },
   });
 };
 
