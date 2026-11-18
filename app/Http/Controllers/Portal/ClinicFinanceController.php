@@ -162,7 +162,7 @@ class ClinicFinanceController extends Controller
                 ]);
                 $accounting->recordPatientPayment(
                     $organizationId, $clinicId, $doctor->id, (int) Auth::guard('web')->id(),
-                    $payment->id, $deposit, $plan->title . ' / پیش‌پرداخت', now()->toDateTimeString()
+                    $payment->id, $plan->id, $deposit, $plan->title . ' / پیش‌پرداخت', now()->toDateTimeString()
                 );
             }
 
@@ -217,7 +217,7 @@ class ClinicFinanceController extends Controller
             ]);
             $accounting->recordPatientPayment(
                 $plan->organization_id, $plan->clinic_id, $plan->doctor_id, (int) Auth::guard('web')->id(),
-                $payment->id, (int) $data['amount'], $plan->title, $payment->paid_at->toDateTimeString()
+                $payment->id, $plan->id, (int) $data['amount'], $plan->title, $payment->paid_at->toDateTimeString()
             );
         });
 
