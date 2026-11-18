@@ -43,7 +43,7 @@ class ClinicOperationsController extends Controller
             ->get(['clinic_organizations.id', 'clinic_organizations.name', 'clinic_organizations.owner_user_id']);
         $ownedOrganizationIds = $organizations->where('owner_user_id', $user->id)->pluck('id')->values();
         $payrollOrganizations = $organizations->whereIn('id', $ownedOrganizationIds)->values();
-        $payrollOrganizations->load(['members' => fn ($q) => $q->where('clinic_organization_members.is_active', true)]);
+        $payrollOrganizations->load(['members' => fn ($q) => $q->where('clinic_organization_members.is_active', true), 'clinics']);
         $canViewServices = $isPrivileged || $this->secretaryHas($doctor, 'services.view') || $this->secretaryHas($doctor, 'services.manage');
         $canViewClinical = $isPrivileged || $this->secretaryHas($doctor, 'patients.clinical.view') || $this->secretaryHas($doctor, 'patients.clinical.manage');
         $canManageClinical = $isPrivileged || $this->secretaryHas($doctor, 'patients.clinical.manage');
