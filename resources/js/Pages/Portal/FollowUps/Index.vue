@@ -32,7 +32,7 @@
               <input v-model="step.title" required placeholder="عنوان گام؛ مثلاً تماس با بیمار" class="rounded-lg border-slate-300 text-sm" />
               <input v-model.number="step.days" type="number" min="0" max="365" required placeholder="چند روز پس از تاریخ مبنا؟" class="rounded-lg border-slate-300 text-sm" />
               <select v-model="step.contact_method" class="rounded-lg border-slate-300 text-sm"><option value="call">تماس تلفنی</option><option value="sms">پیامک</option><option value="in_person">مراجعه حضوری</option><option value="review">بررسی پرونده</option></select>
-              <div class="flex items-center justify-between gap-2"><label class="flex items-center gap-2 text-xs text-slate-600"><input v-model="step.send_sms" type="checkbox" class="rounded border-slate-300" /> پیامک</label><button v-if="form.steps.length > 1" type="button" @click="removeStep(index)" class="text-xs font-bold text-rose-600">حذف گام</button></div>
+              <div class="flex flex-wrap items-center justify-between gap-2"><div class="flex flex-col gap-1"><label class="flex items-center gap-2 text-xs text-slate-600"><input v-model="step.send_sms" type="checkbox" class="rounded border-slate-300" /> ارسال پیامک</label><label class="flex items-center gap-2 text-xs text-slate-600"><input v-model="step.sms_consent_confirmed" type="checkbox" class="rounded border-slate-300" /> رضایت بیمار ثبت شده</label></div><button v-if="form.steps.length > 1" type="button" @click="removeStep(index)" class="text-xs font-bold text-rose-600">حذف گام</button></div>
             </div>
             <button type="button" @click="addStep" class="rounded-lg border border-dashed border-teal-400 px-3 py-2 text-xs font-bold text-teal-700">افزودن گام به برنامه +</button>
           </div>
@@ -47,7 +47,7 @@
           <select v-model="form.contact_method" class="rounded-xl border-slate-300 text-sm">
             <option value="call">تماس تلفنی</option><option value="sms">پیامک</option><option value="in_person">مراجعه حضوری</option><option value="review">بررسی پرونده</option>
           </select>
-          <p class="text-xs text-slate-500">موعد هر گام بر اساس تعداد روزهای واردشده از تاریخ مبنا محاسبه می‌شود. پیامک فقط برای گام‌های انتخاب‌شده ارسال خواهد شد.</p>
+          <p class="text-xs text-slate-500">موعد هر گام بر اساس تعداد روزهای واردشده از تاریخ مبنا محاسبه می‌شود. پیامک فقط با انتخاب ارسال و تأیید ثبت رضایت بیمار برای همان گام ارسال می‌شود.</p>
           <button :disabled="processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">ثبت برنامه پیگیری</button>
         </form>
       </section>
@@ -92,6 +92,7 @@
                 <p class="mt-1 text-sm text-slate-600">{{ task.patient?.name }} · {{ task.patient?.phone || 'بدون شماره تماس' }}</p>
                 <p class="mt-1 text-xs text-slate-500">موعد: {{ formatDate(task.due_at) }} · مسئول: {{ task.assignee ? (task.assignee.name + ' ' + (task.assignee.family || '')) : 'تعیین نشده' }}</p>
                 <p v-if="task.description" class="mt-2 text-sm text-slate-500">{{ task.description }}</p>
+                <p class="mt-1 text-[11px] text-slate-400">کد برنامه: {{ task.plan_uuid?.slice(0, 8) }} · {{ task.send_sms ? (task.sms_sent_at ? 'پیامک ارسال شده' : (task.last_sms_error ? 'خطای ارسال پیامک' : 'پیامک در صف بررسی')) : 'بدون پیامک' }}</p>
                 <p v-if="task.result_notes" class="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">نتیجه: {{ task.result_notes }}</p>
               </div>
               <span :class="statusClass(task)" class="rounded-lg px-3 py-2 text-xs font-bold">{{ statusLabel(task) }}</span>
@@ -100,6 +101,7 @@
               <select v-model="task._status" class="rounded-lg border-slate-300 text-sm"><option value="completed">انجام شد</option><option value="unsuccessful">تماس ناموفق</option><option value="pending">در انتظار</option><option value="cancelled">لغو</option></select>
               <select v-model="task._outcome" class="rounded-lg border-slate-300 text-sm"><option value="">نتیجه تماس</option><option value="reached">ارتباط برقرار شد</option><option value="no_answer">پاسخ نداد</option><option value="rescheduled">زمان جدید تعیین شد</option><option value="referred">ارجاع شد</option><option value="needs_visit">نیازمند مراجعه</option><option value="other">سایر</option></select>
               <input v-model="task._notes" placeholder="شرح نتیجه یا اقدام بعدی" class="rounded-lg border-slate-300 text-sm" />
+              <select v-model="task.assigned_to" class="rounded-lg border-slate-300 text-sm"><option value="">بدون مسئول مشخص</option><option v-for="secretary in secretaries" :key="secretary.id" :value="secretary.id">{{ secretary.name }} {{ secretary.family || '' }}</option></select>
               <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-bold text-white">ثبت نتیجه</button>
             </form>
           </article>
@@ -131,7 +133,7 @@ const props = defineProps({
 })
 const processing = ref(false)
 const isDoctor = computed(() => ['doctor', 'admin'].includes(props.userRole))
-const form = reactive({ patient_id: '', template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false }] })
+const form = reactive({ patient_id: '', template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false, sms_consent_confirmed: false }] })
 const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false })
 const filters = reactive({ ...props.filters })
 const statItems = computed(() => [
@@ -141,7 +143,7 @@ const statItems = computed(() => [
   { label: 'انجام‌شده', value: props.stats.completed },
   { label: 'ناموفق', value: props.stats.unsuccessful },
 ])
-const addStep = () => form.steps.push({ title: '', days: 7, contact_method: 'call', send_sms: false })
+const addStep = () => form.steps.push({ title: '', days: 7, contact_method: 'call', send_sms: false, sms_consent_confirmed: false })
 const removeStep = (index) => form.steps.splice(index, 1)
 const createTask = () => {
   processing.value = true
@@ -151,13 +153,14 @@ const createTemplate = () => router.post(route('portal.follow-ups.templates.stor
 const applyTemplate = () => {
   const selected = props.templates.find((item) => String(item.id) === String(form.template_id))
   if (!selected || !form.steps.length) return
-  Object.assign(form.steps[0], { title: selected.title, days: selected.default_days, contact_method: selected.contact_method, send_sms: selected.send_sms })
+  Object.assign(form.steps[0], { title: selected.title, days: selected.default_days, contact_method: selected.contact_method, send_sms: selected.send_sms, sms_consent_confirmed: false })
 }
 const disableTemplate = (id) => router.delete(route('portal.follow-ups.templates.destroy', id), { preserveScroll: true })
 const saveResult = (task) => router.put(route('portal.follow-ups.update', task.id), {
   status: task._status || 'completed',
   outcome: task._outcome || null,
   result_notes: task._notes || null,
+  assigned_to: task.assigned_to || null,
 }, { preserveScroll: true })
 const applyFilters = () => router.get(route('portal.follow-ups.index'), filters, { preserveState: true, replace: true })
 const formatDate = (value) => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
