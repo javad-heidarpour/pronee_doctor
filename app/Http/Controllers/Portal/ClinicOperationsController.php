@@ -439,9 +439,13 @@ class ClinicOperationsController extends Controller
         $gross = (int) $data['gross_amount'];
         $deduction = (int) ($data['deduction_amount'] ?? 0);
         abort_if($deduction > $gross, 422, 'کسورات حقوق نمی‌تواند از مبلغ ناخالص بیشتر باشد.');
-        ClinicStaffPayroll::create([
-            'organization_id' => $organization->id, 'clinic_id' => $data['clinic_id'] ?? null,
-            'staff_user_id' => $staff->id, 'period_start' => $data['period_start'], 'period_end' => $data['period_end'],
+        ClinicStaffPayroll::firstOrCreate([
+            'organization_id' => $organization->id,
+            'staff_user_id' => $staff->id,
+            'period_start' => $data['period_start'],
+            'period_end' => $data['period_end'],
+        ], [
+            'clinic_id' => $data['clinic_id'] ?? null,
             'gross_amount' => $gross, 'deduction_amount' => $deduction, 'net_amount' => $gross - $deduction,
             'status' => 'draft', 'notes' => $data['notes'] ?? null,
         ]);
