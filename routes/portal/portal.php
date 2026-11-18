@@ -12,6 +12,7 @@ use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
+use App\Http\Controllers\Portal\ClinicMarketingController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -82,6 +83,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         ])->name('dashboard');
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+
+        Route::get('/marketing', [ClinicMarketingController::class, 'index'])->name('marketing.index');
+        Route::post('/marketing/campaigns', [ClinicMarketingController::class, 'store'])->name('marketing.store');
+        Route::post('/marketing/campaigns/{campaign}/toggle', [ClinicMarketingController::class, 'toggle'])->whereNumber('campaign')->name('marketing.toggle');
 
         Route::get('/intelligence', [ClinicIntelligenceController::class, 'index'])->name('intelligence.index');
         Route::post('/intelligence/inventory/{item}/settings', [ClinicIntelligenceController::class, 'updateInventorySettings'])->whereNumber('item')->name('intelligence.inventory.settings');
