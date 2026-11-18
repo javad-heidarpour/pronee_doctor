@@ -220,8 +220,8 @@ return new class extends Migration
             $table->string('sku', 80)->nullable();
             $table->string('name', 180);
             $table->string('unit', 24)->default('عدد');
-            $table->unsignedDecimal('minimum_quantity', 12, 3)->default(0);
-            $table->unsignedDecimal('current_quantity', 12, 3)->default(0);
+            $table->decimal('minimum_quantity', 12, 3)->unsigned()->default(0);
+            $table->decimal('current_quantity', 12, 3)->unsigned()->default(0);
             $table->unsignedBigInteger('average_unit_cost')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
