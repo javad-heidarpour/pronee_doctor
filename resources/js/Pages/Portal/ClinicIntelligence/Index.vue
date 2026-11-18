@@ -88,7 +88,7 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
 
       <section v-if="permissions.health" class="space-y-4 rounded-2xl border bg-white p-4 sm:p-6">
         <div><h2 class="text-lg font-black">۲. باشگاه هوشمند سلامت</h2><p class="mt-1 text-xs text-slate-500">برنامه‌های پیشگیری و مراقبت دوره‌ای؛ عضویت فقط با رضایت ثبت‌شده بیمار</p></div>
-        <form @submit.prevent="program.post(route('portal.intelligence.health.programs.store'))" class="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2">
+        <form v-if="permissions.simulator" @submit.prevent="program.post(route('portal.intelligence.health.programs.store'))" class="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2">
           <input v-model="program.title" required placeholder="عنوان برنامه؛ مثلاً یادآوری چکاپ سالانه" class="rounded-xl border-slate-300 text-sm" />
           <select v-model="program.category" class="rounded-xl border-slate-300 text-sm"><option value="general_checkup">چکاپ عمومی</option><option value="diabetes">پایش دیابت</option><option value="cardiovascular">سلامت قلب و عروق</option><option value="dental">بهداشت دهان و دندان</option><option value="vaccination">یادآوری واکسیناسیون</option><option value="maternal">مراقبت مادران</option><option value="other">سایر</option></select>
           <select v-model="program.clinic_id" class="rounded-xl border-slate-300 text-sm"><option value="">همه شعبه‌های مجاز</option><option v-for="clinic in clinics" :key="clinic.id" :value="clinic.id">{{ clinic.name }}</option></select>
@@ -106,7 +106,7 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
           <article v-for="reminder in reminders" :key="reminder.membership_id" class="rounded-xl border p-3">
             <div class="flex items-start justify-between gap-2"><div><b>{{ reminder.patient_name }}</b><p class="text-xs text-slate-500">{{ reminder.program_title }} · {{ reminder.phone }}</p></div><span class="rounded-full bg-teal-50 px-2 py-1 text-xs text-teal-700">{{ reminder.points }} امتیاز</span></div>
             <p class="mt-2 text-xs" :class="reminder.overdue ? 'text-rose-600' : 'text-slate-500'">موعد مراقبت پیشنهادی: {{ reminder.due_date }} <span v-if="reminder.overdue">· موعد گذشته</span></p>
-            <button @click="award(memberships.find(m => m.id === reminder.membership_id))" class="mt-2 text-xs font-bold text-teal-700">ثبت فعالیت آموزشی/پیشگیرانه</button>
+            <div class="mt-2 flex flex-wrap gap-3"><button @click="award(memberships.find(m => m.id === reminder.membership_id))" class="text-xs font-bold text-teal-700">ثبت فعالیت آموزشی/پیشگیرانه</button><button @click="router.post(route('portal.intelligence.health.withdraw', reminder.membership_id))" class="text-xs font-bold text-rose-600">انصراف بیمار از برنامه</button></div>
           </article>
           <p v-if="!reminders.length" class="text-sm text-slate-500">هنوز عضویت فعالی ثبت نشده است.</p>
         </div>
