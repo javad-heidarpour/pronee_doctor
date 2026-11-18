@@ -27,7 +27,7 @@ class ClinicOrganizationController extends Controller
                     ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->wherePivot('is_active', true))
                     ->orWhereHas('doctors', fn ($d) => $d->where('doctors.user_id', $user->id)->wherePivot('status', 'pending'));
             })
-            ->with(['doctors' => fn ($q) => $q->withPivot(['role', 'status', 'revenue_share_basis_points']), 'clinics'])
+            ->with(['doctors' => fn ($q) => $q->withPivot(['role', 'status', 'revenue_share_basis_points']), 'clinics', 'members'])
             ->withCount(['doctors', 'clinics', 'members'])
             ->latest()->get();
 
