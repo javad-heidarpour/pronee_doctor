@@ -284,6 +284,60 @@ final class SavePatientClinicalRecordActionTest extends TestCase
         ]);
     }
 
+    public function test_it_rejects_a_medication_link_with_a_mismatched_doctor_id(): void
+    {
+        $doctor = $this->makeDoctor('doctor-link-owner');
+        $otherDoctor = $this->makeDoctor('doctor-link-other');
+        $patient = $this->makePatient($doctor);
+        $medication = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $otherDoctor->id,
+            'kind' => PatientClinicalRecord::KIND_MEDICATION,
+            'title' => 'Mismatched medication',
+        ]);
+
+        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported reaction',
+            'related_record_id' => $medication->id,
+        ]);
+    }
+
+    public function test_it_clears_associations_when_reaction_is_changed_to_another_kind(): void
+    {
+        $doctor = $this->makeDoctor('doctor-clear-associations');
+        $patient = $this->makePatient($doctor);
+        $medication = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_MEDICATION,
+            'title' => 'Medication',
+        ]);
+        $allergy = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ALLERGY,
+            'title' => 'Allergy',
+        ]);
+        $reaction = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported reaction',
+            'related_record_id' => $medication->id,
+            'related_allergy_record_id' => $allergy->id,
+        ]);
+
+        $updated = app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_HISTORY,
+            'title' => 'Medical history',
+        ], $reaction);
+
+        $this->assertNull($updated->related_record_id);
+        $this->assertNull($updated->related_allergy_record_id);
+    }
+
     private function makeDoctor(string $slug): Doctor
     {
         return Doctor::query()->create(['name' => 'Test Doctor', 'slug' => $slug]);
