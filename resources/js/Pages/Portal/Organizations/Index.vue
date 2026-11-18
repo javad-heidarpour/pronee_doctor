@@ -2,13 +2,15 @@
 import { useForm, router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
-const props = defineProps({ organizations: Array, doctors: Array, clinics: Array, isAdmin: Boolean, currentDoctorId: Number })
+const props = defineProps({ organizations: Array, doctors: Array, clinics: Array, availableStaff: Array, isAdmin: Boolean, currentDoctorId: Number })
 const form = useForm({ name: '', legal_name: '', registration_number: '', phone: '', email: '', clinic_ids: [] })
 const inviteForms = {}
 const create = () => form.post(route('portal.organizations.store'))
 const inviteDoctor = (organization, event) => { const data = Object.fromEntries(new FormData(event.target).entries()); router.post(route('portal.organizations.doctors.invite', organization.id), { doctor_id: Number(data.doctor_id), role: data.role, revenue_share_basis_points: Math.round(Number(data.share) * 100) }) }
 const attachClinic = (organization, event) => { const data = Object.fromEntries(new FormData(event.target).entries()); router.post(route('portal.organizations.clinics.attach', organization.id), { clinic_id: Number(data.clinic_id), branch_code: data.branch_code || null }) }
 const acceptDoctor = organization => router.post(route('portal.organizations.doctors.accept', organization.id))
+const inviteMember = (organization, event) => { const fd = new FormData(event.target); router.post(route('portal.organizations.members.invite', organization.id), { user_id: Number(fd.get('user_id')), role: fd.get('role'), clinic_ids: fd.getAll('clinic_ids').map(Number), permissions: fd.getAll('permissions') }) }
+const removeMember = (organization, member) => { if (window.confirm('دسترسی این کارمند از مجموعه لغو شود؟')) router.delete(route('portal.organizations.members.remove', { organization: organization.id, member })) }
 </script>
 
 <template>
@@ -46,7 +48,20 @@ const acceptDoctor = organization => router.post(route('portal.organizations.doc
           </form>
         </div>
 
-        <p class="text-xs leading-6 text-amber-800">افزودن پزشک جدید از مسیر دعوت و تأیید خود پزشک انجام می‌شود. در این نسخه، برای حفظ سازگاری با نوبت‌دهی موجود، هر پزشک همچنان برنامه و پرونده عملیاتی مستقل خود را دارد؛ گزارش تجمیعی مجموعه بر اساس پیوند شعبه‌ها و پزشکان توسعه می‌یابد.</p>
+        <div v-if="!isAdmin" class="border-t pt-4">
+          <h3 class="mb-3 text-sm font-bold">مدیریت منشی‌ها و کارکنان مجموعه</h3>
+          <div class="mb-3 flex flex-wrap gap-2"><span v-for="member in organization.members" :key="member.id" class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">{{ member.name }} {{ member.family }} · {{ member.pivot.role }} <button v-if="member.id !== organization.owner_user_id" @click="removeMember(organization,member.id)" class="font-bold text-rose-600">لغو دسترسی</button></span></div>
+          <form @submit.prevent="inviteMember(organization,$event)" class="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2">
+            <select name="user_id" required class="rounded-lg border-slate-300 text-sm"><option value="">انتخاب حساب منشی</option><option v-for="staff in availableStaff" :key="staff.id" :value="staff.id">{{ staff.name }} {{ staff.family }} — {{ staff.phone || 'بدون تلفن' }}</option></select>
+            <select name="role" class="rounded-lg border-slate-300 text-sm"><option value="receptionist">پذیرش</option><option value="accountant">حسابدار</option><option value="clinic_manager">مدیر شعبه</option><option value="inventory_manager">مسئول انبار</option><option value="secretary">منشی</option></select>
+            <div class="md:col-span-2"><p class="mb-2 text-xs font-semibold">شعبه‌های مجاز</p><div class="flex flex-wrap gap-3"><label v-for="clinic in organization.clinics" :key="clinic.id" class="flex items-center gap-1 text-xs"><input type="checkbox" name="clinic_ids" :value="clinic.id" />{{ clinic.name }}</label></div></div>
+            <div class="md:col-span-2"><p class="mb-2 text-xs font-semibold">مجوزهای منشی</p><div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <label v-for="permission in ['appointments.view','appointments.manage','patients.view','patients.manage','patients.clinical.view','patients.clinical.manage','shifts.view','shifts.manage','finance.view','finance.manage','services.view','services.manage','inventory.view','inventory.manage']" :key="permission" class="flex items-center gap-2 text-xs"><input type="checkbox" name="permissions" :value="permission" />{{ permission }}</label>
+            </div></div>
+            <button class="rounded-lg bg-teal-700 px-4 py-3 text-sm font-bold text-white md:col-span-2">اتصال منشی با مجوزهای انتخابی</button>
+          </form>
+        </div>
+        <p class="text-xs leading-6 text-amber-800">برای سازگاری با نوبت‌دهی موجود، هر پزشک برنامه و پرونده عملیاتی مستقل خود را دارد؛ شعبه‌های متعلق به پزشکان عضو در سطح مجموعه گروه‌بندی می‌شوند. پرونده پزشکی بین پزشکان به‌صورت خودکار به اشتراک گذاشته نمی‌شود.</p>
       </section>
       <div v-if="!organizations.length" class="rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">هنوز مجموعه درمانی ثبت نشده است.</div>
     </main>
