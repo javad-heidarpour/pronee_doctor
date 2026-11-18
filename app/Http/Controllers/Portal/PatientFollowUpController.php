@@ -86,14 +86,16 @@ class PatientFollowUpController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
 
-        $task = $action->handle($doctor, Auth::guard('web')->user(), $request->validated(), $this->accessibleClinicIds($doctor));
+        $tasks = $action->handle($doctor, Auth::guard('web')->user(), $request->validated(), $this->accessibleClinicIds($doctor));
 
-        $audit->handle('patient.follow_up.created', $task, [
-            'doctor_id' => $doctor->id,
-            'changed_fields' => ['follow_up_created'],
-        ]);
+        foreach ($tasks as $task) {
+            $audit->handle('patient.follow_up.created', $task, [
+                'doctor_id' => $doctor->id,
+                'changed_fields' => ['follow_up_created'],
+            ]);
+        }
 
-        return back()->with('success', 'برنامه پیگیری بیمار ثبت شد.');
+        return back()->with('success', count($tasks) . ' گام از برنامه پیگیری بیمار ثبت شد.');
     }
 
     public function update(Request $request, int $task, RecordSecurityAuditEventAction $audit)
