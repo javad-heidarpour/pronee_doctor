@@ -40,8 +40,26 @@ final class SavePatientClinicalRecordAction
                 }
             }
 
+            $relatedAllergyId = $data['related_allergy_record_id'] ?? null;
+            if ($relatedAllergyId !== null) {
+                $relatedAllergy = PatientClinicalRecord::query()
+                    ->whereKey($relatedAllergyId)
+                    ->where('patient_id', $lockedPatient->id)
+                    ->where('doctor_id', $lockedPatient->doctor_id)
+                    ->where('kind', PatientClinicalRecord::KIND_ALLERGY)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$relatedAllergy ||
+                    ($record && (int) $record->id === (int) $relatedAllergyId) ||
+                    ($data['kind'] ?? null) !== PatientClinicalRecord::KIND_ADVERSE_REACTION) {
+                    throw new ModelNotFoundException('Related allergy record not found.');
+                }
+            }
+
             if (($data['kind'] ?? null) !== PatientClinicalRecord::KIND_ADVERSE_REACTION) {
                 $data['related_record_id'] = null;
+                $data['related_allergy_record_id'] = null;
             }
 
             if ($record) {
