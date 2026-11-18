@@ -93,6 +93,7 @@
                 <option value="allergy">حساسیت</option>
                 <option value="medication">داروی مصرفی</option>
                 <option value="medical_history">سابقه پزشکی</option>
+                <option value="adverse_reaction">واکنش ناخواسته دارویی</option>
               </select>
             </label>
             <label class="space-y-1 text-xs font-bold text-slate-600">
@@ -111,6 +112,15 @@
               <input v-model="clinicalForm.frequency" maxlength="120" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="مثلاً روزی دو بار" />
             </label>
           </div>
+
+          <label v-if="clinicalForm.kind === 'adverse_reaction'" class="block space-y-1 text-xs font-bold text-slate-600">
+            داروی مرتبط (اختیاری)
+            <select v-model="clinicalForm.related_record_id" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+              <option value="">داروی مشخصی انتخاب نشده</option>
+              <option v-for="medication in activeMedicationRecords" :key="medication.id" :value="String(medication.id)">{{ medication.title }}</option>
+            </select>
+            <span class="block text-[10px] font-normal text-slate-500">فقط داروهای فعال همین پرونده نمایش داده می‌شوند.</span>
+          </label>
 
           <label class="block space-y-1 text-xs font-bold text-slate-600">
             توضیحات
@@ -155,6 +165,8 @@
                 <p v-if="record.dosage || record.frequency" class="mt-2 text-xs text-slate-600">
                   {{ record.dosage || '' }} <span v-if="record.dosage && record.frequency"> · </span>{{ record.frequency || '' }}
                 </p>
+                <p v-if="record.related_record" class="mt-2 text-xs font-bold text-amber-700">داروی مرتبط: {{ record.related_record.title }}</p>
+                <p v-if="record.kind === 'adverse_reaction'" class="mt-1 text-[10px] text-amber-700">گزارش واکنش؛ رابطه علت و معلولی با دارو تأیید پزشکی نشده است.</p>
                 <p v-if="record.description" class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ record.description }}</p>
                 <p v-if="record.start_date || record.end_date" class="mt-2 text-[11px] text-slate-400">
                   {{ record.start_date || 'تاریخ شروع ثبت نشده' }} تا {{ record.end_date || 'بدون تاریخ پایان' }}
@@ -383,6 +395,9 @@ const patient = computed(() => {
 const activeAllergies = computed(() => (patient.value.clinical_records || [])
   .filter(record => record.kind === 'allergy' && record.is_active));
 
+const activeMedicationRecords = computed(() => (patient.value.clinical_records || [])
+  .filter(record => record.kind === 'medication' && record.is_active));
+
 const medicationReviewItems = computed(() => {
   const activeMedications = (patient.value.clinical_records || [])
     .filter(record => record.kind === 'medication' && record.is_active);
@@ -510,6 +525,7 @@ const clinicalForm = reactive({
   start_date: '',
   end_date: '',
   is_active: true,
+  related_record_id: '',
 });
 
 const resetClinicalForm = () => {
@@ -523,6 +539,7 @@ const resetClinicalForm = () => {
     start_date: '',
     end_date: '',
     is_active: true,
+    related_record_id: '',
   });
 };
 
@@ -537,6 +554,7 @@ const editClinicalRecord = (record) => {
     start_date: record.start_date || '',
     end_date: record.end_date || '',
     is_active: Boolean(record.is_active),
+    related_record_id: record.related_record_id ? String(record.related_record_id) : '',
   });
 };
 
@@ -592,6 +610,7 @@ const clinicalKindLabel = (kind) => ({
   allergy: 'حساسیت',
   medication: 'دارو',
   medical_history: 'سابقه پزشکی',
+  adverse_reaction: 'واکنش ناخواسته دارویی',
 }[kind] || 'اطلاعات پزشکی');
 const formatDate = (value) => {
   if (!value) return '—';
