@@ -187,10 +187,10 @@ class ClinicOrganizationController extends Controller
         $this->authorizeOwner($organization);
         $user = $organization->members()->whereKey($member)->firstOrFail();
         DB::transaction(function () use ($organization, $user): void {
+            $organization->members()->detach($user->id);
             foreach ($organization->doctors()->get() as $doctor) {
                 $this->syncSecretaryDoctorAccess($user, $doctor);
             }
-            $organization->members()->detach($user->id);
         });
         return back()->with('success', 'دسترسی کارمند به مجموعه لغو شد.');
     }
