@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\DB;
 
 final class RecordPatientVitalSignAction
 {
+    public const RANGES = [
+        'systolic_bp' => [40, 300],
+        'diastolic_bp' => [20, 200],
+        'heart_rate' => [20, 300],
+        'temperature' => [25, 45],
+        'weight' => [0.1, 500],
+        'height' => [20, 300],
+        'oxygen_saturation' => [0, 100],
+        'blood_glucose' => [0, 2000],
+    ];
+
     public const UNITS = [
         'systolic_bp' => 'mmHg',
         'diastolic_bp' => 'mmHg',
