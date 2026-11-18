@@ -5,7 +5,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
   doctor: Object, clinics: Array, patients: Array, organizations: Array, plans: Array,
-  services: Array, inventory: Array, dentalChart: Array, settlements: Array,
+  services: Array, inventory: Array, dentalChart: Array, settlements: Array, payrolls: Array,
   lowStockCount: Number, canManage: Boolean, canManageInventory: Boolean, canManageFinance: Boolean,
 })
 const serviceForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', code: '', specialty_module: 'dentistry', default_duration_minutes: 30, default_price: 0, doctor_share_basis_points: 7000, requires_follow_up: false, follow_up_after_days: 30 })
@@ -14,6 +14,8 @@ const dentalForm = useForm({ patient_id: '', clinic_id: props.clinics?.[0]?.id ?
 const stockForm = useForm({ clinic_id: props.clinics?.[0]?.id ?? '', name: '', sku: '', unit: 'عدد', minimum_quantity: 1, opening_quantity: 0, unit_cost: 0 })
 const settlementForm = useForm({ organization_id: props.organizations?.[0]?.id ?? '', doctor_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10) })
 const selectedPlan = computed(() => props.plans.find(p => String(p.id) === String(itemForm.plan_id)))
+const settlementDoctors = computed(() => props.organizations.find(o => String(o.id) === String(settlementForm.organization_id))?.doctors || [])
+const payrollStaff = computed(() => (props.organizations.find(o => String(o.id) === String(payrollForm.organization_id))?.members || []).filter(m => m.pivot?.role !== 'owner'))
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
 const saveService = () => serviceForm.post(route('portal.operations.services.store'), { onSuccess: () => serviceForm.reset('name','code','default_price') })
 const saveItem = () => itemForm.transform(data => ({...data, price: Number(data.price), service_id: data.service_id || null, doctor_share_basis_points: data.doctor_share_basis_points === '' ? null : Number(data.doctor_share_basis_points), follow_up_after_days: data.follow_up_after_days === '' ? null : Number(data.follow_up_after_days)})).post(route('portal.operations.treatment-items.store', itemForm.plan_id), { onSuccess: () => itemForm.reset('title','tooth_number','tooth_surface','clinical_notes') })
@@ -116,7 +118,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <h2 class="mb-3 font-bold">تسویه دوره‌ای پزشک</h2>
         <form @submit.prevent="createSettlement" class="grid gap-3 md:grid-cols-3">
           <select v-model="settlementForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in organizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
-          <select v-model="settlementForm.doctor_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب پزشک</option><option v-for="o in organizations.filter(x => x.id == settlementForm.organization_id)" :key="o.id" v-for="d in o.doctors" :value="d.id">{{ d.name }} {{ d.family }}</option></select>
+          <select v-model="settlementForm.doctor_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب پزشک</option><option v-for="d in settlementDoctors" :key="d.id" :value="d.id">{{ d.name }} {{ d.family }}</option></select>
           <input v-model="settlementForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model="settlementForm.period_end" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <button :disabled="settlementForm.processing || !organizations.length" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white md:col-span-3">محاسبه پیش‌نویس تسویه از خدمات انجام‌شده</button>
@@ -124,7 +126,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <h2 class="mb-3 mt-8 font-bold">حقوق و دستمزد کارکنان</h2>
         <form @submit.prevent="savePayroll" class="grid gap-3 md:grid-cols-3">
           <select v-model="payrollForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in organizations.filter(x => x.owner_user_id)" :key="o.id" :value="o.id">{{ o.name }}</option></select>
-          <select v-model="payrollForm.staff_user_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب کارمند</option><option v-for="o in organizations.filter(x => x.id == payrollForm.organization_id)" :key="o.id" v-for="m in o.members" :value="m.id">{{ m.name }} {{ m.family }}</option></select>
+          <select v-model="payrollForm.staff_user_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب کارمند</option><option v-for="m in payrollStaff" :key="m.id" :value="m.id">{{ m.name }} {{ m.family }}</option></select>
           <select v-model="payrollForm.clinic_id" class="rounded-xl border-slate-300 text-sm"><option value="">کل مجموعه</option><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <input v-model="payrollForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model="payrollForm.period_end" type="date" required class="rounded-xl border-slate-300 text-sm" />
