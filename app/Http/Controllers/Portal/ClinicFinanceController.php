@@ -48,12 +48,29 @@ class ClinicFinanceController extends Controller
             ->whereIn('clinic_id', $clinicIds)->with('clinic:id,name')
             ->latest('expense_date')->limit(20)->get();
 
-        $ledger = DB::table('clinic_financial_ledger')
-            ->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
+        $user = Auth::guard('web')->user();
+        $organizationIds = $user->role === 'doctor'
+            ? $doctor->clinicOrganizations()->where('owner_user_id', $user->id)->wherePivot('status', 'active')
+                ->pluck('clinic_organizations.id')->map(fn ($id) => (int) $id)->all()
+            : [];
+        $ledger = DB::table('clinic_financial_ledger')->where(function ($query) use ($doctor, $clinicIds, $organizationIds): void {
+            if ($organizationIds) {
+                $query->whereIn('organization_id', $organizationIds);
+            } else {
+                $query->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
+            }
+        });
         $income = (clone $ledger)->sum('credit');
         $outgoing = (clone $ledger)->sum('debit');
-        $organizationIds = $doctor->clinicOrganizations()->wherePivot('status', 'active')
-            ->pluck('clinic_organizations.id')->map(fn ($id) => (int) $id)->all();
+        $statsPlans = PatientTreatmentPlan::query()->when(
+            $organizationIds,
+            fn ($query) => $query->whereIn('organization_id', $organizationIds),
+            fn ($query) => $query->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
+        );
+        $statsInstallments = PatientTreatmentInstallment::query()->whereHas('plan', function ($query) use ($doctor, $clinicIds, $organizationIds): void {
+            if ($organizationIds) $query->whereIn('organization_id', $organizationIds);
+            else $query->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
+        });
         $journalSummary = DB::table('clinic_journal_lines as lines')
             ->join('clinic_financial_accounts as accounts', 'accounts.id', '=', 'lines.account_id')
             ->join('clinic_journal_entries as entries', 'entries.id', '=', 'lines.journal_entry_id')
@@ -82,9 +99,9 @@ class ClinicFinanceController extends Controller
             'expenses' => $expenses,
             'journalSummary' => $journalSummary,
             'stats' => [
-                'plans' => PatientTreatmentPlan::where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)->count(),
-                'receivables' => PatientTreatmentInstallment::whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))->selectRaw('COALESCE(SUM(amount - paid_amount),0) as total')->value('total'),
-                'overdue' => PatientTreatmentInstallment::whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))->whereDate('due_date', '<', today())->whereColumn('paid_amount', '<', 'amount')->count(),
+                'plans' => (clone $statsPlans)->count(),
+                'receivables' => (clone $statsInstallments)->selectRaw('COALESCE(SUM(amount - paid_amount),0) as total')->value('total'),
+                'overdue' => (clone $statsInstallments)->whereDate('due_date', '<', today())->whereColumn('paid_amount', '<', 'amount')->count(),
                 'income' => (int) $income,
                 'expenses' => (int) $outgoing,
             ],
