@@ -21,6 +21,7 @@ class Address extends Model
         'Altitude',
         'is_active',
         'doctor_id',
+        'organization_id',
         'full_address',
         'city_id',
         'phone',
@@ -33,7 +34,12 @@ class Address extends Model
     /**
      * Get the doctors for the city.
      */
-    public function organization(): BelongsTo\n    {\n        return $this->belongsTo(ClinicOrganization::class, 'organization_id');\n    }\n\n    public function timeSlots(): HasMany
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(ClinicOrganization::class, 'organization_id');
+    }
+
+    public function timeSlots(): HasMany
     {
         return $this->hasMany(TimeSlot::class, 'clinic_id');
     }
