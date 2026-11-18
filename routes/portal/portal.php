@@ -8,6 +8,7 @@ use App\Http\Controllers\Portal\SecurityAuditController;
 use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
+use App\Http\Controllers\Portal\ClinicRevenueOptimizerController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
@@ -139,6 +140,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::delete('/organizations/{organization}/members/{member}', [ClinicOrganizationController::class, 'removeMember'])->whereNumber('organization')->whereNumber('member')->name('organizations.members.remove');
 
         Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
+        Route::get('/revenue-optimizer', [ClinicRevenueOptimizerController::class, 'index'])->name('revenue-optimizer.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
         Route::post('/finance/installments/{installment}/payments', [ClinicFinanceController::class, 'recordPayment'])->whereNumber('installment')->name('finance.installments.payments.store');
         Route::post('/finance/treatment-plans/{plan}/revoke-sms-consent', [ClinicFinanceController::class, 'revokeSmsConsent'])->whereNumber('plan')->name('finance.plans.sms-consent.revoke');
