@@ -31,16 +31,23 @@ class ClinicOrganizationController extends Controller
             ->withCount(['doctors', 'clinics', 'members'])
             ->latest()->get();
 
-        $ownedDoctors = Doctor::query()->where('is_active', true)->orderBy('name')
+        $availableDoctors = Doctor::query()->where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'family', 'specialty_title']);
+        $ownedDoctorIds = $user->role === 'admin'
+            ? $availableDoctors->pluck('id')
+            : $user->ownedDoctorProfiles()->pluck('doctors.id');
+        $organizationDoctorIds = $organizations->flatMap(
+            fn ($organization) => $organization->doctors->filter(fn ($member) => $member->pivot->status === 'active')->pluck('id')
+        );
+        $clinicDoctorIds = $ownedDoctorIds->merge($organizationDoctorIds)->unique()->values();
 
-        $clinics = \App\\Models\\Address::query()
-            ->where('is_active', true)->orderBy('name')
+        $clinics = \App\Models\Address::query()
+            ->whereIn('doctor_id', $clinicDoctorIds)->where('is_active', true)->orderBy('name')
             ->get(['id', 'doctor_id', 'name', 'full_address']);
 
         return Inertia::render('Portal/Organizations/Index', [
             'organizations' => $organizations,
-            'doctors' => $ownedDoctors,
+            'doctors' => $availableDoctors,
             'clinics' => $clinics,
             'isAdmin' => $user->role === 'admin',
             'currentDoctorId' => $user->doctorProfile()->value('id'),
