@@ -37,6 +37,12 @@
         </article>
       </section>
 
+      <section class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+        <p class="text-xs font-bold text-indigo-700">PRONEEX CLINICAL DECISION SUPPORT</p><h2 class="mt-1 text-base font-black text-indigo-950">مراجعه‌گر هوشمند پیش از نهایی‌سازی</h2>
+        <div class="mt-4 grid gap-3 sm:grid-cols-3"><div v-for="item in context.decision_support?.checks || []" :key="item.key" class="rounded-xl bg-white p-3"><p class="text-xs font-black">{{item.title}}</p><p class="mt-1 text-xs leading-6" :class="item.status==='available'?'text-emerald-700':'text-amber-800'">{{item.message}}</p></div></div>
+        <div v-if="prescriptionReview.length" class="mt-3 space-y-2"><div v-for="(item,index) in prescriptionReview" :key="index" class="rounded-lg border border-amber-200 bg-amber-100 p-3 text-xs leading-6"><strong>{{item.title}}</strong> {{item.message}}</div></div>
+        <p class="mt-3 text-[11px] leading-6 text-indigo-900">این بررسی فقط کامل‌بودن و تازگی اطلاعات را ارزیابی می‌کند؛ تشخیص، تطبیق دارو با حساسیت، تداخل دارویی یا توصیه دوز انجام نمی‌شود. نبود داده به معنی طبیعی بودن وضعیت نیست و تصمیم نهایی با پزشک است.</p>
+      </section>
       <form @submit.prevent="saveDraft" class="space-y-5">
         <fieldset :disabled="readonly" class="space-y-5 disabled:opacity-90">
           <section class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -153,6 +159,18 @@ const form = reactive({
   reviewed_medications: Boolean(props.encounter?.reviewed_medications),
   reviewed_vitals: Boolean(props.encounter?.reviewed_vitals),
   prescriptions: (source?.prescriptions || []).map(x => ({ ...x, duration_days: x.duration_days || '' })),
+})
+const prescriptionReview = computed(() => {
+  const seen = new Set(), warnings = []
+  form.prescriptions.forEach(item => {
+    const name = String(item.medication_name || '').trim()
+    if (!name) return
+    const key = name.toLocaleLowerCase().replace(/[\\s\\u200c\\u200f-]+/g, '')
+    if (seen.has(key)) warnings.push({title:'نام داروی تکراری:',message:name+' بیش از یک بار وارد شده؛ احتمال تکرار بررسی شود.'})
+    else seen.add(key)
+    if (!String(item.route || '').trim() || !String(item.frequency || '').trim()) warnings.push({title:'اطلاعات نسخه ناقص:',message:name+' فاقد راه یا دفعات مصرف کامل است.'})
+  })
+  return warnings
 })
 const canSign = computed(() => form.reviewed_allergies && form.reviewed_medications && form.reviewed_vitals && form.assessment.trim() && form.plan.trim())
 const addPrescription = () => form.prescriptions.push({ medication_name: '', strength: '', dosage: '', route: '', frequency: '', duration_days: '', quantity: '', instructions: '' })

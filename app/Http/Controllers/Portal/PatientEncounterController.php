@@ -260,11 +260,13 @@ final class PatientEncounterController extends Controller
             ->values()
             ->all();
 
-        return [
+        $snapshot = [
             'captured_at' => now()->toIso8601String(),
             'allergies' => array_values(array_filter($records, fn ($record) => $record['kind'] === 'allergy')),
             'medications' => array_values(array_filter($records, fn ($record) => $record['kind'] === 'medication')),
             'vitals' => $vitals,
         ];
+        $snapshot['decision_support'] = app(\App\Services\ClinicalDecisionSupport::class)->evaluate($snapshot);
+        return $snapshot;
     }
 }
