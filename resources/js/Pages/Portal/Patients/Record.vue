@@ -122,6 +122,15 @@
             <span class="block text-[10px] font-normal text-slate-500">فقط داروهای فعال همین پرونده نمایش داده می‌شوند.</span>
           </label>
 
+          <label v-if="clinicalForm.kind === 'adverse_reaction'" class="block space-y-1 text-xs font-bold text-slate-600">
+            حساسیت مرتبط (اختیاری)
+            <select v-model="clinicalForm.related_allergy_record_id" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+              <option value="">حساسیت مشخصی انتخاب نشده</option>
+              <option v-for="allergy in activeAllergies" :key="allergy.id" :value="String(allergy.id)">{{ allergy.title }}</option>
+            </select>
+            <span class="block text-[10px] font-normal text-slate-500">در صورت ارتباط، یکی از حساسیت‌های فعال همین پرونده را انتخاب کنید.</span>
+          </label>
+
           <label class="block space-y-1 text-xs font-bold text-slate-600">
             توضیحات
             <textarea v-model="clinicalForm.description" rows="3" maxlength="5000" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="توضیحات تکمیلی، واکنش حساسیتی یا جزئیات سابقه"></textarea>
@@ -166,6 +175,7 @@
                   {{ record.dosage || '' }} <span v-if="record.dosage && record.frequency"> · </span>{{ record.frequency || '' }}
                 </p>
                 <p v-if="record.related_record" class="mt-2 text-xs font-bold text-amber-700">داروی مرتبط: {{ record.related_record.title }}</p>
+                <p v-if="record.related_allergy_record" class="mt-1 text-xs font-bold text-rose-700">حساسیت مرتبط: {{ record.related_allergy_record.title }}</p>
                 <p v-if="record.kind === 'adverse_reaction'" class="mt-1 text-[10px] text-amber-700">گزارش واکنش؛ رابطه علت و معلولی با دارو تأیید پزشکی نشده است.</p>
                 <p v-if="record.description" class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ record.description }}</p>
                 <p v-if="record.start_date || record.end_date" class="mt-2 text-[11px] text-slate-400">
@@ -526,6 +536,7 @@ const clinicalForm = reactive({
   end_date: '',
   is_active: true,
   related_record_id: '',
+  related_allergy_record_id: '',
 });
 
 const resetClinicalForm = () => {
@@ -540,6 +551,7 @@ const resetClinicalForm = () => {
     end_date: '',
     is_active: true,
     related_record_id: '',
+    related_allergy_record_id: '',
   });
 };
 
@@ -555,6 +567,7 @@ const editClinicalRecord = (record) => {
     end_date: record.end_date || '',
     is_active: Boolean(record.is_active),
     related_record_id: record.related_record_id ? String(record.related_record_id) : '',
+    related_allergy_record_id: record.related_allergy_record_id ? String(record.related_allergy_record_id) : '',
   });
 };
 
