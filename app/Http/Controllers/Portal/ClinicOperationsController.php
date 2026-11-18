@@ -134,7 +134,7 @@ class ClinicOperationsController extends Controller
             $orgId = $row->plan->organization_id;
             $accounting->recordTreatmentRevenue(
                 $orgId, $clinicId, $row->provider_doctor_id ?: $doctor->id,
-                (int) Auth::guard('web')->id(), $row->id, (int) $row->price,
+                (int) Auth::guard('web')->id(), $row->id, $row->plan->id, (int) $row->price,
                 $row->title, $row->performed_at->toDateTimeString()
             );
             if ($row->follow_up_due_at) {
