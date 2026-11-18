@@ -11,7 +11,7 @@ const props = defineProps({
 const planForm = useForm({
   clinic_id: props.clinics?.[0]?.id ?? '',
   patient_id: '', title: '', specialty_module: 'general',
-  total_amount: '', discount_amount: 0, deposit_amount: 0,
+  total_amount: '', discount_amount: 0, deposit_amount: 0, deposit_method: 'card', deposit_reference: '',
   installment_count: 1, first_due_date: new Date().toISOString().slice(0, 10),
   clinical_notes: '', financial_terms: '', sms_reminders_enabled: false, sms_consent_confirmed: false, follow_up_sms_enabled: false, follow_up_sms_consent_confirmed: false,
 })
