@@ -20,6 +20,7 @@ return [
         'url' => env('GHASEDAK_URL', 'https://api.ghasedak.io/v1/SendSimple'),
         'appointment_reminder_template' => env('GHASEDAK_APPOINTMENT_REMINDER_TEMPLATE'),
         'patient_follow_up_template' => env('GHASEDAK_PATIENT_FOLLOW_UP_TEMPLATE'),
+        'installment_reminder_template' => env('GHASEDAK_INSTALLMENT_REMINDER_TEMPLATE'),
     ],
     'sep' => [
         'terminal_id' => env('SEP_TERMINAL_ID'),
