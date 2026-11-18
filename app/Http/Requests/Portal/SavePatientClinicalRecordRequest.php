@@ -38,6 +38,7 @@ final class SavePatientClinicalRecordRequest extends FormRequest
                 'nullable',
                 'exclude_unless:kind,adverse_reaction',
                 'date',
+                'before_or_equal:today',
             ],
             'action_taken' => [
                 'nullable',
@@ -56,7 +57,9 @@ final class SavePatientClinicalRecordRequest extends FormRequest
                 'exclude_unless:kind,adverse_reaction',
                 Rule::exists('patient_clinical_records', 'id')
                     ->where('patient_id', $this->route('patient')?->id)
-                    ->where('kind', PatientClinicalRecord::KIND_ALLERGY),
+                    ->where('doctor_id', $this->route('patient')?->doctor_id)
+                    ->where('kind', PatientClinicalRecord::KIND_ALLERGY)
+                    ->where('is_active', true),
             ],
             'related_record_id' => [
                 'nullable',
@@ -64,7 +67,9 @@ final class SavePatientClinicalRecordRequest extends FormRequest
                 'exclude_unless:kind,adverse_reaction',
                 Rule::exists('patient_clinical_records', 'id')
                     ->where('patient_id', $this->route('patient')?->id)
-                    ->where('kind', PatientClinicalRecord::KIND_MEDICATION),
+                    ->where('doctor_id', $this->route('patient')?->doctor_id)
+                    ->where('kind', PatientClinicalRecord::KIND_MEDICATION)
+                    ->where('is_active', true),
             ],
         ];
     }
