@@ -10,6 +10,7 @@ use App\Models\ClinicExpense;
 use App\Models\Address;
 use App\Services\Finance\ClinicAccountingService;
 use App\Models\Patient;
+use App\Models\PatientFollowUpTask;
 use App\Models\PatientCollateral;
 use App\Models\PatientInstallmentPayment;
 use App\Models\PatientTreatmentInstallment;
