@@ -46,6 +46,10 @@ final class SavePatientClinicalRecordActionTest extends TestCase
             $table->boolean('is_active')->default(true);
             $table->unsignedBigInteger('related_record_id')->nullable();
             $table->unsignedBigInteger('related_allergy_record_id')->nullable();
+            $table->string('reaction_severity', 24)->nullable();
+            $table->date('reaction_date')->nullable();
+            $table->text('action_taken')->nullable();
+            $table->string('reaction_outcome', 24)->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -173,6 +177,52 @@ final class SavePatientClinicalRecordActionTest extends TestCase
             'title' => 'Reported reaction',
             'related_allergy_record_id' => $allergy->id,
         ]);
+    }
+
+    public function test_it_saves_structured_details_for_a_reported_adverse_reaction(): void
+    {
+        $doctor = $this->makeDoctor('doctor-reaction-details');
+        $patient = $this->makePatient($doctor);
+
+        $reaction = app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported dizziness',
+            'reaction_severity' => 'moderate',
+            'reaction_date' => '2026-11-18',
+            'action_taken' => 'Patient reported contacting the clinic.',
+            'reaction_outcome' => 'ongoing',
+        ]);
+
+        $this->assertSame('moderate', $reaction->reaction_severity);
+        $this->assertSame('2026-11-18', $reaction->reaction_date->format('Y-m-d'));
+        $this->assertSame('Patient reported contacting the clinic.', $reaction->action_taken);
+        $this->assertSame('ongoing', $reaction->reaction_outcome);
+    }
+
+    public function test_it_clears_reaction_details_when_record_kind_changes(): void
+    {
+        $doctor = $this->makeDoctor('doctor-reaction-clear');
+        $patient = $this->makePatient($doctor);
+        $record = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_ADVERSE_REACTION,
+            'title' => 'Reported reaction',
+            'reaction_severity' => 'severe',
+            'reaction_date' => '2026-11-17',
+            'action_taken' => 'Observed',
+            'reaction_outcome' => 'unknown',
+        ]);
+
+        $updated = app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_ALLERGY,
+            'title' => 'Updated allergy',
+        ], $record);
+
+        $this->assertNull($updated->reaction_severity);
+        $this->assertNull($updated->reaction_date);
+        $this->assertNull($updated->action_taken);
+        $this->assertNull($updated->reaction_outcome);
     }
 
     public function test_it_rejects_a_record_belonging_to_another_patient(): void
