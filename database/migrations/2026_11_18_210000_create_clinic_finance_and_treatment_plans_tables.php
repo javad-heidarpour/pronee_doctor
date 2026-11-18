@@ -28,6 +28,12 @@ return new class extends Migration
             $table->text('financial_terms')->nullable();
             $table->boolean('sms_reminders_enabled')->default(false);
             $table->boolean('sms_consent_confirmed')->default(false);
+            $table->timestamp('sms_consent_confirmed_at')->nullable();
+            $table->foreignId('sms_consent_recorded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->boolean('follow_up_sms_enabled')->default(false);
+            $table->boolean('follow_up_sms_consent_confirmed')->default(false);
+            $table->timestamp('follow_up_sms_consent_confirmed_at')->nullable();
+            $table->foreignId('follow_up_sms_consent_recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->date('started_at')->nullable();
             $table->date('completed_at')->nullable();
             $table->timestamps();
