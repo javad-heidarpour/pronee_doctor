@@ -25,7 +25,6 @@ use App\Models\PatientClinicalRecord;
 use App\Actions\Portal\Patient\SavePatientClinicalRecordAction;
 use App\Actions\Portal\Patient\RecordPatientVitalSignAction;
 use App\Http\Requests\Portal\StorePatientVitalSignRequest;
-use App\Models\PatientVitalSign;
 use App\Http\Requests\Portal\SavePatientClinicalRecordRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
@@ -181,6 +180,9 @@ class PatientController extends Controller
         if ($canViewClinicalRecords) {
             $visits->loadMissing(['patient.clinicalRecords', 'patient.vitalSigns']);
             $audit->handle('patient.clinical_records.viewed', $appointment, [
+                'doctor_id' => $doctor->id,
+            ]);
+            $audit->handle('patient.vital_signs.viewed', $appointment, [
                 'doctor_id' => $doctor->id,
             ]);
         } else {
