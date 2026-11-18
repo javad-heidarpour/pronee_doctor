@@ -92,6 +92,8 @@ final class ClinicAccountingServiceTest extends TestCase
 
         $accounting = app(ClinicAccountingService::class);
         $accounting->recordPatientPayment(9, 3, 12, 5, $payment->id, 77, 1000, 'پیش‌پرداخت', now()->toDateTimeString());
+        $accounting->recordPatientPayment(9, 3, 12, 5, $payment->id, 77, 1000, 'پیش‌پرداخت تکراری', now()->toDateTimeString());
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'patient-payment:' . $payment->id)->count());
 
         $item = PatientTreatmentItem::query()->create([
             'treatment_plan_id' => 77, 'stage' => 'completed', 'price' => 1500,
