@@ -15,11 +15,13 @@ class PatientClinicalRecord extends Model
     public const KIND_ALLERGY = 'allergy';
     public const KIND_MEDICATION = 'medication';
     public const KIND_HISTORY = 'medical_history';
+    public const KIND_ADVERSE_REACTION = 'adverse_reaction';
 
     public const KINDS = [
         self::KIND_ALLERGY,
         self::KIND_MEDICATION,
         self::KIND_HISTORY,
+        self::KIND_ADVERSE_REACTION,
     ];
 
     protected $fillable = [
@@ -33,6 +35,7 @@ class PatientClinicalRecord extends Model
         'start_date',
         'end_date',
         'is_active',
+        'related_record_id',
     ];
 
     protected $casts = [
@@ -40,6 +43,11 @@ class PatientClinicalRecord extends Model
         'end_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
+
+    public function relatedRecord(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'related_record_id');
+    }
 
     public function patient(): BelongsTo
     {
