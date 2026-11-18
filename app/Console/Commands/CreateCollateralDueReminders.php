@@ -40,6 +40,9 @@ class CreateCollateralDueReminders extends Command
 
                         if (!$claimed) return;
 
+                        $existingTask = PatientFollowUpTask::query()->where('collateral_id', $collateral->id)->where('status', 'pending')->first();
+                        if ($existingTask) return;
+
                         $plan = $collateral->plan;
                         $dueAt = $collateral->due_date->copy()->setTime(9, 0);
                         if ($dueAt->isPast()) $dueAt = now();
@@ -49,6 +52,7 @@ class CreateCollateralDueReminders extends Command
                             'clinic_id' => $plan->clinic_id,
                             'patient_id' => $plan->patient_id,
                             'treatment_plan_id' => $plan->id,
+                            'collateral_id' => $collateral->id,
                             'assigned_to' => $collateral->received_by ?: $plan->created_by,
                             'created_by' => $collateral->received_by ?: $plan->created_by,
                             'title' => 'پیگیری وثیقه طرح درمان: ' . $plan->title,
