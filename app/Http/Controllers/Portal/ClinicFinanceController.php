@@ -78,6 +78,7 @@ class ClinicFinanceController extends Controller
             'plans' => $plans,
             'installments' => $installments,
             'expenses' => $expenses,
+            'journalSummary' => $journalSummary,
             'stats' => [
                 'plans' => PatientTreatmentPlan::where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)->count(),
                 'receivables' => PatientTreatmentInstallment::whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))->selectRaw('COALESCE(SUM(amount - paid_amount),0) as total')->value('total'),
