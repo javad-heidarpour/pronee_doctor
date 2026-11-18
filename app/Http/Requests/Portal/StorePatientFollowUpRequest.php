@@ -20,13 +20,18 @@ class StorePatientFollowUpRequest extends FormRequest
             'patient_id' => ['required', 'integer', 'exists:patients,id'],
             'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
             'template_id' => ['nullable', 'integer', 'exists:patient_follow_up_templates,id'],
-            'title' => ['required_without:template_id', 'nullable', 'string', 'max:160'],
+            'title' => ['required_without_all:template_id,steps', 'nullable', 'string', 'max:160'],
             'description' => ['nullable', 'string', 'max:3000'],
             'due_at' => ['required', 'date', 'after_or_equal:now'],
             'priority' => ['required', Rule::in(['low', 'normal', 'high', 'urgent'])],
             'contact_method' => ['required', Rule::in(['call', 'sms', 'in_person', 'review'])],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'send_sms' => ['sometimes', 'boolean'],
+            'steps' => ['nullable', 'array', 'min:1', 'max:12'],
+            'steps.*.title' => ['required_with:steps', 'string', 'max:160'],
+            'steps.*.days' => ['required_with:steps', 'integer', 'min:0', 'max:365'],
+            'steps.*.contact_method' => ['required_with:steps', Rule::in(['call', 'sms', 'in_person', 'review'])],
+            'steps.*.send_sms' => ['sometimes', 'boolean'],
         ];
     }
 }
