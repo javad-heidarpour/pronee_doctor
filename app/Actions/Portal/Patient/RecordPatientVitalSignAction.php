@@ -7,6 +7,7 @@ namespace App\Actions\Portal\Patient;
 use App\Models\Patient;
 use App\Models\PatientVitalSign;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class RecordPatientVitalSignAction
 {
@@ -43,11 +44,26 @@ final class RecordPatientVitalSignAction
 
             $type = $data['measurement_type'];
 
+            if (!isset(self::UNITS[$type])) {
+                throw ValidationException::withMessages([
+                    'measurement_type' => 'نوع اندازه‌گیری معتبر نیست.',
+                ]);
+            }
+
+            [$minimum, $maximum] = self::RANGES[$type];
+            $value = (float) $data['value'];
+
+            if ($value < $minimum || $value > $maximum) {
+                throw ValidationException::withMessages([
+                    'value' => "مقدار باید بین {$minimum} و {$maximum} باشد.",
+                ]);
+            }
+
             return PatientVitalSign::query()->create([
                 'patient_id' => $lockedPatient->id,
                 'doctor_id' => $lockedPatient->doctor_id,
                 'measurement_type' => $type,
-                'value' => $data['value'],
+                'value' => $value,
                 'unit' => self::UNITS[$type],
                 'measured_at' => $data['measured_at'],
                 'note' => $data['note'] ?? null,
