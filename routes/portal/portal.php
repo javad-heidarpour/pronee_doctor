@@ -104,6 +104,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
         Route::post('/finance/installments/{installment}/payments', [ClinicFinanceController::class, 'recordPayment'])->whereNumber('installment')->name('finance.installments.payments.store');
+        Route::post('/finance/treatment-plans/{plan}/revoke-sms-consent', [ClinicFinanceController::class, 'revokeSmsConsent'])->whereNumber('plan')->name('finance.plans.sms-consent.revoke');
         Route::post('/finance/treatment-plans/{plan}/collaterals', [ClinicFinanceController::class, 'storeCollateral'])->whereNumber('plan')->name('finance.collaterals.store');
         Route::put('/finance/collaterals/{collateral}', [ClinicFinanceController::class, 'updateCollateral'])->whereNumber('collateral')->name('finance.collaterals.update');
         Route::post('/finance/expenses', [ClinicFinanceController::class, 'storeExpense'])->name('finance.expenses.store');
