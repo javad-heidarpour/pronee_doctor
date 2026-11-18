@@ -75,7 +75,7 @@ class ClinicOrganizationController extends Controller
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
         $clinicIds = \App\Models\Address::query()->where('doctor_id', $ownedDoctor->id)
-            ->whereIn('id', $data['clinic_ids'] ?? [])->pluck('id')->all();
+            ->whereNull('organization_id')->whereIn('id', $data['clinic_ids'] ?? [])->pluck('id')->all();
 
         $organization = DB::transaction(function () use ($user, $ownedDoctor, $data, $clinicIds): ClinicOrganization {
             $organization = ClinicOrganization::create([
