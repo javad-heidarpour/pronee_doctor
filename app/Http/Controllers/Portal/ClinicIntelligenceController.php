@@ -41,7 +41,7 @@ final class ClinicIntelligenceController extends Controller
             ->join('patients as p', 'p.id', '=', 'm.patient_id')
             ->join('clinic_health_programs as g', 'g.id', '=', 'm.program_id')
             ->where('m.doctor_id', $doctor->id)->where('m.status', 'active')
-            ->select('m.id', 'm.patient_id', 'm.program_id', 'm.enrolled_at', 'm.consent_at', 'p.name as patient_name', 'p.phone', 'g.title as program_title', 'g.interval_days')
+            ->select('m.id', 'm.patient_id', 'm.program_id', 'm.enrolled_at', 'm.last_checkup_at', 'm.consent_at', 'p.name as patient_name', 'p.phone', 'g.title as program_title', 'g.interval_days')
             ->selectSub(DB::table('clinic_health_points')->selectRaw('COALESCE(SUM(points),0)')->whereColumn('membership_id', 'm.id'), 'points')
             ->orderByDesc('m.enrolled_at')->limit(100)->get() : collect();
 
@@ -155,6 +155,17 @@ final class ClinicIntelligenceController extends Controller
             ]
         );
         return back()->with('success', 'عضویت داوطلبانه بیمار با ثبت رضایت ایجاد شد.');
+    }
+
+    public function recordPreventiveCheckup(int $membership)
+    {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        $updated = DB::table('clinic_health_memberships')->where('id', $membership)
+            ->where('doctor_id', $doctor->id)->where('status', 'active')
+            ->update(['last_checkup_at' => now(), 'updated_at' => now()]);
+        abort_unless($updated, 404);
+        return back()->with('success', 'تاریخ آخرین چکاپ ثبت شد و موعد بعدی محاسبه می‌شود.');
     }
 
     public function withdrawMembership(int $membership)
