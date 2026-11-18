@@ -164,6 +164,9 @@ class DoctorAuth
             'portal.operations.settlements.store' => 'finance.manage',
             'portal.operations.settlements.approve' => 'finance.manage',
             'portal.operations.settlements.pay' => 'finance.manage',
+            'portal.operations.payrolls.store' => 'finance.manage',
+            'portal.operations.payrolls.approve' => 'finance.manage',
+            'portal.operations.payrolls.pay' => 'finance.manage',
         ];
         if (isset($specific[$routeName])) {
             return $specific[$routeName];
