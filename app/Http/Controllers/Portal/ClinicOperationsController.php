@@ -33,13 +33,23 @@ class ClinicOperationsController extends Controller
         $doctor = $this->currentDoctor();
         $clinicIds = $this->accessibleClinicIds($doctor);
         $this->authorizeSecretaryPermission('services.view', $doctor);
+        $user = Auth::guard('web')->user();
+        $organizations = $doctor->clinicOrganizations()->wherePivot('status', 'active')
+            ->with(['doctors' => fn ($q) => $q->where('clinic_organization_doctors.status', 'active')])
+            ->get(['clinic_organizations.id', 'clinic_organizations.name', 'clinic_organizations.owner_user_id']);
+        $ownedOrganizationIds = $organizations->where('owner_user_id', $user->id)->pluck('id')->values();
+        $payrollOrganizations = $organizations->whereIn('id', $ownedOrganizationIds)->values();
+        $payrollOrganizations->load(['members' => fn ($q) => $q->where('clinic_organization_members.is_active', true)]);
+        $canManageFinance = in_array($user->role, ['doctor', 'admin'], true) && $ownedOrganizationIds->isNotEmpty();
+
         return Inertia::render('Portal/Operations/Index', [
             'doctor' => $doctor,
             'clinics' => Address::query()->whereIn('id', $clinicIds)->get(['id', 'name', 'organization_id']),
             'patients' => Patient::query()->where('doctor_id', $doctor->id)->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))->orderBy('name')->get(['id', 'name', 'phone']),
-            'organizations' => $doctor->clinicOrganizations()->wherePivot('status', 'active')->with(['doctors' => fn ($q) => $q->where('clinic_organization_doctors.status', 'active'), 'members' => fn ($q) => $q->where('clinic_organization_members.is_active', true)])->get(['clinic_organizations.id', 'clinic_organizations.name', 'clinic_organizations.owner_user_id']),
-            'settlements' => DoctorSettlement::query()->whereIn('organization_id', $doctor->clinicOrganizations()->where('clinic_organization_doctors.status', 'active')->select('clinic_organizations.id'))->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))->with('doctor:id,name,family')->latest()->limit(20)->get(),
-            'payrolls' => ClinicStaffPayroll::query()->whereIn('organization_id', $doctor->clinicOrganizations()->where('clinic_organization_doctors.status', 'active')->select('clinic_organizations.id'))->whereHas('organization', fn ($q) => $q->where('owner_user_id', Auth::guard('web')->id()))->with('staff:id,name,family')->latest()->limit(20)->get(),
+            'organizations' => $organizations,
+            'payrollOrganizations' => $payrollOrganizations,
+            'settlements' => DoctorSettlement::query()->whereIn('organization_id', $ownedOrganizationIds)->with('doctor:id,name,family')->latest()->limit(20)->get(),
+            'payrolls' => ClinicStaffPayroll::query()->whereIn('organization_id', $ownedOrganizationIds)->with('staff:id,name,family')->latest()->limit(20)->get(),
             'services' => ClinicService::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->orderBy('name')->get(),
             'plans' => PatientTreatmentPlan::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
                 ->with(['patient:id,name,phone', 'items'])->latest()->limit(30)->get(),
@@ -48,7 +58,7 @@ class ClinicOperationsController extends Controller
             'dentalChart' => PatientDentalChartEntry::query()->where('doctor_id', $doctor->id)->latest('recorded_at')->limit(60)->with('patient:id,name')->get(),
             'canManage' => Auth::guard('web')->user()?->role !== 'secretary' || $this->secretaryHas($doctor, 'services.manage'),
             'canManageInventory' => Auth::guard('web')->user()?->role !== 'secretary' || $this->secretaryHas($doctor, 'inventory.manage'),
-            'canManageFinance' => Auth::guard('web')->user()?->role !== 'secretary' || $this->secretaryHas($doctor, 'finance.manage'),
+            'canManageFinance' => $canManageFinance,
         ]);
     }
 
