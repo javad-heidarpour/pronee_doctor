@@ -141,7 +141,7 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <form @submit.prevent="savePayroll" class="grid gap-3 md:grid-cols-3">
           <select v-model="payrollForm.organization_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="o in payrollOrganizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
           <select v-model="payrollForm.staff_user_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب کارمند</option><option v-for="m in payrollStaff" :key="m.id" :value="m.id">{{ m.name }} {{ m.family }}</option></select>
-          <select v-model="payrollForm.clinic_id" class="rounded-xl border-slate-300 text-sm"><option value="">کل مجموعه</option><option v-for="c in payrollClinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
+          <select v-model="payrollForm.clinic_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب شعبه کارمند</option><option v-for="c in payrollClinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <input v-model="payrollForm.period_start" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model="payrollForm.period_end" type="date" required class="rounded-xl border-slate-300 text-sm" />
           <input v-model.number="payrollForm.gross_amount" type="number" min="0" required placeholder="حقوق ناخالص (ریال)" class="rounded-xl border-slate-300 text-sm" />
