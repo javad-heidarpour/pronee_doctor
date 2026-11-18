@@ -146,7 +146,7 @@ final class PatientEncounterController extends Controller
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $this->authorizeDoctorOnly();
 
-        $signed = $action->handle($encounter);
+        $signed = $action->handle($encounter, Auth::guard('web')->user());
         $audit->handle('patient.encounter.signed', $signed, [
             'doctor_id' => $doctor->id,
             'status_changed' => true,
