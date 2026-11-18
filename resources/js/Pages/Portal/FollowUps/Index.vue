@@ -53,7 +53,7 @@
       </section>
 
       <section v-if="isDoctor" class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
-        <h2 class="mb-4 text-base font-extrabold">ساخت الگوی اختصاصی پزشک</h2>
+        <h2 class="mb-4 text-base font-extrabold">{{ editingTemplateId ? 'ویرایش الگوی پیگیری' : 'ساخت الگوی اختصاصی پزشک' }}</h2>
         <form @submit.prevent="createTemplate" class="grid gap-3 md:grid-cols-3">
           <input v-model="templateForm.title" required placeholder="عنوان الگو؛ مثلاً کنترل پس از عمل" class="rounded-xl border-slate-300 text-sm" />
           <select v-model="templateForm.category" class="rounded-xl border-slate-300 text-sm">
@@ -63,11 +63,13 @@
           <input v-model="templateForm.description" placeholder="توضیح برای مسئول پیگیری" class="rounded-xl border-slate-300 text-sm md:col-span-2" />
           <select v-model="templateForm.contact_method" class="rounded-xl border-slate-300 text-sm"><option value="call">تماس</option><option value="sms">پیامک</option><option value="review">بررسی پرونده</option><option value="in_person">مراجعه حضوری</option></select>
           <label class="flex items-center gap-2 text-sm text-slate-600"><input v-model="templateForm.send_sms" type="checkbox" class="rounded border-slate-300" /> پیامک خودکار برای این الگو</label>
-          <button class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white">ذخیره الگو</button>
+          <button class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white">{{ editingTemplateId ? 'ذخیره تغییرات' : 'ذخیره الگو' }}</button>
+          <button v-if="editingTemplateId" type="button" @click="cancelTemplateEdit" class="rounded-xl border px-4 py-3 text-sm font-bold">انصراف</button>
         </form>
         <div v-if="templates.length" class="mt-4 flex flex-wrap gap-2 border-t pt-3">
           <span v-for="template in templates" :key="template.id" class="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
             {{ template.title }}
+            <button type="button" @click="editTemplate(template)" class="font-bold text-teal-700">ویرایش</button>
             <button type="button" @click="disableTemplate(template.id)" class="font-bold text-rose-600">غیرفعال‌سازی</button>
           </span>
         </div>
@@ -135,6 +137,7 @@ const processing = ref(false)
 const isDoctor = computed(() => ['doctor', 'admin'].includes(props.userRole))
 const form = reactive({ patient_id: '', template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false, sms_consent_confirmed: false }] })
 const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false })
+const editingTemplateId = ref(null)
 const filters = reactive({ ...props.filters })
 const statItems = computed(() => [
   { label: 'در انتظار', value: props.stats.pending },
@@ -149,7 +152,16 @@ const createTask = () => {
   processing.value = true
   router.post(route('portal.follow-ups.store'), form, { preserveScroll: true, onFinish: () => { processing.value = false } })
 }
-const createTemplate = () => router.post(route('portal.follow-ups.templates.store'), templateForm, { preserveScroll: true, onSuccess: () => Object.assign(templateForm, { title: '', description: '' }) })
+const createTemplate = () => {
+  const options = { preserveScroll: true, onSuccess: () => { Object.assign(templateForm, { title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false }); editingTemplateId.value = null } }
+  if (editingTemplateId.value) router.put(route('portal.follow-ups.templates.update', editingTemplateId.value), templateForm, options)
+  else router.post(route('portal.follow-ups.templates.store'), templateForm, options)
+}
+const editTemplate = (template) => {
+  editingTemplateId.value = template.id
+  Object.assign(templateForm, { title: template.title, category: template.category, description: template.description || '', default_days: template.default_days, contact_method: template.contact_method, send_sms: template.send_sms })
+}
+const cancelTemplateEdit = () => { editingTemplateId.value = null; Object.assign(templateForm, { title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false }) }
 const applyTemplate = () => {
   const selected = props.templates.find((item) => String(item.id) === String(form.template_id))
   if (!selected || !form.steps.length) return
