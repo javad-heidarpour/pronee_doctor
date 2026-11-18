@@ -20,9 +20,11 @@ final class StorePatientVitalSignRequest extends FormRequest
 
     public function rules(): array
     {
+        $range = RecordPatientVitalSignAction::RANGES[$this->input('measurement_type')] ?? [0, 1000];
+
         return [
             'measurement_type' => ['required', 'string', Rule::in(array_keys(RecordPatientVitalSignAction::UNITS))],
-            'value' => ['required', 'numeric', 'between:0,1000'],
+            'value' => ['required', 'numeric', "between:{$range[0]},{$range[1]}"],
             'measured_at' => ['required', 'date', 'before_or_equal:now'],
             'note' => ['nullable', 'string', 'max:1000'],
         ];
