@@ -22,6 +22,7 @@ final class CreatePatientEncounterAction
                 'doctor_id' => $doctor->id,
                 'patient_id' => $patient->id,
                 'appointment_id' => $appointment->id,
+                'amends_encounter_id' => $data['amends_encounter_id'] ?? null,
                 'clinic_id' => $appointment->clinic_id,
                 'author_id' => $author->id,
                 'note_type' => $data['note_type'],
