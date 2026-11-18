@@ -5,9 +5,14 @@ use App\Http\Controllers\Portal\PatientController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\PatientFollowUpController;
 use App\Http\Controllers\Portal\PatientEncounterController;
+use App\Http\Controllers\Portal\ClinicalRiskRadarController;
+use App\Http\Controllers\Portal\PredictivePatientController;
 
 
-Route::get('/clinical-risk', [ClinicalRiskRadarController::class, 'index'])->name('clinical-risk.index');\n\n// مربوط یه portal/patients/index
+Route::get('/clinical-risk', [ClinicalRiskRadarController::class, 'index'])->name('clinical-risk.index');
+Route::get('/predictive-patients', [PredictivePatientController::class, 'index'])->name('predictive-patients.index');
+
+// مربوط به portal/patients/index
 Route::prefix('appointments')->name('appointments.')->group(function () {
     Route::put('/{appointment}/status', [PatientController::class, 'updateStatus'])
         ->name('status');
