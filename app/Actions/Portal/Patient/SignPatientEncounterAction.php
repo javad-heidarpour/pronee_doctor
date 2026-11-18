@@ -18,6 +18,10 @@ final class SignPatientEncounterAction
             throw ValidationException::withMessages(['encounter' => 'این یادداشت قبلاً نهایی شده است.']);
         }
 
+        if (Appointment::query()->whereKey($encounter->appointment_id)->where('status', 'cancelled')->exists()) {
+            throw ValidationException::withMessages(['encounter' => 'برای نوبت لغوشده امکان نهایی‌سازی ویزیت وجود ندارد.']);
+        }
+
         if (!$encounter->reviewed_allergies || !$encounter->reviewed_medications || !$encounter->reviewed_vitals) {
             throw ValidationException::withMessages(['reviewed_allergies' => 'برای نهایی‌سازی، بازبینی حساسیت‌ها، داروها و علائم حیاتی را تأیید کنید.']);
         }
