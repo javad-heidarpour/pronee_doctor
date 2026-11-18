@@ -33,7 +33,7 @@ class ClinicOperationsController extends Controller
         $doctor = $this->currentDoctor();
         $clinicIds = $this->accessibleClinicIds($doctor);
         $user = Auth::guard('web')->user();
-        $isPrivileged = in_array($user->role, ['doctor', 'admin'], true);
+        abort_unless(in_array($user->role, ['doctor', 'secretary'], true), 403);\n        $isPrivileged = $user->role === 'doctor';
         $hasAnyModulePermission = $isPrivileged || collect(['services.view','services.manage','inventory.view','inventory.manage','patients.clinical.view','patients.clinical.manage'])->contains(fn ($permission) => $this->secretaryHas($doctor, $permission));
         abort_unless($hasAnyModulePermission, 403, 'مجوز مشاهده عملیات کلینیک برای شما فعال نیست.');
         $organizations = $doctor->clinicOrganizations()->wherePivot('status', 'active')
