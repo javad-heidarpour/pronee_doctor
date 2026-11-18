@@ -85,7 +85,7 @@ class ClinicOperationsController extends Controller
             'doctor_share_basis_points' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'follow_up_after_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'clinical_notes' => ['nullable', 'string', 'max:5000'],
-            'provider_doctor_id' => ['nullable', 'integer'],
+            
         ]);
         $service = null;
         if (!empty($data['service_id'])) {
@@ -94,7 +94,7 @@ class ClinicOperationsController extends Controller
         }
         $item = $treatmentPlan->items()->create([
             ...$data,
-            'provider_doctor_id' => $data['provider_doctor_id'] ?? $doctor->id,
+            'provider_doctor_id' => $doctor->id,
             'doctor_share_basis_points' => $data['doctor_share_basis_points'] ?? $service?->doctor_share_basis_points,
             'follow_up_after_days' => $data['follow_up_after_days'] ?? $service?->follow_up_after_days,
             'stage' => 'planned',
@@ -204,7 +204,7 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'کالای انبار ثبت شد.');
     }
 
-    public function moveStock(Request $request, int $item)
+    public function moveStock(Request $request, int $item, ClinicAccountingService $accounting)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
@@ -214,14 +214,15 @@ class ClinicOperationsController extends Controller
             'unit_cost' => ['nullable', 'integer', 'min:0'], 'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
-        $row = ClinicInventoryItem::query()->whereKey($item)->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->lockForUpdate()->firstOrFail();
-        DB::transaction(function () use ($row, $data): void {
+        DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
+            $row = ClinicInventoryItem::query()->whereKey($item)
+                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                ->lockForUpdate()->firstOrFail();
             $delta = match ($data['movement_type']) {
-                'purchase', 'return' => (float) $data['quantity'],
+                'purchase', 'return', 'adjustment' => (float) $data['quantity'],
                 'use' => -(float) $data['quantity'],
-                'adjustment' => (float) $data['quantity'],
             };
-            $newQuantity = (float) $row->current_quantity + $delta;
+            $newQuantity = round((float) $row->current_quantity + $delta, 3);
             abort_if($newQuantity < 0, 422, 'موجودی انبار برای این خروج کافی نیست.');
             if ($data['movement_type'] === 'purchase' && $newQuantity > 0) {
                 $oldValue = (float) $row->current_quantity * (int) $row->average_unit_cost;
@@ -230,12 +231,17 @@ class ClinicOperationsController extends Controller
             }
             $row->current_quantity = $newQuantity;
             $row->save();
-            $row->movements()->create([
+            $movement = $row->movements()->create([
                 'recorded_by' => Auth::guard('web')->id(), 'movement_type' => $data['movement_type'],
                 'quantity' => $data['quantity'], 'unit_cost' => $data['unit_cost'] ?? $row->average_unit_cost,
                 'reference' => $data['reference'] ?? null, 'notes' => $data['notes'] ?? null, 'occurred_at' => now(),
             ]);
-        });
+            $cost = (int) round((float) $data['quantity'] * (int) ($data['unit_cost'] ?? $row->average_unit_cost));
+            $accounting->recordInventoryMovement(
+                $row->organization_id, $row->clinic_id, $doctor->id, (int) Auth::guard('web')->id(),
+                $movement->id, $data['movement_type'], $cost, $row->name, now()->toDateTimeString()
+            );
+        }, 3);
         return back()->with('success', 'گردش انبار ثبت شد.');
     }
 
