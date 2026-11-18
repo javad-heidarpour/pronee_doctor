@@ -14,7 +14,7 @@ final class PatientEncounter extends Model
     public const STATUS_SIGNED = 'signed';
 
     protected $fillable = [
-        'doctor_id', 'patient_id', 'appointment_id', 'clinic_id', 'author_id', 'signed_by',
+        'doctor_id', 'patient_id', 'appointment_id', 'amends_encounter_id', 'clinic_id', 'author_id', 'signed_by',
         'note_type', 'status', 'subjective', 'objective', 'assessment', 'plan',
         'diagnosis', 'diagnosis_code', 'reviewed_allergies', 'reviewed_medications',
         'reviewed_vitals', 'clinical_snapshot', 'signed_at',
@@ -56,6 +56,16 @@ final class PatientEncounter extends Model
     public function signer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'signed_by');
+    }
+
+    public function amendedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'amends_encounter_id');
+    }
+
+    public function amendments(): HasMany
+    {
+        return $this->hasMany(self::class, 'amends_encounter_id');
     }
 
     public function prescriptions(): HasMany
