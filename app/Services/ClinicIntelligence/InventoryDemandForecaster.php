@@ -20,6 +20,15 @@ final class InventoryDemandForecaster
         $until = $from->copy()->addDays($horizonDays);
         $historyFrom = $from->copy()->subDays(90);
 
+        if ($clinicIds === []) {
+            return [
+                'horizon_days' => $horizonDays,
+                'generated_at' => now()->toIso8601String(),
+                'items' => [],
+                'summary' => ['total' => 0, 'critical' => 0, 'warning' => 0, 'insufficient_data' => 0],
+            ];
+        }
+
         $items = DB::table('clinic_inventory_items as i')
             ->join('addresses as c', 'c.id', '=', 'i.clinic_id')
             ->where('i.is_active', true)->whereIn('i.clinic_id', $clinicIds)
