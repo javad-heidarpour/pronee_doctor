@@ -240,11 +240,12 @@ final class ClinicIntelligenceController extends Controller
             ->whereNotNull('payments.paid_at')->where('payments.paid_at', '>=', now()->subDays(90))
             ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('a.clinic_id', $clinicId));
         $baselineRevenue = (int) (clone $paidPayments)->sum('payments.amount_rial') / 3;
+        $paidAppointmentCount = (int) (clone $paidPayments)->distinct('a.id')->count('a.id');
         $expenseQuery = DB::table('clinic_expenses')->where('doctor_id', $doctor->id)
             ->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())
             ->when($data['clinic_id'] ?? null, fn ($q, $clinicId) => $q->where('clinic_id', $clinicId));
         $baselineExpenses = (int) (clone $expenseQuery)->sum('amount') / 3;
-        $averageFee = (int) ($data['average_fee'] ?: ($baselineCount > 0 ? round(($baselineRevenue * 3) / $baselineCount) : 0));
+        $averageFee = (int) ($data['average_fee'] ?: ($paidAppointmentCount > 0 ? round(($baselineRevenue * 3) / $paidAppointmentCount) : 0));
         $extraAppointments = min((float) $data['extra_appointments_month'], (float) $data['capacity_monthly']);
         $volumeFactor = 1 + ((float) ($data['volume_change_percent'] ?? 0) / 100);
         $feeFactor = 1 + ((float) ($data['fee_change_percent'] ?? 0) / 100);
