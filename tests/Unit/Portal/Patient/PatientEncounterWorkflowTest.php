@@ -46,6 +46,7 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('patient_id');
             $table->unsignedBigInteger('appointment_id');
+            $table->unsignedBigInteger('amends_encounter_id')->nullable();
             $table->unsignedBigInteger('clinic_id');
             $table->unsignedBigInteger('author_id')->nullable();
             $table->unsignedBigInteger('signed_by')->nullable();
