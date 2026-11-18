@@ -205,4 +205,31 @@ final class MedicalNetworkController extends Controller
 
         return back()->with('success', 'وضعیت ارجاع به‌روزرسانی شد.');
     }
+
+    public function review()
+    {
+        abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
+        return Inertia::render('Portal/MedicalNetwork/Review', [
+            'providers' => MedicalNetworkProvider::query()->where('status', 'pending')
+                ->with(['owner:id,name,family,phone', 'organization:id,name'])
+                ->latest()->paginate(30),
+        ]);
+    }
+
+    public function approveProvider(MedicalNetworkProvider $provider)
+    {
+        abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
+        abort_unless($provider->status === 'pending', 422);
+        $provider->update(['status' => 'active', 'is_verified' => true]);
+        return back()->with('success', 'مرکز پس از بررسی اطلاعات و مجوزها تأیید و در شبکه فعال شد.');
+    }
+
+    public function rejectProvider(Request $request, MedicalNetworkProvider $provider)
+    {
+        abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
+        abort_unless($provider->status === 'pending', 422);
+        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $provider->update(['status' => 'rejected', 'description' => trim(($provider->description ? $provider->description . "\\n\\n" : '') . 'نتیجه بررسی: ' . $data['reason'])]);
+        return back()->with('success', 'درخواست عضویت مرکز رد شد.');
+    }
 }

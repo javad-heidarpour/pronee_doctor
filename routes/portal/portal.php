@@ -86,6 +86,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
 
         Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');
+        Route::get('/medical-network/review', [MedicalNetworkController::class, 'review'])->name('medical-network.review');
+        Route::patch('/medical-network/providers/{provider}/approve', [MedicalNetworkController::class, 'approveProvider'])->whereNumber('provider')->name('medical-network.providers.approve');
+        Route::patch('/medical-network/providers/{provider}/reject', [MedicalNetworkController::class, 'rejectProvider'])->whereNumber('provider')->name('medical-network.providers.reject');
         Route::post('/medical-network/providers', [MedicalNetworkController::class, 'storeProvider'])->name('medical-network.providers.store');
         Route::post('/medical-network/referrals', [MedicalNetworkController::class, 'storeReferral'])->middleware('throttle:20,1')->name('medical-network.referrals.store');
         Route::patch('/medical-network/referrals/{referral}', [MedicalNetworkController::class, 'updateReferral'])->middleware('throttle:30,1')->name('medical-network.referrals.update');
