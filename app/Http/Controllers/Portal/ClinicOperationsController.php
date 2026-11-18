@@ -40,12 +40,16 @@ class ClinicOperationsController extends Controller
         $ownedOrganizationIds = $organizations->where('owner_user_id', $user->id)->pluck('id')->values();
         $payrollOrganizations = $organizations->whereIn('id', $ownedOrganizationIds)->values();
         $payrollOrganizations->load(['members' => fn ($q) => $q->where('clinic_organization_members.is_active', true)]);
-        $canManageFinance = in_array($user->role, ['doctor', 'admin'], true) && $ownedOrganizationIds->isNotEmpty();
+        $isPrivileged = in_array($user->role, ['doctor', 'admin'], true);
+        $canViewClinical = $isPrivileged || $this->secretaryHas($doctor, 'patients.clinical.view') || $this->secretaryHas($doctor, 'patients.clinical.manage');
+        $canManageClinical = $isPrivileged || $this->secretaryHas($doctor, 'patients.clinical.manage');
+        $canViewInventory = $isPrivileged || $this->secretaryHas($doctor, 'inventory.view') || $this->secretaryHas($doctor, 'inventory.manage');
+        $canManageFinance = $isPrivileged && $ownedOrganizationIds->isNotEmpty();
 
         return Inertia::render('Portal/Operations/Index', [
             'doctor' => $doctor,
             'clinics' => Address::query()->whereIn('id', $clinicIds)->get(['id', 'name', 'organization_id']),
-            'patients' => Patient::query()->where('doctor_id', $doctor->id)->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))->orderBy('name')->get(['id', 'name', 'phone']),
+            'patients' => $canViewClinical ? Patient::query()->where('doctor_id', $doctor->id)->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))->orderBy('name')->get(['id', 'name', 'phone']) : collect(),
             'organizations' => $organizations,
             'payrollOrganizations' => $payrollOrganizations,
             'settlements' => DoctorSettlement::query()->whereIn('organization_id', $ownedOrganizationIds)->with('doctor:id,name,family')->latest()->limit(20)->get(),
@@ -53,10 +57,13 @@ class ClinicOperationsController extends Controller
             'services' => ClinicService::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->orderBy('name')->get(),
             'plans' => PatientTreatmentPlan::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
                 ->with(['patient:id,name,phone', 'items'])->latest()->limit(30)->get(),
-            'inventory' => ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->with('clinic:id,name')->orderBy('name')->get(),
-            'lowStockCount' => ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->lowStock()->count(),
-            'dentalChart' => PatientDentalChartEntry::query()->where('doctor_id', $doctor->id)->latest('recorded_at')->limit(60)->with('patient:id,name')->get(),
-            'canManage' => Auth::guard('web')->user()?->role !== 'secretary' || $this->secretaryHas($doctor, 'services.manage'),
+            'inventory' => $canViewInventory ? ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->with('clinic:id,name')->orderBy('name')->get() : collect(),
+            'lowStockCount' => $canViewInventory ? ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->lowStock()->count() : 0,
+            'dentalChart' => $canViewClinical ? PatientDentalChartEntry::query()->where('doctor_id', $doctor->id)->latest('recorded_at')->limit(60)->with('patient:id,name')->get() : collect(),
+            'canManage' => $isPrivileged || $this->secretaryHas($doctor, 'services.manage'),
+            'canViewClinical' => $canViewClinical,
+            'canManageClinical' => $canManageClinical,
+            'canViewInventory' => $canViewInventory,
             'canManageInventory' => Auth::guard('web')->user()?->role !== 'secretary' || $this->secretaryHas($doctor, 'inventory.manage'),
             'canManageFinance' => $canManageFinance,
         ]);
