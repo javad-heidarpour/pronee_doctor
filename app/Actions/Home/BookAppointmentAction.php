@@ -192,6 +192,9 @@ final class BookAppointmentAction
                 $campaign = DB::table('clinic_marketing_campaigns')
                     ->where('id', $campaignId)
                     ->where('doctor_id', $appointment->doctor_id)
+                    ->where(function ($query) use ($appointment) {
+                        $query->whereNull('clinic_id')->orWhere('clinic_id', $appointment->clinic_id);
+                    })
                     ->where('status', 'active')
                     ->where(function ($query) {
                         $query->whereNull('starts_at')->orWhere('starts_at', '<=', now());
