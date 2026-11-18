@@ -80,7 +80,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'index'
         ])->name('dashboard');
 
-        Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+        Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');\n\n        Route::get('/intelligence', [ClinicIntelligenceController::class, 'index'])->name('intelligence.index');\n        Route::post('/intelligence/inventory/{item}/settings', [ClinicIntelligenceController::class, 'updateInventorySettings'])->whereNumber('item')->name('intelligence.inventory.settings');\n        Route::post('/intelligence/health/programs', [ClinicIntelligenceController::class, 'storeProgram'])->name('intelligence.health.programs.store');\n        Route::post('/intelligence/health/enroll', [ClinicIntelligenceController::class, 'enrollPatient'])->name('intelligence.health.enroll');\n        Route::post('/intelligence/health/memberships/{membership}/points', [ClinicIntelligenceController::class, 'awardWellnessPoints'])->whereNumber('membership')->name('intelligence.health.points');\n        Route::post('/intelligence/economic-simulation', [ClinicIntelligenceController::class, 'simulateEconomics'])->name('intelligence.simulate');
         Route::post('/clinic-brain/waitlist', [ClinicBrainController::class, 'storeWaitlist'])->name('clinic-brain.waitlist.store');
         Route::post('/clinic-brain/waitlist/{entry}/close', [ClinicBrainController::class, 'closeWaitlist'])->whereNumber('entry')->name('clinic-brain.waitlist.close');
 
