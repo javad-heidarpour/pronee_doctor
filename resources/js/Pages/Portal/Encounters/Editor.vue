@@ -11,6 +11,7 @@
           <Link :href="route('portal.encounters.index', appointment.id)" class="rounded-xl border px-4 py-2.5 text-sm font-bold text-slate-700">تاریخچه ویزیت‌ها</Link>
           <Link :href="route('portal.patients.show', appointment.id)" class="rounded-xl border px-4 py-2.5 text-sm font-bold text-slate-700">بازگشت به نوبت</Link>
           <span v-if="readonly" class="rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-bold text-emerald-800">نهایی و قفل‌شده</span>
+          <span v-if="amendsEncounter" class="rounded-xl bg-violet-100 px-4 py-2.5 text-sm font-bold text-violet-800">اصلاحیه یادداشت شماره {{ amendsEncounter.id }}</span>
           <span v-else-if="encounter" class="rounded-xl bg-amber-100 px-4 py-2.5 text-sm font-bold text-amber-800">پیش‌نویس</span>
         </div>
       </header>
@@ -116,6 +117,8 @@
 
       <section v-if="readonly" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-7 text-emerald-900">
         این یادداشت در تاریخ {{ formatDate(encounter.signed_at) }} نهایی شده است. محتوای یادداشت و نسخه‌ها پس از امضا قابل ویرایش نیستند.
+        <p class="mt-1">امضاکننده: {{ encounter.signer?.name || '—' }} {{ encounter.signer?.family || '' }}</p>
+        <Link :href="route('portal.encounters.amend', encounter.id)" class="mt-3 inline-flex rounded-lg bg-white px-3 py-2 text-xs font-bold text-violet-800">ایجاد اصلاحیه بدون تغییر سابقه اصلی</Link>
       </section>
       <p v-if="errors && Object.keys(errors).length" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{{ Object.values(errors).join(' · ') }}</p>
     </main>
@@ -130,28 +133,31 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({
   doctor: Object, appointment: Object, patient: Object, context: Object,
   encounter: { type: Object, default: null },
+  amendsEncounter: { type: Object, default: null },
   errors: { type: Object, default: () => ({}) },
 })
 const readonly = computed(() => props.encounter?.status === 'signed')
+const source = props.encounter || props.amendsEncounter
 const processing = ref(false)
 const form = reactive({
-  note_type: props.encounter?.note_type || 'consultation',
-  subjective: props.encounter?.subjective || '',
-  objective: props.encounter?.objective || '',
-  assessment: props.encounter?.assessment || '',
-  plan: props.encounter?.plan || '',
-  diagnosis: props.encounter?.diagnosis || '',
-  diagnosis_code: props.encounter?.diagnosis_code || '',
+  note_type: source?.note_type || 'consultation',
+  subjective: source?.subjective || '',
+  objective: source?.objective || '',
+  assessment: source?.assessment || '',
+  plan: source?.plan || '',
+  diagnosis: source?.diagnosis || '',
+  diagnosis_code: source?.diagnosis_code || '',
+  amends_encounter_id: props.amendsEncounter?.id || null,
   reviewed_allergies: Boolean(props.encounter?.reviewed_allergies),
   reviewed_medications: Boolean(props.encounter?.reviewed_medications),
   reviewed_vitals: Boolean(props.encounter?.reviewed_vitals),
-  prescriptions: (props.encounter?.prescriptions || []).map(x => ({ ...x, duration_days: x.duration_days || '' })),
+  prescriptions: (source?.prescriptions || []).map(x => ({ ...x, duration_days: x.duration_days || '' })),
 })
 const canSign = computed(() => form.reviewed_allergies && form.reviewed_medications && form.reviewed_vitals && form.assessment.trim() && form.plan.trim())
 const addPrescription = () => form.prescriptions.push({ medication_name: '', strength: '', dosage: '', route: '', frequency: '', duration_days: '', quantity: '', instructions: '' })
 const removePrescription = index => form.prescriptions.splice(index, 1)
 const formatDate = value => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
-const payload = () => ({ ...form, prescriptions: form.prescriptions.map(x => ({ ...x, duration_days: x.duration_days || null })) })
+const payload = () => ({ ...form, amends_encounter_id: props.amendsEncounter?.id || null, prescriptions: form.prescriptions.map(x => ({ ...x, duration_days: x.duration_days || null })) })
 const saveDraft = () => {
   processing.value = true
   const options = { preserveScroll: true, onFinish: () => { processing.value = false } }
