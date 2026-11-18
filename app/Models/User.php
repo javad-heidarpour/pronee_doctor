@@ -95,7 +95,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         )->withPivot('permissions', 'clinic_ids')->withTimestamps();
     }
 
-    public function ownedDoctorProfiles(): HasMany
+    public function clinicOrganizations()\n    {\n        return $this->belongsToMany(ClinicOrganization::class, 'clinic_organization_members')->withPivot(['role', 'permissions', 'clinic_ids', 'is_active'])->withTimestamps();\n    }\n\n    public function ownedDoctorProfiles(): HasMany
     {
         return $this->hasMany(Doctor::class, 'user_id');
     }
