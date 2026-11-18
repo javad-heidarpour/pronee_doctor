@@ -24,7 +24,7 @@ class ClinicOrganizationController extends Controller
         $organizations = ClinicOrganization::query()
             ->where(function ($q) use ($user): void {
                 $q->where('owner_user_id', $user->id)
-                    ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->wherePivot('is_active', true));
+                    ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->wherePivot('is_active', true))\n                    ->orWhereHas('doctors', fn ($d) => $d->where('doctors.user_id', $user->id)->wherePivot('status', 'pending'));
             })
             ->with(['doctors' => fn ($q) => $q->withPivot(['role', 'status', 'revenue_share_basis_points']), 'clinics'])
             ->withCount(['doctors', 'clinics', 'members'])
@@ -41,7 +41,7 @@ class ClinicOrganizationController extends Controller
             'organizations' => $organizations,
             'doctors' => $ownedDoctors,
             'clinics' => $clinics,
-            'isAdmin' => $user->role === 'admin',
+            'isAdmin' => $user->role === 'admin',\n            'currentDoctorId' => $user->doctorProfile()->value('id'),
         ]);
     }
 
@@ -58,7 +58,7 @@ class ClinicOrganizationController extends Controller
             'legal_name' => ['nullable', 'string', 'max:200'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'phone' => ['nullable', 'string', 'max:40'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],\n            'doctor_id' => [Rule::requiredIf($user->role === 'admin'), 'nullable', 'integer', 'exists:doctors,id'],
             'clinic_ids' => ['nullable', 'array'],
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
