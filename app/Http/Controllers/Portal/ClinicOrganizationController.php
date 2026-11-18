@@ -195,7 +195,17 @@ class ClinicOrganizationController extends Controller
         $user = $organization->members()->whereKey($member)->firstOrFail();
         DB::transaction(function () use ($organization, $user): void {
             foreach ($organization->doctors()->get() as $doctor) {
-                $doctor->secretaries()->detach($user->id);
+                $otherOrganizationAssignment = DB::table('clinic_organization_doctors as organization_doctors')
+                    ->join('clinic_organization_members as organization_members', 'organization_members.organization_id', '=', 'organization_doctors.organization_id')
+                    ->where('organization_doctors.doctor_id', $doctor->id)
+                    ->where('organization_members.user_id', $user->id)
+                    ->where('organization_doctors.status', 'active')
+                    ->where('organization_members.is_active', true)
+                    ->where('organization_doctors.organization_id', '!=', $organization->id)
+                    ->exists();
+                if (!$otherOrganizationAssignment) {
+                    $doctor->secretaries()->detach($user->id);
+                }
             }
             $organization->members()->detach($user->id);
         });
