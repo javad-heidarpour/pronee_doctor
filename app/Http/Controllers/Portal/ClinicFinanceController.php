@@ -135,6 +135,12 @@ class ClinicFinanceController extends Controller
                 'financial_terms' => $data['financial_terms'] ?? null,
                 'sms_reminders_enabled' => (bool) ($data['sms_reminders_enabled'] ?? false) && (bool) ($data['sms_consent_confirmed'] ?? false),
                 'sms_consent_confirmed' => (bool) ($data['sms_consent_confirmed'] ?? false),
+                'sms_consent_confirmed_at' => (bool) ($data['sms_consent_confirmed'] ?? false) ? now() : null,
+                'sms_consent_recorded_by' => (bool) ($data['sms_consent_confirmed'] ?? false) ? Auth::guard('web')->id() : null,
+                'follow_up_sms_enabled' => (bool) ($data['follow_up_sms_enabled'] ?? false) && (bool) ($data['follow_up_sms_consent_confirmed'] ?? false),
+                'follow_up_sms_consent_confirmed' => (bool) ($data['follow_up_sms_consent_confirmed'] ?? false),
+                'follow_up_sms_consent_confirmed_at' => (bool) ($data['follow_up_sms_consent_confirmed'] ?? false) ? now() : null,
+                'follow_up_sms_consent_recorded_by' => (bool) ($data['follow_up_sms_consent_confirmed'] ?? false) ? Auth::guard('web')->id() : null,
                 'started_at' => today(),
             ]);
 
