@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicOrganization;
 use App\Models\Doctor;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
