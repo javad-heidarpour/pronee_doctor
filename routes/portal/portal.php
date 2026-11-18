@@ -112,6 +112,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/intelligence/economic-simulation', [ClinicIntelligenceController::class, 'simulateEconomics'])->name('intelligence.simulate');
 
         Route::post('/clinic-brain/waitlist', [ClinicBrainController::class, 'storeWaitlist'])->name('clinic-brain.waitlist.store');
+        Route::post('/clinic-brain/waitlist/{entry}/offer', [ClinicBrainController::class, 'offerWaitlistSlot'])->whereNumber('entry')->name('clinic-brain.waitlist.offer');
+        Route::post('/clinic-brain/waitlist/{entry}/fulfill', [ClinicBrainController::class, 'fulfillWaitlist'])->whereNumber('entry')->name('clinic-brain.waitlist.fulfill');
         Route::post('/clinic-brain/waitlist/{entry}/close', [ClinicBrainController::class, 'closeWaitlist'])->whereNumber('entry')->name('clinic-brain.waitlist.close');
 
         Route::get('/operations', [ClinicOperationsController::class, 'index'])->name('operations.index');

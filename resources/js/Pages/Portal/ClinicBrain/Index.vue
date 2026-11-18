@@ -114,12 +114,18 @@
           <div v-if="waitlist.length" class="mt-4 divide-y divide-slate-100">
             <article v-for="entry in waitlist" :key="entry.id" class="py-4">
               <div class="flex items-start justify-between gap-3">
-                <div><div class="text-sm font-extrabold text-slate-800">{{ entry.patient?.name || 'بیمار' }}</div><div class="mt-1 text-xs text-slate-500">{{ entry.clinic?.name || 'تمام شعب مجاز' }} · {{ formatDate(entry.preferred_from) }} تا {{ formatDate(entry.preferred_until) }}</div><div class="mt-1 text-xs text-slate-500">{{ entry.preferred_period === 'morning' ? 'صبح' : entry.preferred_period === 'afternoon' ? 'بعدازظهر' : 'هر ساعت' }}</div></div>
-                <button @click="closeWaitlist(entry.id)" class="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50">بستن درخواست</button>
+                <div><div class="text-sm font-extrabold text-slate-800">{{ entry.patient?.name || 'بیمار' }} <span v-if="entry.patient?.phone" class="font-normal text-slate-500">· {{ entry.patient.phone }}</span></div><div class="mt-1 text-xs text-slate-500">{{ entry.clinic?.name || 'تمام شعب مجاز' }} · {{ formatDate(entry.preferred_from) }} تا {{ formatDate(entry.preferred_until) }}</div><div class="mt-1 text-xs text-slate-500">{{ entry.preferred_period === 'morning' ? 'صبح' : entry.preferred_period === 'afternoon' ? 'بعدازظهر' : 'هر ساعت' }}</div></div>
+                <button v-if="['waiting', 'offered'].includes(entry.status)" @click="closeWaitlist(entry.id)" class="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50">بستن درخواست</button>
               </div>
+              <div v-if="entry.status === 'offered' && entry.offered_slot" class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">
+                زمان پیشنهادی: {{ formatDate(entry.offered_slot.date) }} · {{ entry.offered_slot.start_time }} تا {{ entry.offered_slot.end_time }}. پیشنهاد ثبت شده اما رزرو انجام نشده است.
+                <p class="mt-1">پس از ثبت نوبت در سامانه، شناسه نوبت را برای تکمیل این درخواست وارد کنید.</p>
+                <div class="mt-2 flex gap-2"><input v-model="fulfillmentIds[entry.id]" type="number" min="1" placeholder="شناسه نوبت ثبت‌شده" class="min-w-0 flex-1 rounded-lg border-amber-300 text-xs"><button @click="fulfillWaitlist(entry.id)" class="rounded-lg bg-emerald-700 px-3 py-2 font-bold text-white">ثبت نوبت</button></div>
+              </div>
+              <div v-if="entry.status === 'offered'" class="mt-2 text-xs font-bold text-amber-700">در انتظار پاسخ بیمار / ثبت نوبت</div>
               <div class="mt-3 flex flex-wrap gap-2">
-                <span v-for="slot in entry.matching_slots" :key="slot.id" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">{{ slot.clinic_name }} · {{ formatDate(slot.date) }} · {{ slot.start_time }}</span>
-                <span v-if="!entry.matching_slots?.length" class="text-xs text-slate-400">فعلاً زمان آزادی با ترجیحات این بیمار منطبق نیست.</span>
+                <span v-for="slot in entry.matching_slots" :key="slot.id" class="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">{{ slot.clinic_name }} · {{ formatDate(slot.date) }} · {{ slot.start_time }} <button @click="offerWaitlist(entry.id, slot.id)" class="rounded bg-teal-700 px-2 py-1 text-white">پیشنهاد این زمان</button></span>
+                <span v-if="entry.status === 'waiting' && !entry.matching_slots?.length" class="text-xs text-slate-400">فعلاً زمان آزادی با ترجیحات این بیمار منطبق نیست.</span>
               </div>
             </article>
           </div>
@@ -140,7 +146,8 @@
 </template>
 
 <script setup>
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, reactive } from 'vue'
+import { router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 defineProps({
@@ -173,6 +180,13 @@ const submitWaitlist = () => {
     onFinish: () => { waitlistSubmitting.value = false },
     onSuccess: () => Object.assign(waitlistForm, { patient_id: '', clinic_id: '', preferred_from: '', preferred_until: '', preferred_period: 'any', contact_consent: false }),
   })
+}
+const fulfillmentIds = reactive({})
+const offerWaitlist = (entryId, slotId) => router.post(route('portal.clinic-brain.waitlist.offer', entryId), { slot_id: slotId }, { preserveScroll: true })
+const fulfillWaitlist = (entryId) => {
+  const appointmentId = Number(fulfillmentIds[entryId])
+  if (!appointmentId) return
+  router.post(route('portal.clinic-brain.waitlist.fulfill', entryId), { appointment_id: appointmentId }, { preserveScroll: true })
 }
 const closeWaitlist = (id) => router.post(route('portal.clinic-brain.waitlist.close', id), {}, { preserveScroll: true })
 
