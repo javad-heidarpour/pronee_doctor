@@ -14,6 +14,8 @@ final class CreatePatientEncounterAction
 {
     public function handle(Doctor $doctor, User $author, Appointment $appointment, array $data): PatientEncounter
     {
+        abort_unless((int) $appointment->doctor_id === (int) $doctor->id, 404);
+
         return DB::transaction(function () use ($doctor, $author, $appointment, $data): PatientEncounter {
             $patient = $appointment->patient;
             abort_unless($patient && (int) $patient->doctor_id === (int) $doctor->id, 422, 'پرونده معتبر بیمار برای این نوبت پیدا نشد.');
