@@ -165,6 +165,35 @@ class ClinicOperationsController extends Controller
                 );
             }
 
+            if ($row->service_id) {
+                $requirements = \\App\\Models\\ClinicServiceInventoryRequirement::query()
+                    ->where('service_id', $row->service_id)->with('inventoryItem')->get();
+                foreach ($requirements as $requirement) {
+                    $stock = ClinicInventoryItem::query()->whereKey($requirement->inventory_item_id)
+                        ->where('clinic_id', $row->plan->clinic_id)->lockForUpdate()->firstOrFail();
+                    $quantity = (float) $requirement->quantity;
+                    abort_if((float) $stock->current_quantity < $quantity, 422,
+                        'موجودی «' . $stock->name . '» برای تکمیل این خدمت کافی نیست.');
+                    $stock->decrement('current_quantity', $quantity);
+                    $movement = $stock->movements()->create([
+                        'recorded_by' => Auth::guard('web')->id(),
+                        'movement_type' => 'use',
+                        'quantity' => $quantity,
+                        'unit_cost' => $stock->average_unit_cost,
+                        'reference' => 'TREATMENT-' . $row->id,
+                        'notes' => 'مصرف خودکار برای خدمت: ' . $row->title,
+                        'occurred_at' => $row->performed_at,
+                    ]);
+                    $accounting->recordInventoryMovement(
+                        $row->plan->organization_id, $row->plan->clinic_id,
+                        $row->provider_doctor_id ?: $doctor->id, (int) Auth::guard('web')->id(),
+                        $movement->id, 'use',
+                        (int) round($quantity * (int) $stock->average_unit_cost),
+                        'مصرف مواد برای ' . $row->title, $row->performed_at->toDateTimeString()
+                    );
+                }
+            }
+
             if ($row->follow_up_due_at) {
                 PatientFollowUpTask::create([
                     'doctor_id' => $row->plan->doctor_id, 'clinic_id' => $row->plan->clinic_id,
