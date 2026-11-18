@@ -23,6 +23,7 @@ use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\PatientClinicalRecord;
 use App\Actions\Portal\Patient\SavePatientClinicalRecordAction;
+use App\Actions\Portal\Patient\ArchivePatientClinicalRecordAction;
 use App\Actions\Portal\Patient\RecordPatientVitalSignAction;
 use App\Http\Requests\Portal\StorePatientVitalSignRequest;
 use App\Http\Requests\Portal\SavePatientClinicalRecordRequest;
@@ -257,6 +258,32 @@ class PatientController extends Controller
         $action->handle($patient, $request->validated(), $record);
 
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
+    }
+
+    public function archiveClinicalRecord(
+        Patient $patient,
+        PatientClinicalRecord $record,
+        ArchivePatientClinicalRecordAction $action,
+        RecordSecurityAuditEventAction $audit
+    ) {
+        $doctor = $this->currentDoctor();
+        abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
+        $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
+
+        abort_unless(
+            (int) $record->patient_id === (int) $patient->id &&
+            (int) $record->doctor_id === (int) $doctor->id,
+            404
+        );
+
+        $action->handle($patient, $record);
+
+        $audit->handle('patient.clinical_record.archived', $record, [
+            'doctor_id' => $doctor->id,
+            'changed_fields' => ['archived'],
+        ]);
+
+        return back()->with('success', 'سابقه پزشکی به‌صورت امن بایگانی شد.');
     }
 
     private function hasSecretaryPermission(\App\Models\Doctor $doctor, string $permission): bool
