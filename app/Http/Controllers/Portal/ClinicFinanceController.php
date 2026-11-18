@@ -102,6 +102,8 @@ class ClinicFinanceController extends Controller
             'total_amount' => ['required', 'integer', 'min:1', 'max:999999999999'],
             'discount_amount' => ['nullable', 'integer', 'min:0'],
             'deposit_amount' => ['nullable', 'integer', 'min:0'],
+            'deposit_method' => ['nullable', Rule::in(['cash','card','transfer','online','cheque'])],
+            'deposit_reference' => ['nullable', 'string', 'max:120'],
             'installment_count' => ['required', 'integer', 'min:1', 'max:48'],
             'first_due_date' => ['required', 'date', 'after_or_equal:today'],
             'clinical_notes' => ['nullable', 'string', 'max:5000'],
@@ -158,7 +160,7 @@ class ClinicFinanceController extends Controller
                 $payment = PatientInstallmentPayment::create([
                     'installment_id' => $depositRow->id,
                     'received_by' => Auth::guard('web')->id(), 'amount' => $deposit,
-                    'method' => 'cash', 'reference' => 'DEPOSIT-' . $plan->id,
+                    'method' => $data['deposit_method'] ?? 'cash', 'reference' => $data['deposit_reference'] ?? ('DEPOSIT-' . $plan->id),
                     'paid_at' => now(), 'notes' => 'پیش‌پرداخت طرح درمان',
                 ]);
                 DB::table('clinic_financial_ledger')->insert([
