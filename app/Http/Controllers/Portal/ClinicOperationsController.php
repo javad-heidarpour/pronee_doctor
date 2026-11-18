@@ -423,8 +423,18 @@ class ClinicOperationsController extends Controller
         $organization = $doctor->clinicOrganizations()->whereKey($data['organization_id'])->wherePivot('status', 'active')->firstOrFail();
         abort_unless($organization->owner_user_id === Auth::guard('web')->id(), 403);
         $staff = $organization->members()->whereKey($data['staff_user_id'])->wherePivot('is_active', true)->firstOrFail();
+        $isOrganizationOwner = (int) $staff->id === (int) $organization->owner_user_id;
+        if (!$isOrganizationOwner) {
+            abort_unless(!empty($data['clinic_id']), 422, 'برای حقوق کارمند، شعبه مجاز او را مشخص کنید.');
+        }
         if (!empty($data['clinic_id'])) {
             abort_unless($organization->clinics()->whereKey($data['clinic_id'])->exists(), 403);
+            if (!$isOrganizationOwner) {
+                $assignedClinicIds = $staff->pivot->clinic_ids ?? [];
+                if (is_string($assignedClinicIds)) $assignedClinicIds = json_decode($assignedClinicIds, true) ?: [];
+                abort_unless(in_array((int) $data['clinic_id'], array_map('intval', (array) $assignedClinicIds), true), 403,
+                    'این کارمند به شعبه انتخاب‌شده تخصیص ندارد.');
+            }
         }
         $gross = (int) $data['gross_amount'];
         $deduction = (int) ($data['deduction_amount'] ?? 0);
