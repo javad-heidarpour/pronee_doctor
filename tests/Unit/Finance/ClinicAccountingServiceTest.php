@@ -104,7 +104,7 @@ final class ClinicAccountingServiceTest extends TestCase
         $this->assertSame(1500, (int) $item->fresh()->recognized_amount);
         $this->assertSame(1500, (int) $entry->lines()->sum('debit'));
         $this->assertSame(1500, (int) $entry->lines()->sum('credit'));
-        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'treatment-revenue-' . $item->id)->count());
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'treatment-revenue:' . $item->id)->count());
     }
 
     public function test_later_payment_is_applied_to_completed_treatment_receivable_first(): void
