@@ -165,7 +165,7 @@ const prescriptionReview = computed(() => {
   form.prescriptions.forEach(item => {
     const name = String(item.medication_name || '').trim()
     if (!name) return
-    const key = name.toLocaleLowerCase().replace(/[\\s\\u200c\\u200f-]+/g, '')
+    const key = name.toLocaleLowerCase().replace(/[\s\u200c\u200f-]+/g, '')
     if (seen.has(key)) warnings.push({title:'نام داروی تکراری:',message:name+' بیش از یک بار وارد شده؛ احتمال تکرار بررسی شود.'})
     else seen.add(key)
     if (!String(item.route || '').trim() || !String(item.frequency || '').trim()) warnings.push({title:'اطلاعات نسخه ناقص:',message:name+' فاقد راه یا دفعات مصرف کامل است.'})
