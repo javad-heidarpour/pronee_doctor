@@ -5,7 +5,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
   doctor: Object, canManage: Boolean, clinics: Array, patients: Array, plans: Object,
-  installments: Array, expenses: Array, stats: Object,
+  installments: Array, expenses: Array, stats: Object, journalSummary: Array,
 })
 
 const planForm = useForm({
@@ -59,6 +59,18 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
         ]" :key="item.label" class="rounded-2xl border border-slate-200 bg-white p-4">
           <p class="text-xs text-slate-500">{{ item.label }}</p>
           <p class="mt-2 text-lg font-black text-slate-900">{{ item.value }}</p>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+        <h2 class="mb-3 font-extrabold">خلاصه دفتر حسابداری دوطرفه</h2>
+        <p class="mb-3 text-xs text-slate-500">سندهای مالی ثبت‌شده؛ جمع بدهکار و بستانکار هر سند در لحظه ثبت کنترل می‌شود.</p>
+        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div v-for="account in journalSummary" :key="account.type" class="rounded-xl bg-slate-50 p-3">
+            <p class="text-xs text-slate-500">{{ ({asset:'دارایی',liability:'بدهی',income:'درآمد',expense:'هزینه',equity:'حقوق مالکانه'})[account.type] || account.type }}</p>
+            <p class="mt-1 text-sm font-bold">بدهکار: {{ money(account.debit_total) }}</p>
+            <p class="text-sm font-bold">بستانکار: {{ money(account.credit_total) }}</p>
+          </div>
         </div>
       </section>
 
