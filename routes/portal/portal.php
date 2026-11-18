@@ -89,6 +89,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/operations/settlements', [ClinicOperationsController::class, 'createSettlement'])->name('operations.settlements.store');
         Route::post('/operations/settlements/{settlement}/approve', [ClinicOperationsController::class, 'approveSettlement'])->whereNumber('settlement')->name('operations.settlements.approve');
         Route::post('/operations/settlements/{settlement}/pay', [ClinicOperationsController::class, 'paySettlement'])->whereNumber('settlement')->name('operations.settlements.pay');
+        Route::post('/operations/payrolls', [ClinicOperationsController::class, 'createPayroll'])->name('operations.payrolls.store');
+        Route::post('/operations/payrolls/{payroll}/approve', [ClinicOperationsController::class, 'approvePayroll'])->whereNumber('payroll')->name('operations.payrolls.approve');
+        Route::post('/operations/payrolls/{payroll}/pay', [ClinicOperationsController::class, 'payPayroll'])->whereNumber('payroll')->name('operations.payrolls.pay');
 
         Route::get('/organizations', [ClinicOrganizationController::class, 'index'])->name('organizations.index');
         Route::post('/organizations', [ClinicOrganizationController::class, 'store'])->name('organizations.store');
