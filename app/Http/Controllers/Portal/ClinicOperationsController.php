@@ -132,6 +132,9 @@ class ClinicOperationsController extends Controller
             $service = ClinicService::query()->whereKey($data['service_id'])
                 ->where('clinic_id', $treatmentPlan->clinic_id)->firstOrFail();
         }
+        $alreadyPlanned = (int) $treatmentPlan->items()->sum('price');
+        abort_if($alreadyPlanned + (int) $data['price'] > $treatmentPlan->net_amount, 422,
+            'جمع هزینه مراحل درمان نمی‌تواند از مبلغ خالص طرح درمان بیشتر باشد.');
         $item = $treatmentPlan->items()->create([
             ...$data,
             'provider_doctor_id' => $doctor->id,
