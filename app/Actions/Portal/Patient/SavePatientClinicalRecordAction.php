@@ -30,6 +30,7 @@ final class SavePatientClinicalRecordAction
                     ->where('patient_id', $lockedPatient->id)
                     ->where('doctor_id', $lockedPatient->doctor_id)
                     ->where('kind', PatientClinicalRecord::KIND_MEDICATION)
+                    ->where('is_active', true)
                     ->lockForUpdate()
                     ->first();
 
@@ -47,6 +48,7 @@ final class SavePatientClinicalRecordAction
                     ->where('patient_id', $lockedPatient->id)
                     ->where('doctor_id', $lockedPatient->doctor_id)
                     ->where('kind', PatientClinicalRecord::KIND_ALLERGY)
+                    ->where('is_active', true)
                     ->lockForUpdate()
                     ->first();
 
