@@ -23,6 +23,14 @@ final class PatientEncounterWorkflowTest extends TestCase
     {
         parent::setUp();
 
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('family')->nullable();
+            $table->timestamp('deleted_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('patients', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -145,6 +153,10 @@ final class PatientEncounterWorkflowTest extends TestCase
         $doctor->id = 12;
         $signer = new User();
         $signer->id = 22;
+        DB::table('users')->insert([
+            'id' => 22, 'name' => 'Test', 'family' => 'Doctor',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
 
         $patient = Patient::query()->create(['doctor_id' => 12, 'name' => 'Patient']);
         $appointment = Appointment::query()->create([
