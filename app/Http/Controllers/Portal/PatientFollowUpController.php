@@ -62,6 +62,7 @@ class PatientFollowUpController extends Controller
 
         return Inertia::render('Portal/FollowUps/Index', [
             'doctor' => $doctor,
+            'userRole' => Auth::guard('web')->user()?->role,
             'tasks' => $tasks,
             'patients' => $patients,
             'templates' => $templates,
@@ -85,7 +86,7 @@ class PatientFollowUpController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
 
-        $task = $action->handle($doctor, Auth::guard('web')->user(), $request->validated());
+        $task = $action->handle($doctor, Auth::guard('web')->user(), $request->validated(), $this->accessibleClinicIds($doctor));
 
         $audit->handle('patient.follow_up.created', $task, [
             'doctor_id' => $doctor->id,
