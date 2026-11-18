@@ -18,7 +18,14 @@ final class LoadPortalPatientRecordAction
         $query = Appointment::query()
             ->where('doctor_id', $reference->doctor_id)
             ->whereIn('clinic_id', $accessibleClinicIds)
-            ->with(['patient', 'clinic', 'visitReason', 'latestPayment', 'surgeryType']);
+            ->with([
+                'patient' => fn ($patientQuery) => $patientQuery
+                    ->where('doctor_id', $reference->doctor_id),
+                'clinic',
+                'visitReason',
+                'latestPayment',
+                'surgeryType',
+            ]);
 
         if ($reference->patient_id !== null) {
             $query->where('patient_id', $reference->patient_id);
