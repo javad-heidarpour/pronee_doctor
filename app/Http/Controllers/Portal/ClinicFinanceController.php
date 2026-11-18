@@ -50,6 +50,18 @@ class ClinicFinanceController extends Controller
             ->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
         $income = (clone $ledger)->sum('credit');
         $outgoing = (clone $ledger)->sum('debit');
+        $organizationIds = $doctor->clinicOrganizations()->wherePivot('status', 'active')
+            ->pluck('clinic_organizations.id')->map(fn ($id) => (int) $id)->all();
+        $journalSummary = DB::table('clinic_journal_lines as lines')
+            ->join('clinic_financial_accounts as accounts', 'accounts.id', '=', 'lines.account_id')
+            ->join('clinic_journal_entries as entries', 'entries.id', '=', 'lines.journal_entry_id')
+            ->where('entries.status', 'posted')
+            ->where(function ($query) use ($clinicIds, $organizationIds): void {
+                $query->whereIn('entries.clinic_id', $clinicIds);
+                if ($organizationIds) $query->orWhereIn('entries.organization_id', $organizationIds);
+            })
+            ->selectRaw('accounts.type, SUM(lines.debit) as debit_total, SUM(lines.credit) as credit_total')
+            ->groupBy('accounts.type')->get();
 
         return Inertia::render('Portal/Finance/Index', [
             'doctor' => $doctor,
