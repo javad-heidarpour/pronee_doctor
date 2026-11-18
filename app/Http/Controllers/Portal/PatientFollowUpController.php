@@ -158,6 +158,30 @@ class PatientFollowUpController extends Controller
         return back()->with('success', 'الگوی پیگیری ذخیره شد.');
     }
 
+    public function updateTemplate(Request $request, int $template, RecordSecurityAuditEventAction $audit)
+    {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        abort_if(Auth::guard('web')->user()?->role === 'secretary', 403);
+
+        $model = PatientFollowUpTemplate::query()->whereKey($template)
+            ->where('doctor_id', $doctor->id)->firstOrFail();
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:160'],
+            'category' => ['required', Rule::in(['general', 'lab', 'chronic', 'surgery', 'post_op', 'cosmetic'])],
+            'description' => ['nullable', 'string', 'max:3000'],
+            'default_days' => ['required', 'integer', 'min:0', 'max:365'],
+            'contact_method' => ['required', Rule::in(['call', 'sms', 'in_person', 'review'])],
+            'send_sms' => ['boolean'],
+        ]);
+
+        $model->update($data);
+        $audit->handle('patient.follow_up_template.updated', $model, ['doctor_id' => $doctor->id]);
+
+        return back()->with('success', 'الگوی پیگیری به‌روزرسانی شد.');
+    }
+
     public function destroyTemplate(int $template, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
