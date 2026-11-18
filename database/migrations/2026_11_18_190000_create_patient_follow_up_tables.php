@@ -38,6 +38,7 @@ return new class extends Migration
             $table->dateTime('due_at');
             $table->string('priority', 20)->default('normal');
             $table->string('contact_method', 20)->default('call');
+            $table->boolean('send_sms')->default(false);
             $table->string('status', 24)->default('pending');
             $table->string('outcome', 40)->nullable();
             $table->text('result_notes')->nullable();
