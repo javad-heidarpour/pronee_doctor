@@ -7,11 +7,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 final class PatientEncounter extends Model
 {
     public const STATUS_DRAFT = 'draft';
     public const STATUS_SIGNED = 'signed';
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $encounter): void {
+            if ($encounter->getOriginal('status') === self::STATUS_SIGNED) {
+                throw ValidationException::withMessages([
+                    'encounter' => 'یادداشت نهایی‌شده غیرقابل‌ویرایش است؛ برای اصلاح، الحاقیه جدید ثبت کنید.',
+                ]);
+            }
+        });
+    }
 
     protected $fillable = [
         'doctor_id', 'patient_id', 'appointment_id', 'amends_encounter_id', 'clinic_id', 'author_id', 'signed_by',
