@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\ClinicExpense;
+use App\Models\Address;
+use App\Services\Finance\ClinicAccountingService;
 use App\Models\Patient;
 use App\Models\PatientCollateral;
 use App\Models\PatientInstallmentPayment;
@@ -96,7 +98,8 @@ class ClinicFinanceController extends Controller
 
         $clinicId = (int) $data['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
-        $organizationId = Address::query()->whereKey($clinicId)->value('organization_id');\n        $patient = Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
+        $organizationId = Address::query()->whereKey($clinicId)->value('organization_id');
+        $patient = Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $clinicId))->firstOrFail();
 
         $total = (int) $data['total_amount'];
@@ -248,7 +251,8 @@ class ClinicFinanceController extends Controller
         ]);
         $clinicId = (int) $data['clinic_id'];
         $this->authorizeClinicAccess($clinicId, $doctor);
-        $organizationId = Address::query()->whereKey($clinicId)->value('organization_id');\n        DB::transaction(function () use ($doctor, $clinicId, $organizationId, $data, $accounting): void {
+        $organizationId = Address::query()->whereKey($clinicId)->value('organization_id');
+        DB::transaction(function () use ($doctor, $clinicId, $organizationId, $data, $accounting): void {
             $expense = ClinicExpense::create($data + ['doctor_id' => $doctor->id, 'recorded_by' => Auth::guard('web')->id()]);
             DB::table('clinic_financial_ledger')->insert([
                 'doctor_id' => $doctor->id, 'clinic_id' => $clinicId, 'expense_id' => $expense->id,
