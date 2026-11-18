@@ -186,6 +186,7 @@ class PatientController extends Controller
         } else {
             $visits->each(function (Appointment $visit): void {
                 $visit->patient?->setRelation('clinicalRecords', collect());
+                $visit->patient?->setRelation('vitalSigns', collect());
             });
         }
 
