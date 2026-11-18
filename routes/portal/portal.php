@@ -16,6 +16,7 @@ use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
 use App\Http\Controllers\Portal\MedicalNetworkController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
+use App\Http\Controllers\Portal\PatientRetentionController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -86,6 +87,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         ])->name('dashboard');
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
+        Route::get('/patient-retention', [PatientRetentionController::class, 'index'])->name('patient-retention.index');
 
         Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
         Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');
