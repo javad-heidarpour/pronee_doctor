@@ -58,9 +58,9 @@ class SendPatientFollowUpReminders extends Command
                             $task->patient->phone,
                             $template,
                             [
-                                'param1' => $task->patient->name,
-                                'param2' => $task->due_at->format('Y/m/d H:i'),
-                                'param3' => $task->title,
+                                ['param' => 'param1', 'value' => $task->patient->name],
+                                ['param' => 'param2', 'value' => $task->due_at->format('Y/m/d H:i')],
+                                ['param' => 'param3', 'value' => $task->title],
                             ],
                             'followup-' . $task->id
                         );
