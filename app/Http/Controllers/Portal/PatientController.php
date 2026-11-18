@@ -24,6 +24,7 @@ use App\Models\Patient;
 use App\Models\PatientClinicalRecord;
 use App\Actions\Portal\Patient\SavePatientClinicalRecordAction;
 use App\Actions\Portal\Patient\ArchivePatientClinicalRecordAction;
+use App\Actions\Portal\Patient\RestorePatientClinicalRecordAction;
 use App\Actions\Portal\Patient\RecordPatientVitalSignAction;
 use App\Http\Requests\Portal\StorePatientVitalSignRequest;
 use App\Http\Requests\Portal\SavePatientClinicalRecordRequest;
@@ -179,7 +180,7 @@ class PatientController extends Controller
             $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
 
         if ($canViewClinicalRecords) {
-            $visits->loadMissing(['patient.clinicalRecords', 'patient.vitalSigns']);
+            $visits->loadMissing(['patient.clinicalRecords', 'patient.archivedClinicalRecords', 'patient.vitalSigns']);
             $audit->handle('patient.clinical_records.viewed', $appointment, [
                 'doctor_id' => $doctor->id,
             ]);
@@ -284,6 +285,33 @@ class PatientController extends Controller
         ]);
 
         return back()->with('success', 'سابقه پزشکی به‌صورت امن بایگانی شد.');
+    }
+
+    public function restoreClinicalRecord(
+        Patient $patient,
+        int $record,
+        RestorePatientClinicalRecordAction $action,
+        RecordSecurityAuditEventAction $audit
+    ) {
+        $doctor = $this->currentDoctor();
+        abort_unless($this->hasSecretaryPermission($doctor, 'patients.clinical.manage'), 403);
+        $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
+
+        $archivedRecord = PatientClinicalRecord::withTrashed()
+            ->whereKey($record)
+            ->where('patient_id', $patient->id)
+            ->where('doctor_id', $doctor->id)
+            ->whereNotNull('deleted_at')
+            ->firstOrFail();
+
+        $restoredRecord = $action->handle($patient, $archivedRecord);
+
+        $audit->handle('patient.clinical_record.restored', $restoredRecord, [
+            'doctor_id' => $doctor->id,
+            'restored' => true,
+        ]);
+
+        return back()->with('success', 'سابقه پزشکی با موفقیت بازیابی شد.');
     }
 
     private function hasSecretaryPermission(\App\Models\Doctor $doctor, string $permission): bool
