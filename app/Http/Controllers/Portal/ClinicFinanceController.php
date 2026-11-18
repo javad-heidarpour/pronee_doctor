@@ -107,6 +107,8 @@ class ClinicFinanceController extends Controller
             'financial_terms' => ['nullable', 'string', 'max:3000'],
             'sms_reminders_enabled' => ['nullable', 'boolean'],
             'sms_consent_confirmed' => ['nullable', 'boolean'],
+            'follow_up_sms_enabled' => ['nullable', 'boolean'],
+            'follow_up_sms_consent_confirmed' => ['nullable', 'boolean'],
         ]);
 
         $clinicId = (int) $data['clinic_id'];
