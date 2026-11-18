@@ -33,8 +33,10 @@ class PatientFollowUpController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
         ]);
 
+        $clinicIds = $this->accessibleClinicIds($doctor);
         $query = PatientFollowUpTask::query()
             ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $clinicIds)
             ->with(['patient:id,name,phone', 'assignee:id,name,family', 'appointment:id,appointment_date,appointment_time'])
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when(($filters['scope'] ?? null) === 'overdue', fn ($q) => $q->overdue())
@@ -49,7 +51,7 @@ class PatientFollowUpController extends Controller
 
         $patients = Patient::query()
             ->where('doctor_id', $doctor->id)
-            ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
+            ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))
             ->orderBy('name')->get(['id', 'name', 'phone']);
 
         $templates = PatientFollowUpTemplate::query()
@@ -58,7 +60,7 @@ class PatientFollowUpController extends Controller
         $secretaries = $doctor->secretaries()->where('users.is_active', true)
             ->orderBy('users.name')->get(['users.id', 'users.name', 'users.family']);
 
-        $base = PatientFollowUpTask::query()->where('doctor_id', $doctor->id);
+        $base = PatientFollowUpTask::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
 
         return Inertia::render('Portal/FollowUps/Index', [
             'doctor' => $doctor,
@@ -104,7 +106,8 @@ class PatientFollowUpController extends Controller
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
 
         $followUp = PatientFollowUpTask::query()
-            ->whereKey($task)->where('doctor_id', $doctor->id)->firstOrFail();
+            ->whereKey($task)->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->firstOrFail();
 
         $data = $request->validate([
             'status' => ['required', Rule::in(['pending', 'completed', 'unsuccessful', 'cancelled'])],
