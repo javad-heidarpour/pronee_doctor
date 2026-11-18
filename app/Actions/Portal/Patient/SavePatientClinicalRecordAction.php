@@ -62,6 +62,10 @@ final class SavePatientClinicalRecordAction
             if (($data['kind'] ?? null) !== PatientClinicalRecord::KIND_ADVERSE_REACTION) {
                 $data['related_record_id'] = null;
                 $data['related_allergy_record_id'] = null;
+                $data['reaction_severity'] = null;
+                $data['reaction_date'] = null;
+                $data['action_taken'] = null;
+                $data['reaction_outcome'] = null;
             }
 
             if ($record) {
