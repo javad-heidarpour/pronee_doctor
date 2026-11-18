@@ -17,3 +17,8 @@ Schedule::command('appointments:expire-pending')
 Schedule::command('appointments:send-reminders')
     ->dailyAt('09:00')
     ->withoutOverlapping();
+
+// ارسال یادآوری‌های سررسیدشده پیگیری بیماران؛ در صورت تنظیم قالب پیامک فعال می‌شود.
+Schedule::command('patients:send-follow-up-reminders')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
