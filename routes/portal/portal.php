@@ -77,6 +77,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
             'index'
         ])->name('dashboard');
 
+        Route::get('/organizations', [ClinicOrganizationController::class, 'index'])->name('organizations.index');
+        Route::post('/organizations', [ClinicOrganizationController::class, 'store'])->name('organizations.store');
+        Route::post('/organizations/{organization}/doctors', [ClinicOrganizationController::class, 'inviteDoctor'])->whereNumber('organization')->name('organizations.doctors.invite');
+        Route::post('/organizations/{organization}/doctors/accept', [ClinicOrganizationController::class, 'acceptDoctor'])->whereNumber('organization')->name('organizations.doctors.accept');
+        Route::post('/organizations/{organization}/clinics', [ClinicOrganizationController::class, 'attachClinic'])->whereNumber('organization')->name('organizations.clinics.attach');
+
         Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
         Route::post('/finance/installments/{installment}/payments', [ClinicFinanceController::class, 'recordPayment'])->whereNumber('installment')->name('finance.installments.payments.store');
