@@ -137,7 +137,7 @@
           <div>
             <h3 class="text-sm font-black text-slate-800">شاخص توده بدنی (BMI)</h3>
             <p class="mt-1 text-xs leading-6 text-slate-600">محاسبه اطلاعاتی بر اساس آخرین قد و وزن ثبت‌شده؛ این عدد به‌تنهایی ابزار تشخیص پزشکی نیست.</p>
-            <p class="mt-1 text-[10px] text-slate-500">قد: {{ bmiSummary.height }} سانتی‌متر · وزن: {{ bmiSummary.weight }} کیلوگرم</p>
+            <p class="mt-1 text-[10px] leading-6 text-slate-500">قد: {{ bmiSummary.height }} سانتی‌متر ({{ bmiSummary.heightDate }}) · وزن: {{ bmiSummary.weight }} کیلوگرم ({{ bmiSummary.weightDate }})</p>
           </div>
           <div class="rounded-xl bg-white px-5 py-3 text-center shadow-sm">
             <p class="text-[10px] font-bold text-slate-500">مقدار محاسبه‌شده</p>
@@ -366,6 +366,8 @@ const bmiSummary = computed(() => {
     value: (weightKg / (heightMeters * heightMeters)).toFixed(1),
     height: Number(heightRecord.value),
     weight: weightKg,
+    heightDate: formatVitalDate(heightRecord.measured_at),
+    weightDate: formatVitalDate(weightRecord.measured_at),
   };
 });
 
