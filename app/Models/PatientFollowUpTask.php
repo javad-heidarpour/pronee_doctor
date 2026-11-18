@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PatientFollowUpTask extends Model
 {
     protected $fillable = [
-        'doctor_id', 'clinic_id', 'patient_id', 'appointment_id', 'template_id',
+        'doctor_id', 'clinic_id', 'patient_id', 'appointment_id', 'treatment_plan_id', 'template_id',
         'assigned_to', 'created_by', 'plan_uuid', 'title', 'description',
         'due_at', 'priority', 'contact_method', 'send_sms', 'sms_consent_confirmed', 'status', 'outcome',
         'result_notes', 'completed_at', 'sms_sent_at', 'sms_attempted_at',
@@ -42,7 +42,7 @@ class PatientFollowUpTask extends Model
         return $this->belongsTo(Patient::class);
     }
 
-    public function appointment(): BelongsTo
+    public function treatmentPlan(): BelongsTo\n    {\n        return $this->belongsTo(PatientTreatmentPlan::class, 'treatment_plan_id');\n    }\n\n    public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
     }
