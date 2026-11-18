@@ -25,10 +25,10 @@ class ClinicOrganizationController extends Controller
         $organizations = ClinicOrganization::query()
             ->where(function ($q) use ($user): void {
                 $q->where('owner_user_id', $user->id)
-                    ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->wherePivot('is_active', true))
-                    ->orWhereHas('doctors', fn ($d) => $d->where('doctors.user_id', $user->id)->wherePivot('status', 'pending'));
+                    ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->where('clinic_organization_members.is_active', true))
+                    ->orWhereHas('doctors', fn ($d) => $d->where('doctors.user_id', $user->id)->where('clinic_organization_doctors.status', 'pending'));
             })
-            ->with(['doctors' => fn ($q) => $q->withPivot(['role', 'status', 'revenue_share_basis_points']), 'clinics', 'members'])
+            ->with(['doctors', 'clinics', 'members'])
             ->withCount(['doctors', 'clinics', 'members'])
             ->latest()->get();
 
