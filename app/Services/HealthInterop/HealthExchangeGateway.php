@@ -15,7 +15,7 @@ final class HealthExchangeGateway
         $destination = $message->destination;
         $config = config("health_interop.destinations.{$destination}");
 
-        if (!is_array($config) || empty($config['enabled']) || empty($config['url'])) {
+        if (!is_array($config) || empty($config['enabled']) || empty($config['contract_approved']) || empty($config['url'])) {
             throw new RuntimeException("اتصال مقصد {$destination} پیکربندی یا فعال نشده است.");
         }
 

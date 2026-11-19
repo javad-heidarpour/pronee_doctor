@@ -27,11 +27,11 @@ National identity verification must be connected to an authorized identity servi
 
 All destinations default to disabled:
 
-- `SEPAS_ENABLED=false`, `SEPAS_EXCHANGE_URL=`, `SEPAS_API_TOKEN=`
-- `TAMIN_INSURANCE_ENABLED=false`, `TAMIN_API_URL=`, `TAMIN_API_TOKEN=`
-- `SALAMAT_INSURANCE_ENABLED=false`, `SALAMAT_API_URL=`, `SALAMAT_API_TOKEN=`
+- `SEPAS_ENABLED=false`, `SEPAS_CONTRACT_APPROVED=false`, `SEPAS_EXCHANGE_URL=`, `SEPAS_API_TOKEN=`
+- `TAMIN_INSURANCE_ENABLED=false`, `TAMIN_CONTRACT_APPROVED=false`, `TAMIN_API_URL=`, `TAMIN_API_TOKEN=`
+- `SALAMAT_INSURANCE_ENABLED=false`, `SALAMAT_CONTRACT_APPROVED=false`, `SALAMAT_API_URL=`, `SALAMAT_API_TOKEN=`
 
-Do not enable these flags with guessed endpoints or credentials. The current generic gateway requires a JSON response containing `accepted: true`; adapt it to the official contract before production activation.
+Do not enable these flags with guessed endpoints or credentials. The separate `*_CONTRACT_APPROVED` gate must remain false until the official contract has been implemented, reviewed and approved. The current generic gateway requires a JSON response containing `accepted: true`; adapt it to the official contract before production activation.
 
 ## Operations
 
