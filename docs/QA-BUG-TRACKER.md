@@ -145,7 +145,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 - Backend scope inventory: 535 files across `app/` (367), `routes/` (21), `database/` (68), `config/` (11), `bootstrap/` (4), and `tests/` (64).
 - Frontend scope: `resources/` (325 files; 172 Vue files).
 - Backend status: **PARTIAL — do not claim file-by-file completion**.
-- Fully reviewed backend files recorded: **79 of 535** (40 previously recorded plus 39 additional unique full-file reads in this priority pass).
+- Fully reviewed backend files recorded: **78 of 535** (40 previously recorded plus 38 additional unique full-file reads in this priority pass).
 - Files fully read in this pass:
   - `app/Models/User.php`
   - `app/Models/Doctor.php`
@@ -196,7 +196,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 ### Priority audit pass — payment, authorization, booking, patient/staff access
 
 - Source revision reviewed: `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`; audit ledger updates remain isolated to branch `qa/backend-audit-2026-11-19`.
-- Full-file count after this pass: **79 / 535** backend-scope files. The 39 additional unique full-file reads are:
+- Full-file count after this pass: **79 / 535** backend-scope files. The 38 additional unique backend full-file reads are:
   - `app/Http/Controllers/Portal/StaffManagementController.php` (all 490 lines, assembled from complete line ranges)
   - `app/Http/Controllers/Portal/PatientController.php`
   - `routes/portal/portal.php`
@@ -229,7 +229,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
   - `bootstrap/providers.php`
   - `routes/web.php`
   - `app/Http/Controllers/VisitController.php`
-  - `resources/views/payments/sep-redirect.blade.php`
+  - `resources/views/payments/sep-redirect.blade.php` (one additional full read outside the 535-file backend scope)
   - `app/Actions/Home/BookAppointmentAction.php`
   - `app/Actions/Portal/Appointment/ListAvailableSlotsAction.php`
   - `app/Actions/Portal/Appointment/EnsureSecretaryCanBookClinicAction.php`
