@@ -106,12 +106,18 @@ final class MedicalCollaborationContractController extends Controller
         return back()->with('success', $data['decision'] === 'accept' ? 'قرارداد پذیرفته و فعال شد.' : 'پیشنهاد قرارداد رد شد.');
     }
 
-    public function generate(Request $request, MedicalReferralSettlementGenerator $generator)
+    public function generate(Request $request, MedicalReferralSettlementGenerator $generator, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'admin'], true), 403);
         $doctor = $this->currentDoctor();
         $count = $generator->generateForDoctor((int) $doctor->id);
+        if ($count > 0) {
+            $audit->handle('medical_network.settlements_generated', null, [
+                'doctor_id' => $doctor->id,
+                'changed_fields' => ['settlements_generated'],
+            ]);
+        }
 
         return back()->with('success', $count . ' ردیف تسویه جدید بر اساس ارجاعات تکمیل‌شده ایجاد شد.');
     }
@@ -119,16 +125,24 @@ final class MedicalCollaborationContractController extends Controller
     public function markPaid(Request $request, MedicalReferralSettlement $settlement, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user, 401);
+        abort_unless($user && $user->role === 'doctor', 403);
+        $doctor = $this->currentDoctor();
 
-        DB::transaction(function () use ($settlement, $user): void {
+        DB::transaction(function () use ($settlement, $user, $doctor): void {
             $locked = MedicalReferralSettlement::query()->whereKey($settlement->id)->lockForUpdate()->with('contract')->firstOrFail();
-            abort_unless((int) $locked->contract?->created_by_user_id === (int) $user->id, 403);
+            abort_unless(
+                (int) $locked->contract?->doctor_id === (int) $doctor->id
+                && (int) $locked->contract?->created_by_user_id === (int) $user->id,
+                403
+            );
             abort_unless($locked->status === 'pending', 422, 'این ردیف قبلاً تسویه شده است.');
             $locked->update(['status' => 'paid', 'paid_at' => now(), 'paid_by_user_id' => $user->id]);
         });
 
-        $audit->handle('medical_network.settlement_paid', $settlement, ['changed_fields' => ['status_changed']]);
+        $audit->handle('medical_network.settlement_paid', $settlement, [
+            'doctor_id' => $doctor->id,
+            'changed_fields' => ['status_changed'],
+        ]);
         return back()->with('success', 'پرداخت ثبت شد. ثبت پرداخت به معنی تأیید بانکی یا اتصال به درگاه نیست.');
     }
 }
