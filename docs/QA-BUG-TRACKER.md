@@ -145,7 +145,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 - Backend scope inventory: 535 files across `app/` (367), `routes/` (21), `database/` (68), `config/` (11), `bootstrap/` (4), and `tests/` (64).
 - Frontend scope: `resources/` (325 files; 172 Vue files).
 - Backend status: **PARTIAL — do not claim file-by-file completion**.
-- Fully reviewed backend files recorded: **37 of 535** (32 in the preceding audit pass plus 5 additional full-file reads in this pass).
+- Fully reviewed backend files recorded: **40 of 535** (32 in the preceding audit pass plus 8 additional unique full-file reads in this pass).
 - Files fully read in this pass:
   - `app/Models/User.php`
   - `app/Models/Doctor.php`
@@ -184,6 +184,9 @@ The following paths were fetched/read at least in part in an earlier preliminary
   - `app/Http/Controllers/Portal/StaffObligationController.php`
   - `app/Http/Requests/Portal/SaveManagedUserRequest.php`
   - `config/auth.php`
+  - `app/Http/Controllers/Portal/UsersController.php`
+  - `app/Actions/Portal/Users/BuildSecretaryAssignmentsDataAction.php`
+  - `app/Actions/Portal/Users/UpdateSecretaryAssignmentsAction.php`
 - Partially read in this pass:
   - `app/Http/Controllers/Portal/StaffManagementController.php` — lines 1–180 only.
   - `routes/portal/portal.php` — retrieved in a multi-file response that was truncated; not considered fully read.
