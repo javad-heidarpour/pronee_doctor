@@ -8,6 +8,7 @@ use App\Http\Controllers\Portal\SecurityAuditController;
 use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
+use App\Http\Controllers\Portal\ClinicCashFlowController;
 use App\Http\Controllers\Portal\ClinicRevenueOptimizerController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
@@ -191,7 +192,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/organizations/{organization}/members', [ClinicOrganizationController::class, 'inviteMember'])->whereNumber('organization')->name('organizations.members.invite');
         Route::delete('/organizations/{organization}/members/{member}', [ClinicOrganizationController::class, 'removeMember'])->whereNumber('organization')->whereNumber('member')->name('organizations.members.remove');
 
-        Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');\n        Route::get('/finance/cash-flow', [ClinicCashFlowController::class, 'index'])->name('finance.cash-flow');
+        Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
+        Route::get('/finance/cash-flow', [ClinicCashFlowController::class, 'index'])->name('finance.cash-flow');
         Route::get('/revenue-optimizer', [ClinicRevenueOptimizerController::class, 'index'])->name('revenue-optimizer.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
         Route::post('/finance/installments/{installment}/payments', [ClinicFinanceController::class, 'recordPayment'])->whereNumber('installment')->name('finance.installments.payments.store');
