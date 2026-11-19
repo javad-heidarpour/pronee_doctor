@@ -70,15 +70,19 @@
             <h2 class="mb-4 text-base font-black text-slate-900">یادداشت ساختاریافته بالینی (SOAP)</h2>
             <div class="grid gap-4">
               <label class="space-y-1 text-xs font-bold text-slate-600">S · شرح حال و شکایت اصلی
+                <VoiceDictationButton v-model="form.subjective" />
                 <textarea v-model="form.subjective" rows="4" maxlength="12000" class="w-full rounded-xl border-slate-200 text-sm" placeholder="علت مراجعه، شرح علائم، مدت، شدت و سابقه مرتبط..." />
               </label>
               <label class="space-y-1 text-xs font-bold text-slate-600">O · یافته‌های معاینه و بررسی‌ها
+                <VoiceDictationButton v-model="form.objective" />
                 <textarea v-model="form.objective" rows="4" maxlength="12000" class="w-full rounded-xl border-slate-200 text-sm" placeholder="یافته‌های معاینه، نتایج بررسی‌ها و مشاهدات عینی..." />
               </label>
               <label class="space-y-1 text-xs font-bold text-slate-600">A · ارزیابی و استدلال بالینی <span class="text-rose-600">*</span>
+                <VoiceDictationButton v-model="form.assessment" />
                 <textarea v-model="form.assessment" required rows="4" maxlength="12000" class="w-full rounded-xl border-slate-200 text-sm" placeholder="جمع‌بندی و ارزیابی پزشک..." />
               </label>
               <label class="space-y-1 text-xs font-bold text-slate-600">P · برنامه درمانی و توصیه‌ها <span class="text-rose-600">*</span>
+                <VoiceDictationButton v-model="form.plan" />
                 <textarea v-model="form.plan" required rows="4" maxlength="12000" class="w-full rounded-xl border-slate-200 text-sm" placeholder="برنامه درمان، آموزش بیمار، آزمایش‌ها و زمان مراجعه بعدی..." />
               </label>
             </div>
@@ -136,6 +140,7 @@
 import { computed, reactive, ref } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
+import VoiceDictationButton from '@/Components/Portal/VoiceDictationButton.vue'
 
 const props = defineProps({
   doctor: Object, appointment: Object, patient: Object, context: Object,

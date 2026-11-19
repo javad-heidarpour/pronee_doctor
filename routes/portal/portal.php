@@ -19,6 +19,7 @@ use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
 use App\Http\Controllers\Portal\PatientRetentionController;
 use App\Http\Controllers\Portal\ClinicGrowthController;
+use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
@@ -92,6 +93,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
         Route::get('/patient-retention', [PatientRetentionController::class, 'index'])->name('patient-retention.index');
         Route::get('/growth', [ClinicGrowthController::class, 'index'])->name('growth.index');
+        Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
 
         Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
         Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');
