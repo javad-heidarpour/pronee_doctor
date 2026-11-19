@@ -4,8 +4,16 @@ import { router } from '@inertiajs/vue3'
 import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 defineProps({ requests: Object, doctor: Object })
-const approve = item => {
-  if (window.confirm('پس از احراز هویت بیمار، دسترسی پرونده فعال شود؟')) router.patch(route('portal.patient-access-requests.approve', item.id), {}, { preserveScroll: true })
+const approvalDialog=reactive({open:false,processing:false,item:null,errors:{}})
+const approve = item => Object.assign(approvalDialog,{open:true,item,processing:false,errors:{}})
+const submitApprove = () => {
+  approvalDialog.processing=true
+  router.patch(route('portal.patient-access-requests.approve',approvalDialog.item.id),{},{
+    preserveScroll:true,
+    onSuccess:()=>{approvalDialog.open=false;approvalDialog.errors={}},
+    onError:errors=>{approvalDialog.errors=errors||{}},
+    onFinish:()=>{approvalDialog.processing=false},
+  })
 }
 const dialog=reactive({open:false,errors:{},processing:false,item:null})
 const reject = item => Object.assign(dialog,{open:true,item,errors:{},processing:false})
@@ -25,6 +33,7 @@ const submitReject = values => {
       </article>
       <p v-if="!requests.data.length" class="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">درخواست در انتظار بررسی وجود ندارد.</p>
     </main>
+    <ActionDialog :open="approvalDialog.open" title="تأیید دسترسی پرونده" description="پس از احراز هویت بیمار از مسیر معتبر مرکز، دسترسی پرونده فعال شود؟" :fields="[]" :errors="approvalDialog.errors" :processing="approvalDialog.processing" submit-label="تأیید دسترسی" @close="approvalDialog.open=false" @submit="submitApprove" />
     <ActionDialog :open="dialog.open" title="رد درخواست دسترسی پرونده" description="دلیل رد درخواست را ثبت کنید." :fields="[{key:'review_note',label:'دلیل رد درخواست',type:'textarea',required:true,maxlength:2000}]" :errors="dialog.errors" :processing="dialog.processing" @close="dialog.open=false" @submit="submitReject" />
   </PortalLayout>
 </template>
