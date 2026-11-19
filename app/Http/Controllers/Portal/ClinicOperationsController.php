@@ -309,38 +309,66 @@ class ClinicOperationsController extends Controller
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
         $data = $request->validate([
             'movement_type' => ['required', Rule::in(['purchase','use','return','adjustment_in','adjustment_out'])],
-            'quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
-            'unit_cost' => ['nullable', 'integer', 'min:0'], 'reference' => ['nullable', 'string', 'max:120'],
+            // مقدار با دقت سه رقم اعشار ذخیره می‌شود؛ اعشار بیشتر نباید بی‌صدا گرد شود.
+            'quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,3', 'max:999999'],
+            'unit_cost' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
+            'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        // بهای خرید باید صریح باشد؛ برای مصرف و اصلاحات خروجی، بهای میانگین انبار ملاک است.
+        abort_if($data['movement_type'] === 'purchase' && ! array_key_exists('unit_cost', $data), 422,
+            'برای ورود خرید، بهای واحد کالا الزامی است.');
+
         DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
             $row = ClinicInventoryItem::query()->whereKey($item)
                 ->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor))
                 ->lockForUpdate()->firstOrFail();
-            $delta = match ($data['movement_type']) {
-                'purchase', 'return', 'adjustment_in' => (float) $data['quantity'],
-                'use', 'adjustment_out' => -(float) $data['quantity'],
-            };
-            $newQuantity = round((float) $row->current_quantity + $delta, 3);
+
+            $oldQuantity = round((float) $row->current_quantity, 3);
+            abort_if($oldQuantity < 0, 409, 'موجودی فعلی انبار نامعتبر است؛ ابتدا مغایرت موجودی را بررسی کنید.');
+
+            $quantity = (float) $data['quantity'];
+            $incoming = in_array($data['movement_type'], ['purchase', 'return', 'adjustment_in'], true);
+            $delta = $incoming ? $quantity : -$quantity;
+            $newQuantity = round($oldQuantity + $delta, 3);
             abort_if($newQuantity < 0, 422, 'موجودی انبار برای این خروج کافی نیست.');
-            if (in_array($data['movement_type'], ['purchase', 'return'], true) && $newQuantity > 0) {
-                $oldValue = (float) $row->current_quantity * (int) $row->average_unit_cost;
-                $newValue = (float) $data['quantity'] * (int) ($data['unit_cost'] ?? 0);
-                $row->average_unit_cost = (int) round(($oldValue + $newValue) / $newQuantity);
+
+            $oldAverageCost = (int) $row->average_unit_cost;
+            // برای خرید از قیمت فاکتور استفاده می‌شود؛ برگشت و اصلاح موجودی با بهای میانگین فعلی ارزش‌گذاری می‌شوند.
+            $movementUnitCost = $data['movement_type'] === 'purchase'
+                ? (int) $data['unit_cost']
+                : $oldAverageCost;
+
+            if ($data['movement_type'] === 'purchase' && $newQuantity > 0) {
+                $oldInventoryValue = $oldQuantity * $oldAverageCost;
+                $incomingInventoryValue = $quantity * $movementUnitCost;
+                $row->average_unit_cost = (int) round(
+                    ($oldInventoryValue + $incomingInventoryValue) / $newQuantity
+                );
             }
+
             $row->current_quantity = $newQuantity;
             $row->save();
+
             $movement = $row->movements()->create([
-                'recorded_by' => Auth::guard('web')->id(), 'movement_type' => $data['movement_type'],
-                'quantity' => $data['quantity'], 'unit_cost' => $data['unit_cost'] ?? $row->average_unit_cost,
-                'reference' => $data['reference'] ?? null, 'notes' => $data['notes'] ?? null, 'occurred_at' => now(),
+                'recorded_by' => Auth::guard('web')->id(),
+                'movement_type' => $data['movement_type'],
+                'quantity' => $quantity,
+                'unit_cost' => $movementUnitCost,
+                'reference' => $data['reference'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'occurred_at' => now(),
             ]);
-            $cost = (int) round((float) $data['quantity'] * (int) ($data['unit_cost'] ?? $row->average_unit_cost));
+
+            // خروج کالا همیشه با بهای میانگین قبل از خروج ثبت می‌شود؛ قیمت ارسالی کاربر نباید هزینه مصرف را دستکاری کند.
+            $cost = (int) round($quantity * ($incoming ? $movementUnitCost : $oldAverageCost));
             $accounting->recordInventoryMovement(
                 $row->organization_id, $row->clinic_id, $doctor->id, (int) Auth::guard('web')->id(),
                 $movement->id, $data['movement_type'], $cost, $row->name, now()->toDateTimeString()
             );
         }, 3);
+
         return back()->with('success', 'گردش انبار ثبت شد.');
     }
 
