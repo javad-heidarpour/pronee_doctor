@@ -299,18 +299,34 @@ class ClinicFinanceController extends Controller
             'reference' => ['nullable', 'string', 'max:120'],
             'paid_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // شناسه یکتا برای جلوگیری از ثبت دوباره دریافت هنگام retry مرورگر یا شبکه.
+            'idempotency_key' => ['required', 'uuid'],
         ]);
 
         DB::transaction(function () use ($doctor, $installment, $data, $accounting): void {
             $row = PatientTreatmentInstallment::query()->whereKey($installment)
                 ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
                 ->lockForUpdate()->firstOrFail();
+            // درخواست تکراری دقیق، بدون ساخت پرداخت، سند مالی یا افزایش مجدد مبلغ قسط خاتمه می‌یابد.
+            $existing = PatientInstallmentPayment::query()->where('idempotency_key', $data['idempotency_key'])->first();
+            if ($existing) {
+                abort_unless(
+                    (int) $existing->installment_id === (int) $row->id
+                    && (int) $existing->amount === (int) $data['amount']
+                    && $existing->method === $data['method'],
+                    409,
+                    'کلید تکرار دریافت قبلاً برای پرداخت دیگری استفاده شده است.'
+                );
+                return;
+            }
+
             $remaining = (int) $row->amount - (int) $row->paid_amount;
             abort_if((int) $data['amount'] > $remaining, 422, 'مبلغ دریافتی از مانده قسط بیشتر است.');
 
             $payment = $row->payments()->create([
                 'received_by' => Auth::guard('web')->id(), 'amount' => $data['amount'],
                 'method' => $data['method'], 'reference' => $data['reference'] ?? null,
+                'idempotency_key' => $data['idempotency_key'],
                 'paid_at' => $data['paid_at'] ?? now(), 'notes' => $data['notes'] ?? null,
             ]);
             $newPaid = (int) $row->paid_amount + (int) $data['amount'];
