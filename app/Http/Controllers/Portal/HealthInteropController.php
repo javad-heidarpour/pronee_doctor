@@ -34,6 +34,7 @@ final class HealthInteropController extends Controller
             // در پنل فقط وضعیت و شناسه پیگیری نمایش داده می‌شود و متن خطا در سرور می‌ماند.
             'messages' => HealthExchangeMessage::query()->where('doctor_id', $doctor->id)->latest()->limit(100)->get(['id', 'destination', 'event_type', 'status', 'attempts', 'sent_at', 'remote_tracking_id', 'created_at']),
             'insuranceChecks' => PatientInsuranceVerification::query()->where('doctor_id', $doctor->id)->latest('id')->limit(50)->get(['id', 'patient_id', 'payer_code', 'payer_name', 'status', 'checked_at', 'created_at']),
+            // وضعیت اتصال فقط وقتی آماده است که قرارداد، URL و allowlist میزبان همگی تنظیم باشند.
             'destinations' => collect(['sepas', 'tamin', 'salamat'])->mapWithKeys(fn ($key) => [$key => [
                 'enabled' => (bool) config("health_interop.destinations.{$key}.enabled") && (bool) config("health_interop.destinations.{$key}.contract_approved") && filled(config("health_interop.destinations.{$key}.url"))
                     && !empty(config("health_interop.destinations.{$key}.allowed_hosts")),
