@@ -281,7 +281,7 @@ const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior:
               <span>{{ openModule === index ? 'بستن جزئیات' : 'مشاهده جزئیات این امکان' }}</span>
               <span class="text-lg">{{ openModule === index ? '−' : '+' }}</span>
             </button>
-            <div v-if="openModule === index" :id="'module-detail-' + index" class="mt-5 border-t border-slate-100 pt-5 sm:col-span-2">
+            <div v-show="openModule === index" :id="'module-detail-' + index" class="mt-5 w-full border-t border-slate-100 pt-5">
               <h4 class="text-sm font-black text-slate-800">در این بخش چه کارهایی انجام می‌شود؟</h4>
               <ul class="mt-3 space-y-3">
                 <li v-for="detail in item.details" :key="detail" class="flex items-start gap-2 text-xs leading-7 text-slate-600">
