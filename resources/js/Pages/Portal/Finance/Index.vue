@@ -25,18 +25,22 @@ const pay = row => {
   const remaining = Number(row.amount) - Number(row.paid_amount)
   const amount = window.prompt('مبلغ دریافتی (ریال) — مانده: ' + money(remaining), String(remaining))
   if (!amount || !/^\d+$/.test(amount) || Number(amount) < 1) return
-  const method = window.prompt('روش پرداخت: cash / card / transfer / online / cheque', 'card')
+  const methodChoice = window.prompt('روش پرداخت را انتخاب کنید: ۱ نقدی، ۲ کارتخوان، ۳ انتقال بانکی، ۴ آنلاین، ۵ چک', '۲')
+  const methods = { '۱': 'cash', '۲': 'card', '۳': 'transfer', '۴': 'online', '۵': 'cheque' }
+  const method = methods[methodChoice]
   if (!method) return
   router.post(route('portal.finance.installments.payments.store', row.id), { amount: Number(amount), method })
 }
 const updateCollateral = (item, status) => router.put(route('portal.finance.collaterals.update', item.id), { status })
 const revokeConsent = (plan, scope) => { if (window.confirm('ارسال پیامک‌های این نوع برای این طرح درمان متوقف شود؟')) router.post(route('portal.finance.plans.sms-consent.revoke', plan.id), { scope }) }
 const addCollateral = plan => {
-  const type = window.prompt('نوع وثیقه: cheque / promissory_note / guarantor / other', 'cheque')
+  const typeChoice = window.prompt('نوع وثیقه را انتخاب کنید: ۱ چک، ۲ سفته، ۳ ضامن، ۴ سایر', '۱')
+  const types = { '۱': 'cheque', '۲': 'promissory_note', '۳': 'guarantor', '۴': 'other' }
+  const type = types[typeChoice]
   if (!type) return
   const identifier = window.prompt('شناسه / شماره چک یا سفته (اختیاری)', '') || ''
   const face_value = window.prompt('مبلغ اسمی وثیقه به ریال (اختیاری)', '') || ''
-  const due_date = window.prompt('تاریخ سررسید (YYYY-MM-DD؛ اختیاری)', '') || ''
+  const due_date = window.prompt('تاریخ سررسید به فرمت سال-ماه-روز (اختیاری)', '') || ''
   router.post(route('portal.finance.collaterals.store', plan.id), { type, identifier, face_value: face_value || null, due_date: due_date || null, reminder_enabled: Boolean(due_date) })
 }
 const planSubmit = () => planForm.post(route('portal.finance.plans.store'), { onSuccess: () => planForm.reset('patient_id', 'title', 'total_amount', 'discount_amount', 'deposit_amount', 'clinical_notes', 'financial_terms') })
