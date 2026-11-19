@@ -10,7 +10,7 @@
     </div>
 
     <!-- فیلترها و جستجو -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+    <div class="min-w-0 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm mb-6 sm:p-6">
       <form @submit.prevent="applyFilters" class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-2">جستجو</label>
@@ -66,7 +66,7 @@
     </div>
 
     <!-- دکمه افزودن -->
-    <div class="flex justify-between items-center mb-4">
+    <div class="mb-4 flex flex-wrap items-start justify-between gap-3 sm:items-center">
       <h2 class="text-xl font-bold text-gray-900">نمای گانت ساعات کاری</h2>
       <button
         @click="openModal()"
@@ -315,7 +315,7 @@
                 <select
                   v-model="form.clinic_id"
                   required
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500"
+                  class="w-full min-w-0 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="">انتخاب مطب</option>
                   <option v-for="c in clinics" :key="c.id" :value="c.id">
@@ -337,7 +337,7 @@
                 </select>
               </div>
 
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label class="block text-sm font-bold text-gray-700 mb-2"
                     >ساعت شروع</label
