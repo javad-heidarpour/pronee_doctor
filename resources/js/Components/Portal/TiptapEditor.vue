@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onBeforeUnmount } from "vue";
+import ActionDialog from "@/Components/Portal/ActionDialog.vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -18,6 +19,9 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 const isUploading = ref(false);
 const fileInput = ref(null);
+const uploadError = ref("");
+const linkDialogOpen = ref(false);
+const linkErrors = ref({});
 
 // ⚠️ نکته مهم: غیرفعال کردن Link و Underline در StarterKit
 // برای جلوگیری از خطای "Duplicate extension names"
@@ -69,6 +73,7 @@ const handleImageUpload = async (event) => {
 
   isUploading.value = true;
 
+  uploadError.value = "";
   try {
     const formData = new FormData();
     formData.append("image", file);
@@ -89,11 +94,11 @@ const handleImageUpload = async (event) => {
     if (response.ok && data.url) {
       editor.value.chain().focus().setImage({ src: data.url }).run();
     } else {
-      alert(data.error || "خطا در آپلود تصویر");
+      uploadError.value = data.error || "خطا در آپلود تصویر";
     }
   } catch (error) {
     console.error("Image upload error:", error);
-    alert("خطا در برقراری ارتباط با سرور");
+    uploadError.value = "خطا در برقراری ارتباط با سرور";
   } finally {
     isUploading.value = false;
     // پاک کردن مقدار input برای امکان آپلود مجدد همان فایل
@@ -102,18 +107,27 @@ const handleImageUpload = async (event) => {
 };
 
 // تابع افزودن لینک
+const linkUrl = ref("");
 const setLink = () => {
-  const previousUrl = editor.value.getAttributes("link").href;
-  const url = window.prompt("آدرس لینک را وارد کنید:", previousUrl);
-
-  if (url === null) return; // کاربر کنسل کرد
-
-  if (url === "") {
+  linkUrl.value = editor.value.getAttributes("link").href || "";
+  linkErrors.value = {};
+  linkDialogOpen.value = true;
+};
+const applyLink = values => {
+  const url = String(values.url || "").trim();
+  if (!url) {
     editor.value.chain().focus().extendMarkRange("link").unsetLink().run();
+    linkDialogOpen.value = false;
     return;
   }
-
-  editor.value.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (!["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) throw new Error("protocol");
+    editor.value.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    linkDialogOpen.value = false;
+  } catch {
+    linkErrors.value = { url: "نشانی لینک معتبر نیست. از https، http، mailto یا tel استفاده کنید." };
+  }
 };
 
 // توابع کمکی برای کلاس‌های دکمه‌ها
@@ -346,6 +360,8 @@ const getBtnClass = (isActive) => {
 
     <!-- محتوای قابل ویرایش -->
     <EditorContent :editor="editor" class="tiptap-content" />
+    <p v-if="uploadError" role="alert" class="border-t border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{{ uploadError }}</p>
+    <ActionDialog :open="linkDialogOpen" title="افزودن یا ویرایش لینک" description="برای حذف لینک، نشانی را خالی بگذارید." :fields="[{key:'url',label:'نشانی لینک',type:'url',value:linkUrl,maxlength:2048}]" :errors="linkErrors" @close="linkDialogOpen=false" @submit="applyLink" />
   </div>
 </template>
 
