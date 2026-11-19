@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 
 const props = defineProps({
   doctor: Object, canManage: Boolean, clinics: Array, patients: Array, plans: Object,
@@ -27,6 +28,20 @@ const selectedInstallment = ref(null)
 const selectedPlan = ref(null)
 const paymentForm = useForm({ amount: '', method: 'card' })
 const collateralForm = useForm({ type: 'cheque', identifier: '', face_value: '', due_date: '', reminder_enabled: false })
+const consentDialogOpen = ref(false)
+const pendingConsentRevocation = ref(null)
+const openConsentRevocation = (plan, scope) => {
+  pendingConsentRevocation.value = { plan, scope }
+  consentDialogOpen.value = true
+}
+const confirmConsentRevocation = () => {
+  if (!pendingConsentRevocation.value) return
+  const { plan, scope } = pendingConsentRevocation.value
+  router.post(route('portal.finance.plans.sms-consent.revoke', plan.id), { scope }, {
+    preserveScroll: true,
+    onSuccess: () => { consentDialogOpen.value = false; pendingConsentRevocation.value = null },
+  })
+}
 const pay = row => {
   selectedInstallment.value = row
   paymentForm.reset()
@@ -42,7 +57,7 @@ const submitPayment = () => {
   })
 }
 const updateCollateral = (item, status) => router.put(route('portal.finance.collaterals.update', item.id), { status })
-const revokeConsent = (plan, scope) => { if (window.confirm('ارسال پیامک‌های این نوع برای این طرح درمان متوقف شود؟')) router.post(route('portal.finance.plans.sms-consent.revoke', plan.id), { scope }) }
+const revokeConsent = openConsentRevocation
 const addCollateral = plan => {
   selectedPlan.value = plan
   collateralForm.reset()
@@ -190,6 +205,14 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
     </div>
 
     <Teleport to="body">
+      <ActionDialog
+        :open="consentDialogOpen"
+        title="توقف پیامک‌های طرح درمان"
+        description="با تأیید، ارسال پیامک‌های این نوع برای این طرح درمان متوقف می‌شود."
+        submit-label="توقف ارسال پیامک"
+        @close="consentDialogOpen = false"
+        @submit="confirmConsentRevocation"
+      />
       <div v-if="paymentModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5" @click.self="paymentModalOpen = false">
         <section role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" class="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
           <h2 id="payment-modal-title" class="text-lg font-black text-slate-900">ثبت دریافت قسط</h2>
