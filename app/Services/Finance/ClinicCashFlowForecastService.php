@@ -18,19 +18,28 @@ final class ClinicCashFlowForecastService
     {
         $horizonDays = max(7, min(180, $horizonDays));
         $start = Carbon::today('Asia/Tehran');
-        $end = $start->copy()->addDays($horizonDays);
+        // The as-of date is day 1 of the requested horizon.
+        $end = $start->copy()->addDays($horizonDays - 1);
         $movements = [];
         for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
             $movements[$day->toDateString()] = ['inflows' => 0, 'outflows' => 0];
         }
 
+        // Include branch journals plus organization-level journals (clinic_id NULL)
+        // exactly once. The previous AND scope discarded organization-level balances.
         $scope = static function ($query, string $clinicColumn, string $organizationColumn) use ($clinicIds, $organizationIds): void {
-            if ($organizationIds !== []) {
-                $query->whereIn($organizationColumn, $organizationIds);
-            }
-            if ($clinicIds !== []) {
-                $query->whereIn($clinicColumn, $clinicIds);
-            }
+            $query->where(function ($scope) use ($clinicIds, $organizationIds, $clinicColumn, $organizationColumn): void {
+                if ($clinicIds !== []) {
+                    $scope->whereIn($clinicColumn, $clinicIds);
+                }
+                if ($organizationIds !== []) {
+                    $method = $clinicIds !== [] ? 'orWhere' : 'where';
+                    $scope->{$method}(function ($organizationScope) use ($organizationIds, $organizationColumn, $clinicColumn): void {
+                        $organizationScope->whereIn($organizationColumn, $organizationIds)
+                            ->whereNull($clinicColumn);
+                    });
+                }
+            });
         };
 
         $cashQuery = DB::table('clinic_journal_lines as lines')
@@ -42,6 +51,8 @@ final class ClinicCashFlowForecastService
 
         $installments = DB::table('patient_treatment_installments as installments')
             ->join('patient_treatment_plans as plans', 'plans.id', '=', 'installments.treatment_plan_id')
+            ->where('plans.status', 'active')
+            ->whereIn('installments.status', ['pending', 'partial', 'overdue'])
             ->whereColumn('installments.amount', '>', 'installments.paid_amount')
             ->whereDate('installments.due_date', '<=', $end->toDateString());
         if ($organizationIds !== []) {
@@ -70,12 +81,14 @@ final class ClinicCashFlowForecastService
         }
 
         $approvedDisbursements = DB::table('clinic_staff_obligations')
-            ->where('status', 'approved')->whereNull('disbursed_at')
-            ->whereDate('first_due_date', '<=', $end->toDateString());
+            ->where('status', 'approved')->whereNull('disbursed_at');
         if ($organizationIds !== []) {
             $approvedDisbursements->whereIn('organization_id', $organizationIds);
         }
         $approvedDisbursements->whereIn('clinic_id', $clinicIds);
+        // The schema has no planned-disbursement date. Approved, unpaid
+        // obligations are assumed paid on the forecast date. first_due_date
+        // is a repayment date and is not a valid cash-out date.
         foreach ($approvedDisbursements->get(['principal_amount']) as $row) {
             $movements[$start->toDateString()]['outflows'] += (int) $row->principal_amount;
         }
@@ -107,8 +120,8 @@ final class ClinicCashFlowForecastService
             'scenarios' => $scenarios,
             'assumptions' => [
                 'collection_factors' => ['conservative' => 0.65, 'realistic' => 0.85, 'optimistic' => 1.0],
-                'included' => ['posted_cash_account_1000', 'unpaid_patient_installments', 'approved_unpaid_payroll', 'approved_undisbursed_staff_obligations', 'active_staff_loan_repayments'],
-                'excluded' => ['unrecorded_recurring_expenses', 'unissued_checks', 'bank_feed_transactions', 'unapproved_payroll', 'unconfirmed_future_revenue'],
+                'included' => ['posted_cash_account_1000_in_accessible_branches_and_organization_level', 'unpaid_installments_on_active_treatment_plans', 'approved_unpaid_payroll', 'approved_undisbursed_staff_obligations_assumed_paid_as_of_forecast_date', 'active_staff_loan_repayments'],
+                'excluded' => ['unrecorded_recurring_expenses', 'unissued_checks', 'bank_feed_transactions', 'unapproved_payroll', 'unconfirmed_future_revenue', 'inactive_or_cancelled_treatment_plans'],
                 'currency' => 'IRR',
             ],
         ];
