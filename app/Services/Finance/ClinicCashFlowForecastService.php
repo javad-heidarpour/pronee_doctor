@@ -43,7 +43,7 @@ final class ClinicCashFlowForecastService
         $installments = DB::table('patient_treatment_installments as installments')
             ->join('patient_treatment_plans as plans', 'plans.id', '=', 'installments.treatment_plan_id')
             ->whereColumn('installments.amount', '>', 'installments.paid_amount')
-            ->whereBetween('installments.due_date', [$start->toDateString(), $end->toDateString()]);
+            ->whereDate('installments.due_date', '<=', $end->toDateString());
         if ($organizationIds !== []) {
             $installments->whereIn('plans.organization_id', $organizationIds);
         } else {
@@ -51,13 +51,13 @@ final class ClinicCashFlowForecastService
         }
         $installments->whereIn('plans.clinic_id', $clinicIds);
         foreach ($installments->get(['installments.due_date', 'installments.amount', 'installments.paid_amount']) as $row) {
-            $date = Carbon::parse($row->due_date)->toDateString();
+            $date = max($start->toDateString(), Carbon::parse($row->due_date)->toDateString());
             $movements[$date]['inflows'] += max(0, (int) $row->amount - (int) $row->paid_amount);
         }
 
         $payrolls = DB::table('clinic_staff_payrolls')
             ->whereNull('paid_at')->where('status', 'approved')
-            ->whereBetween('period_end', [$start->toDateString(), $end->toDateString()]);
+            ->whereDate('period_end', '<=', $end->toDateString());
         if ($organizationIds !== []) {
             $payrolls->whereIn('organization_id', $organizationIds);
         } else {
@@ -65,7 +65,7 @@ final class ClinicCashFlowForecastService
         }
         $payrolls->whereIn('clinic_id', $clinicIds);
         foreach ($payrolls->get(['period_end', 'net_amount']) as $row) {
-            $date = Carbon::parse($row->period_end)->toDateString();
+            $date = max($start->toDateString(), Carbon::parse($row->period_end)->toDateString());
             $movements[$date]['outflows'] += (int) $row->net_amount;
         }
 
@@ -84,13 +84,13 @@ final class ClinicCashFlowForecastService
             ->join('clinic_staff_obligations as obligations', 'obligations.id', '=', 'installments.obligation_id')
             ->where('obligations.status', 'active')
             ->whereColumn('installments.amount', '>', 'installments.paid_amount')
-            ->whereBetween('installments.due_date', [$start->toDateString(), $end->toDateString()]);
+            ->whereDate('installments.due_date', '<=', $end->toDateString());
         if ($organizationIds !== []) {
             $repayments->whereIn('obligations.organization_id', $organizationIds);
         }
         $repayments->whereIn('obligations.clinic_id', $clinicIds);
         foreach ($repayments->get(['installments.due_date', 'installments.amount', 'installments.paid_amount']) as $row) {
-            $date = Carbon::parse($row->due_date)->toDateString();
+            $date = max($start->toDateString(), Carbon::parse($row->due_date)->toDateString());
             $movements[$date]['inflows'] += max(0, (int) $row->amount - (int) $row->paid_amount);
         }
 
