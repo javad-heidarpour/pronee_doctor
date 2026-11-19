@@ -126,7 +126,13 @@ const faqs = [
   { q: 'قابلیت‌های هوش مصنوعی چه زمانی ارائه می‌شوند؟', a: 'قابلیت‌های هوشمند به‌عنوان مسیر توسعه محصول دنبال می‌شوند و تا زمان عرضه و فعال‌سازی رسمی، نباید آن‌ها را جزو خدمات فعال سامانه در نظر گرفت.' },
 ]
 
-const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+const scrollTo = (id) => {
+  const target = document.getElementById(id)
+  if (!target) return
+
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+}
 </script>
 
 <template>
@@ -149,9 +155,9 @@ const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior:
           </span>
         </a>
         <div class="hidden items-center gap-7 text-sm font-semibold text-emerald-50/90 md:flex">
-          <button @click="scrollTo('features')" class="transition hover:text-lime-200">امکانات</button>
-          <button @click="scrollTo('audience')" class="transition hover:text-lime-200">برای چه کسانی؟</button>
-          <button @click="scrollTo('faq')" class="transition hover:text-lime-200">پرسش‌های رایج</button>
+          <button type="button" @click="scrollTo('features')" class="rounded-sm transition hover:text-lime-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-200">امکانات</button>
+          <button type="button" @click="scrollTo('audience')" class="rounded-sm transition hover:text-lime-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-200">برای چه کسانی؟</button>
+          <button type="button" @click="scrollTo('faq')" class="rounded-sm transition hover:text-lime-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-200">پرسش‌های رایج</button>
         </div>
         <Link href="/register/doctor" class="rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-emerald-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-lime-100 sm:text-sm">شروع همکاری</Link>
       </nav>
@@ -173,7 +179,7 @@ const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior:
             <Link href="/register/doctor" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-lime-300 px-7 py-4 text-sm font-black text-emerald-950 shadow-xl shadow-black/10 transition hover:-translate-y-1 hover:bg-lime-200">
               ثبت‌نام پزشک <span aria-hidden="true">←</span>
             </Link>
-            <button @click="scrollTo('features')" class="rounded-2xl border border-white/25 bg-white/5 px-7 py-4 text-sm font-bold text-white transition hover:bg-white/10">آشنایی با امکانات</button>
+            <button type="button" @click="scrollTo('features')" class="rounded-2xl border border-white/25 bg-white/5 px-7 py-4 text-sm font-bold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-200">آشنایی با امکانات</button>
           </div>
           <div class="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs font-medium text-emerald-100/75">
             <span>✓ محیط فارسی و ساده</span>
@@ -274,7 +280,7 @@ const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior:
             <h3 class="mt-5 font-black text-slate-900">{{ item.title }}</h3>
             <p class="mt-2 flex-1 text-xs leading-7 text-slate-500">{{ item.text }}</p>
             <button type="button"
-              class="mt-5 flex w-full items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-xs font-extrabold text-emerald-900 transition hover:bg-emerald-100"
+              class="mt-5 flex w-full items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-xs font-extrabold text-emerald-900 transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
               :aria-expanded="openModule === index"
               :aria-controls="'module-detail-' + index"
               @click="openModule = openModule === index ? -1 : index">
@@ -337,11 +343,11 @@ const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior:
           </div>
           <div class="mt-8 space-y-3">
             <article v-for="(faq, index) in faqs" :key="faq.q" class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <button class="flex w-full items-center justify-between gap-4 px-5 py-5 text-right text-sm font-extrabold text-slate-800" :aria-expanded="openFaq === index" @click="openFaq = openFaq === index ? -1 : index">
+              <button type="button" class="flex w-full items-center justify-between gap-4 px-5 py-5 text-right text-sm font-extrabold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600" :aria-expanded="openFaq === index" :aria-controls="'faq-answer-' + index" @click="openFaq = openFaq === index ? -1 : index">
                 {{ faq.q }}
                 <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-lg text-emerald-800">{{ openFaq === index ? '−' : '+' }}</span>
               </button>
-              <div v-if="openFaq === index" class="border-t border-slate-100 px-5 py-4 text-sm leading-8 text-slate-500">{{ faq.a }}</div>
+              <div v-show="openFaq === index" :id="'faq-answer-' + index" class="border-t border-slate-100 px-5 py-4 text-sm leading-8 text-slate-500">{{ faq.a }}</div>
             </article>
           </div>
         </div>
