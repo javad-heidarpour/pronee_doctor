@@ -64,7 +64,7 @@ final class MedicalNetworkController extends Controller
 
         $outgoing = MedicalReferral::query()
             ->where('referring_doctor_id', $doctor->id)
-            ->whereIn('source_clinic_id', $clinicIds)
+            ->forClinics($clinicIds)
             ->with(['patient:id,name,phone', 'targetProvider:id,name,provider_type,city', 'sourceClinic:id,name', 'events' => fn ($q) => $q->orderByDesc('created_at')->limit(5)])
             ->latest()->limit(40)->get();
 
@@ -84,17 +84,17 @@ final class MedicalNetworkController extends Controller
                 ->orderBy('name')->get(['id', 'name', 'phone']),
             'clinics' => Address::query()->whereIn('id', $clinicIds)->orderBy('name')->get(['id', 'name']),
             'stats' => [
-                'outgoing_open' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->whereIn('source_clinic_id', $clinicIds)->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
+                'outgoing_open' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->forClinics($clinicIds)->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
                 'incoming_open' => MedicalReferral::query()->whereHas('targetProvider', fn ($q) => $q->where('created_by_user_id', $user->id))->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
                 'overdue' => MedicalReferral::query()->where(function ($q) use ($doctor, $user, $clinicIds): void {
                     $q->where(function ($outgoing) use ($doctor, $clinicIds): void {
-                        $outgoing->where('referring_doctor_id', $doctor->id)->whereIn('source_clinic_id', $clinicIds);
+                        $outgoing->where('referring_doctor_id', $doctor->id)->forClinics($clinicIds);
                     })->orWhereHas('targetProvider', fn ($provider) => $provider->where('created_by_user_id', $user->id));
                 })->where(function ($q): void {
                     $q->where(fn ($sent) => $sent->where('status','sent')->where('created_at','<=',now()->subHours(48)))
                       ->orWhere(fn ($scheduled) => $scheduled->whereIn('status',['accepted','scheduled'])->whereNotNull('scheduled_at')->where('scheduled_at','<',now()));
                 })->count(),
-                'completed_month' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->whereIn('source_clinic_id', $clinicIds)->where('status','completed')->whereBetween('completed_at',[now()->startOfMonth(),now()->endOfMonth()])->count(),
+                'completed_month' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->forClinics($clinicIds)->where('status','completed')->whereBetween('completed_at',[now()->startOfMonth(),now()->endOfMonth()])->count(),
             ],
             'filters' => $request->only(['type', 'city', 'search']),
             'providerTypes' => [
