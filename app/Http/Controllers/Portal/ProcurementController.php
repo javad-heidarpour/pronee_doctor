@@ -182,7 +182,7 @@ final class ProcurementController extends Controller
         $data = $request->validate([
             'amount_rial' => ['required','integer','min:1','max:999999999999'],
             'method' => ['required', Rule::in(['cash','card','transfer','cheque'])],
-            'reference' => ['required','string','max:120'], 'paid_at' => ['nullable','date'],
+            'reference' => ['required','string','max:120', Rule::unique('clinic_supplier_payments', 'reference')->where(fn ($query) => $query->where('doctor_id', $doctor->id))], 'paid_at' => ['nullable','date'],
         ]);
 
         DB::transaction(function () use ($doctor, $order, $data, $accounting): void {
@@ -195,6 +195,7 @@ final class ProcurementController extends Controller
             $paid = (int) DB::table('clinic_supplier_payments')->where('purchase_order_id',$order)->sum('amount_rial');
             $amount = (int) $data['amount_rial'];
             abort_if($amount > max(0,$received-$paid),422,'مبلغ پرداخت از بدهی باقیمانده بیشتر است.');
+            // شماره پیگیری بانکی باید در کل حساب پزشک یکتا باشد؛ تغییر مبلغ نباید راهی برای ثبت دوباره همان تراکنش باز کند.
             $key = 'supplier-payment:' . $order . ':' . hash('sha256',$amount . '|' . $data['reference']);
             if (DB::table('clinic_supplier_payments')->where('idempotency_key',$key)->exists()) return;
             $paymentId = DB::table('clinic_supplier_payments')->insertGetId([
