@@ -10,6 +10,7 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Patient;
 use App\Models\PatientCarePathway;
 use App\Models\PatientCarePathwayStep;
+use App\Services\PatientCarePathwayProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
