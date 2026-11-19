@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\MedicalNetworkProvider;
 use Symfony\Component\HttpFoundation\Response;
 
 class DoctorAuth
@@ -24,6 +25,26 @@ class DoctorAuth
             return redirect()->route('portal.login')->withErrors([
                 'email' => 'حساب کاربری شما غیرفعال است.',
             ]);
+        }
+
+        if ($user->role === 'user') {
+            $hasVerifiedProfessionalProfile = MedicalNetworkProvider::query()
+                ->where('created_by_user_id', $user->id)
+                ->where('status', 'active')
+                ->where('is_verified', true)
+                ->exists();
+            abort_unless($hasVerifiedProfessionalProfile, 403, 'دسترسی پرتال حرفه‌ای برای این حساب فعال نیست.');
+
+            abort_unless($request->routeIs(
+                'portal.professional-partnerships.index',
+                'portal.professional-partnerships.respond',
+                'portal.professional-partnerships.sessions.confirm',
+                'portal.professional-partnerships.dues.confirm',
+                'portal.professional-partnerships.dues.invoice',
+                'portal.logout'
+            ), 403, 'این حساب فقط به بخش همکاری تخصصی خود دسترسی دارد.');
+
+            return $next($request);
         }
 
         if (!in_array($user->role, ['admin', 'doctor', 'secretary'], true)) {

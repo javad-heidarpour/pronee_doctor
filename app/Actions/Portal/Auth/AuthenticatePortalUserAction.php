@@ -5,6 +5,7 @@ namespace App\Actions\Portal\Auth;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Requests\Portal\PortalLoginRequest;
 use App\Models\User;
+use App\Models\MedicalNetworkProvider;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +35,19 @@ class AuthenticatePortalUserAction
 
         /** @var User $user */
         $user = Auth::guard('web')->user();
+
+        if ($user->role === 'user' && MedicalNetworkProvider::query()
+            ->where('created_by_user_id', $user->id)
+            ->where('status', 'active')
+            ->where('is_verified', true)
+            ->exists()) {
+            $audit->handle('auth.login_succeeded', $user, [
+                'role' => $user->role,
+                'portal_access' => 'professional_partnerships',
+            ]);
+
+            return $user;
+        }
 
         if (! in_array($user->role, ['admin', 'doctor', 'secretary'], true)) {
             $logoutAction->handle($request, $audit, 'auth.login_rejected');

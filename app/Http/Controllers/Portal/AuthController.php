@@ -23,9 +23,13 @@ class AuthController extends Controller
         LogoutPortalUserAction $logoutAction,
         RecordSecurityAuditEventAction $audit
     ) {
-        $action->handle($request, $logoutAction, $audit);
+        $user = $action->handle($request, $logoutAction, $audit);
 
-        return redirect()->intended(route('portal.dashboard'));
+        return redirect()->intended(
+            $user->role === 'user'
+                ? route('portal.professional-partnerships.index')
+                : route('portal.dashboard')
+        );
     }
 
     public function logout(

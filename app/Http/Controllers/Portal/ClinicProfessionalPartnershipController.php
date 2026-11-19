@@ -28,7 +28,39 @@ final class ClinicProfessionalPartnershipController extends Controller
     public function index()
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user && in_array($user->role, ['doctor', 'secretary'], true), 403);
+        abort_unless($user && in_array($user->role, ['doctor', 'secretary', 'user'], true), 403);
+
+        if ($user->role === 'user') {
+            $providerIds = MedicalNetworkProvider::query()->where('created_by_user_id', $user->id)->pluck('id');
+            abort_if($providerIds->isEmpty(), 403, 'برای این حساب کاربری پروفایل حرفه‌ای ثبت نشده است.');
+
+            $ownedPartnerships = ClinicProfessionalPartnership::query()->whereIn('provider_id', $providerIds)
+                ->with(['provider:id,name,provider_type', 'clinic:id,name', 'doctor:id,name,family'])
+                ->latest()->get();
+            $professionalSessions = ClinicProfessionalSession::query()->whereIn('provider_id', $providerIds)
+                ->with(['provider:id,name,provider_type', 'clinic:id,name', 'partnership:id,model,service_name,payment_direction', 'doctor:id,name,family'])
+                ->latest('service_date')->limit(100)->get();
+            $professionalDues = ClinicProfessionalDue::query()->where('professional_user_id', $user->id)
+                ->with(['partnership.provider:id,name', 'partnership.clinic:id,name'])->latest('due_date')->limit(100)->get();
+
+            return Inertia::render('Portal/ProfessionalPartnerships/Index', [
+                'partnerships' => collect(),
+                'incoming' => $ownedPartnerships,
+                'sessions' => $professionalSessions,
+                'dues' => $professionalDues,
+                'providers' => collect(),
+                'clinics' => collect(),
+                'stats' => [
+                    'active' => $ownedPartnerships->where('status', 'active')->count(),
+                    'pending' => $ownedPartnerships->where('status', 'proposed')->count(),
+                    'periodic_due' => $professionalDues->where('status', '!=', 'confirmed')->sum('amount_rial'),
+                    'unpaid' => $professionalSessions->whereIn('status', ['pending', 'partially_confirmed'])->sum('settlement_amount_rial'),
+                    'paid' => $professionalSessions->where('status', 'paid')->sum('settlement_amount_rial'),
+                ],
+                'canManage' => false,
+            ]);
+        }
+
         $doctor = $this->currentDoctor();
         $clinicIds = $this->accessibleClinicIds($doctor);
         if ($user->role === 'secretary') {
