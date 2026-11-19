@@ -29,7 +29,8 @@ class ClinicRevenueOptimizerTest extends TestCase
 
         self::assertSame(60.0, $result['capacity']['utilization_rate']);
         self::assertSame(8, $result['capacity']['available_slots']);
-        self::assertSame(20.0, $result['appointments']['cancellation_rate']);
+        // Two cancellations out of twelve total appointments = 16.7%.
+        self::assertSame(16.7, $result['appointments']['cancellation_rate']);
         self::assertSame(600000, $result['revenue']['average_paid_amount']);
     }
 
