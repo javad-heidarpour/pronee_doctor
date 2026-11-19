@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from "vue";
+import ActionDialog from "@/Components/Portal/ActionDialog.vue";
 import { Head, Link, router } from "@inertiajs/vue3";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 
@@ -10,20 +11,21 @@ const props = defineProps({
 
 const rows = computed(() => props.payments?.data ?? []);
 const reconcilingId = ref(null);
+const actionDialog = reactive({ open:false, payment:null, processing:false, errors:{} });
 
 const reconcile = (payment) => {
   if (!payment?.ref_num || reconcilingId.value !== null) return;
-
-  const confirmed = window.confirm(
-    "وضعیت این تراکنش مستقیماً از سامان‌کیش استعلام می‌شود. ادامه می‌دهید؟"
-  );
-
-  if (!confirmed) return;
-
-  reconcilingId.value = payment.id;
-  router.post(route("portal.payments.reconcile", payment.id), {}, {
+  Object.assign(actionDialog,{open:true,payment,processing:false,errors:{}})
+};
+const confirmReconcile = () => {
+  if (!actionDialog.payment) return;
+  reconcilingId.value = actionDialog.payment.id;
+  actionDialog.processing = true;
+  router.post(route("portal.payments.reconcile", actionDialog.payment.id), {}, {
     preserveScroll: true,
-    onFinish: () => { reconcilingId.value = null; },
+    onError: errors => { actionDialog.errors = errors || {} },
+    onSuccess: () => { actionDialog.open = false },
+    onFinish: () => { reconcilingId.value = null; actionDialog.processing = false },
   });
 };
 
@@ -216,6 +218,7 @@ const appointmentStatusLabel = (status) => ({
           </template>
         </div>
       </section>
+    <ActionDialog :open="actionDialog.open" title="استعلام مجدد تراکنش" description="وضعیت این تراکنش مستقیماً از سامان‌کیش استعلام می‌شود. ادامه می‌دهید؟" :fields="[]" :errors="actionDialog.errors" :processing="actionDialog.processing" submit-label="استعلام مجدد" @close="actionDialog.open=false" @submit="confirmReconcile" />
     </main>
   </PortalLayout>
 </template>
