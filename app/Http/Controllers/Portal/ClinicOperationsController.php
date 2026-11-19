@@ -273,7 +273,7 @@ class ClinicOperationsController extends Controller
         $data = $request->validate([
             'clinic_id' => ['required', 'integer'], 'name' => ['required', 'string', 'max:180'],
             'sku' => ['nullable', 'string', 'max:80'], 'unit' => ['required', 'string', 'max:24'],
-            'minimum_quantity' => ['required', 'numeric', 'min:0'], 'opening_quantity' => ['nullable', 'numeric', 'min:0'],
+            'minimum_quantity' => ['required', 'numeric', 'min:0', 'decimal:0,3'], 'opening_quantity' => ['nullable', 'numeric', 'min:0', 'decimal:0,3'],
             'unit_cost' => ['nullable', 'integer', 'min:0'],
         ]);
         $clinicId = (int) $data['clinic_id'];
