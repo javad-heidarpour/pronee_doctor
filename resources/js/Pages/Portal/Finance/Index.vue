@@ -31,7 +31,7 @@ const paymentModalOpen = ref(false)
 const collateralModalOpen = ref(false)
 const selectedInstallment = ref(null)
 const selectedPlan = ref(null)
-const paymentForm = useForm({ amount: '', method: 'card' })
+const paymentForm = useForm({ amount: '', method: 'card', idempotency_key: '' })
 const collateralForm = useForm({ type: 'cheque', identifier: '', face_value: '', due_date: '', reminder_enabled: false })
 const consentDialogOpen = ref(false)
 const pendingConsentRevocation = ref(null)
@@ -52,6 +52,8 @@ const pay = row => {
   paymentForm.reset()
   paymentForm.amount = Math.max(0, Number(row.amount) - Number(row.paid_amount))
   paymentForm.method = 'card'
+  // کلید تا پایان همین تلاش ثابت می‌ماند تا ارسال مجدد، دریافت دوم نسازد.
+  paymentForm.idempotency_key = crypto.randomUUID()
   paymentModalOpen.value = true
 }
 const submitPayment = () => {
