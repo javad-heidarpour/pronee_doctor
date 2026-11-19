@@ -142,13 +142,30 @@ final class ProcurementController extends Controller
     public function receiveItem(Request $request,int $order,int $item,FinanceAccountingService $accounting)
     {
         $doctor=$this->currentDoctor();$this->authorizeSecretaryPermission('inventory.manage',$doctor);
-        $data=$request->validate(['quantity'=>['required','numeric','gt:0','decimal:0,3','max:999999']]);
+        $data=$request->validate([
+            'quantity'=>['required','numeric','gt:0','decimal:0,3','max:999999'],
+            // کلید هر تلاش دریافت در مرورگر ساخته و در ارسال مجدد همان درخواست تکرار می‌شود.
+            'idempotency_key'=>['required','uuid'],
+        ]);
         DB::transaction(function()use($doctor,$order,$item,$data,$accounting):void{
             $purchase=DB::table('clinic_purchase_orders')->where('id',$order)->where('doctor_id',$doctor->id)
                 ->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->lockForUpdate()->first();
-            abort_unless($purchase,404);abort_unless(in_array($purchase->status,['approved','partially_received'],true),409,'فقط سفارش تأییدشده قابل دریافت است.');
+            abort_unless($purchase,404);
             $line=DB::table('clinic_purchase_order_items')->where('id',$item)->where('purchase_order_id',$order)->lockForUpdate()->first();
             abort_unless($line,404);
+
+            // اگر درخواست قبلاً ثبت شده باشد، همان نتیجه قبلی برگردانده می‌شود و موجودی دوباره تغییر نمی‌کند.
+            $existing=DB::table('clinic_inventory_movements')->where('idempotency_key',$data['idempotency_key'])->first();
+            if($existing){
+                abort_unless((int)$existing->inventory_item_id===(int)$line->inventory_item_id
+                    && $existing->movement_type==='purchase'
+                    && round((float)$existing->quantity,3)===round((float)$data['quantity'],3)
+                    && $existing->reference===$purchase->order_number,409,
+                    'کلید تکرار درخواست قبلاً برای دریافت دیگری استفاده شده است.');
+                return;
+            }
+
+            abort_unless(in_array($purchase->status,['approved','partially_received'],true),409,'فقط سفارش تأییدشده قابل دریافت است.');
             $remaining=round((float)$line->ordered_quantity-(float)$line->received_quantity,3);
             $quantity=round((float)$data['quantity'],3);abort_if($quantity>$remaining,422,'مقدار دریافتی از باقیمانده سفارش بیشتر است.');
             $stock=ClinicInventoryItem::query()->whereKey($line->inventory_item_id)->where('clinic_id',$purchase->clinic_id)->lockForUpdate()->firstOrFail();
@@ -158,6 +175,7 @@ final class ProcurementController extends Controller
             $movement=$stock->movements()->create([
                 'recorded_by'=>Auth::guard('web')->id(),'movement_type'=>'purchase','quantity'=>$quantity,
                 'unit_cost'=>$line->unit_cost_rial,'reference'=>$purchase->order_number,
+                'idempotency_key'=>$data['idempotency_key'],
                 'notes'=>'دریافت سفارش خرید '.$purchase->order_number,'occurred_at'=>now(),
             ]);
             $accounting->recordInventoryMovement($stock->organization_id,$stock->clinic_id,$doctor->id,
