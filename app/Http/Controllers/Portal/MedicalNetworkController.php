@@ -31,6 +31,7 @@ final class MedicalNetworkController extends Controller
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'secretary', 'admin'], true), 403);
         $doctor = $this->currentDoctor();
+        $clinicIds = $this->accessibleClinicIds($doctor);
         if ($user->role === 'secretary') {
             $this->authorizeSecretaryPermission('appointments.view', $doctor);
         }
@@ -56,12 +57,14 @@ final class MedicalNetworkController extends Controller
         $collaborationOpportunities = $opportunityFinder->find(
             (int) $doctor->id,
             (int) $user->id,
-            $doctor->city?->name
+            $doctor->city?->name,
+            clinicIds: $clinicIds
         );
         $providers = (clone $providerQuery)->paginate(12)->withQueryString();
 
         $outgoing = MedicalReferral::query()
             ->where('referring_doctor_id', $doctor->id)
+            ->whereIn('source_clinic_id', $clinicIds)
             ->with(['patient:id,name,phone', 'targetProvider:id,name,provider_type,city', 'sourceClinic:id,name', 'events' => fn ($q) => $q->orderByDesc('created_at')->limit(5)])
             ->latest()->limit(40)->get();
 
@@ -77,19 +80,21 @@ final class MedicalNetworkController extends Controller
             'outgoing' => $outgoing,
             'incoming' => $incoming,
             'patients' => Patient::query()->where('doctor_id', $doctor->id)
-                ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $this->accessibleClinicIds($doctor)))
+                ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))
                 ->orderBy('name')->get(['id', 'name', 'phone']),
-            'clinics' => Address::query()->whereIn('id', $this->accessibleClinicIds($doctor))->orderBy('name')->get(['id', 'name']),
+            'clinics' => Address::query()->whereIn('id', $clinicIds)->orderBy('name')->get(['id', 'name']),
             'stats' => [
-                'outgoing_open' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
+                'outgoing_open' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->whereIn('source_clinic_id', $clinicIds)->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
                 'incoming_open' => MedicalReferral::query()->whereHas('targetProvider', fn ($q) => $q->where('created_by_user_id', $user->id))->whereIn('status', ['sent','accepted','scheduled','in_progress'])->count(),
-                'overdue' => MedicalReferral::query()->where(function ($q) use ($doctor, $user): void {
-                    $q->where('referring_doctor_id', $doctor->id)->orWhereHas('targetProvider', fn ($provider) => $provider->where('created_by_user_id', $user->id));
+                'overdue' => MedicalReferral::query()->where(function ($q) use ($doctor, $user, $clinicIds): void {
+                    $q->where(function ($outgoing) use ($doctor, $clinicIds): void {
+                        $outgoing->where('referring_doctor_id', $doctor->id)->whereIn('source_clinic_id', $clinicIds);
+                    })->orWhereHas('targetProvider', fn ($provider) => $provider->where('created_by_user_id', $user->id));
                 })->where(function ($q): void {
                     $q->where(fn ($sent) => $sent->where('status','sent')->where('created_at','<=',now()->subHours(48)))
                       ->orWhere(fn ($scheduled) => $scheduled->whereIn('status',['accepted','scheduled'])->whereNotNull('scheduled_at')->where('scheduled_at','<',now()));
                 })->count(),
-                'completed_month' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->where('status','completed')->whereBetween('completed_at',[now()->startOfMonth(),now()->endOfMonth()])->count(),
+                'completed_month' => MedicalReferral::query()->where('referring_doctor_id', $doctor->id)->whereIn('source_clinic_id', $clinicIds)->where('status','completed')->whereBetween('completed_at',[now()->startOfMonth(),now()->endOfMonth()])->count(),
             ],
             'filters' => $request->only(['type', 'city', 'search']),
             'providerTypes' => [
@@ -148,7 +153,7 @@ final class MedicalNetworkController extends Controller
         $data = $request->validate([
             'patient_id' => ['required', 'integer', Rule::exists('patients', 'id')->where('doctor_id', $doctor->id)],
             'source_clinic_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('doctor_id', $doctor->id)->where('is_active', true)],
-            'target_provider_id' => ['required', 'integer', Rule::exists('medical_network_providers', 'id')->where('status', 'active')],
+            'target_provider_id' => ['required', 'integer', Rule::exists('medical_network_providers', 'id')->where('status', 'active')->where('is_verified', true)],
             'service_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation', 'consultation'])],
             'priority' => ['required', Rule::in(['normal', 'urgent'])],
             'reason' => ['required', 'string', 'max:240'],
@@ -221,7 +226,8 @@ final class MedicalNetworkController extends Controller
                 if (is_string($permissions)) {
                     $permissions = json_decode($permissions, true) ?: [];
                 }
-                $senderSecretary = is_array($permissions) && in_array('appointments.manage', $permissions, true);
+                $hasClinicAccess = in_array((int) $locked->source_clinic_id, $this->accessibleClinicIds($locked->referringDoctor), true);
+                $senderSecretary = $hasClinicAccess && is_array($permissions) && in_array('appointments.manage', $permissions, true);
             }
             $isSender = (int) $locked->referringDoctor?->user_id === (int) $user->id || $senderSecretary;
             $isRecipient = (int) $locked->targetProvider?->created_by_user_id === (int) $user->id;
@@ -251,7 +257,15 @@ final class MedicalNetworkController extends Controller
                 'event' => 'status_changed',
                 'from_status' => $from,
                 'to_status' => $data['status'],
-                'description' => $data['provider_response'] ?? $data['result_summary'] ?? null,
+                'description' => match ($data['status']) {
+                    'accepted' => 'ارجاع پذیرفته شد.',
+                    'scheduled' => 'زمان مراجعه تعیین شد.',
+                    'in_progress' => 'ارائه خدمت آغاز شد.',
+                    'completed' => 'نتیجه خدمت ثبت شد.',
+                    'rejected' => 'ارجاع پذیرفته نشد.',
+                    'cancelled' => 'ارجاع لغو شد.',
+                    default => 'وضعیت ارجاع تغییر کرد.',
+                },
                 'metadata' => array_filter([
                     'scheduled_at' => $data['scheduled_at'] ?? null,
                     'has_result' => filled($data['result_summary'] ?? null),
@@ -295,7 +309,8 @@ final class MedicalNetworkController extends Controller
         abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
         abort_unless($provider->status === 'pending', 422);
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
-        $provider->update(['status' => 'rejected', 'description' => trim(($provider->description ? $provider->description . "\\n\\n" : '') . 'نتیجه بررسی: ' . $data['reason'])]);
+        $provider->update(['status' => 'rejected', 'description' => trim(($provider->description ? $provider->description . "\n\n" : '') . 'نتیجه بررسی: ' . $data['reason'])]);
+        $audit->handle('medical_network.provider_rejected', $provider, ['changed_fields' => ['status']]);
         return back()->with('success', 'درخواست عضویت مرکز رد شد.');
     }
 }
