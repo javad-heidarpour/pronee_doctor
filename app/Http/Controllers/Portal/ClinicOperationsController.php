@@ -330,7 +330,7 @@ class ClinicOperationsController extends Controller
                 abort_unless((int) $existing->inventory_item_id === (int) $row->id
                     && $existing->movement_type === $data['movement_type']
                     && round((float) $existing->quantity, 3) === round((float) $data['quantity'], 3)
-                    && (int) $existing->unit_cost === (int) ($data['unit_cost'] ?? $row->average_unit_cost), 409,
+                    && ($data['movement_type'] !== 'purchase' || (int) $existing->unit_cost === (int) ($data['unit_cost'] ?? 0)), 409,
                     'کلید تکرار درخواست قبلاً برای گردش دیگری استفاده شده است.');
                 return;
             }
