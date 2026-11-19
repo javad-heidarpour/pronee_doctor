@@ -8,11 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Address;
 use App\Models\ClinicInventoryItem;
-use App\Models\ClinicAccountingService;
 use App\Services\Finance\ClinicAccountingService as FinanceAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -23,7 +23,10 @@ final class ProcurementController extends Controller
     public function index()
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('inventory.view', $doctor);
+        $user = Auth::guard('web')->user();
+        if ($user?->role === 'secretary') {
+            abort_unless($this->secretaryHas($doctor, 'inventory.view') || $this->secretaryHas($doctor, 'inventory.manage'), 403);
+        }
         $clinicIds = $this->accessibleClinicIds($doctor);
         $suppliers = DB::table('clinic_suppliers')->where('doctor_id', $doctor->id)
             ->where('is_active', true)->orderBy('name')->get();
@@ -104,7 +107,7 @@ final class ProcurementController extends Controller
             $total=(int)round((float)$data['quantity']*(int)$offer->unit_cost_rial);
             $orderId=DB::table('clinic_purchase_orders')->insertGetId([
                 'doctor_id'=>$doctor->id,'clinic_id'=>$offer->clinic_id,'supplier_id'=>$offer->supplier_id,'quote_id'=>$offer->id,
-                'order_number'=>'PX-PO-'.now()->format('ymd').'-'.str_pad((string)(DB::table('clinic_purchase_orders')->count()+1),5,'0',STR_PAD_LEFT),
+                'order_number'=>'PX-PO-'.now()->format('ymdHis').'-'.Str::upper(Str::random(6)),
                 'status'=>'draft','total_amount_rial'=>$total,'created_by'=>Auth::guard('web')->id(),
                 'created_at'=>now(),'updated_at'=>now(),
             ]);

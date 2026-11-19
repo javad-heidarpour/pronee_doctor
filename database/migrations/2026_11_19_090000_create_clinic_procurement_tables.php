@@ -77,7 +77,7 @@ return new class extends Migration {
                 ['route_name' => 'portal.procurement.index'],
                 ['title' => 'تأمین‌کنندگان و خرید', 'icon' => 'IconTruck', 'order' => 59,
                     'guard' => 'doctor', 'is_active' => true, 'show_in_sidebar' => true,
-                    'permissions' => json_encode(['inventory.view']), 'roles' => json_encode(['doctor','admin','secretary']),
+                    'permissions' => json_encode(['inventory.view','inventory.manage']), 'roles' => json_encode(['doctor','admin','secretary']),
                     'created_at' => now(), 'updated_at' => now()]
             );
         }
