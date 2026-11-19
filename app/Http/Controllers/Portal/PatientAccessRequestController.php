@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\PatientAccessRequest;
 use App\Models\PatientAccountAccess;
+use App\Models\Patient;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
