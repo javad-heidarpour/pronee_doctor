@@ -449,6 +449,7 @@ class ClinicOperationsController extends Controller
         abort_if($deduction > $gross, 422, 'کسورات حقوق نمی‌تواند از مبلغ ناخالص بیشتر باشد.');
         ClinicStaffPayroll::firstOrCreate([
             'organization_id' => $organization->id,
+            'clinic_id' => $data['clinic_id'] ?? null,
             'staff_user_id' => $staff->id,
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],

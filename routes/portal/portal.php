@@ -23,6 +23,7 @@ use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
+use App\Http\Controllers\Portal\StaffManagementController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -98,6 +99,13 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
         Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
         Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
+        Route::get('/staff-management', [StaffManagementController::class, 'index'])->name('staff-management.index');
+        Route::post('/staff-management/contracts', [StaffManagementController::class, 'storeContract'])->name('staff-management.contracts.store');
+        Route::post('/staff-management/leave-balances', [StaffManagementController::class, 'setLeaveBalance'])->name('staff-management.leave-balances.store');
+        Route::post('/staff-management/payrolls', [StaffManagementController::class, 'createPayroll'])->name('staff-management.payrolls.store');
+        Route::patch('/staff-management/payrolls/{payroll}/approve', [StaffManagementController::class, 'approvePayroll'])->whereNumber('payroll')->name('staff-management.payrolls.approve');
+        Route::post('/staff-management/payrolls/{payroll}/pay', [StaffManagementController::class, 'payPayroll'])->whereNumber('payroll')->name('staff-management.payrolls.pay');
+        Route::post('/staff-management/replacements', [StaffManagementController::class, 'assignReplacement'])->name('staff-management.replacements.store');
         Route::post('/staff-attendance/schedules', [StaffAttendanceController::class, 'storeSchedule'])->name('staff-attendance.schedules.store');
         Route::post('/staff-attendance/check-in', [StaffAttendanceController::class, 'checkIn'])->middleware('throttle:10,1')->name('staff-attendance.check-in');
         Route::post('/staff-attendance/check-out', [StaffAttendanceController::class, 'checkOut'])->middleware('throttle:10,1')->name('staff-attendance.check-out');

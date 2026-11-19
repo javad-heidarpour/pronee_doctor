@@ -248,6 +248,12 @@ final class StaffAttendanceController extends Controller
                 ->where('weekday',$now->dayOfWeek)->where('is_active',true)
                 ->whereDate('effective_from','<=',$date)->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$date))
                 ->orderByDesc('effective_from')->first();
+            if(!$schedule){
+                $replacement=DB::table('clinic_staff_shift_replacements')->where('organization_id',$organization->id)
+                    ->where('clinic_id',$data['clinic_id'])->where('replacement_staff_user_id',$user->id)
+                    ->whereDate('work_date',$date)->where('status','assigned')->first();
+                if($replacement)$schedule=(object)['start_time'=>$replacement->start_time,'end_time'=>$replacement->end_time,'grace_minutes'=>10,'break_minutes'=>0];
+            }
             $late=0;
             if($schedule){
                 $expected=Carbon::parse($date.' '.$schedule->start_time,$now->timezone);
@@ -287,6 +293,12 @@ final class StaffAttendanceController extends Controller
                 ->where('is_active',true)->whereDate('effective_from','<=',$date)
                 ->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$date))
                 ->orderByDesc('effective_from')->first();
+            if(!$schedule){
+                $replacement=DB::table('clinic_staff_shift_replacements')->where('organization_id',$organization->id)
+                    ->where('clinic_id',$data['clinic_id'])->where('replacement_staff_user_id',$user->id)
+                    ->whereDate('work_date',$date)->where('status','assigned')->first();
+                if($replacement)$schedule=(object)['start_time'=>$replacement->start_time,'end_time'=>$replacement->end_time,'grace_minutes'=>10,'break_minutes'=>0];
+            }
             $worked=StaffAttendanceCalculator::workedMinutes($checkIn,$now,(int)($schedule->break_minutes??0));
             $values=['check_out_at'=>$now->toDateTimeString(),'minutes_worked'=>$worked,'status'=>'completed','updated_at'=>now()];
             DB::table('clinic_staff_attendances')->where('id',$row->id)->update($values);
@@ -341,10 +353,16 @@ final class StaffAttendanceController extends Controller
             'organization_id'=>['required','integer'],
             'clinic_id'=>['required','integer'],
             'leave_type'=>['required','in:annual,sick,unpaid,mission'],
-            'start_date'=>['required','date','after_or_equal:today'],
+            'start_date'=>['required','date'],
             'end_date'=>['required','date','after_or_equal:start_date'],
             'reason'=>['required','string','min:5','max:2000'],
         ]);
+        abort_if($data['leave_type']==='annual' && substr($data['start_date'],0,4)!==substr($data['end_date'],0,4),422,'درخواست مرخصی استحقاقی باید در محدوده یک سال ثبت شود.');
+        if($data['leave_type']==='sick'){
+            abort_if(Carbon::parse($data['start_date'])->lt(today()->subDays(30)),422,'درخواست مرخصی استعلاجی فقط تا ۳۰ روز قبل قابل ثبت است.');
+        }else{
+            abort_if(Carbon::parse($data['start_date'])->lt(today()),422,'مرخصی استحقاقی، بدون حقوق و مأموریت باید از امروز به بعد ثبت شوند.');
+        }
         [$organization,$clinicIds]=$this->memberOrganization((int)$data['organization_id']);
         abort_unless(in_array((int)$data['clinic_id'],$clinicIds,true),403);
         $user=Auth::guard('web')->user();
@@ -372,9 +390,49 @@ final class StaffAttendanceController extends Controller
         abort_unless($row,404);
         [$organization,$clinicIds]=$this->ownerOrganization((int)$row->organization_id);
         abort_unless(in_array((int)$row->clinic_id,$clinicIds,true),403);
-        DB::transaction(function()use($row,$data):void{
+        DB::transaction(function()use($row,$data,$organization):void{
             $locked=DB::table('clinic_staff_leave_requests')->where('id',$row->id)->lockForUpdate()->first();
             abort_unless($locked->status==='pending',409,'این درخواست قبلاً بررسی شده است.');
+            if($data['decision']==='approved' && $locked->leave_type==='annual'){
+                $from=Carbon::parse($locked->start_date)->startOfDay();
+                $until=Carbon::parse($locked->end_date)->startOfDay();
+                $year=(int)$from->format('Y');
+                $schedules=DB::table('clinic_staff_work_schedules')->where('organization_id',$organization->id)
+                    ->where('clinic_id',$locked->clinic_id)->where('staff_user_id',$locked->staff_user_id)
+                    ->where('is_active',true)->whereDate('effective_from','<=',$year.'-12-31')
+                    ->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$year.'-01-01'))
+                    ->get(['weekday','effective_from','effective_until']);
+                $requestedDays=0;
+                $day=$from->copy();
+                while($day->lessThanOrEqualTo($until)){
+                    $date=$day->toDateString();
+                    if($schedules->contains(fn($s)=>(int)$s->weekday===$day->dayOfWeek && $s->effective_from<=$date && (!$s->effective_until||$s->effective_until>=$date)))$requestedDays++;
+                    $day->addDay();
+                }
+                abort_if($requestedDays<1,422,'برای این بازه، روز کاری برنامه‌ریزی‌شده‌ای جهت مصرف مرخصی استحقاقی وجود ندارد.');
+                $balance=DB::table('clinic_staff_leave_balances')->where('organization_id',$organization->id)
+                    ->where('staff_user_id',$locked->staff_user_id)->where('year',$year)->first();
+                $contract=DB::table('clinic_staff_contracts')->where('organization_id',$organization->id)
+                    ->where('clinic_id',$locked->clinic_id)->where('staff_user_id',$locked->staff_user_id)
+                    ->where('is_active',true)->orderByDesc('effective_from')->first();
+                $entitled=(float)($balance->entitled_days??$contract->annual_leave_days??0)
+                    +(float)($balance->carry_over_days??0)+(float)($balance->adjustment_days??0);
+                $approved=DB::table('clinic_staff_leave_requests')->where('organization_id',$organization->id)
+                    ->where('clinic_id',$locked->clinic_id)->where('staff_user_id',$locked->staff_user_id)
+                    ->where('leave_type','annual')->where('status','approved')
+                    ->whereDate('start_date','<=',$year.'-12-31')->whereDate('end_date','>=',$year.'-01-01')->get(['start_date','end_date']);
+                $usedDays=0;
+                foreach($approved as $approvedLeave){
+                    $leaveFrom=Carbon::parse(max($approvedLeave->start_date,$year.'-01-01'));
+                    $leaveUntil=Carbon::parse(min($approvedLeave->end_date,$year.'-12-31'));
+                    while($leaveFrom->lessThanOrEqualTo($leaveUntil)){
+                        $date=$leaveFrom->toDateString();
+                        if($schedules->contains(fn($s)=>(int)$s->weekday===$leaveFrom->dayOfWeek && $s->effective_from<=$date && (!$s->effective_until||$s->effective_until>=$date)))$usedDays++;
+                        $leaveFrom->addDay();
+                    }
+                }
+                abort_if($requestedDays+$usedDays>$entitled,422,'مانده مرخصی استحقاقی برای تأیید این درخواست کافی نیست.');
+            }
             DB::table('clinic_staff_leave_requests')->where('id',$row->id)->update([
                 'status'=>$data['decision'],'decision_note'=>$data['decision_note']??null,
                 'decided_by'=>Auth::guard('web')->id(),'decided_at'=>now(),'updated_at'=>now(),
