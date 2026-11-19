@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
@@ -8,8 +8,26 @@ const form = useForm({ name: '', clinic_id: '', channel: 'social', budget_rial: 
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
 const channelName = value => ({ social: 'شبکه‌های اجتماعی', sms: 'پیامک', poster: 'پوستر و QR', website: 'وب‌سایت', partner: 'همکار حرفه‌ای', other: 'سایر' })[value] || value
 const activeCampaigns = computed(() => props.campaigns.filter(c => c.status === 'active').length)
+const copyMessage = ref('')
 const copyLink = async url => {
-  try { await navigator.clipboard.writeText(url) } catch { window.prompt('لینک کمپین را کپی کنید', url) }
+  copyMessage.value = ''
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url)
+      copyMessage.value = 'لینک کمپین کپی شد.'
+      return
+    }
+  } catch {}
+  const field = document.createElement('textarea')
+  field.value = url
+  field.setAttribute('readonly', '')
+  field.style.position = 'fixed'
+  field.style.opacity = '0'
+  document.body.appendChild(field)
+  field.select()
+  const copied = document.execCommand('copy')
+  field.remove()
+  copyMessage.value = copied ? 'لینک کمپین کپی شد.' : 'کپی خودکار ممکن نشد؛ نشانی لینک را انتخاب و کپی کنید.'
 }
 const submit = () => form.post(route('portal.marketing.store'), { onSuccess: () => form.reset('name', 'budget_rial', 'starts_at', 'ends_at') })
 </script>
