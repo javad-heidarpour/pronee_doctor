@@ -76,8 +76,9 @@ class Appointment extends Model
         return match ($this->status) {
             'pending' => 'در انتظار',
             'contacted' => 'تماس گرفته شده',
-            'confirmed' => 'تایید شده',
-            'cancelled' => 'لغو شده',
+            'confirmed' => 'تأیید شده',
+            'visited' => 'ویزیت‌شده',
+            'cancelled', 'canceled' => 'لغو شده',
             default => 'نامشخص',
         };
     }
