@@ -39,6 +39,7 @@
               :aria-invalid="errors.caption ? 'true' : undefined"
               class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500"
             />
+            <p v-if="errors.caption" class="mt-1 text-sm text-red-600" role="alert">{{ errors.caption }}</p>
           </div>
 
           <div>
@@ -50,19 +51,20 @@
               :aria-invalid="errors.description ? 'true' : undefined"
               class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500"
             ></textarea>
+            <p v-if="errors.description" class="mt-1 text-sm text-red-600" role="alert">{{ errors.description }}</p>
           </div>
 
           <!-- آپلود عکس -->
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">عکس پروفایل</label>
-            <div class="flex items-center gap-4">
+            <label for="profile-photo" class="block text-sm font-bold text-gray-700 mb-2">عکس پروفایل</label>
+            <div class="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
               <img
                 v-if="previewImage || doctor.photo"
                 :src="previewImage || doctor.photo"
                 alt="تصویر پروفایل پزشک"
                 class="w-20 h-20 rounded-full object-cover border-2 border-teal-200"
               />
-              <input type="file" @change="handlePhoto" accept="image/jpeg,image/png,image/webp" aria-label="انتخاب تصویر پروفایل" class="max-w-full text-sm" />
+              <input id="profile-photo" type="file" @change="handlePhoto" accept="image/jpeg,image/png,image/webp" aria-label="انتخاب تصویر پروفایل" class="max-w-full text-sm" />
               <p v-if="fileError || errors.photo" class="mt-2 text-sm text-red-600" role="alert">{{ fileError || errors.photo }}</p>
             </div>
           </div>
