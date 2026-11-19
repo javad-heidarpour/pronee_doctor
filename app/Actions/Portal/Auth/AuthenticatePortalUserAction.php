@@ -7,6 +7,7 @@ use App\Http\Requests\Portal\PortalLoginRequest;
 use App\Models\User;
 use App\Models\MedicalNetworkProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuthenticatePortalUserAction
@@ -36,7 +37,7 @@ class AuthenticatePortalUserAction
         /** @var User $user */
         $user = Auth::guard('web')->user();
 
-        if ($user->role === 'user' && MedicalNetworkProvider::query()
+        if ($user->role === 'user' && Schema::hasTable('medical_network_providers') && MedicalNetworkProvider::query()
             ->where('created_by_user_id', $user->id)
             ->where('status', 'active')
             ->where('is_verified', true)

@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\MedicalNetworkProvider;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
 class DoctorAuth
@@ -28,7 +29,7 @@ class DoctorAuth
         }
 
         if ($user->role === 'user') {
-            $hasVerifiedProfessionalProfile = MedicalNetworkProvider::query()
+            $hasVerifiedProfessionalProfile = Schema::hasTable('medical_network_providers') && MedicalNetworkProvider::query()
                 ->where('created_by_user_id', $user->id)
                 ->where('status', 'active')
                 ->where('is_verified', true)
