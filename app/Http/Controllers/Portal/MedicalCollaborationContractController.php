@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Security\\RecordSecurityAuditEventAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Models\\MedicalCollaborationContract;
-use App\\Models\\MedicalNetworkProvider;
-use App\\Models\\MedicalReferralSettlement;
-use App\\Services\\MedicalReferralSettlementGenerator;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\Rule;
-use Inertia\\Inertia;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Models\MedicalCollaborationContract;
+use App\Models\MedicalNetworkProvider;
+use App\Models\MedicalReferralSettlement;
+use App\Services\MedicalReferralSettlementGenerator;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 final class MedicalCollaborationContractController extends Controller
 {
