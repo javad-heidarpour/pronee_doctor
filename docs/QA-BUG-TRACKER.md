@@ -12,7 +12,7 @@
 - Baseline CI run: [Quality Checks #879](https://github.com/javad-heidarpour/pronee_doctor/actions/runs/44511955557) — success
 - Repository tree at audit commit `23d6ed3ed7fac58d232d0255f3236f00a555f941`: 905 files; tree response was not truncated.
 - Audit status: **IN PROGRESS — no claim of full-repository completion**
-- Current confirmed bug count: **1** (BUG-001; backend review is still partial).
+- Current confirmed bug count: **2** (BUG-001 and BUG-002; backend review is still partial).
 
 ## Rules for every continuation
 
@@ -47,6 +47,7 @@ One validated finding has been entered; backend review is not complete.
 | ID | Severity | Category | Location | Confidence | Status | Fix commit / verification |
 |---|---|---|---|---|---|---|
 | BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:7,15` | Confirmed | Open | Pending |
+| BUG-002 | Medium | Authorization / Type Contract | `config/auth.php:23-40`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30` | Confirmed (type mismatch; runtime conditional) | Open | Pending |
 
 ## Finding template
 
@@ -144,6 +145,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 - Backend scope inventory: 535 files across `app/` (367), `routes/` (21), `database/` (68), `config/` (11), `bootstrap/` (4), and `tests/` (64).
 - Frontend scope: `resources/` (325 files; 172 Vue files).
 - Backend status: **PARTIAL — do not claim file-by-file completion**.
+- Fully reviewed backend files recorded: **37 of 535** (32 in the preceding audit pass plus 5 additional full-file reads in this pass).
 - Files fully read in this pass:
   - `app/Models/User.php`
   - `app/Models/Doctor.php`
@@ -177,6 +179,11 @@ The following paths were fetched/read at least in part in an earlier preliminary
   - `config/health_interop.php`
   - `database/migrations/2026_11_19_120000_create_health_interop_and_insurance_tables.php`
   - `routes/portal/patients.php`
+  - `app/Http/Controllers/Portal/Concerns/AuthorizesManagedUsers.php`
+  - `app/Http/Controllers/Portal/AppointmentController.php`
+  - `app/Http/Controllers/Portal/StaffObligationController.php`
+  - `app/Http/Requests/Portal/SaveManagedUserRequest.php`
+  - `config/auth.php`
 - Partially read in this pass:
   - `app/Http/Controllers/Portal/StaffManagementController.php` — lines 1–180 only.
   - `routes/portal/portal.php` — retrieved in a multi-file response that was truncated; not considered fully read.
@@ -200,6 +207,28 @@ The following paths were fetched/read at least in part in an earlier preliminary
 - **Explanation:** The provider registers a fully-qualified class name that does not match the class defined in the repository. When this policy is resolved, the registered class cannot be autoloaded.
 - **Confidence:** Confirmed (namespace/registration mismatch); runtime impact depends on a code path invoking this policy.
 - **Suggested remedy:** Make the provider import and registration match the actual policy namespace, then test the relevant authorization paths.
+- **Status:** Open
+- **First observed commit:** `23d6ed3ed7fac58d232d0255f3236f00a555f941`
+- **Fix commit / verification:** Pending
+
+
+### BUG-002 — Policy principal type does not match the authenticated User model
+
+- **Severity:** Medium
+- **Category:** Authorization / Type Contract
+- **Location:** `config/auth.php:23-40`; `app/Models/User.php:19`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30`
+- **Code excerpt:**
+  ```php
+  // config/auth.php
+  'web' => ['driver' => 'session', 'provider' => 'users'],
+  'users' => ['driver' => 'eloquent', 'model' => User::class],
+
+  // DoctorImagePolicy.php
+  public function update(Doctor $doctor, DoctorImage $image): bool
+  ```
+- **Explanation:** The web guard authenticates an `App\\Models\\User` principal, while the policy methods type-hint the first argument as `App\\Models\\Doctor`. Laravel passes the authenticated principal as the first policy argument, so invoking these policies with the configured guard can raise a TypeError. The Doctor policy also has the separate namespace registration defect recorded as BUG-001.
+- **Confidence:** Confirmed type-contract mismatch; runtime impact depends on a policy invocation. A direct call site for DoctorImagePolicy was not found in the reviewed search results.
+- **Suggested remedy:** Change policy signatures and authorization logic to accept the actual authenticated User principal, then resolve and verify the associated doctor profile/ownership.
 - **Status:** Open
 - **First observed commit:** `23d6ed3ed7fac58d232d0255f3236f00a555f941`
 - **Fix commit / verification:** Pending
