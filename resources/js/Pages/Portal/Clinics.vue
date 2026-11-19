@@ -12,6 +12,7 @@
         + افزودن مطب جدید
       </button>
     </div>
+    <ActionDialog :open="deleteDialogOpen" title="حذف مطب" description="آیا از حذف این مطب اطمینان دارید؟ این عملیات ممکن است روی اطلاعات وابسته اثر بگذارد." submit-label="حذف مطب" @close="deleteDialogOpen = false" @submit="confirmDeleteClinic" />
     <!-- لیست مطب‌ها -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div
@@ -125,6 +126,7 @@ import { ref, computed } from "vue";
 import { router, usePage } from "@inertiajs/vue3";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 import FormField from "@/Components/Portal/FormField.vue";
+import ActionDialog from "@/Components/Portal/ActionDialog.vue";
 
 const props = defineProps({
   doctor: {
@@ -141,6 +143,8 @@ const isSecretary = computed(() => page.props.auth?.user?.role === "secretary");
 
 const showModal = ref(false);
 const processing = ref(false);
+const deleteDialogOpen = ref(false);
+const clinicToDelete = ref(null);
 const editingClinic = ref(null);
 const form = ref({ name: "", full_address: "", phone: "", city_id: "" });
 
@@ -169,9 +173,12 @@ const submitClinic = () => {
   }
 };
 
-const deleteClinic = (id) => {
-  if (confirm("آیا از حذف این مطب اطمینان دارید؟")) {
-    router.delete(route("portal.clinics.destroy", id));
-  }
+const deleteClinic = (id) => { clinicToDelete.value = id; deleteDialogOpen.value = true; };
+const confirmDeleteClinic = () => {
+  if (!clinicToDelete.value) return;
+  router.delete(route("portal.clinics.destroy", clinicToDelete.value), {
+    preserveScroll: true,
+    onSuccess: () => { deleteDialogOpen.value = false; clinicToDelete.value = null; },
+  });
 };
 </script>
