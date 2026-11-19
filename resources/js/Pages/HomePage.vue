@@ -20,7 +20,7 @@
         <!-- بخش نمایش ساعات کاری -->
         <template v-if="activeSection === 'WorkingHours'">
           <div
-            class="grid grid-cols-2 gap-8 bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 hover:shadow-lg transition-shadow duration-300"
+            class="grid grid-cols-1 gap-5 bg-white rounded-3xl shadow-sm border border-gray-100 p-4 sm:grid-cols-2 sm:gap-8 sm:p-6 md:p-8 hover:shadow-lg transition-shadow duration-300"
           >
             <!-- <BookingSidebar :doctor="doctor" /> -->
 
