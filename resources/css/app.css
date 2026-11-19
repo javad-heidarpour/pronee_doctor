@@ -66,11 +66,38 @@
 
 
 /* ✅ استایل‌های عمومی */
-html,
-body,
-* {
-    font-family: 'Vazir', Tahoma, sans-serif !important;
-    direction: rtl;
+html, body {
+    font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+/* Respect the nearest dir attribute instead of forcing RTL on every control. */
+html[dir="rtl"] { direction: rtl; }
+html[dir="ltr"] { direction: ltr; }
+input[type="email"],
+input[type="url"],
+input[type="tel"],
+input[type="password"],
+input[inputmode="numeric"],
+input[inputmode="decimal"] {
+    direction: ltr;
+    text-align: left;
+}
+textarea { direction: inherit; }
+[dir="ltr"] { direction: ltr; }
+[dir="rtl"] { direction: rtl; }
+
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 
 /* اگر می‌خواهی بعضی قسمت‌ها پررنگ باشد، از font-weight: bold استفاده کن */
