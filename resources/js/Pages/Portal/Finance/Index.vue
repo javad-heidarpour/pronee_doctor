@@ -9,6 +9,11 @@ const props = defineProps({
   installments: Array, expenses: Array, stats: Object, journalSummary: Array, profitability: Array, profitabilityTotals: Object, period: Object,
 })
 
+const localDate = () => {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
 const planForm = useForm({
   clinic_id: props.clinics?.[0]?.id ?? '',
   patient_id: '', title: '', specialty_module: 'general',
@@ -18,14 +23,10 @@ const planForm = useForm({
 })
 const expenseForm = useForm({
   clinic_id: props.clinics?.[0]?.id ?? '', category: 'اجاره',
-  description: '', amount: '', expense_date: new Date().toISOString().slice(0, 10),
+  description: '', amount: '', expense_date: localDate(),
   payment_method: 'transfer', reference: '', notes: '',
 })
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
-const localDate = () => {
-  const now = new Date()
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
-}
 const paymentModalOpen = ref(false)
 const collateralModalOpen = ref(false)
 const selectedInstallment = ref(null)
