@@ -79,7 +79,7 @@ final class ProcurementController extends Controller
         $doctor=$this->currentDoctor();$this->authorizeSecretaryPermission('inventory.manage',$doctor);
         $data=$request->validate([
             'clinic_id'=>['required','integer'],'supplier_id'=>['required','integer'],
-            'inventory_item_id'=>['required','integer'],'minimum_quantity'=>['required','numeric','gt:0','max:999999'],
+            'inventory_item_id'=>['required','integer'],'minimum_quantity'=>['required','numeric','gt:0','decimal:0,3','max:999999'],
             'unit_cost_rial'=>['required','integer','min:0','max:999999999999'],
             'lead_time_days'=>['nullable','integer','min:0','max:365'],'valid_until'=>['nullable','date','after_or_equal:today'],
             'notes'=>['nullable','string','max:2000'],
@@ -100,7 +100,7 @@ final class ProcurementController extends Controller
     public function createOrder(Request $request,int $quote)
     {
         $doctor=$this->currentDoctor();$this->authorizeSecretaryPermission('inventory.manage',$doctor);
-        $data=$request->validate(['quantity'=>['required','numeric','gt:0','max:999999']]);
+        $data=$request->validate(['quantity'=>['required','numeric','gt:0','decimal:0,3','max:999999']]);
         $clinicIds=$this->accessibleClinicIds($doctor);
         DB::transaction(function()use($doctor,$quote,$data,$clinicIds):void{
             $offer=DB::table('clinic_supplier_quotes')->where('id',$quote)->where('doctor_id',$doctor->id)
@@ -142,7 +142,7 @@ final class ProcurementController extends Controller
     public function receiveItem(Request $request,int $order,int $item,FinanceAccountingService $accounting)
     {
         $doctor=$this->currentDoctor();$this->authorizeSecretaryPermission('inventory.manage',$doctor);
-        $data=$request->validate(['quantity'=>['required','numeric','gt:0','max:999999']]);
+        $data=$request->validate(['quantity'=>['required','numeric','gt:0','decimal:0,3','max:999999']]);
         DB::transaction(function()use($doctor,$order,$item,$data,$accounting):void{
             $purchase=DB::table('clinic_purchase_orders')->where('id',$order)->where('doctor_id',$doctor->id)
                 ->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->lockForUpdate()->first();
