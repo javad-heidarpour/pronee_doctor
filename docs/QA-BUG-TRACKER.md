@@ -12,7 +12,7 @@
 - Baseline CI run: [Quality Checks #879](https://github.com/javad-heidarpour/pronee_doctor/actions/runs/44511955557) — success
 - Repository tree at audit commit `23d6ed3ed7fac58d232d0255f3236f00a555f941`: 905 files; tree response was not truncated.
 - Audit status: **IN PROGRESS — no claim of full-repository completion**
-- Current confirmed bug count: **2** (BUG-001 and BUG-002; backend review is still partial).
+- Current confirmed bug count: **1 open finding** (BUG-001). BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
 
 ## Rules for every continuation
 
@@ -42,12 +42,12 @@
 
 ## Bug register
 
-One validated finding has been entered; backend review is not complete.
+One configuration finding remains open; BUG-002 is retained as rejected history. Backend review is not complete.
 
 | ID | Severity | Category | Location | Confidence | Status | Fix commit / verification |
 |---|---|---|---|---|---|---|
 | BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:7,15` | Confirmed | Open | Pending |
-| BUG-002 | Medium | Authorization / Type Contract | `config/auth.php:23-40`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30` | Confirmed (type mismatch; runtime conditional) | Open | Pending |
+| BUG-002 | Medium | Authorization / Type Contract | `config/auth.php:23-40`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30` | Rejected: current call path passes `Doctor` directly; no live `DoctorPolicy` Gate invocation found | Rejected | Not a runtime defect on reviewed paths |
 
 ## Finding template
 
@@ -74,7 +74,7 @@ Use this exact structure for each new finding:
 ### Repository inventory
 
 - [x] Main branch and baseline commit identified.
-- [x] Recursive Git tree fetched; 904 files; not truncated.
+- [x] Recursive Git tree fetched; 905 files; not truncated.
 - [x] Latest baseline CI run inspected; both backend and frontend jobs succeeded.
 - [ ] Backend files reviewed in full.
 - [ ] Frontend files reviewed in full.
@@ -145,7 +145,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 - Backend scope inventory: 535 files across `app/` (367), `routes/` (21), `database/` (68), `config/` (11), `bootstrap/` (4), and `tests/` (64).
 - Frontend scope: `resources/` (325 files; 172 Vue files).
 - Backend status: **PARTIAL — do not claim file-by-file completion**.
-- Fully reviewed backend files recorded: **40 of 535** (32 in the preceding audit pass plus 8 additional unique full-file reads in this pass).
+- Fully reviewed backend files recorded: **79 of 535** (40 previously recorded plus 39 additional unique full-file reads in this priority pass).
 - Files fully read in this pass:
   - `app/Models/User.php`
   - `app/Models/Doctor.php`
@@ -192,6 +192,57 @@ The following paths were fetched/read at least in part in an earlier preliminary
   - `routes/portal/portal.php` — retrieved in a multi-file response that was truncated; not considered fully read.
 - The following are **not reviewed in this pass**: all other backend files among the 535-file backend scope, including the remaining Actions, Controllers, Requests, Models, Services, routes, migrations, factories, configuration, bootstrap files, and tests. The earlier preliminary-inspection list above does not count as a full review.
 - No application code, test, configuration, migration, or dependency file was changed.
+
+### Priority audit pass — payment, authorization, booking, patient/staff access
+
+- Source revision reviewed: `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`; audit ledger updates remain isolated to branch `qa/backend-audit-2026-11-19`.
+- Full-file count after this pass: **79 / 535** backend-scope files. The 39 additional unique full-file reads are:
+  - `app/Http/Controllers/Portal/StaffManagementController.php` (all 490 lines, assembled from complete line ranges)
+  - `app/Http/Controllers/Portal/PatientController.php`
+  - `routes/portal/portal.php`
+  - `app/Http/Controllers/Portal/GalleryController.php`
+  - `app/Models/DoctorImage.php`
+  - `routes/portal/gallery.php`
+  - `routes/portal/Profile.php`
+  - `app/Http/Controllers/ProfileController.php`
+  - `app/Http/Controllers/Portal/AuthController.php`
+  - `app/Http/Controllers/Portal/Concerns/AuthorizesPortalAppointments.php`
+  - `app/Http/Controllers/AppointmentPaymentController.php`
+  - `routes/payment.php`
+  - `routes/appointment.php`
+  - `app/Actions/Payments/FindSepCallbackPaymentAction.php`
+  - `app/Actions/Payments/ValidateSepCallbackTerminalAction.php`
+  - `app/Actions/Payments/NormalizeSepVerificationResponseAction.php`
+  - `app/Actions/Payments/RecordSepCallbackFailureAction.php`
+  - `app/Actions/Payments/CancelFailedAppointmentAction.php`
+  - `app/Actions/Payments/ProcessLocalSepPaymentTestAction.php`
+  - `app/Actions/Payments/ReconcileKnownSepPaymentAction.php`
+  - `app/Http/Controllers/Portal/PaymentReviewController.php`
+  - `app/Http/Controllers/Portal/ProcurementController.php`
+  - `app/Http/Controllers/Portal/StaffAttendanceController.php` (all 503 lines, assembled from complete line ranges)
+  - `app/Http/Controllers/Portal/ClinicOrganizationController.php`
+  - `app/Http/Controllers/Portal/ClinicFinanceController.php`
+  - `database/migrations/2026_11_17_090000_add_unique_gateway_reference_to_appointment_payments.php`
+  - `tests/Unit/Payments/VerifyAndSettleSepPaymentActionTest.php`
+  - `tests/Unit/Payments/InitiateAppointmentPaymentActionTest.php`
+  - `bootstrap/app.php`
+  - `bootstrap/providers.php`
+  - `routes/web.php`
+  - `app/Http/Controllers/VisitController.php`
+  - `resources/views/payments/sep-redirect.blade.php`
+  - `app/Actions/Home/BookAppointmentAction.php`
+  - `app/Actions/Portal/Appointment/ListAvailableSlotsAction.php`
+  - `app/Actions/Portal/Appointment/EnsureSecretaryCanBookClinicAction.php`
+  - `database/migrations/2026_11_19_100000_create_clinic_staff_attendance_tables.php`
+  - `database/migrations/2026_11_19_120000_create_staff_compensation_and_replacement_tables.php`
+  - `app/Models/TimeSlot.php`
+- Additional full-file reads overlapping the prior 40-file inventory were not counted twice.
+- Payment flow cross-check: public payment route is signed and throttled; callback supports GET/POST and the CSRF exception is explicitly configured for `payment/callback`; callback resolves a local payment by UUID, verifies SEP RefNum/terminal/amount, locks appointment then payment, and prevents RefNum reuse using both application checks and a unique DB index. Tests cover amount mismatch, terminal mismatch, repeat paid callback, token reuse, expired reservation, and review-required attempts. No new confirmed SEP bug was found in this pass.
+- Booking flow cross-check: public and portal booking both serialize by doctor and lock the selected slot; active appointments are checked before reservation. No new confirmed duplicate-slot race was established in reviewed paths.
+- Staff scope cross-check: attendance records are scoped by organization/clinic and self-service records by authenticated staff user; manager corrections/decisions require owner scope. Attendance daily uniqueness and payroll period uniqueness exist in migrations. No confirmed horizontal-access bug was established in these reviewed files.
+- BUG-001 execution status: AuthServiceProvider is loaded through `bootstrap/providers.php`, and the registered Doctor policy namespace is demonstrably wrong. However, no live route/controller invocation of the Doctor policy was identified in the reviewed scope; classify it as a loaded but currently unproven/latent authorization configuration defect, not a demonstrated exploitable path.
+- BUG-002 execution status: **Rejected.** `GalleryController::update/destroy` invoke `DoctorImagePolicy` directly and pass the `Doctor` returned by `currentDoctor()`; this matches the policy method signature. The separate `DoctorPolicy` has no identified live callsite in the reviewed routes/controllers and its registration is affected by BUG-001. The previously claimed User-to-Doctor TypeError is therefore not reachable on the inspected execution paths.
+- Not reviewed in this pass: remaining payment, patient, staff, user, and authorization files outside the 39-file list; all other backend files remain pending. No application code, tests, migrations, routes, configuration, or dependencies were changed.
 
 ### BUG-001 — Doctor policy namespace mismatch
 
