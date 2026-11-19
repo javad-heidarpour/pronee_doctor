@@ -25,6 +25,8 @@
       :id="triggerId"
       :disabled="disabled"
       :aria-expanded="isOpen ? 'true' : 'false'"
+      :aria-controls="dropdownId"
+      :aria-describedby="errorMessage ? errorId : undefined"
       aria-haspopup="listbox"
       :aria-required="required ? 'true' : undefined"
       :aria-invalid="hasError || errorMessage ? 'true' : undefined"
@@ -56,6 +58,7 @@
     <Transition name="dropdown">
       <div
         v-if="isOpen"
+        :id="dropdownId"
         class="absolute z-50 mt-2 w-full max-w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl"
       >
         <!-- Search Input -->
@@ -86,7 +89,7 @@
         </div>
 
         <!-- Options List -->
-        <div class="max-h-60 overflow-y-auto py-2" role="listbox">
+        <div class="max-h-60 overflow-y-auto py-2" role="listbox" :aria-labelledby="triggerId">
           <!-- Clear Button (if has value) -->
           <button
             v-if="clearable && modelValue"
@@ -169,7 +172,7 @@
     </Transition>
 
     <!-- Error Message -->
-    <p v-if="errorMessage" class="text-red-500 text-xs mt-1">
+    <p v-if="errorMessage" :id="errorId" class="mt-1 text-xs text-red-600" role="alert">
       {{ errorMessage }}
     </p>
   </div>
@@ -248,6 +251,8 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "change", "create"]);
 
 const triggerId = "select-trigger-" + useId();
+const dropdownId = triggerId + "-listbox";
+const errorId = triggerId + "-error";
 const isOpen = ref(false);
 const searchQuery = ref("");
 const selectRef = ref(null);
@@ -256,9 +261,14 @@ const selectRef = ref(null);
 const normalizedOptions = computed(() => {
   return props.options.map((opt) => {
     if (typeof opt === "string" || typeof opt === "number") {
-      return { value: opt, label: opt };
+      return { value: opt, label: String(opt) };
     }
-    return opt;
+
+    return {
+      ...opt,
+      value: opt?.[props.optionValue] ?? opt?.value ?? "",
+      label: opt?.[props.optionLabel] ?? opt?.label ?? "",
+    };
   });
 });
 const createOption = () => {
