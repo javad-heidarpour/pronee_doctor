@@ -132,7 +132,7 @@ final class StaffManagementController extends Controller
                 ->get(['m.user_id','u.name','u.family'])
                 ->filter(function($candidate)use($shift,$todayDate,$weekday){
                     $conflict=DB::table('clinic_staff_work_schedules')->where('organization_id',$shift->organization_id)
-                        ->where('clinic_id',$shift->clinic_id)->where('staff_user_id',$candidate->user_id)
+                        ->where('staff_user_id',$candidate->user_id)
                         ->where('weekday',$weekday)->where('is_active',true)
                         ->whereDate('effective_from','<=',$todayDate)
                         ->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$todayDate))
@@ -446,7 +446,7 @@ final class StaffManagementController extends Controller
         $holiday=DB::table('clinic_organization_holidays')->where('organization_id',$organization->id)->whereDate('holiday_date',$date)->exists();
         abort_if($holiday,422,'این تاریخ در تقویم مجموعه تعطیل است.');
         $conflict=DB::table('clinic_staff_work_schedules')->where('organization_id',$organization->id)
-            ->where('clinic_id',$clinicId)->where('staff_user_id',$replacement->id)->where('weekday',$weekday)->where('is_active',true)
+            ->where('staff_user_id',$replacement->id)->where('weekday',$weekday)->where('is_active',true)
             ->whereDate('effective_from','<=',$date)->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$date))
             ->where('start_time','<',$data['end_time'])->where('end_time','>',$data['start_time'])->exists();
         abort_if($conflict,422,'جانشین در این بازه برنامه کاری هم‌پوشان دارد.');

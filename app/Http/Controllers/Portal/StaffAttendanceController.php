@@ -366,17 +366,20 @@ final class StaffAttendanceController extends Controller
         [$organization,$clinicIds]=$this->memberOrganization((int)$data['organization_id']);
         abort_unless(in_array((int)$data['clinic_id'],$clinicIds,true),403);
         $user=Auth::guard('web')->user();
-        $overlap=DB::table('clinic_staff_leave_requests')
-            ->where('organization_id',$organization->id)->where('staff_user_id',$user->id)
-            ->where('clinic_id',$data['clinic_id'])->whereIn('status',['pending','approved'])
-            ->whereDate('start_date','<=',$data['end_date'])
-            ->whereDate('end_date','>=',$data['start_date'])->exists();
-        abort_if($overlap,422,'برای این بازه زمانی درخواست مرخصی فعال یا در انتظار بررسی دارید.');
-        DB::table('clinic_staff_leave_requests')->insert([
-            'organization_id'=>$organization->id,'clinic_id'=>$data['clinic_id'],'staff_user_id'=>$user->id,
-            'leave_type'=>$data['leave_type'],'start_date'=>$data['start_date'],'end_date'=>$data['end_date'],
-            'status'=>'pending','reason'=>$data['reason'],'created_at'=>now(),'updated_at'=>now(),
-        ]);
+        DB::transaction(function()use($organization,$data,$user):void{
+            DB::table('users')->where('id',$user->id)->lockForUpdate()->first();
+            $overlap=DB::table('clinic_staff_leave_requests')
+                ->where('organization_id',$organization->id)->where('staff_user_id',$user->id)
+                ->whereIn('status',['pending','approved'])
+                ->whereDate('start_date','<=',$data['end_date'])
+                ->whereDate('end_date','>=',$data['start_date'])->exists();
+            abort_if($overlap,422,'برای این بازه زمانی در یکی از شعب مجموعه درخواست مرخصی فعال یا در انتظار بررسی دارید.');
+            DB::table('clinic_staff_leave_requests')->insert([
+                'organization_id'=>$organization->id,'clinic_id'=>$data['clinic_id'],'staff_user_id'=>$user->id,
+                'leave_type'=>$data['leave_type'],'start_date'=>$data['start_date'],'end_date'=>$data['end_date'],
+                'status'=>'pending','reason'=>$data['reason'],'created_at'=>now(),'updated_at'=>now(),
+            ]);
+        },3);
         return back()->with('success','درخواست مرخصی/مأموریت برای بررسی مدیر ثبت شد.');
     }
 
@@ -393,20 +396,21 @@ final class StaffAttendanceController extends Controller
         DB::transaction(function()use($row,$data,$organization):void{
             $locked=DB::table('clinic_staff_leave_requests')->where('id',$row->id)->lockForUpdate()->first();
             abort_unless($locked->status==='pending',409,'این درخواست قبلاً بررسی شده است.');
+            DB::table('users')->where('id',$locked->staff_user_id)->lockForUpdate()->first();
             if($data['decision']==='approved' && $locked->leave_type==='annual'){
                 $from=Carbon::parse($locked->start_date)->startOfDay();
                 $until=Carbon::parse($locked->end_date)->startOfDay();
                 $year=(int)$from->format('Y');
                 $schedules=DB::table('clinic_staff_work_schedules')->where('organization_id',$organization->id)
-                    ->where('clinic_id',$locked->clinic_id)->where('staff_user_id',$locked->staff_user_id)
+                    ->where('staff_user_id',$locked->staff_user_id)
                     ->where('is_active',true)->whereDate('effective_from','<=',$year.'-12-31')
                     ->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$year.'-01-01'))
-                    ->get(['weekday','effective_from','effective_until']);
+                    ->get(['clinic_id','weekday','effective_from','effective_until']);
                 $requestedDays=0;
                 $day=$from->copy();
                 while($day->lessThanOrEqualTo($until)){
                     $date=$day->toDateString();
-                    if($schedules->contains(fn($s)=>(int)$s->weekday===$day->dayOfWeek && $s->effective_from<=$date && (!$s->effective_until||$s->effective_until>=$date)))$requestedDays++;
+                    if($schedules->contains(fn($s)=>(int)$s->clinic_id===(int)$locked->clinic_id && (int)$s->weekday===$day->dayOfWeek && $s->effective_from<=$date && (!$s->effective_until||$s->effective_until>=$date)))$requestedDays++;
                     $day->addDay();
                 }
                 abort_if($requestedDays<1,422,'برای این بازه، روز کاری برنامه‌ریزی‌شده‌ای جهت مصرف مرخصی استحقاقی وجود ندارد.');
@@ -418,16 +422,16 @@ final class StaffAttendanceController extends Controller
                 $entitled=(float)($balance->entitled_days??$contract->annual_leave_days??0)
                     +(float)($balance->carry_over_days??0)+(float)($balance->adjustment_days??0);
                 $approved=DB::table('clinic_staff_leave_requests')->where('organization_id',$organization->id)
-                    ->where('clinic_id',$locked->clinic_id)->where('staff_user_id',$locked->staff_user_id)
+                    ->where('staff_user_id',$locked->staff_user_id)
                     ->where('leave_type','annual')->where('status','approved')
-                    ->whereDate('start_date','<=',$year.'-12-31')->whereDate('end_date','>=',$year.'-01-01')->get(['start_date','end_date']);
+                    ->whereDate('start_date','<=',$year.'-12-31')->whereDate('end_date','>=',$year.'-01-01')->get(['clinic_id','start_date','end_date']);
                 $usedDays=0;
                 foreach($approved as $approvedLeave){
                     $leaveFrom=Carbon::parse(max($approvedLeave->start_date,$year.'-01-01'));
                     $leaveUntil=Carbon::parse(min($approvedLeave->end_date,$year.'-12-31'));
                     while($leaveFrom->lessThanOrEqualTo($leaveUntil)){
                         $date=$leaveFrom->toDateString();
-                        if($schedules->contains(fn($s)=>(int)$s->weekday===$leaveFrom->dayOfWeek && $s->effective_from<=$date && (!$s->effective_until||$s->effective_until>=$date)))$usedDays++;
+                        if($schedules->contains(fn($s)=>(int)$s->clinic_id===(int)$approvedLeave->clinic_id && (int)$s->weekday===$leaveFrom->dayOfWeek && $s->effective_from<=$date && (!$s->effective_until||$s->effective_until>=$date)))$usedDays++;
                         $leaveFrom->addDay();
                     }
                 }
