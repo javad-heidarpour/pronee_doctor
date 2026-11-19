@@ -398,7 +398,7 @@
             >
               <div
                 v-if="flashSuccess"
-                class="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100"
+                class="flex min-w-0 max-w-[42vw] items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-2 py-2 sm:max-w-64 sm:px-3"
               >
                 <svg
                   class="w-4 h-4 text-emerald-600 shrink-0"
@@ -415,7 +415,7 @@
                 </svg>
 
                 <span
-                  class="text-xs text-emerald-700 font-medium hidden sm:block max-w-48 truncate"
+                  class="min-w-0 truncate text-[11px] font-medium text-emerald-700 sm:max-w-48 sm:text-xs"
                 >
                   {{ flashSuccess }}
                 </span>
@@ -430,14 +430,14 @@
             >
               <div
                 v-if="flashNotice.message"
-                class="flex max-w-64 items-center gap-2 rounded-xl border px-3 py-2"
+                class="flex min-w-0 max-w-[48vw] items-center gap-2 rounded-xl border px-2 py-2 sm:max-w-64 sm:px-3"
                 :class="flashNotice.type === 'error'
                   ? 'border-rose-100 bg-rose-50 text-rose-700'
                   : 'border-sky-100 bg-sky-50 text-sky-700'"
                 role="status"
                 aria-live="polite"
               >
-                <span class="text-xs font-medium">{{ flashNotice.message }}</span>
+                <span class="min-w-0 break-words text-[11px] font-medium sm:text-xs">{{ flashNotice.message }}</span>
               </div>
             </Transition>
 
