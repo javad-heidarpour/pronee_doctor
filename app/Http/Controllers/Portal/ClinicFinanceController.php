@@ -71,16 +71,58 @@ class ClinicFinanceController extends Controller
             if ($organizationIds) $query->whereIn('organization_id', $organizationIds);
             else $query->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
         });
-        $journalSummary = DB::table('clinic_journal_lines as lines')
+        $periodStart = $request->date('period_start')?->toDateString() ?? today()->startOfMonth()->toDateString();
+        $periodEnd = $request->date('period_end')?->toDateString() ?? today()->toDateString();
+        abort_if($periodStart > $periodEnd, 422, 'ابتدای دوره نمی‌تواند بعد از انتهای دوره باشد.');
+
+        $journalBase = DB::table('clinic_journal_lines as lines')
             ->join('clinic_financial_accounts as accounts', 'accounts.id', '=', 'lines.account_id')
             ->join('clinic_journal_entries as entries', 'entries.id', '=', 'lines.journal_entry_id')
             ->where('entries.status', 'posted')
+            ->whereBetween('entries.occurred_at', [$periodStart.' 00:00:00', $periodEnd.' 23:59:59'])
             ->where(function ($query) use ($clinicIds, $organizationIds): void {
                 $query->whereIn('entries.clinic_id', $clinicIds);
                 if ($organizationIds) $query->orWhereIn('entries.organization_id', $organizationIds);
-            })
+            });
+        $journalSummary = (clone $journalBase)
             ->selectRaw('accounts.type, SUM(lines.debit) as debit_total, SUM(lines.credit) as credit_total')
             ->groupBy('accounts.type')->get();
+
+        $profitabilityRows = (clone $journalBase)
+            ->leftJoin('addresses as clinics', 'clinics.id', '=', 'entries.clinic_id')
+            ->whereIn('accounts.type', ['income', 'expense'])
+            ->selectRaw('entries.clinic_id, clinics.name as clinic_name, accounts.code, accounts.name as account_name, accounts.type, SUM(lines.debit) as debit_total, SUM(lines.credit) as credit_total')
+            ->groupBy('entries.clinic_id', 'clinics.name', 'accounts.code', 'accounts.name', 'accounts.type')
+            ->orderBy('entries.clinic_id')->orderBy('accounts.code')->get();
+
+        $profitability = [];
+        foreach ($profitabilityRows as $row) {
+            $clinicKey = (string) ($row->clinic_id ?? 0);
+            if (!isset($profitability[$clinicKey])) {
+                $profitability[$clinicKey] = [
+                    'clinic_id' => $row->clinic_id, 'clinic_name' => $row->clinic_name ?? 'بدون شعبه',
+                    'income' => 0, 'expenses' => 0, 'net_profit' => 0, 'accounts' => [],
+                ];
+            }
+            $amount = $row->type === 'income'
+                ? (int) $row->credit_total - (int) $row->debit_total
+                : (int) $row->debit_total - (int) $row->credit_total;
+            if ($row->type === 'income') $profitability[$clinicKey]['income'] += $amount;
+            else $profitability[$clinicKey]['expenses'] += $amount;
+            $profitability[$clinicKey]['accounts'][] = [
+                'code' => $row->code, 'name' => $row->account_name, 'type' => $row->type, 'amount' => $amount,
+            ];
+        }
+        foreach ($profitability as &$clinicProfit) {
+            $clinicProfit['net_profit'] = $clinicProfit['income'] - $clinicProfit['expenses'];
+        }
+        unset($clinicProfit);
+        $profitability = array_values($profitability);
+        $profitabilityTotals = [
+            'income' => array_sum(array_column($profitability, 'income')),
+            'expenses' => array_sum(array_column($profitability, 'expenses')),
+            'net_profit' => array_sum(array_column($profitability, 'net_profit')),
+        ];
 
         return Inertia::render('Portal/Finance/Index', [
             'doctor' => $doctor,
@@ -98,6 +140,9 @@ class ClinicFinanceController extends Controller
             'installments' => $installments,
             'expenses' => $expenses,
             'journalSummary' => $journalSummary,
+            'profitability' => $profitability,
+            'profitabilityTotals' => $profitabilityTotals,
+            'period' => ['start' => $periodStart, 'end' => $periodEnd],
             'stats' => [
                 'plans' => (clone $statsPlans)->count(),
                 'receivables' => (clone $statsInstallments)->selectRaw('COALESCE(SUM(amount - paid_amount),0) as total')->value('total'),
