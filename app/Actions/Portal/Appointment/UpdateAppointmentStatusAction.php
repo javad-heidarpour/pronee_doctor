@@ -57,6 +57,14 @@ class UpdateAppointmentStatusAction
                 : null;
 
             if (in_array($newStatus, ['pending', 'confirmed'], true)) {
+                // A cancelled legacy appointment without a slot cannot be safely
+                // reactivated: it would become active without reserving any time.
+                if (!$lockedAppointment->time_slot_id || !$timeSlot) {
+                    throw ValidationException::withMessages([
+                        'status' => 'برای فعال‌سازی مجدد این نوبت، ساعت معتبر در دسترس نیست. لطفاً نوبت جدیدی با انتخاب ساعت آزاد ثبت کنید.',
+                    ]);
+                }
+
                 $anotherAppointmentExists = Appointment::query()
                     ->where('time_slot_id', $lockedAppointment->time_slot_id)
                     ->where('id', '!=', $lockedAppointment->id)
