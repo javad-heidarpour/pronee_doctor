@@ -101,7 +101,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'store'])->middleware('throttle:10,1')->name('professional-partnerships.store');
         Route::patch('/professional-partnerships/{partnership}/respond', [ClinicProfessionalPartnershipController::class, 'respond'])->whereNumber('partnership')->name('professional-partnerships.respond');
         Route::post('/professional-partnerships/sessions', [ClinicProfessionalPartnershipController::class, 'storeSession'])->middleware('throttle:20,1')->name('professional-partnerships.sessions.store');
-        Route::patch('/professional-partnerships/sessions/{session}/paid', [ClinicProfessionalPartnershipController::class, 'markPaid'])->whereNumber('session')->name('professional-partnerships.sessions.paid');
+        Route::patch('/professional-partnerships/sessions/{session}/confirm', [ClinicProfessionalPartnershipController::class, 'confirmSession'])->whereNumber('session')->name('professional-partnerships.sessions.confirm');
+        Route::post('/professional-partnerships/dues', [ClinicProfessionalPartnershipController::class, 'generateDue'])->middleware('throttle:20,1')->name('professional-partnerships.dues.store');
+        Route::patch('/professional-partnerships/dues/{due}/confirm', [ClinicProfessionalPartnershipController::class, 'confirmDue'])->whereNumber('due')->name('professional-partnerships.dues.confirm');
+        Route::get('/professional-partnerships/dues/{due}/invoice', [ClinicProfessionalPartnershipController::class, 'invoice'])->whereNumber('due')->name('professional-partnerships.dues.invoice');
 
         Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');
         Route::get('/medical-network/contracts', [MedicalCollaborationContractController::class, 'index'])->name('medical-network.contracts.index');

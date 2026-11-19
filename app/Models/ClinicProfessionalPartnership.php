@@ -32,4 +32,5 @@ class ClinicProfessionalPartnership extends Model
     public function clinic(): BelongsTo { return $this->belongsTo(Address::class, 'clinic_id'); }
     public function provider(): BelongsTo { return $this->belongsTo(MedicalNetworkProvider::class, 'provider_id'); }
     public function sessions(): HasMany { return $this->hasMany(ClinicProfessionalSession::class, 'partnership_id'); }
+    public function dues(): HasMany { return $this->hasMany(ClinicProfessionalDue::class, 'partnership_id'); }
 }

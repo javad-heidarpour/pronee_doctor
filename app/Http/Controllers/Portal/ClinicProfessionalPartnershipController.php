@@ -11,7 +11,10 @@ use App\Models\Address;
 use App\Models\Appointment;
 use App\Models\ClinicProfessionalPartnership;
 use App\Models\ClinicProfessionalSession;
+use App\Models\ClinicProfessionalDue;
+use Carbon\Carbon;
 use App\Models\MedicalNetworkProvider;
+use App\Services\ClinicProfessionalSettlementCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -40,32 +43,39 @@ final class ClinicProfessionalPartnershipController extends Controller
             ->latest()->get();
 
         $incoming = ClinicProfessionalPartnership::query()
-            ->where('doctor_id', $doctor->id)
-            ->whereHas('provider', fn ($q) => $q->where('created_by_user_id', '!=', $user->id))
+            ->whereHas('provider', fn ($q) => $q->where('created_by_user_id', $user->id))
             ->with(['provider:id,name', 'clinic:id,name', 'doctor:id,name,family'])
             ->latest()->get();
 
         $sessions = ClinicProfessionalSession::query()
-            ->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)
-            ->with(['provider:id,name,provider_type', 'clinic:id,name', 'partnership:id,model,service_name'])
+            ->where(function ($query) use ($doctor, $clinicIds, $user): void {
+                $query->where(fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))
+                    ->orWhereHas('provider', fn ($q) => $q->where('created_by_user_id', $user->id));
+            })
+            ->with(['provider:id,name,provider_type,created_by_user_id', 'clinic:id,name', 'doctor:id,user_id,name,family', 'partnership:id,model,service_name,payment_direction'])
             ->latest('service_date')->limit(100)->get();
 
         $providers = MedicalNetworkProvider::query()
             ->where('status', 'active')->where('is_verified', true)
+            ->where('created_by_user_id', '!=', $user->id)
             ->orderBy('name')->get(['id', 'name', 'provider_type', 'city', 'specialties', 'license_number']);
 
         return Inertia::render('Portal/ProfessionalPartnerships/Index', [
             'partnerships' => $partnerships,
             'incoming' => $incoming,
             'sessions' => $sessions,
+            'dues' => ClinicProfessionalDue::query()->where(function ($query) use ($doctor, $clinicIds, $user): void {
+                $query->whereHas('partnership', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))
+                    ->orWhere('professional_user_id', $user->id);
+            })->with(['partnership.provider:id,name', 'partnership.clinic:id,name'])->latest('due_date')->limit(100)->get(),
             'providers' => $providers,
             'clinics' => Address::query()->whereIn('id', $clinicIds)->orderBy('name')->get(['id', 'name']),
             'stats' => [
                 'active' => (clone $partnerships)->where('status', 'active')->count(),
                 'pending' => (clone $partnerships)->where('status', 'proposed')->count(),
-                'unpaid' => (clone $sessions)->where('status', 'pending')->sum('professional_amount_rial'),
-                'paid' => (clone $sessions)->where('status', 'paid')->sum('professional_amount_rial'),
+                'periodic_due' => ClinicProfessionalDue::query()->whereHas('partnership', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))->where('status', '!=', 'confirmed')->sum('amount_rial'),
+                'unpaid' => $sessions->whereIn('status', ['pending', 'partially_confirmed'])->sum('settlement_amount_rial'),
+                'paid' => $sessions->where('status', 'paid')->sum('settlement_amount_rial'),
             ],
             'canManage' => $user->role !== 'secretary' || $this->secretaryCanManage($doctor),
         ]);
@@ -98,6 +108,7 @@ final class ClinicProfessionalPartnershipController extends Controller
         $this->authorizeClinicAccess($clinicId, $doctor);
         $provider = MedicalNetworkProvider::query()->whereKey($data['provider_id'])
             ->where('status', 'active')->where('is_verified', true)->firstOrFail();
+        abort_if((int) $provider->created_by_user_id === (int) $user->id, 422, 'برای قرارداد همکاری، متخصص باید حساب مستقل از حساب مالک کلینیک داشته باشد.');
         $shareBps = (int) round(((float) ($data['professional_share_percent'] ?? 70)) * 100);
         $clinicBps = 10000 - $shareBps;
         $model = $data['model'];
@@ -161,7 +172,7 @@ final class ClinicProfessionalPartnershipController extends Controller
         return back()->with('success', $data['decision'] === 'accept' ? 'همکاری فعال شد.' : 'پیشنهاد رد شد.');
     }
 
-    public function storeSession(Request $request, RecordSecurityAuditEventAction $audit)
+    public function storeSession(Request $request, RecordSecurityAuditEventAction $audit, ClinicProfessionalSettlementCalculator $calculator)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'secretary'], true), 403);
@@ -176,13 +187,15 @@ final class ClinicProfessionalPartnershipController extends Controller
             'appointment_id' => ['nullable', 'integer'],
         ]);
 
-        $session = DB::transaction(function () use ($data, $doctor, $user): ClinicProfessionalSession {
+        $session = DB::transaction(function () use ($data, $doctor, $user, $calculator): ClinicProfessionalSession {
             $agreement = ClinicProfessionalPartnership::query()
                 ->whereKey($data['partnership_id'])->where('doctor_id', $doctor->id)
                 ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
                 ->where('status', 'active')->whereIn('model', ['percentage', 'fixed_per_session', 'hybrid'])->whereDate('starts_at', '<=', $data['service_date'])
                 ->where(fn ($q) => $q->whereNull('ends_at')->orWhereDate('ends_at', '>=', $data['service_date']))
                 ->lockForUpdate()->firstOrFail();
+
+            abort_if((int) $agreement->provider()->value('created_by_user_id') === (int) $agreement->doctor()->value('user_id'), 422, 'برای ثبت تسویه دوطرفه، مالک حساب متخصص و کلینیک باید مستقل باشند.');
 
             $appointment = null;
             if (!empty($data['appointment_id'])) {
@@ -197,13 +210,15 @@ final class ClinicProfessionalPartnershipController extends Controller
             abort_if($adjustment > $gross, 422, 'تعدیل نمی‌تواند از مبلغ خدمت بیشتر باشد.');
             $net = $gross - $adjustment;
 
-            $professionalAmount = match ($agreement->model) {
-                'percentage' => (int) floor($net * $agreement->professional_share_bps / 10000),
-                'fixed_per_session' => min($net, (int) $agreement->fixed_fee_rial),
-                'hybrid' => min($net, (int) floor($net * $agreement->professional_share_bps / 10000) + (int) $agreement->fixed_fee_rial),
-                default => 0,
-            };
-            $clinicAmount = $net - $professionalAmount;
+            $shares = $calculator->split(
+                $agreement->model,
+                $net,
+                (int) $agreement->professional_share_bps,
+                (int) $agreement->fixed_fee_rial
+            );
+            $professionalAmount = $shares['professional'];
+            $clinicAmount = $shares['clinic'];
+            $settlementAmount = $calculator->payableAmount($shares, $agreement->payment_direction);
 
             return ClinicProfessionalSession::query()->create([
                 'partnership_id' => $agreement->id,
@@ -218,6 +233,7 @@ final class ClinicProfessionalPartnershipController extends Controller
                 'adjustment_amount_rial' => $adjustment,
                 'professional_amount_rial' => $professionalAmount,
                 'clinic_amount_rial' => $clinicAmount,
+                'settlement_amount_rial' => $settlementAmount,
                 'status' => 'pending',
             ]);
         }, 3);
@@ -229,31 +245,147 @@ final class ClinicProfessionalPartnershipController extends Controller
         return back()->with('success', 'خدمت ثبت شد و سهم طرفین بر اساس قرارداد محاسبه گردید.');
     }
 
-    public function markPaid(Request $request, ClinicProfessionalSession $session, RecordSecurityAuditEventAction $audit)
+    public function confirmSession(Request $request, ClinicProfessionalSession $session, RecordSecurityAuditEventAction $audit)
+    {
+        $user = Auth::guard('web')->user();
+        abort_unless($user, 401);
+        $data = $request->validate(['payment_reference' => ['nullable', 'string', 'max:120']]);
+        $result = DB::transaction(function () use ($session, $user, $data): string {
+            $locked = ClinicProfessionalSession::query()->whereKey($session->id)->lockForUpdate()->with(['partnership', 'provider', 'doctor'])->firstOrFail();
+            $clinicOwnerId = (int) $locked->doctor?->user_id;
+            $professionalOwnerId = (int) $locked->provider?->created_by_user_id;
+            $side = null;
+            if ((int) $user->id === $professionalOwnerId) {
+                $side = 'professional';
+            } elseif ((int) $user->id === $clinicOwnerId) {
+                $side = 'clinic';
+            } elseif ($user->role === 'secretary') {
+                $doctor = $this->currentDoctor();
+                abort_unless((int) $doctor->id === (int) $locked->doctor_id, 403);
+                $this->authorizeSecretaryPermission('finance.manage', $doctor);
+                abort_unless(in_array((int) $locked->clinic_id, $this->accessibleClinicIds($doctor), true), 403);
+                $side = 'clinic';
+            }
+            abort_unless($side, 403, 'فقط نماینده مجاز کلینیک یا متخصص می‌تواند تأیید کند.');
+            abort_unless($locked->status !== 'paid', 422, 'این تسویه قبلاً نهایی شده است.');
+            $payerSide = $locked->partnership?->payment_direction === 'professional_to_clinic' ? 'professional' : 'clinic';
+            $prefix = $side === $payerSide ? 'payer' : 'receiver';
+            abort_if($locked->{$prefix . '_confirmed_at'}, 422, 'تأیید این سمت قبلاً ثبت شده است.');
+            $locked->{$prefix . '_confirmed_at'} = now();
+            $locked->{$prefix . '_confirmed_by_user_id'} = $user->id;
+            $locked->{$prefix . '_reference'} = $data['payment_reference'] ?? null;
+            $both = (bool) $locked->payer_confirmed_at && (bool) $locked->receiver_confirmed_at;
+            $locked->status = $both ? 'paid' : 'partially_confirmed';
+            if ($both) {
+                $locked->paid_at = now();
+                $locked->paid_by_user_id = $user->id;
+            }
+            $locked->save();
+            return $locked->status;
+        }, 3);
+        $audit->handle('clinic_professional_partnership.session_confirmation', $session, ['changed_fields' => ['settlement_confirmation']]);
+        return back()->with('success', $result === 'paid' ? 'تسویه با تأیید هر دو طرف نهایی شد.' : 'تأیید شما ثبت شد؛ تأیید طرف مقابل باقی مانده است.');
+    }
+
+    public function generateDue(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && in_array($user->role, ['doctor', 'secretary'], true), 403);
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.manage', $doctor);
-        $data = $request->validate(['payment_reference' => ['nullable', 'string', 'max:120']]);
-
-        DB::transaction(function () use ($session, $user, $doctor, $data): void {
-            $locked = ClinicProfessionalSession::query()->whereKey($session->id)->where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->lockForUpdate()->firstOrFail();
-            abort_unless($locked->status === 'pending', 422, 'این ردیف قبلاً تسویه شده است.');
-            $locked->update([
-                'status' => 'paid',
-                'paid_at' => now(),
-                'paid_by_user_id' => $user->id,
-                'payment_reference' => $data['payment_reference'] ?? null,
+        $data = $request->validate([
+            'partnership_id' => ['required', 'integer'],
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'due_date' => ['required', 'date', 'after_or_equal:period_end'],
+        ]);
+        $due = DB::transaction(function () use ($data, $doctor, $user): ClinicProfessionalDue {
+            $agreement = ClinicProfessionalPartnership::query()->whereKey($data['partnership_id'])
+                ->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                ->where('status', 'active')->whereIn('model', ['room_rent', 'shift_fee', 'monthly_fixed'])
+                ->whereDate('starts_at', '<=', $data['period_start'])
+                ->where(fn ($q) => $q->whereNull('ends_at')->orWhereDate('ends_at', '>=', $data['period_end']))
+                ->lockForUpdate()->firstOrFail();
+            $periodStart = Carbon::parse($data['period_start'])->startOfDay();
+            $periodEnd = Carbon::parse($data['period_end'])->startOfDay();
+            $expectedEnd = $agreement->periodic_cycle === 'weekly'
+                ? $periodStart->copy()->addDays(6)
+                : $periodStart->copy()->addMonthNoOverflow()->subDay();
+            abort_if(!$periodEnd->isSameDay($expectedEnd), 422, 'بازه صورتحساب باید دقیقاً با چرخه هفتگی یا ماهانه قرارداد منطبق باشد.');
+            abort_if(Carbon::parse($data['due_date'])->lt($periodEnd), 422, 'سررسید صورتحساب نمی‌تواند قبل از پایان دوره باشد.');
+            $clinicOwner = (int) $agreement->doctor()->value('user_id');
+            $professionalOwner = (int) $agreement->provider()->value('created_by_user_id');
+            abort_if(!$clinicOwner || !$professionalOwner || $clinicOwner === $professionalOwner, 422, 'برای تأیید دوطرفه باید مالک حساب کلینیک و متخصص مشخص و متفاوت باشند.');
+            return ClinicProfessionalDue::query()->firstOrCreate([
+                'partnership_id' => $agreement->id,
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
+            ], [
+                'doctor_id' => $doctor->id, 'clinic_id' => $agreement->clinic_id,
+                'provider_id' => $agreement->provider_id,
+                'clinic_user_id' => $clinicOwner, 'professional_user_id' => $professionalOwner,
+                'created_by_user_id' => $user->id, 'due_date' => $data['due_date'],
+                'amount_rial' => $agreement->periodic_fee_rial,
+                'payment_direction' => $agreement->payment_direction,
+                'status' => 'pending',
             ]);
         }, 3);
+        $audit->handle('clinic_professional_partnership.periodic_due_generated', $due, ['changed_fields' => ['due_created']]);
+        return back()->with('success', $due->wasRecentlyCreated ? 'صورتحساب دوره‌ای ایجاد شد.' : 'این دوره قبلاً صورتحساب‌گذاری شده است؛ رکورد تکراری ساخته نشد.');
+    }
 
-        $audit->handle('clinic_professional_partnership.session_paid', $session, [
-            'doctor_id' => $doctor->id,
-            'changed_fields' => ['status_changed'],
-        ]);
-        return back()->with('success', 'وضعیت تسویه داخلی ثبت شد؛ این عملیات تأیید بانکی یا انتقال وجه نیست.');
+    public function confirmDue(Request $request, ClinicProfessionalDue $due, RecordSecurityAuditEventAction $audit)
+    {
+        $user = Auth::guard('web')->user();
+        abort_unless($user, 401);
+        $data = $request->validate(['payment_reference' => ['nullable', 'string', 'max:120']]);
+        $result = DB::transaction(function () use ($due, $user, $data): string {
+            $locked = ClinicProfessionalDue::query()->whereKey($due->id)->lockForUpdate()->firstOrFail();
+            $side = null;
+            if ((int) $user->id === (int) $locked->professional_user_id) {
+                $side = 'professional';
+            } elseif ((int) $user->id === (int) $locked->clinic_user_id) {
+                $side = 'clinic';
+            } elseif ($user->role === 'secretary') {
+                $doctor = $this->currentDoctor();
+                abort_unless((int) $doctor->id === (int) $locked->doctor_id, 403);
+                $this->authorizeSecretaryPermission('finance.manage', $doctor);
+                abort_unless(in_array((int) $locked->clinic_id, $this->accessibleClinicIds($doctor), true), 403);
+                $side = 'clinic';
+            }
+            abort_unless($side, 403, 'فقط نماینده مجاز کلینیک یا متخصص می‌تواند تأیید کند.');
+            abort_unless($locked->status !== 'confirmed', 422, 'این صورتحساب قبلاً نهایی شده است.');
+            $payerSide = $locked->payment_direction === 'professional_to_clinic' ? 'professional' : 'clinic';
+            $prefix = $side === $payerSide ? 'payer' : 'receiver';
+            abort_if($locked->{$prefix . '_confirmed_at'}, 422, 'تأیید این سمت قبلاً ثبت شده است.');
+            $locked->{$prefix . '_confirmed_at'} = now();
+            $locked->{$prefix . '_confirmed_by_user_id'} = $user->id;
+            $locked->{$prefix . '_reference'} = $data['payment_reference'] ?? null;
+            $both = (bool) $locked->payer_confirmed_at && (bool) $locked->receiver_confirmed_at;
+            $locked->status = $both ? 'confirmed' : 'partially_confirmed';
+            $locked->save();
+            return $locked->status;
+        }, 3);
+        $audit->handle('clinic_professional_partnership.periodic_due_confirmation', $due, ['changed_fields' => ['confirmation_status']]);
+        return back()->with('success', $result === 'confirmed' ? 'صورتحساب با تأیید دوطرفه نهایی شد.' : 'تأیید شما ثبت شد؛ تأیید طرف مقابل باقی مانده است.');
+    }
+
+    public function invoice(ClinicProfessionalDue $due)
+    {
+        $user = Auth::guard('web')->user();
+        abort_unless($user, 401);
+        $due->load(['partnership.provider', 'partnership.clinic', 'partnership.doctor']);
+        $isProfessional = (int) $user->id === (int) $due->professional_user_id;
+        $isClinicOwner = (int) $user->id === (int) $due->clinic_user_id;
+        $isSecretary = false;
+        if ($user->role === 'secretary') {
+            $doctor = $this->currentDoctor();
+            $isSecretary = (int) $doctor->id === (int) $due->doctor_id
+                && in_array((int) $due->clinic_id, $this->accessibleClinicIds($doctor), true);
+            if ($isSecretary) $this->authorizeSecretaryPermission('finance.view', $doctor);
+        }
+        abort_unless($isProfessional || $isClinicOwner || $isSecretary, 403);
+        return response()->view('portal.professional-partnership-invoice', ['due' => $due]);
     }
 
     private function secretaryCanManage($doctor): bool
