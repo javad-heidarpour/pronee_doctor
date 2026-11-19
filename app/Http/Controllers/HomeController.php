@@ -6,6 +6,8 @@ use App\Actions\Home\BookAppointmentAction;
 use App\Actions\Home\ListActiveDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
 use App\DTOs\Home\BookAppointmentData;
+use App\Models\Appointment;
+use Illuminate\Support\Facades\URL;
 use App\Http\Requests\BookAppointmentRequest;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +33,22 @@ class HomeController extends Controller
                 ->toResponse(request())
                 ->setStatusCode(404);
         }
+    }
+
+    /**
+     * Legacy success endpoint retained for existing links. Use the same
+     * temporary signed visit URL as the payment callback; never expose a
+     * patient's appointment details through an unsigned numeric identifier.
+     */
+    public function appointmentSuccess(int $id): RedirectResponse
+    {
+        $appointment = Appointment::query()->findOrFail($id);
+
+        return redirect()->to(URL::temporarySignedRoute(
+            'visit.show',
+            now()->addMinutes(30),
+            ['visit_number' => $appointment->id]
+        ));
     }
 
     public function bookAppointment(

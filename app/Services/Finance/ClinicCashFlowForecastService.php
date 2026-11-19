@@ -28,6 +28,11 @@ final class ClinicCashFlowForecastService
         // Include branch journals plus organization-level journals (clinic_id NULL)
         // exactly once. The previous AND scope discarded organization-level balances.
         $scope = static function ($query, string $clinicColumn, string $organizationColumn) use ($clinicIds, $organizationIds): void {
+            if ($clinicIds === [] && $organizationIds === []) {
+                $query->whereRaw('1 = 0');
+                return;
+            }
+
             $query->where(function ($scope) use ($clinicIds, $organizationIds, $clinicColumn, $organizationColumn): void {
                 if ($clinicIds !== []) {
                     $scope->whereIn($clinicColumn, $clinicIds);
