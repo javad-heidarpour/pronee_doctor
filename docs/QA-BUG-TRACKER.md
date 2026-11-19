@@ -12,7 +12,7 @@
 - Baseline CI run: [Quality Checks #879](https://github.com/javad-heidarpour/pronee_doctor/actions/runs/44511955557) — success
 - Repository tree at audit commit `23d6ed3ed7fac58d232d0255f3236f00a555f941`: 905 files; tree response was not truncated.
 - Audit status: **IN PROGRESS — no claim of full-repository completion**
-- Current confirmed bug count: **7 open findings** (BUG-001, BUG-003 through BUG-008). BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
+- Current confirmed bug count: **10 open findings** (BUG-001, BUG-003 through BUG-011). BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
 
 ## Rules for every continuation
 
@@ -48,12 +48,15 @@ One configuration finding remains open; BUG-002 is retained as rejected history.
 |---|---|---|---|---|---|---|
 | BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:9,17` | Confirmed | Open | Pending |
 | BUG-002 | Medium | Authorization / Type Contract | `config/auth.php:23-40`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30` | Rejected: current call path passes `Doctor` directly; no live `DoctorPolicy` Gate invocation found | Rejected | Not a runtime defect on reviewed paths |
-| BUG-003 | Medium | Logic / Auditability | `app/Http/Controllers/Portal/PatientCarePathwayController.php:92-100` | Confirmed | Open | Pending |
+| BUG-003 | High | Logic / Auditability | `app/Http/Controllers/Portal/PatientCarePathwayController.php:92-100` | Confirmed | Open | Pending |
 | BUG-004 | Medium | Frontend-backend contract | `app/Actions/Home/BuildPublicWorkingHoursAction.php:20-21,56-59` | Confirmed when a doctor has multiple clinics open on the same weekday | Open | Pending |
 | BUG-005 | Medium | Logic / Booking / Payment | `app/Actions/Portal/Appointment/UpdateAppointmentStatusAction.php:59-81`; `app/Actions/Payments/InitiateAppointmentPaymentAction.php:38-45` | Confirmed conditional on reactivating an expired cancelled reservation | Open | Pending |
 | BUG-006 | Low | Concurrency / Idempotency | `app/Http/Controllers/Portal/ClinicFinanceController.php:308-322`; `database/migrations/2026_11_19_200000_add_idempotency_key_to_patient_installment_payments.php:15` | Confirmed race; occurrence requires concurrent same-key requests on different installments | Open | Pending |
 | BUG-007 | Medium | Reliability / Health Interop | `app/Console/Commands/DispatchHealthExchangeMessages.php:21-42` | Confirmed crash-recovery gap; stuck state requires interruption after claim | Open | Pending |
-| BUG-008 | Medium | Authorization / Middleware | `app/Http/Middleware/DoctorAuth.php:128-135,163-240`; `routes/portal/patients.php:23-26` | Confirmed for secretary accounts with otherwise sufficient controller-level permission | Open | Pending |
+| BUG-008 | Medium | Authorization / Middleware | `app/Http/Middleware/DoctorAuth.php:128-135,163-240`; `routes/portal/patients.php:23-26`; `routes/portal/portal.php:98-101,134-167,169-172` | Confirmed: multiple secretary-enabled modules have no route-prefix mapping and are rejected before controller permission checks | Open | Pending |
+| BUG-009 | High | Operational / Health Interop | `routes/console.php:12-34`; `run-scheduler.php:10-14`; `docs/health-interop.md:15,42`; `.github/workflows/quality.yml:1-68` | Confirmed: no in-repository schedule, cron, supervisor, CI, or deployment hook invokes `health:dispatch-exchange`; only an external/manual worker could dispatch messages | Open | Pending |
+| BUG-010 | Medium | Clinical Data Integrity | `app/Http/Controllers/Portal/ClinicOperationsController.php:159-179,221-226` | Confirmed: appointment is scoped to doctor and clinic but not to the treatment plan's patient; a treatment item for patient A can reference patient B's appointment | Open | Pending |
+| BUG-011 | Medium | Financial Integrity / Concurrency | `app/Http/Controllers/Portal/ClinicOperationsController.php:113-145`; `database/migrations/2026_11_18_220000_create_clinic_organization_operations_tables.php:91-113` | Confirmed race: concurrent distinct item inserts can both pass the plan total cap; sequence uniqueness is validation-only and DB index is non-unique | Open | Pending |
 
 ## Finding template
 
@@ -439,7 +442,7 @@ Last ledger update: 2026-11-19
 
 ### Deep control-failure review + test audit + next app group
 
-- **Read scope/count correction:** previous confirmed full backend count was 136/535. This pass fully read all 64 files under `tests/`; two tests were already in the 136 count, so this adds 62 unique test files. It also fully read 64 new unique `app/` files and 10 additional files (6 migrations, one service, one model, one request, one controller). New total: **272 / 535** backend files fully read. The 64 test files include support classes; this is a file count, not 64 executable test classes.
+- **Read scope/count correction:** previous confirmed full backend count was 136/535. This pass fully read all 64 files under `tests/`; two tests were already in the 136 count, so this adds 62 unique test files. It also fully read 64 new unique `app/` files and 10 additional files (6 migrations, one service, one model, one request, one controller). Corrected unique total: **268 / 535** backend files fully read; four of the ten additional files were duplicates already present in the preceding full-read lists. The 64 test files include support classes; this is a file count, not 64 executable test classes.
 - **Test scan result:** no `markTestSkipped`, `markTestIncomplete`, or `->skip()` calls found in the 64 files. `tests/Unit/ExampleTest.php:14` contains only `$this->assertTrue(true);` and is a vacuous example, not meaningful behavioral coverage. Abstract support files `tests/Feature/Auth/AuthTestCase.php` and `tests/TestCase.php` are not counted as assertion-empty test cases.
 - **Test coverage gaps (not standalone bugs):**
   - `tests/Unit/Payments/InitiateAppointmentPaymentActionTest.php` does not exercise zero/negative fee input; the action itself rejects `amount <= 0`.
@@ -646,9 +649,9 @@ Last ledger update: 2026-11-19
 ### Policy / middleware / commands / observers / health interop / SMS / request validation pass
 
 - **Source revision:** `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`.
-- **Count correction:** the prior 272/535 consisted of 136 earlier unique files + 64 new `app/` files + 10 additional files + 62 newly counted tests (64 test files were read, 2 already counted). This pass adds **75 unique fully read files**; 23 other files in the targeted groups were re-read but were already in the 272. New total: **347 / 535**; remaining: **188**. The 535 inventory includes all 64 files under `tests/`; the test files are not an extra category beyond 535.
-- **Targeted group coverage:** all 88 files found in the recursive-tree filter for Policies, Middleware, Console Commands, Observers, Services, Requests, and `PatientCarePathwayController` were fetched/read in full across this and earlier passes. Of those, 23 were already counted in the earlier 272. No files under `app/Jobs/` were present in the recursive tree; eight Console Command files were inspected.
-- **BUG-003 severity re-evaluation:** remains **Medium**, not High on the evidence available. In `verifyStep()`, there is no outer/local `$pathway` assignment before the transaction. The only assignment is inside the closure at lines 94-96; line 99 reads it after the closure, outside PHP closure scope. The database transaction can commit the step update and possible pathway completion before the undefined-variable error. The staff member receives a 500 despite the persisted verification, and the audit event is not recorded. No controller-level test for `PatientCarePathwayController::verifyStep` was found in the 64 fully read test files; the existing `PatientCarePathwayProgressTest` exercises the service, not this controller endpoint. The route is declared once at `routes/portal/patients.php:26`; no second route/call path was identified. High would become defensible if the system's regulatory/clinical policy requires this audit event as a safety-critical control or if verification failure is shown to stop a critical patient-care process; neither was established by current repository evidence.
+- **Count correction:** the prior corrected 268/535 consisted of 136 earlier unique files + 64 new `app/` files + 62 newly counted tests (64 test files were read, 2 already counted) + 6 unique additional files. Four of the ten previously described additional files were duplicates (`PatientCarePathwayProgress.php`, `UpdateAppointmentStatusRequest.php`, `AvailableClinicRequest.php`, `AvailableSlotsRequest.php`). This policy/middleware pass added **75 unique files**; 23 targeted files were reread and not recounted. Corrected total: **343 / 535**; remaining at that point: **192**. The 535 inventory includes all 64 files under `tests/`; the test files are not an extra category beyond 535.
+- **Targeted group coverage:** all 88 files found in the recursive-tree filter for Policies, Middleware, Console Commands, Observers, Services, Requests, and `PatientCarePathwayController` were fetched/read in full across this and earlier passes. Of those, 23 were already counted in the earlier 268. No files under `app/Jobs/` were present in the recursive tree; eight Console Command files were inspected.
+- **BUG-003 severity re-evaluation:** upgraded to **High**. In this clinical system, audit logging for care-pathway verification is an important traceability control. The same request can persist a clinical verification and then return HTTP 500 because `$pathway` is out of closure scope; the user receives a failure response while the state may already have changed, and the audit event is lost. This combined clinical traceability and misleading-success/failure behavior justifies High. In `verifyStep()`, there is no outer/local `$pathway` assignment before the transaction. The only assignment is inside the closure at lines 94-96; line 99 reads it after the closure, outside PHP closure scope. The database transaction can commit the step update and possible pathway completion before the undefined-variable error. The staff member receives a 500 despite the persisted verification, and the audit event is not recorded. No controller-level test for `PatientCarePathwayController::verifyStep` was found in the 64 fully read test files; the existing `PatientCarePathwayProgressTest` exercises the service, not this controller endpoint. The route is declared once at `routes/portal/patients.php:26`; no second route/call path was identified. The controller-level endpoint test is absent from the 64 fully read test files; `PatientCarePathwayProgressTest` covers the service only. The route is declared once at `routes/portal/patients.php:26`; no second route/call path was identified.
 - **BUG-004 end-user impact:** a patient or public visitor opening the doctor's public profile sees only one clinic's hours for a weekday when multiple clinics have hours on that same weekday. The other clinic's schedule is absent from the public `working_hours` data, so patients may wrongly infer that the second branch is unavailable or may contact/book against the wrong location. No data is deleted; the defect is a misleading/incomplete public schedule. Medium retained.
 - **BUG-005 end-user impact:** a doctor/secretary can change an expired, cancelled public reservation back to `pending`; the portal then shows a pending appointment, but the patient cannot complete online payment because the original `reservation_expires_at` remains in the past and payment initiation rejects it. Staff may believe the reservation was reopened while the patient encounters an expired-reservation/payment failure. Medium retained.
 - **New finding — BUG-007 — stale PROCESSING health-exchange messages are never reclaimed.**
@@ -656,11 +659,11 @@ Last ledger update: 2026-11-19
   - Lines 31-42 change a row to `processing` and commit that state before the outbound HTTP call at line 48.
   - If the PHP process/worker is terminated after the claim transaction commits and before the success/failure update at lines 49-63, the row remains `processing`. Future command runs never select it, and no lease/timeout/reaper for `processing` was found in the inspected command, model, scheduler, or service paths. The queued clinical message can remain undelivered indefinitely without an automatic retry.
   - **Severity:** Medium. **Confidence:** Confirmed for the unrecoverable state transition; occurrence depends on process interruption. Suggested remedy: add a claim lease/processing timestamp and reclaim expired claims safely, with remote idempotency preserved.
-- **New finding — BUG-008 — care-pathway routes are not mapped to secretary permissions in DoctorAuth.**
+- **New finding — BUG-008 — secretary-enabled route namespaces are not mapped in DoctorAuth.**
   - `routes/portal/patients.php:23-26` declares route names `portal.care-pathways.index`, `portal.care-pathways.store`, and `portal.care-pathway-steps.verify`.
   - `PatientCarePathwayController::index/store/verifyStep` explicitly calls `authorizeSecretaryPermission(...)`, indicating that secretary access is intended when the corresponding permission exists.
   - `app/Http/Middleware/DoctorAuth.php:219-228` maps only prefixes such as `portal.patients.`, `portal.follow-ups.`, and `portal.encounters.`; it has no mapping for `portal.care-pathways.` or `portal.care-pathway-steps.`.
-  - At lines 128-135, an unmapped route returns null and the middleware aborts 403 before the controller's permission check. Therefore, a secretary with `patients.clinical.view` / `patients.manage` still cannot view/create care pathways or verify patient-reported steps. This is an authorization/feature-access defect, not unauthorized access. **Severity:** Medium. **Confidence:** Confirmed. Suggested remedy: map these route names to the intended permission(s), retaining the controller's doctor/secretary checks.
+  - At lines 128-135, an unmapped route returns null and the middleware aborts 403 before the controller's permission check. The same missing-prefix behavior also affects secretary-enabled route families declared in `routes/portal/portal.php`: `portal.clinic-brain.*`, `portal.patient-retention.*`, `portal.growth.*`, `portal.clinic-performance.*`, `portal.professional-partnerships.*`, `portal.medical-network.*`, `portal.marketing.*`, and `portal.intelligence.*`. Their controllers explicitly permit secretaries with appropriate permissions, but `DoctorAuth::requiredPermission()` has no matching prefix/specific entry and returns null; middleware aborts 403 before controller checks. Thus secretaries with the documented `appointments.*`, `patients.*`, `marketing.*`, `inventory.*`, or `finance.*` permissions are blocked from these features. This is denial of intended access, not unauthorized access. **Severity:** Medium. **Confidence:** Confirmed. Suggested remedy: map each secretary-enabled route namespace to its intended permission while preserving controller-level scope checks.
 - **Other targeted review results:** no additional confirmed bypass was found in the inspected identity/insurance/SEP paths. The health identity endpoint explicitly reports structural validation only and does not claim official identity verification. Insurance verification explicitly records `awaiting_integration`/`not_configured` and returns `insurance_approved=false`; it does not falsely approve a patient. The outbox encrypts payloads, and the gateway enforces HTTPS, an allow-listed hostname, disabled redirects, and explicit remote acceptance. SMS reminders require consent flags for installment reminders; follow-up reminders are claimed before sending and capped at three attempts. The OTP service hashes codes, limits attempts, consumes a code once, and serializes verification per phone. No Jobs directory was found; the health-exchange dispatcher command is not in `routes/console.php` scheduler, so automatic delivery additionally depends on an external/manual invocation. This scheduling gap is recorded as an operational question, not a confirmed bug without proof that the command is expected to run automatically.
 - **Request-validation review:** reviewed request classes generally constrain enumerations, numeric ranges, dates, and file types. Some request `authorize()` methods only check authenticated/active user, but the route middleware/controller/action applies the actual role, doctor, clinic, and patient scope on the inspected high-risk flows. No standalone exploitable request-validation bypass was confirmed in this group. `StorePatientFollowUpRequest` accepts a `sms_consent_confirmed` boolean from the staff form; the create action only enables SMS when that flag is true. Whether this staff-entered flag constitutes adequate evidence of consent is a product/legal control question, not a proven code-level bypass from repository evidence.
 - **Files newly fully read and counted in this pass (75 unique paths):**
@@ -739,6 +742,569 @@ Last ledger update: 2026-11-19
   - `app/Http/Requests/ProfileUpdateRequest.php`
   - `app/Http/Requests/StoreCommentRequest.php`
   - `app/Services/ClinicProfessionalSettlementCalculator.php`
-- **Targeted files re-read but not counted again** because they were already in the 272 baseline: `app/Http/Controllers/Portal/PatientCarePathwayController.php`, `app/Policies/DoctorImagePolicy.php`, `app/Policies/Portal/DoctorPolicy.php`, `app/Http/Middleware/DoctorAuth.php`, `app/Http/Middleware/HandleInertiaRequests.php`, `app/Console/Commands/DispatchHealthExchangeMessages.php`, `routes/portal/patients.php`, `app/Services/HealthInterop/HealthExchangeGateway.php`, `app/Services/HealthInterop/HealthExchangeOutbox.php`, `app/Services/Payments/SepPaymentService.php`, `app/Http/Controllers/Portal/HealthInteropController.php`, `app/Models/HealthExchangeMessage.php`, `bootstrap/app.php`, `bootstrap/providers.php`, `app/Http/Controllers/Portal/Concerns/HasActiveDoctor.php`, `routes/portal/portal.php`, `app/Http/Requests/Portal/StorePatientEncounterRequest.php`, `app/Http/Requests/Portal/SavePatientClinicalRecordRequest.php`, `app/Http/Requests/Portal/StorePatientFollowUpRequest.php`, `app/Http/Requests/Portal/StorePatientVitalSignRequest.php`, `app/Http/Requests/Portal/SaveManagedUserRequest.php`, `app/Http/Requests/Portal/UpdateSecretaryAssignmentsRequest.php`, `app/Services/Finance/ClinicAccountingService.php`.
-- **Not yet reviewed in the 535-file backend inventory:** 188 files. This is a count only; the remaining inventory still needs a fresh tree-based exact path list and staged review.
+- **Targeted files re-read but not counted again** because they were already in the 268 baseline: `app/Http/Controllers/Portal/PatientCarePathwayController.php`, `app/Policies/DoctorImagePolicy.php`, `app/Policies/Portal/DoctorPolicy.php`, `app/Http/Middleware/DoctorAuth.php`, `app/Http/Middleware/HandleInertiaRequests.php`, `app/Console/Commands/DispatchHealthExchangeMessages.php`, `routes/portal/patients.php`, `app/Services/HealthInterop/HealthExchangeGateway.php`, `app/Services/HealthInterop/HealthExchangeOutbox.php`, `app/Services/Payments/SepPaymentService.php`, `app/Http/Controllers/Portal/HealthInteropController.php`, `app/Models/HealthExchangeMessage.php`, `bootstrap/app.php`, `bootstrap/providers.php`, `app/Http/Controllers/Portal/Concerns/HasActiveDoctor.php`, `routes/portal/portal.php`, `app/Http/Requests/Portal/StorePatientEncounterRequest.php`, `app/Http/Requests/Portal/SavePatientClinicalRecordRequest.php`, `app/Http/Requests/Portal/StorePatientFollowUpRequest.php`, `app/Http/Requests/Portal/StorePatientVitalSignRequest.php`, `app/Http/Requests/Portal/SaveManagedUserRequest.php`, `app/Http/Requests/Portal/UpdateSecretaryAssignmentsRequest.php`, `app/Services/Finance/ClinicAccountingService.php`.
+- **Not yet reviewed at the end of the prior pass:** 192 files. This is a count only; the remaining inventory still needs a fresh tree-based exact path list and staged review.
 - **No application code, test code, route, migration, configuration, dependency, or frontend file was changed.** Only this tracker is updated on the audit branch.
+
+## Final backend completion pass — 2026-11-19
+
+- **Source revision reviewed:** `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`.
+- **Final inventory:** recursive Git tree contains **535** files in the backend scope (`app/`, `routes/`, `database/`, `config/`, `bootstrap/`, `tests/`). The 64 test files are included in this 535, not added on top.
+- **Completed this pass:** all **192** paths that remained after the corrected deduplication pass were fetched and read in full. This includes the remaining Controllers, Actions, Models, DTOs, Requests, Repositories, Support classes, routes, configs, factories, migrations, and bootstrap files.
+- **Final status:** **535 unique files fully read; 0 remaining**. No test suite was executed in this audit; the repository CI workflow declares test commands, but this review did not run them.
+- **BUG-009 — missing automatic health-exchange dispatch.**
+  - `routes/console.php:12-34` schedules appointment expiry, appointment reminders, patient follow-up reminders, installment reminders, and collateral reminders. It does **not** schedule `health:dispatch-exchange`.
+  - `run-scheduler.php:10-14` only calls Laravel's `schedule:run`; it does not call the health dispatcher directly.
+  - `README.md:88` documents a cron invocation of Laravel `schedule:run`, which still cannot run an unscheduled command.
+  - `docs/health-interop.md:42` says to run `php artisan health:dispatch-exchange --limit=50` from a scheduled worker, but the repository contains no worker/cron/supervisor definition for that command. The GitHub quality workflow also contains no dispatch step, and the repository tree has no deployment or supervisor configuration that invokes it.
+  - **Impact:** after a health-exchange destination is enabled/configured, messages can be created in the outbox but will not be sent automatically by the repository's supplied scheduler. They remain queued unless an operator or external deployment independently configures and runs the command. **Severity: High** for the core automated interop feature; external scheduling could mitigate it, but no such configuration is present in this repository.
+- **BUG-010 — treatment item may be linked to another patient's appointment.**
+  - `ClinicOperationsController::updateTreatmentItem()` scopes the treatment item through its plan's doctor and clinic at lines 159-162.
+  - When `appointment_id` is supplied, lines 165-168 query appointments by doctor and clinic only; they do not constrain `appointments.patient_id` to `$row->plan->patient_id`.
+  - A user with the intended clinical-management permission can therefore attach patient A's treatment item to patient B's appointment in the same doctor's clinic. If the item is completed, lines 221-226 create a follow-up task for patient A while copying that mismatched appointment ID. This creates a cross-patient clinical-reference inconsistency. **Severity: Medium.** Fix: require the appointment patient to equal the treatment plan patient.
+- **BUG-011 — concurrent treatment-item inserts can exceed the treatment-plan amount.**
+  - `ClinicOperationsController::storeTreatmentItem()` calculates the current total with `$treatmentPlan->items()->sum('price')` at line 136, checks the cap at lines 137-138, then creates the new item at lines 139-145.
+  - The read/check/create sequence is not in a transaction and does not lock the parent plan. Two concurrent requests using different sequence numbers can both observe the same remaining balance and both pass, causing the sum of item prices to exceed `net_amount`.
+  - Migration `2026_11_18_220000_create_clinic_organization_operations_tables.php:91-113` defines only a non-unique index on `(treatment_plan_id, stage, sequence)`; the request-level `Rule::unique` is not a database concurrency guarantee. **Severity: Medium.** Fix: lock the plan row and recheck the sum within the same transaction; add a database unique constraint for plan/sequence if sequence must be unique.
+- **Additional controller/action/model review:** no further confirmed patient-ID bypass or final-state rollback was established in the reviewed modules. The `ClinicOperationsController` issues above are conditional on concurrent requests or mismatched appointment IDs respectively; neither has a controller-level regression test in the previously read test set.
+- **No application, test, route, migration, config, dependency, or frontend file was changed.** Only this QA tracker is updated on the audit branch.
+
+## Canonical deduplicated full-read inventory — 535 unique paths
+
+The following list is generated from the current recursive Git tree and deduplicated by exact repository path. It is the union of the earlier 343 unique full reads and the 192 newly completed files above. No file appears more than once.
+
+- `app/Actions/Auth/BuildDoctorRegistrationFormAction.php`
+- `app/Actions/Auth/LogoutAuthenticatedUserAction.php`
+- `app/Actions/Auth/RegisterDoctorAction.php`
+- `app/Actions/Auth/RegisterPublicUserAction.php`
+- `app/Actions/Auth/ResetUserPasswordAction.php`
+- `app/Actions/Auth/SendDoctorRegistrationOtpAction.php`
+- `app/Actions/Auth/SendDoctorRegistrationPasswordAction.php`
+- `app/Actions/Auth/SendPasswordResetLinkAction.php`
+- `app/Actions/Auth/UpdateAuthenticatedUserPasswordAction.php`
+- `app/Actions/Auth/VerifyDoctorRegistrationOtpAction.php`
+- `app/Actions/Home/BookAppointmentAction.php`
+- `app/Actions/Home/BuildPublicDoctorBookingPageAction.php`
+- `app/Actions/Home/BuildPublicDoctorGalleryPageAction.php`
+- `app/Actions/Home/BuildPublicDoctorReviewsPageAction.php`
+- `app/Actions/Home/BuildPublicWorkingHoursAction.php`
+- `app/Actions/Home/FindPublicDoctorBySlugAction.php`
+- `app/Actions/Home/HomeIndexAction.php`
+- `app/Actions/Home/ListActiveDoctorsAction.php`
+- `app/Actions/Home/ListPublicMedicalServicesAction.php`
+- `app/Actions/Home/ListPublicSurgicalProceduresAction.php`
+- `app/Actions/Home/ShowDoctorProfileAction.php`
+- `app/Actions/Payments/CancelFailedAppointmentAction.php`
+- `app/Actions/Payments/FindSepCallbackPaymentAction.php`
+- `app/Actions/Payments/InitiateAppointmentPaymentAction.php`
+- `app/Actions/Payments/ListPaymentsRequiringReviewAction.php`
+- `app/Actions/Payments/NormalizeSepVerificationResponseAction.php`
+- `app/Actions/Payments/ProcessLocalSepPaymentCallbackAction.php`
+- `app/Actions/Payments/ProcessLocalSepPaymentTestAction.php`
+- `app/Actions/Payments/ReconcileKnownSepPaymentAction.php`
+- `app/Actions/Payments/RecordSepCallbackFailureAction.php`
+- `app/Actions/Payments/SendPaidAppointmentConfirmationAction.php`
+- `app/Actions/Payments/ValidateAppointmentPaymentPhoneAction.php`
+- `app/Actions/Payments/ValidateSepCallbackTerminalAction.php`
+- `app/Actions/Payments/VerifyAndSettleSepPaymentAction.php`
+- `app/Actions/Portal/Appointment/BuildPatientIndexOptionsAction.php`
+- `app/Actions/Portal/Appointment/CreatePortalAppointmentAction.php`
+- `app/Actions/Portal/Appointment/EnsureSecretaryCanBookClinicAction.php`
+- `app/Actions/Portal/Appointment/ExportPortalAppointmentsAction.php`
+- `app/Actions/Portal/Appointment/ListAvailableDatesAction.php`
+- `app/Actions/Portal/Appointment/ListAvailableSlotsAction.php`
+- `app/Actions/Portal/Appointment/ListPortalAppointmentsAction.php`
+- `app/Actions/Portal/Appointment/LoadPortalAppointmentDetailsAction.php`
+- `app/Actions/Portal/Appointment/UpdateAppointmentDescriptionAction.php`
+- `app/Actions/Portal/Appointment/UpdateAppointmentStatusAction.php`
+- `app/Actions/Portal/Auth/AuthenticatePortalUserAction.php`
+- `app/Actions/Portal/Auth/LogoutPortalUserAction.php`
+- `app/Actions/Portal/Clinic/DeleteClinicAction.php`
+- `app/Actions/Portal/Clinic/EnsureDoctorOwnsActiveClinicAction.php`
+- `app/Actions/Portal/Clinic/ListClinicsAction.php`
+- `app/Actions/Portal/Clinic/StoreClinicAction.php`
+- `app/Actions/Portal/Clinic/UpdateClinicAction.php`
+- `app/Actions/Portal/Dashboard/BuildDashboardAction.php`
+- `app/Actions/Portal/Dashboard/BuildDoctorSelectionOptionsAction.php`
+- `app/Actions/Portal/Dashboard/ResolveActiveDoctorAction.php`
+- `app/Actions/Portal/Dashboard/SelectActiveDoctorAction.php`
+- `app/Actions/Portal/DoctorProfile/ChangeDoctorPasswordAction.php`
+- `app/Actions/Portal/DoctorReviews/BuildDoctorReviewStatisticsAction.php`
+- `app/Actions/Portal/DoctorReviews/ListDoctorReviewsAction.php`
+- `app/Actions/Portal/DoctorReviews/ReplyDoctorReviewAction.php`
+- `app/Actions/Portal/DoctorReviews/ToggleDoctorReviewAction.php`
+- `app/Actions/Portal/Fees/ListFeesAction.php`
+- `app/Actions/Portal/Fees/UpdateFeeAction.php`
+- `app/Actions/Portal/Fees/UpdateUnpaidAppointmentsFeeAction.php`
+- `app/Actions/Portal/Gallery/DeleteGalleryImageAction.php`
+- `app/Actions/Portal/Gallery/ListGalleryImagesAction.php`
+- `app/Actions/Portal/Gallery/StoreGalleryImagesAction.php`
+- `app/Actions/Portal/Gallery/UpdateGalleryImageAction.php`
+- `app/Actions/Portal/Patient/ArchivePatientClinicalRecordAction.php`
+- `app/Actions/Portal/Patient/BackfillPatientsFromAppointmentsAction.php`
+- `app/Actions/Portal/Patient/CreatePatientEncounterAction.php`
+- `app/Actions/Portal/Patient/CreatePatientFollowUpAction.php`
+- `app/Actions/Portal/Patient/ListPortalPatientsAction.php`
+- `app/Actions/Portal/Patient/LoadPortalPatientRecordAction.php`
+- `app/Actions/Portal/Patient/RecordPatientVitalSignAction.php`
+- `app/Actions/Portal/Patient/ResolveOrCreatePatientAction.php`
+- `app/Actions/Portal/Patient/RestorePatientClinicalRecordAction.php`
+- `app/Actions/Portal/Patient/SavePatientClinicalRecordAction.php`
+- `app/Actions/Portal/Patient/SignPatientEncounterAction.php`
+- `app/Actions/Portal/Patient/UpdatePatientEncounterAction.php`
+- `app/Actions/Portal/PostCommentIndexAction.php`
+- `app/Actions/Portal/Profile/DeleteProfileAction.php`
+- `app/Actions/Portal/Profile/UpdateProfileAction.php`
+- `app/Actions/Portal/Shifts/CreateTimeSlotAction.php`
+- `app/Actions/Portal/Shifts/DeleteTimeSlotAction.php`
+- `app/Actions/Portal/Shifts/GenerateSlotsForAllDoctorsAction.php`
+- `app/Actions/Portal/Shifts/GenerateTimeSlotsAction.php`
+- `app/Actions/Portal/Shifts/ListTimeSlotsAction.php`
+- `app/Actions/Portal/Shifts/ToggleTimeSlotAction.php`
+- `app/Actions/Portal/Shifts/UpdateTimeSlotAction.php`
+- `app/Actions/Portal/Users/BuildManagedUserAssignmentsPageAction.php`
+- `app/Actions/Portal/Users/BuildManagedUserCreatePageAction.php`
+- `app/Actions/Portal/Users/BuildManagedUserEditPageAction.php`
+- `app/Actions/Portal/Users/BuildManagedUsersIndexPageAction.php`
+- `app/Actions/Portal/Users/BuildSecretaryAssignmentsDataAction.php`
+- `app/Actions/Portal/Users/ChangeManagedUserStatusAction.php`
+- `app/Actions/Portal/Users/CreateManagedUserAction.php`
+- `app/Actions/Portal/Users/ListManagedUserPermissionsAction.php`
+- `app/Actions/Portal/Users/ListManagedUserRolesAction.php`
+- `app/Actions/Portal/Users/RestoreOrDeleteManagedUserAction.php`
+- `app/Actions/Portal/Users/UpdateManagedUserAction.php`
+- `app/Actions/Portal/Users/UpdateSecretaryAssignmentsAction.php`
+- `app/Actions/Portal/WorkingHours/BuildWorkingHourConflictMessageAction.php`
+- `app/Actions/Portal/WorkingHours/DeleteWorkingHourAction.php`
+- `app/Actions/Portal/WorkingHours/ListWorkingHoursAction.php`
+- `app/Actions/Portal/WorkingHours/SaveWorkingHourAction.php`
+- `app/Actions/Portal/WorkingHours/ToggleWorkingHourAction.php`
+- `app/Actions/Review/ApproveReviewAction.php`
+- `app/Actions/Review/DeleteReviewAction.php`
+- `app/Actions/Review/LoadDoctorReviewsAction.php`
+- `app/Actions/Review/RejectReviewAction.php`
+- `app/Actions/Review/ReplyReviewAction.php`
+- `app/Actions/Review/ReviewStatisticsAction.php`
+- `app/Actions/Review/ShowReviewsAction.php`
+- `app/Actions/Review/StoreReviewAction.php`
+- `app/Actions/Security/BuildActiveSessionsAction.php`
+- `app/Actions/Security/ListSecurityAuditLogsAction.php`
+- `app/Actions/Security/RecordSecurityAuditEventAction.php`
+- `app/Actions/Security/RevokeUserSessionAction.php`
+- `app/Actions/Sms/SendAppointmentConfirmationSmsAction.php`
+- `app/Actions/Sms/SendAppointmentReminderSmsAction.php`
+- `app/Actions/Sms/SendVisitOtpSmsAction.php`
+- `app/Actions/Surgeon/BuildSurgeonPageDataAction.php`
+- `app/Actions/Visit/ShowVisitAction.php`
+- `app/Console/Commands/BackfillPatientsFromAppointments.php`
+- `app/Console/Commands/CreateCollateralDueReminders.php`
+- `app/Console/Commands/DispatchHealthExchangeMessages.php`
+- `app/Console/Commands/ExpirePendingAppointments.php`
+- `app/Console/Commands/GenerateAppointmentSlots.php`
+- `app/Console/Commands/SendAppointmentReminders.php`
+- `app/Console/Commands/SendInstallmentReminders.php`
+- `app/Console/Commands/SendPatientFollowUpReminders.php`
+- `app/Contracts/Sms/SmsGateway.php`
+- `app/DTOs/Auth/RegisterDoctorData.php`
+- `app/DTOs/Auth/RegisterPublicUserData.php`
+- `app/DTOs/Home/BookAppointmentData.php`
+- `app/DTOs/Portal/Appointment/CreatePortalAppointmentData.php`
+- `app/DTOs/Portal/Appointment/UpdateAppointmentDescriptionData.php`
+- `app/DTOs/Portal/Profile/DeleteProfileDto.php`
+- `app/DTOs/Portal/Profile/UpdateProfileDto.php`
+- `app/DTOs/Portal/Scheduling/GenerateTimeSlotsData.php`
+- `app/DTOs/Portal/Scheduling/TimeSlotData.php`
+- `app/DTOs/Portal/Scheduling/WorkingHourData.php`
+- `app/DTOs/Review/StoreReviewData.php`
+- `app/Exceptions/CannotDeleteDoctorException.php`
+- `app/Filters/Portal/DoctorFilter.php`
+- `app/Http/Controllers/AppointmentPaymentController.php`
+- `app/Http/Controllers/Auth/AuthenticatedSessionController.php`
+- `app/Http/Controllers/Auth/ConfirmablePasswordController.php`
+- `app/Http/Controllers/Auth/DoctorRegistrationController.php`
+- `app/Http/Controllers/Auth/EmailVerificationNotificationController.php`
+- `app/Http/Controllers/Auth/EmailVerificationPromptController.php`
+- `app/Http/Controllers/Auth/NewPasswordController.php`
+- `app/Http/Controllers/Auth/PasswordController.php`
+- `app/Http/Controllers/Auth/PasswordResetLinkController.php`
+- `app/Http/Controllers/Auth/RegisteredUserController.php`
+- `app/Http/Controllers/Auth/VerifyEmailController.php`
+- `app/Http/Controllers/Controller.php`
+- `app/Http/Controllers/HomeController.php`
+- `app/Http/Controllers/HomePage/Home1Controller.php`
+- `app/Http/Controllers/PatientHealthController.php`
+- `app/Http/Controllers/PatientMedicationController.php`
+- `app/Http/Controllers/Portal/AppointmentController.php`
+- `app/Http/Controllers/Portal/AuthController.php`
+- `app/Http/Controllers/Portal/ClinicalRiskRadarController.php`
+- `app/Http/Controllers/Portal/ClinicBrainController.php`
+- `app/Http/Controllers/Portal/ClinicCashFlowController.php`
+- `app/Http/Controllers/Portal/ClinicController.php`
+- `app/Http/Controllers/Portal/ClinicFinanceController.php`
+- `app/Http/Controllers/Portal/ClinicGrowthController.php`
+- `app/Http/Controllers/Portal/ClinicIntelligenceController.php`
+- `app/Http/Controllers/Portal/ClinicMarketingController.php`
+- `app/Http/Controllers/Portal/ClinicOperationsController.php`
+- `app/Http/Controllers/Portal/ClinicOrganizationController.php`
+- `app/Http/Controllers/Portal/ClinicPerformanceController.php`
+- `app/Http/Controllers/Portal/ClinicProfessionalPartnershipController.php`
+- `app/Http/Controllers/Portal/ClinicRevenueOptimizerController.php`
+- `app/Http/Controllers/Portal/Concerns/AuthorizesManagedUsers.php`
+- `app/Http/Controllers/Portal/Concerns/AuthorizesPortalAppointments.php`
+- `app/Http/Controllers/Portal/Concerns/AuthorizesPortalSchedules.php`
+- `app/Http/Controllers/Portal/Concerns/HasActiveDoctor.php`
+- `app/Http/Controllers/Portal/DashboardController.php`
+- `app/Http/Controllers/Portal/DoctorReviewController.php`
+- `app/Http/Controllers/Portal/FeesController.php`
+- `app/Http/Controllers/Portal/GalleryController.php`
+- `app/Http/Controllers/Portal/HealthInteropController.php`
+- `app/Http/Controllers/Portal/MedicalCollaborationContractController.php`
+- `app/Http/Controllers/Portal/MedicalNetworkController.php`
+- `app/Http/Controllers/Portal/Patient360Controller.php`
+- `app/Http/Controllers/Portal/PatientAccessRequestController.php`
+- `app/Http/Controllers/Portal/PatientCarePathwayController.php`
+- `app/Http/Controllers/Portal/PatientController.php`
+- `app/Http/Controllers/Portal/PatientEncounterController.php`
+- `app/Http/Controllers/Portal/PatientFollowUpController.php`
+- `app/Http/Controllers/Portal/PatientRetentionController.php`
+- `app/Http/Controllers/Portal/PaymentReviewController.php`
+- `app/Http/Controllers/Portal/PredictivePatientController.php`
+- `app/Http/Controllers/Portal/ProcurementController.php`
+- `app/Http/Controllers/Portal/SecurityAuditController.php`
+- `app/Http/Controllers/Portal/SecuritySessionsController.php`
+- `app/Http/Controllers/Portal/ShiftController.php`
+- `app/Http/Controllers/Portal/StaffAttendanceController.php`
+- `app/Http/Controllers/Portal/StaffManagementController.php`
+- `app/Http/Controllers/Portal/StaffObligationController.php`
+- `app/Http/Controllers/Portal/UsersController.php`
+- `app/Http/Controllers/Portal/WorkingHourController.php`
+- `app/Http/Controllers/ProfileController.php`
+- `app/Http/Controllers/ReviewController.php`
+- `app/Http/Controllers/SmsController.php`
+- `app/Http/Controllers/SurgeonController.php`
+- `app/Http/Controllers/VisitController.php`
+- `app/Http/Middleware/DoctorAuth.php`
+- `app/Http/Middleware/HandleInertiaRequests.php`
+- `app/Http/Requests/Auth/ConfirmPasswordRequest.php`
+- `app/Http/Requests/Auth/LoginRequest.php`
+- `app/Http/Requests/Auth/RegisterPublicUserRequest.php`
+- `app/Http/Requests/Auth/SendDoctorRegistrationOtpRequest.php`
+- `app/Http/Requests/Auth/SendPasswordResetLinkRequest.php`
+- `app/Http/Requests/Auth/StoreDoctorRegistrationRequest.php`
+- `app/Http/Requests/Auth/StoreNewPasswordRequest.php`
+- `app/Http/Requests/Auth/UpdateAuthenticatedPasswordRequest.php`
+- `app/Http/Requests/Auth/VerifyDoctorRegistrationOtpRequest.php`
+- `app/Http/Requests/BookAppointmentRequest.php`
+- `app/Http/Requests/Portal/AvailableClinicRequest.php`
+- `app/Http/Requests/Portal/AvailableSlotsRequest.php`
+- `app/Http/Requests/Portal/ClinicRequest.php`
+- `app/Http/Requests/Portal/GenerateTimeSlotsRequest.php`
+- `app/Http/Requests/Portal/ListDoctorReviewsRequest.php`
+- `app/Http/Requests/Portal/ListPaymentReviewRequest.php`
+- `app/Http/Requests/Portal/ListPortalAppointmentsRequest.php`
+- `app/Http/Requests/Portal/ListSecurityAuditLogsRequest.php`
+- `app/Http/Requests/Portal/ListTimeSlotsRequest.php`
+- `app/Http/Requests/Portal/ListWorkingHoursRequest.php`
+- `app/Http/Requests/Portal/PortalLoginRequest.php`
+- `app/Http/Requests/Portal/ReplyDoctorReviewRequest.php`
+- `app/Http/Requests/Portal/SaveManagedUserRequest.php`
+- `app/Http/Requests/Portal/SavePatientClinicalRecordRequest.php`
+- `app/Http/Requests/Portal/SaveWorkingHourRequest.php`
+- `app/Http/Requests/Portal/StoreGalleryImagesRequest.php`
+- `app/Http/Requests/Portal/StorePatientEncounterRequest.php`
+- `app/Http/Requests/Portal/StorePatientFollowUpRequest.php`
+- `app/Http/Requests/Portal/StorePatientVitalSignRequest.php`
+- `app/Http/Requests/Portal/StorePortalAppointmentRequest.php`
+- `app/Http/Requests/Portal/StorePostRequest.php`
+- `app/Http/Requests/Portal/StoreTimeSlotRequest.php`
+- `app/Http/Requests/Portal/UpdateAppointmentDescriptionRequest.php`
+- `app/Http/Requests/Portal/UpdateAppointmentStatusRequest.php`
+- `app/Http/Requests/Portal/UpdateFeeRequest.php`
+- `app/Http/Requests/Portal/UpdateGalleryImageRequest.php`
+- `app/Http/Requests/Portal/UpdateManagedUserStatusRequest.php`
+- `app/Http/Requests/Portal/UpdateSecretaryAssignmentsRequest.php`
+- `app/Http/Requests/Portal/UpdateTimeSlotRequest.php`
+- `app/Http/Requests/Profile/DeleteProfileRequest.php`
+- `app/Http/Requests/Profile/UpdateProfilePasswordRequest.php`
+- `app/Http/Requests/Profile/UpdateProfileRequest.php`
+- `app/Http/Requests/ProfileUpdateRequest.php`
+- `app/Http/Requests/ReplyReviewRequest.php`
+- `app/Http/Requests/StoreCommentRequest.php`
+- `app/Http/Requests/StoreReviewRequest.php`
+- `app/Http/Resources/PostResource.php`
+- `app/Mappers/Portal/DoctorMapper.php`
+- `app/Models/Address.php`
+- `app/Models/Appointment.php`
+- `app/Models/AppointmentPayment.php`
+- `app/Models/City.php`
+- `app/Models/ClinicBrainWaitlistEntry.php`
+- `app/Models/ClinicExpense.php`
+- `app/Models/ClinicFinancialAccount.php`
+- `app/Models/ClinicInventoryItem.php`
+- `app/Models/ClinicInventoryMovement.php`
+- `app/Models/ClinicJournalEntry.php`
+- `app/Models/ClinicJournalLine.php`
+- `app/Models/ClinicOrganization.php`
+- `app/Models/ClinicProfessionalDue.php`
+- `app/Models/ClinicProfessionalPartnership.php`
+- `app/Models/ClinicProfessionalSession.php`
+- `app/Models/ClinicService.php`
+- `app/Models/ClinicServiceInventoryRequirement.php`
+- `app/Models/ClinicStaffContract.php`
+- `app/Models/ClinicStaffPayroll.php`
+- `app/Models/Contact.php`
+- `app/Models/Doctor.php`
+- `app/Models/DoctorImage.php`
+- `app/Models/DoctorSettlement.php`
+- `app/Models/DoctorSocial.php`
+- `app/Models/DoctorWorkingHour.php`
+- `app/Models/Fee.php`
+- `app/Models/HealthExchangeMessage.php`
+- `app/Models/HonorBadge.php`
+- `app/Models/MedicalCollaborationContract.php`
+- `app/Models/MedicalNetworkProvider.php`
+- `app/Models/MedicalReferral.php`
+- `app/Models/MedicalReferralEvent.php`
+- `app/Models/MedicalReferralSettlement.php`
+- `app/Models/MedicalService.php`
+- `app/Models/Menu.php`
+- `app/Models/Patient.php`
+- `app/Models/PatientAccessRequest.php`
+- `app/Models/PatientAccountAccess.php`
+- `app/Models/PatientCarePathway.php`
+- `app/Models/PatientCarePathwayStep.php`
+- `app/Models/PatientClinicalRecord.php`
+- `app/Models/PatientCollateral.php`
+- `app/Models/PatientDentalChartEntry.php`
+- `app/Models/PatientEncounter.php`
+- `app/Models/PatientEncounterPrescription.php`
+- `app/Models/PatientFollowUpTask.php`
+- `app/Models/PatientFollowUpTemplate.php`
+- `app/Models/PatientHealthObservation.php`
+- `app/Models/PatientInstallmentPayment.php`
+- `app/Models/PatientInsuranceVerification.php`
+- `app/Models/PatientMedicationDose.php`
+- `app/Models/PatientMedicationPlan.php`
+- `app/Models/PatientTreatmentInstallment.php`
+- `app/Models/PatientTreatmentItem.php`
+- `app/Models/PatientTreatmentPlan.php`
+- `app/Models/PatientVitalSign.php`
+- `app/Models/Review.php`
+- `app/Models/SecurityAuditLog.php`
+- `app/Models/SmsLog.php`
+- `app/Models/SocialPlatform.php`
+- `app/Models/Specialty.php`
+- `app/Models/SurgeryType.php`
+- `app/Models/SurgicalProcedure.php`
+- `app/Models/Testimonial.php`
+- `app/Models/TimeSlot.php`
+- `app/Models/User.php`
+- `app/Models/VisitReason.php`
+- `app/Observers/AppointmentAuditObserver.php`
+- `app/Observers/PatientAuditObserver.php`
+- `app/Observers/PatientClinicalRecordObserver.php`
+- `app/Policies/DoctorImagePolicy.php`
+- `app/Policies/Portal/DoctorPolicy.php`
+- `app/Providers/AppServiceProvider.php`
+- `app/Providers/AuthServiceProvider.php`
+- `app/Providers/RepositoryServiceProvider.php`
+- `app/Repositories/Contracts/DoctorRepositoryInterface.php`
+- `app/Repositories/Eloquent/DoctorRepository.php`
+- `app/Services/AppointmentSlotGenerator.php`
+- `app/Services/ClinicalDecisionSupport.php`
+- `app/Services/ClinicalRiskRadar.php`
+- `app/Services/ClinicBrain/ClinicBrainAnalyzer.php`
+- `app/Services/ClinicBrain/WaitlistOfferEligibility.php`
+- `app/Services/ClinicIntelligence/InventoryDemandForecaster.php`
+- `app/Services/ClinicProfessionalSettlementCalculator.php`
+- `app/Services/Finance/ClinicAccountingService.php`
+- `app/Services/Finance/ClinicCashFlowForecastService.php`
+- `app/Services/Finance/ClinicRevenueOptimizer.php`
+- `app/Services/Growth/ClinicGrowthEngine.php`
+- `app/Services/HealthInterop/HealthExchangeGateway.php`
+- `app/Services/HealthInterop/HealthExchangeOutbox.php`
+- `app/Services/HealthInterop/IranianNationalCode.php`
+- `app/Services/LoginOtp.php`
+- `app/Services/MedicalReferralSettlementGenerator.php`
+- `app/Services/MedicalReferralWorkflow.php`
+- `app/Services/PatientCarePathwayProgress.php`
+- `app/Services/PatientHealthIntelligence.php`
+- `app/Services/PatientRetention/RetentionSegment.php`
+- `app/Services/Payments/SepPaymentService.php`
+- `app/Services/PredictivePatientEngine.php`
+- `app/Services/ProfileService.php`
+- `app/Services/ReferralCollaborationOpportunityFinder.php`
+- `app/Services/ReferralNetworkIntelligence.php`
+- `app/Services/Sms/GhasedakSmsGateway.php`
+- `app/Support/Finance/CashFlowForecastCalculator.php`
+- `app/Support/StaffAttendanceCalculator.php`
+- `app/Support/StaffObligationCalculator.php`
+- `app/Support/StaffPayrollCalculator.php`
+- `bootstrap/app.php`
+- `bootstrap/app.tmp`
+- `bootstrap/cache/.gitignore`
+- `bootstrap/providers.php`
+- `config/app.php`
+- `config/auth.php`
+- `config/cache.php`
+- `config/database.php`
+- `config/filesystems.php`
+- `config/health_interop.php`
+- `config/logging.php`
+- `config/mail.php`
+- `config/queue.php`
+- `config/services.php`
+- `config/session.php`
+- `database/.gitignore`
+- `database/factories/AppointmentFactory.php`
+- `database/factories/ContactFactory.php`
+- `database/factories/DoctorFactory.php`
+- `database/factories/HonorBadgeFactory.php`
+- `database/factories/SpecialtyFactory.php`
+- `database/factories/TestimonialFactory.php`
+- `database/factories/UserFactory.php`
+- `database/migrations/2026_11_15_000000_create_core_identity_and_scheduling_tables.php`
+- `database/migrations/2026_11_15_010000_create_doctor_content_tables.php`
+- `database/migrations/2026_11_16_120000_add_clinic_ids_to_doctor_user_table.php`
+- `database/migrations/2026_11_16_230000_create_sms_logs_table.php`
+- `database/migrations/2026_11_16_235000_create_security_audit_logs_table.php`
+- `database/migrations/2026_11_17_080000_create_sessions_table.php`
+- `database/migrations/2026_11_17_090000_add_unique_gateway_reference_to_appointment_payments.php`
+- `database/migrations/2026_11_17_100000_create_cache_tables.php`
+- `database/migrations/2026_11_17_110000_create_queue_tables.php`
+- `database/migrations/2026_11_17_120000_create_auth_support_tables.php`
+- `database/migrations/2026_11_17_130000_create_permission_tables.php`
+- `database/migrations/2026_11_17_140000_create_patients_table_and_link_appointments.php`
+- `database/migrations/2026_11_17_180000_create_patient_clinical_records_table.php`
+- `database/migrations/2026_11_18_090000_create_patient_vital_signs_table.php`
+- `database/migrations/2026_11_18_160000_add_related_record_to_patient_clinical_records.php`
+- `database/migrations/2026_11_18_170000_add_related_allergy_record_to_patient_clinical_records.php`
+- `database/migrations/2026_11_18_180000_add_structured_details_to_patient_clinical_records.php`
+- `database/migrations/2026_11_18_190000_create_patient_follow_up_tables.php`
+- `database/migrations/2026_11_18_200000_create_patient_encounters_tables.php`
+- `database/migrations/2026_11_18_210000_create_clinic_finance_and_treatment_plans_tables.php`
+- `database/migrations/2026_11_18_220000_create_clinic_organization_operations_tables.php`
+- `database/migrations/2026_11_18_230000_add_organization_scope_and_management_menus.php`
+- `database/migrations/2026_11_18_240000_add_organization_managed_secretary_assignments.php`
+- `database/migrations/2026_11_18_250000_link_treatment_followups_and_consent_revocation.php`
+- `database/migrations/2026_11_18_260000_create_service_inventory_requirements.php`
+- `database/migrations/2026_11_18_270000_add_collateral_reminder_fields.php`
+- `database/migrations/2026_11_18_280000_link_collateral_reminders_to_tasks.php`
+- `database/migrations/2026_11_18_290000_add_clinic_brain_menu.php`
+- `database/migrations/2026_11_18_291000_create_clinic_brain_waitlist_entries_table.php`
+- `database/migrations/2026_11_18_300000_create_clinic_intelligence_modules.php`
+- `database/migrations/2026_11_18_310000_add_last_checkup_at_to_health_memberships.php`
+- `database/migrations/2026_11_18_320000_create_clinic_marketing_growth_tables.php`
+- `database/migrations/2026_11_18_330000_create_medical_collaboration_network.php`
+- `database/migrations/2026_11_18_340000_create_patient_portal_access_tables.php`
+- `database/migrations/2026_11_18_350000_create_patient_health_observations_table.php`
+- `database/migrations/2026_11_18_360000_create_patient_medication_companion_tables.php`
+- `database/migrations/2026_11_18_370000_add_clinical_risk_radar_menu.php`
+- `database/migrations/2026_11_18_380000_add_predictive_patient_engine_menu.php`
+- `database/migrations/2026_11_18_390000_create_patient_care_pathways_tables.php`
+- `database/migrations/2026_11_18_400000_add_patient_care_pathway_menu.php`
+- `database/migrations/2026_11_18_410000_add_waitlist_offer_tracking.php`
+- `database/migrations/2026_11_18_420000_add_clinic_revenue_optimizer_menu.php`
+- `database/migrations/2026_11_18_430000_add_patient_retention_menu.php`
+- `database/migrations/2026_11_18_480000_enhance_medical_referral_workflow.php`
+- `database/migrations/2026_11_18_510000_create_medical_collaboration_contracts.php`
+- `database/migrations/2026_11_18_520000_add_clinic_growth_engine_menu.php`
+- `database/migrations/2026_11_18_530000_add_clinic_performance_menu.php`
+- `database/migrations/2026_11_19_010000_create_clinic_professional_partnerships.php`
+- `database/migrations/2026_11_19_020000_add_professional_dues_and_dual_settlement.php`
+- `database/migrations/2026_11_19_090000_create_clinic_procurement_tables.php`
+- `database/migrations/2026_11_19_100000_create_clinic_staff_attendance_tables.php`
+- `database/migrations/2026_11_19_110000_create_clinic_staff_leave_and_holiday_tables.php`
+- `database/migrations/2026_11_19_120000_create_health_interop_and_insurance_tables.php`
+- `database/migrations/2026_11_19_120000_create_staff_compensation_and_replacement_tables.php`
+- `database/migrations/2026_11_19_130000_add_staff_management_menu.php`
+- `database/migrations/2026_11_19_140000_create_staff_obligations_tables.php`
+- `database/migrations/2026_11_19_160000_add_supplier_payables_and_obligation_dates.php`
+- `database/migrations/2026_11_19_180000_add_unique_supplier_payment_reference.php`
+- `database/migrations/2026_11_19_190000_add_inventory_movement_idempotency_key.php`
+- `database/migrations/2026_11_19_200000_add_idempotency_key_to_patient_installment_payments.php`
+- `routes/appointment.php`
+- `routes/auth.php`
+- `routes/console.php`
+- `routes/doctor.php`
+- `routes/DoctorRegister.php`
+- `routes/home.php`
+- `routes/payment.php`
+- `routes/portal/clinics.php`
+- `routes/portal/doctor-reviews.php`
+- `routes/portal/Fees.php`
+- `routes/portal/gallery.php`
+- `routes/portal/patients.php`
+- `routes/portal/portal.php`
+- `routes/portal/Profile.php`
+- `routes/portal/shifts.php`
+- `routes/portal/Users.php`
+- `routes/portal/working-hours.php`
+- `routes/review.php`
+- `routes/sms.php`
+- `routes/template.php`
+- `routes/web.php`
+- `tests/Feature/Auth/AuthenticationTest.php`
+- `tests/Feature/Auth/AuthTestCase.php`
+- `tests/Feature/Auth/EmailVerificationTest.php`
+- `tests/Feature/Auth/PasswordConfirmationTest.php`
+- `tests/Feature/Auth/PasswordResetTest.php`
+- `tests/Feature/Auth/PasswordUpdateTest.php`
+- `tests/Feature/Auth/RegistrationTest.php`
+- `tests/Feature/ExampleTest.php`
+- `tests/Feature/ProfileTest.php`
+- `tests/Feature/Sms/SmsRoutesTest.php`
+- `tests/Feature/Visit/VisitDetailsSecurityTest.php`
+- `tests/TestCase.php`
+- `tests/Unit/Auth/AuthenticationConfigurationTest.php`
+- `tests/Unit/Auth/RegistrationDataTest.php`
+- `tests/Unit/Auth/UserAuthContractTest.php`
+- `tests/Unit/Database/CoreSchemaMigrationTest.php`
+- `tests/Unit/ExampleTest.php`
+- `tests/Unit/Finance/CashFlowForecastCalculatorTest.php`
+- `tests/Unit/Finance/ClinicAccountingServiceTest.php`
+- `tests/Unit/Finance/ClinicRevenueOptimizerTest.php`
+- `tests/Unit/Home/BookAppointmentActionTest.php`
+- `tests/Unit/Models/MedicalReferralTest.php`
+- `tests/Unit/Payments/CancelFailedAppointmentActionTest.php`
+- `tests/Unit/Payments/InitiateAppointmentPaymentActionTest.php`
+- `tests/Unit/Payments/PaymentValidationActionsTest.php`
+- `tests/Unit/Payments/RecordSepCallbackFailureActionTest.php`
+- `tests/Unit/Payments/VerifyAndSettleSepPaymentActionTest.php`
+- `tests/Unit/Portal/Appointment/AppointmentDataTest.php`
+- `tests/Unit/Portal/Appointment/CreatePortalAppointmentActionTest.php`
+- `tests/Unit/Portal/Appointment/UpdateAppointmentDescriptionActionTest.php`
+- `tests/Unit/Portal/ClinicBrain/ClinicBrainAnalyzerTest.php`
+- `tests/Unit/Portal/ClinicBrain/WaitlistOfferEligibilityTest.php`
+- `tests/Unit/Portal/ClinicIntelligence/InventoryDemandForecasterTest.php`
+- `tests/Unit/Portal/Fees/UpdateUnpaidAppointmentsFeeActionTest.php`
+- `tests/Unit/Portal/Patient/ArchivePatientClinicalRecordActionTest.php`
+- `tests/Unit/Portal/Patient/CreatePatientFollowUpActionTest.php`
+- `tests/Unit/Portal/Patient/ListPortalPatientsActionTest.php`
+- `tests/Unit/Portal/Patient/LoadPortalPatientRecordActionTest.php`
+- `tests/Unit/Portal/Patient/PatientEncounterWorkflowTest.php`
+- `tests/Unit/Portal/Patient/RecordPatientVitalSignActionTest.php`
+- `tests/Unit/Portal/Patient/SavePatientClinicalRecordActionTest.php`
+- `tests/Unit/Portal/Scheduling/SchedulingActionsTest.php`
+- `tests/Unit/Portal/Scheduling/SchedulingDataTest.php`
+- `tests/Unit/Portal/Scheduling/SchedulingRequestAuthorizationTest.php`
+- `tests/Unit/Portal/Users/BuildSecretaryAssignmentsDataActionTest.php`
+- `tests/Unit/Portal/Users/UpdateSecretaryAssignmentsActionTest.php`
+- `tests/Unit/Review/StoreReviewDataTest.php`
+- `tests/Unit/Services/ClinicalDecisionSupportTest.php`
+- `tests/Unit/Services/ClinicalRiskRadarTest.php`
+- `tests/Unit/Services/ClinicProfessionalSettlementCalculatorTest.php`
+- `tests/Unit/Services/Growth/ClinicGrowthEngineTest.php`
+- `tests/Unit/Services/HealthInterop/IranianNationalCodeTest.php`
+- `tests/Unit/Services/MedicalReferralWorkflowTest.php`
+- `tests/Unit/Services/PatientCarePathwayProgressTest.php`
+- `tests/Unit/Services/PatientRetention/RetentionSegmentTest.php`
+- `tests/Unit/Services/PredictivePatientEngineTest.php`
+- `tests/Unit/Services/ReferralCollaborationOpportunityFinderTest.php`
+- `tests/Unit/Services/ReferralNetworkIntelligenceTest.php`
+- `tests/Unit/Sms/GhasedakSmsGatewayTest.php`
+- `tests/Unit/Sms/LoginOtpTest.php`
+- `tests/Unit/Sms/SendVisitOtpSmsActionTest.php`
+- `tests/Unit/StaffAttendanceCalculatorTest.php`
+- `tests/Unit/StaffObligationCalculatorTest.php`
+- `tests/Unit/StaffPayrollCalculatorTest.php`
