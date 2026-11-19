@@ -34,7 +34,7 @@ final class ReferralCollaborationOpportunityFinder
 
         $demand = MedicalReferral::query()
             ->where('referring_doctor_id', $doctorId)
-            ->when($clinicIds !== null, fn ($query) => $query->whereIn('source_clinic_id', $clinicIds))
+            ->when($clinicIds !== null, fn ($query) => $query->forClinics($clinicIds))
             ->where('created_at', '>=', $from)
             ->selectRaw('service_type, COUNT(*) as demand_count')
             ->groupBy('service_type')
