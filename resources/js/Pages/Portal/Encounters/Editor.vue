@@ -43,7 +43,11 @@
         <div v-if="prescriptionReview.length" class="mt-3 space-y-2"><div v-for="(item,index) in prescriptionReview" :key="index" class="rounded-lg border border-amber-200 bg-amber-100 p-3 text-xs leading-6"><strong>{{item.title}}</strong> {{item.message}}</div></div>
         <p class="mt-3 text-[11px] leading-6 text-indigo-900">این بررسی فقط کامل‌بودن و تازگی اطلاعات را ارزیابی می‌کند؛ تشخیص، تطبیق دارو با حساسیت، تداخل دارویی یا توصیه دوز انجام نمی‌شود. نبود داده به معنی طبیعی بودن وضعیت نیست و تصمیم نهایی با پزشک است.</p>
       </section>
-      <form @submit.prevent="saveDraft" class="space-y-5">
+      <form @submit.prevent="saveDraft" class="min-w-0 space-y-5">
+        <div v-if="errors && Object.keys(errors).length" role="alert" aria-live="assertive" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm leading-7 text-rose-800">
+          <p class="font-black">ثبت اطلاعات با خطا روبه‌رو شد. موارد زیر را اصلاح کنید:</p>
+          <ul class="mt-2 list-inside list-disc"><li v-for="(message, field) in errors" :key="field">{{ message }}</li></ul>
+        </div>
         <fieldset :disabled="readonly" class="space-y-5 disabled:opacity-90">
           <section class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-base font-black text-slate-900">اطلاعات ویزیت</h2>

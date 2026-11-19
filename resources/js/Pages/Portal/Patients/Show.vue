@@ -1,9 +1,9 @@
 <template>
   <PortalLayout :doctor="doctor">
-    <div class="max-w-5xl mx-auto p-6">
+    <main dir="rtl" class="mx-auto w-full min-w-0 max-w-5xl p-3 sm:p-6">
       <!-- هدر -->
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <Link
             :href="route('portal.patients.index')"
             class="p-2 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -22,7 +22,7 @@
               />
             </svg>
           </Link>
-          <h1 class="text-2xl font-bold text-gray-900">جزئیات نوبت</h1>
+          <h1 class="break-words text-xl font-bold text-gray-900 sm:text-2xl">جزئیات نوبت</h1>
         </div>
 
         <!-- Badge وضعیت -->
@@ -588,7 +588,7 @@
           </div>
         </Transition>
       </div>
-    </div>
+    </main>
   </PortalLayout>
 </template>
 
