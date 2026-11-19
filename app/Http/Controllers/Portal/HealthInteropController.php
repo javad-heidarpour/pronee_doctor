@@ -35,7 +35,8 @@ final class HealthInteropController extends Controller
             'messages' => HealthExchangeMessage::query()->where('doctor_id', $doctor->id)->latest()->limit(100)->get(['id', 'destination', 'event_type', 'status', 'attempts', 'sent_at', 'remote_tracking_id', 'created_at']),
             'insuranceChecks' => PatientInsuranceVerification::query()->where('doctor_id', $doctor->id)->latest('id')->limit(50)->get(['id', 'patient_id', 'payer_code', 'payer_name', 'status', 'checked_at', 'created_at']),
             'destinations' => collect(['sepas', 'tamin', 'salamat'])->mapWithKeys(fn ($key) => [$key => [
-                'enabled' => (bool) config("health_interop.destinations.{$key}.enabled") && (bool) config("health_interop.destinations.{$key}.contract_approved") && filled(config("health_interop.destinations.{$key}.url")),
+                'enabled' => (bool) config("health_interop.destinations.{$key}.enabled") && (bool) config("health_interop.destinations.{$key}.contract_approved") && filled(config("health_interop.destinations.{$key}.url"))
+                    && !empty(config("health_interop.destinations.{$key}.allowed_hosts")),
             ]]),
         ]);
     }
@@ -77,7 +78,8 @@ final class HealthInteropController extends Controller
 
         $enabled = (bool) config("health_interop.destinations.{$data['payer_code']}.enabled")
             && (bool) config("health_interop.destinations.{$data['payer_code']}.contract_approved")
-            && filled(config("health_interop.destinations.{$data['payer_code']}.url"));
+            && filled(config("health_interop.destinations.{$data['payer_code']}.url"))
+            && !empty(config("health_interop.destinations.{$data['payer_code']}.allowed_hosts"));
 
         $record = PatientInsuranceVerification::query()->create([
             'doctor_id' => $doctor->id,
