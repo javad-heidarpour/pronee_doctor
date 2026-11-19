@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\\Services;
+namespace App\Services;
 
-use App\\Models\\MedicalCollaborationContract;
-use App\\Models\\MedicalReferral;
-use App\\Models\\MedicalReferralSettlement;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\MedicalCollaborationContract;
+use App\Models\MedicalReferral;
+use App\Models\MedicalReferralSettlement;
+use Illuminate\Support\Facades\DB;
 
 final class MedicalReferralSettlementGenerator
 {
@@ -44,7 +44,7 @@ final class MedicalReferralSettlementGenerator
                     continue;
                 }
 
-                MedicalReferralSettlement::query()->firstOrCreate(
+                $settlement = MedicalReferralSettlement::query()->firstOrCreate(
                     ['referral_id' => $referral->id],
                     [
                         'contract_id' => $contract->id,
@@ -52,7 +52,9 @@ final class MedicalReferralSettlementGenerator
                         'status' => 'pending',
                     ]
                 );
-                $created++;
+                if ($settlement->wasRecentlyCreated) {
+                    $created++;
+                }
             }
 
             return $created;
