@@ -10,38 +10,44 @@
 
         <form @submit.prevent="submitProfile" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField v-model="form.name" label="نام" required />
-            <FormField v-model="form.family" label="نام خانوادگی" required />
-            <FormField v-model="form.email" label="ایمیل" type="email" required />
-            <FormField v-model="form.phone" label="شماره تماس" />
-            <FormField v-model="form.specialty_title" label="تخصص" required />
+            <FormField v-model="form.name" label="نام" required :error="errors.name" />
+            <FormField v-model="form.family" label="نام خانوادگی" required :error="errors.family" />
+            <FormField v-model="form.email" label="ایمیل" type="email" required :error="errors.email" />
+            <FormField v-model="form.phone" label="شماره تماس" :error="errors.phone" />
+            <FormField v-model="form.specialty_title" label="تخصص" required :error="errors.specialty_title" />
             <FormField
               v-model="form.years_of_experience"
               label="سال‌های تجربه"
               type="number"
               required
+              :error="errors.years_of_experience"
             />
             <FormField
               v-model="form.Medical_system_number"
               label="شماره نظام پزشکی"
               required
+              :error="errors.Medical_system_number"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">کپشن (شعار)</label>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="profile-caption">کپشن (شعار)</label>
             <input
+              id="profile-caption"
               v-model="form.caption"
               type="text"
+              :aria-invalid="errors.caption ? 'true' : undefined"
               class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-bold text-gray-700 mb-2">بیوگرافی</label>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="profile-description">بیوگرافی</label>
             <textarea
+              id="profile-description"
               v-model="form.description"
               rows="5"
+              :aria-invalid="errors.description ? 'true' : undefined"
               class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500"
             ></textarea>
           </div>
@@ -53,9 +59,11 @@
               <img
                 v-if="previewImage || doctor.photo"
                 :src="previewImage || doctor.photo"
+                alt="تصویر پروفایل پزشک"
                 class="w-20 h-20 rounded-full object-cover border-2 border-teal-200"
               />
-              <input type="file" @change="handlePhoto" accept="image/*" class="text-sm" />
+              <input type="file" @change="handlePhoto" accept="image/jpeg,image/png,image/webp" aria-label="انتخاب تصویر پروفایل" class="max-w-full text-sm" />
+              <p v-if="fileError || errors.photo" class="mt-2 text-sm text-red-600" role="alert">{{ fileError || errors.photo }}</p>
             </div>
           </div>
 
@@ -98,10 +106,8 @@
               label="رمز فعلی"
               type="password"
               required
+              :error="errors.current_password"
             />
-            <p v-if="errors.current_password" class="mt-1 text-sm text-red-600">
-              {{ errors.current_password }}
-            </p>
           </div>
 
           <div>
@@ -110,10 +116,8 @@
               label="رمز جدید"
               type="password"
               required
+              :error="errors.password"
             />
-            <p v-if="errors.password" class="mt-1 text-sm text-red-600">
-              {{ errors.password }}
-            </p>
           </div>
 
           <div>
@@ -122,6 +126,7 @@
               label="تکرار رمز جدید"
               type="password"
               required
+              :error="errors.password_confirmation"
             />
           </div>
 
@@ -141,7 +146,7 @@
 <script setup>
 import PortalLayout from "@/Layouts/PortalLayout.vue";
 import FormField from "@/Components/Portal/FormField.vue";
-import { ref, computed } from "vue";
+import { ref, computed, onUnmounted } from "vue";
 import { router, usePage } from "@inertiajs/vue3";
 
 const page = usePage();
@@ -174,6 +179,14 @@ const passwordForm = ref({
 });
 
 const previewImage = ref(null);
+const fileError = ref("");
+let previewObjectUrl = null;
+
+const clearPreviewUrl = () => {
+  if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+  previewObjectUrl = null;
+};
+onUnmounted(clearPreviewUrl);
 const processing = ref(false);
 const processingPassword = ref(false);
 
@@ -181,21 +194,24 @@ const handlePhoto = (e) => {
   const file = e.target.files?.[0];
 
   if (!file) return;
+  fileError.value = "";
 
-  if (!file.type.startsWith("image/")) {
-    alert("لطفاً یک فایل تصویری انتخاب کنید.");
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    fileError.value = "فرمت تصویر باید JPG، PNG یا WebP باشد.";
     e.target.value = "";
     return;
   }
 
   if (file.size > 2 * 1024 * 1024) {
-    alert("حجم تصویر نباید بیشتر از ۲ مگابایت باشد.");
+    fileError.value = "حجم تصویر نباید بیشتر از ۲ مگابایت باشد.";
     e.target.value = "";
     return;
   }
 
+  clearPreviewUrl();
   form.value.photo = file;
-  previewImage.value = URL.createObjectURL(file);
+  previewObjectUrl = URL.createObjectURL(file);
+  previewImage.value = previewObjectUrl;
 };
 
 const submitProfile = () => {
@@ -219,6 +235,7 @@ const submitProfile = () => {
       preserveScroll: true,
 
       onSuccess: () => {
+        clearPreviewUrl();
         previewImage.value = null;
         form.value.photo = props.doctor.photo;
       },
