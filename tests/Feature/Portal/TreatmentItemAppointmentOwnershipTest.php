@@ -46,7 +46,7 @@ final class TreatmentItemAppointmentOwnershipTest extends TestCase
         Schema::create('appointments', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
-            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('patient_id')->nullable();
             $table->unsignedBigInteger('clinic_id');
             $table->string('status');
             $table->timestamps();
@@ -104,6 +104,16 @@ final class TreatmentItemAppointmentOwnershipTest extends TestCase
 
     public function test_treatment_item_cannot_be_linked_to_another_patients_appointment(): void
     {
+        $this->assertAppointmentCannotBeLinked(42);
+    }
+
+    public function test_treatment_item_cannot_be_linked_to_legacy_appointment_without_patient_id(): void
+    {
+        $this->assertAppointmentCannotBeLinked(null);
+    }
+
+    private function assertAppointmentCannotBeLinked(?int $appointmentPatientId): void
+    {
         DB::table('doctors')->insert([
             'id' => 11,
             'user_id' => 99,
@@ -118,7 +128,7 @@ final class TreatmentItemAppointmentOwnershipTest extends TestCase
         DB::table('appointments')->insert([
             'id' => 502,
             'doctor_id' => 11,
-            'patient_id' => 42,
+            'patient_id' => $appointmentPatientId,
             'clinic_id' => 31,
             'status' => 'confirmed',
             'created_at' => now(),
