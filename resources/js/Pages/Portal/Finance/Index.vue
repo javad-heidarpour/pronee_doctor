@@ -13,7 +13,7 @@ const planForm = useForm({
   clinic_id: props.clinics?.[0]?.id ?? '',
   patient_id: '', title: '', specialty_module: 'general',
   total_amount: '', discount_amount: 0, deposit_amount: 0, deposit_method: 'card', deposit_reference: '',
-  installment_count: 1, first_due_date: new Date().toISOString().slice(0, 10),
+  installment_count: 1, first_due_date: localDate(),
   clinical_notes: '', financial_terms: '', sms_reminders_enabled: false, sms_consent_confirmed: false, follow_up_sms_enabled: false, follow_up_sms_consent_confirmed: false,
 })
 const expenseForm = useForm({
@@ -22,6 +22,10 @@ const expenseForm = useForm({
   payment_method: 'transfer', reference: '', notes: '',
 })
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
+const localDate = () => {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
 const paymentModalOpen = ref(false)
 const collateralModalOpen = ref(false)
 const selectedInstallment = ref(null)
@@ -145,9 +149,9 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
           <select v-model="planForm.patient_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب بیمار</option><option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }} — {{ p.phone || 'بدون تلفن' }}</option></select>
           <input v-model="planForm.title" required placeholder="عنوان طرح؛ مثلاً درمان کامل فک" class="rounded-xl border-slate-300 text-sm" />
           <select v-model="planForm.specialty_module" class="rounded-xl border-slate-300 text-sm"><option value="general">عمومی</option><option value="dentistry">دندانپزشکی</option><option value="dermatology">پوست و زیبایی</option><option value="physiotherapy">فیزیوتراپی</option><option value="surgery">جراحی</option><option value="other">سایر</option></select>
-          <input v-model.number="planForm.total_amount" required type="number" min="1" placeholder="مبلغ کل (ریال)" class="rounded-xl border-slate-300 text-sm" />
-          <input v-model.number="planForm.discount_amount" type="number" min="0" placeholder="تخفیف (ریال)" class="rounded-xl border-slate-300 text-sm" />
-          <input v-model.number="planForm.deposit_amount" type="number" min="0" :max="netAmount" placeholder="پیش‌پرداخت (ریال)" class="rounded-xl border-slate-300 text-sm" />
+          <input v-model.number="planForm.total_amount" required type="number" min="1" inputmode="numeric" placeholder="مبلغ کل (ریال)" class="rounded-xl border-slate-300 text-sm" />
+          <input v-model.number="planForm.discount_amount" type="number" min="0" :max="planForm.total_amount || undefined" inputmode="numeric" placeholder="تخفیف (ریال)" class="rounded-xl border-slate-300 text-sm" />
+          <input v-model.number="planForm.deposit_amount" type="number" min="0" :max="netAmount" inputmode="numeric" placeholder="پیش‌پرداخت (ریال)" class="rounded-xl border-slate-300 text-sm" />
           <select v-model="planForm.deposit_method" class="rounded-xl border-slate-300 text-sm"><option value="cash">نقد</option><option value="card">کارتخوان</option><option value="transfer">انتقال بانکی</option><option value="online">آنلاین</option><option value="cheque">چک</option></select>
           <input v-model="planForm.deposit_reference" placeholder="شماره پیگیری پیش‌پرداخت (اختیاری)" class="rounded-xl border-slate-300 text-sm" />
           <input v-model.number="planForm.installment_count" type="number" min="1" max="48" required placeholder="تعداد اقساط" class="rounded-xl border-slate-300 text-sm" />
@@ -218,7 +222,7 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
           <h2 id="payment-modal-title" class="text-lg font-black text-slate-900">ثبت دریافت قسط</h2>
           <p v-if="selectedInstallment" class="mt-1 text-sm text-slate-500">مانده قسط: {{ money(Number(selectedInstallment.amount)-Number(selectedInstallment.paid_amount)) }}</p>
           <form class="mt-5 space-y-4" @submit.prevent="submitPayment">
-            <label class="block text-sm font-semibold text-slate-700">مبلغ دریافتی (ریال)<input v-model.number="paymentForm.amount" type="number" min="1" required inputmode="numeric" class="mt-1 w-full rounded-xl border-slate-300" /></label>
+            <label class="block text-sm font-semibold text-slate-700">مبلغ دریافتی (ریال)<input v-model.number="paymentForm.amount" type="number" min="1" :max="Math.max(0, Number(selectedInstallment.amount) - Number(selectedInstallment.paid_amount))" required inputmode="numeric" class="mt-1 w-full rounded-xl border-slate-300" /></label>
             <p v-if="paymentForm.errors.amount" role="alert" class="text-xs text-red-600">{{ paymentForm.errors.amount }}</p>
             <label class="block text-sm font-semibold text-slate-700">روش پرداخت<select v-model="paymentForm.method" required class="mt-1 w-full rounded-xl border-slate-300"><option value="cash">نقدی</option><option value="card">کارتخوان</option><option value="transfer">انتقال بانکی</option><option value="online">آنلاین</option><option value="cheque">چک</option></select></label>
             <p v-if="paymentForm.errors.method" role="alert" class="text-xs text-red-600">{{ paymentForm.errors.method }}</p>
