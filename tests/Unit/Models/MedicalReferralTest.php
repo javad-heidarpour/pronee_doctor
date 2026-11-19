@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Models;
+namespace Tests\Unit\Models;
 
-use App\\Models\\MedicalCollaborationContract;
-use App\\Models\\MedicalReferral;
-use Illuminate\\Database\\Eloquent\\Relations\\HasMany;
-use Illuminate\\Database\\Eloquent\\Relations\\HasOne;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
-use Tests\\TestCase;
+use App\Models\MedicalCollaborationContract;
+use App\Models\MedicalReferral;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 final class MedicalReferralTest extends TestCase
 {
