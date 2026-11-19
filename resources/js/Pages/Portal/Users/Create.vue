@@ -64,20 +64,20 @@ const submit = () => {
       <div
         class="relative overflow-hidden bg-gradient-to-l from-slate-950 via-slate-900 to-teal-950"
       >
-        <div class="flex gap-2 text-xs text-slate-400 py-6 px-2">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-slate-400 sm:px-6">
           <div class="flex items-center gap-2">
-            <h3 class="text-white m-5 pl-20">ایجاد کاربر جدید</h3>
+            <h3 class="m-0 text-base font-bold text-white sm:text-lg">ایجاد کاربر جدید</h3>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-teal-400">01</span>
+          <div class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+            <span class="text-teal-400">۰۱</span>
             اطلاعات کاربر
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-teal-400">02</span>
+          <div class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+            <span class="text-teal-400">۰۲</span>
             سطح دسترسی
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-teal-400">03</span>
+          <div class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+            <span class="text-teal-400">۰۳</span>
             ایجاد حساب
           </div>
           <div>
