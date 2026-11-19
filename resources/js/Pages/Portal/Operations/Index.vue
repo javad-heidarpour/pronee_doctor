@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import { router, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
@@ -27,9 +28,12 @@ const saveItem = () => itemForm.transform(data => ({...data, price: Number(data.
 const updateItem = (item, stage) => router.put(route('portal.operations.treatment-items.update', item.id), { stage, clinical_notes: item.clinical_notes || '' })
 const saveDental = () => dentalForm.post(route('portal.operations.dental-chart.store'), { onSuccess: () => dentalForm.reset('tooth_number','surface','notes') })
 const saveStock = () => stockForm.post(route('portal.operations.inventory.store'), { onSuccess: () => stockForm.reset('name','sku','opening_quantity','unit_cost') })
-const moveStock = item => { const type = window.prompt('نوع گردش: purchase / use / return / adjustment_in / adjustment_out', 'purchase'); if (!type) return; const quantity = window.prompt('مقدار', '1'); if (!quantity) return; const unit_cost = type === 'purchase' ? window.prompt('بهای واحد به ریال', String(item.average_unit_cost || 0)) : null; router.post(route('portal.operations.inventory.movements.store', item.id), { movement_type: type, quantity: Number(quantity), unit_cost: unit_cost === null ? null : Number(unit_cost) }) }
+const actionDialog=reactive({open:false,title:'',description:'',fields:[],errors:{},processing:false,submit:null})
+const closeAction=()=>{if(!actionDialog.processing)actionDialog.open=false}
+const submitAction=values=>{if(typeof actionDialog.submit!=='function')return;actionDialog.processing=true;actionDialog.submit(values,{preserveScroll:true,onSuccess:()=>{actionDialog.open=false;actionDialog.errors={}},onError:errors=>{actionDialog.errors=errors||{}},onFinish:()=>{actionDialog.processing=false}})}
+const moveStock=item=>Object.assign(actionDialog,{open:true,title:'ثبت گردش انبار',description:'نوع گردش و مقدار را وارد کنید.',errors:{},processing:false,fields:[{key:'movement_type',label:'نوع گردش',type:'select',required:true,value:'purchase',options:[{value:'purchase',label:'خرید'},{value:'use',label:'مصرف'},{value:'return',label:'مرجوعی'},{value:'adjustment_in',label:'اصلاح افزایشی'},{value:'adjustment_out',label:'اصلاح کاهشی'}]},{key:'quantity',label:'مقدار',type:'number',min:0.001,step:0.001,required:true,value:1},{key:'unit_cost',label:'بهای واحد (ریال، برای خرید)',type:'number',min:0,value:Number(item.average_unit_cost||0)}],submit:(v,cb)=>router.post(route('portal.operations.inventory.movements.store',item.id),{movement_type:v.movement_type,quantity:Number(v.quantity),unit_cost:v.movement_type==='purchase'?Number(v.unit_cost||0):null},cb)})
 const createSettlement = () => settlementForm.post(route('portal.operations.settlements.store'))
-const payOrganizationRecord = (routeName, id) => { const payment_method = window.prompt('روش پرداخت: cash / card / transfer / online / cheque', 'transfer'); if (!payment_method) return; const payment_reference = window.prompt('شماره پیگیری پرداخت (اختیاری)', '') || ''; router.post(route(routeName, id), { payment_method, payment_reference }) }
+const payOrganizationRecord=(routeName,id)=>Object.assign(actionDialog,{open:true,title:'ثبت پرداخت سازمان',description:'روش پرداخت و شماره پیگیری را وارد کنید.',errors:{},processing:false,fields:[{key:'payment_method',label:'روش پرداخت',type:'select',required:true,value:'transfer',options:[{value:'cash',label:'نقدی'},{value:'card',label:'کارتخوان'},{value:'transfer',label:'انتقال بانکی'},{value:'online',label:'آنلاین'},{value:'cheque',label:'چک'}]},{key:'payment_reference',label:'شماره پیگیری پرداخت',maxlength:120}],submit:(v,cb)=>router.post(route(routeName,id),{payment_method:v.payment_method,payment_reference:v.payment_reference||''},cb)})
 const payrollForm = useForm({ organization_id: props.payrollOrganizations?.[0]?.id ?? '', clinic_id: '', staff_user_id: '', period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10), period_end: new Date().toISOString().slice(0,10), gross_amount: 0, deduction_amount: 0, notes: '' })
 const savePayroll = () => payrollForm.post(route('portal.operations.payrolls.store'))
 const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled:'زمان‌بندی‌شده', in_progress:'در حال انجام', completed:'انجام‌شده', cancelled:'لغوشده'})[s] || s
@@ -154,5 +158,6 @@ const statusLabel = s => ({planned:'برنامه‌ریزی‌شده', scheduled
         <div class="mt-4 space-y-2"><div v-for="s in settlements" :key="s.id" class="flex flex-wrap justify-between gap-2 rounded-lg border p-3 text-sm"><div><b>{{ s.period_start }} تا {{ s.period_end }}</b><p class="text-xs text-slate-500">ناخالص {{ money(s.gross_amount) }} · سهم کلینیک {{ money(s.clinic_share_amount) }} · سهم پزشک {{ money(s.net_amount) }} · {{ s.status }}</p></div><div class="flex gap-2"><button v-if="s.status==='draft'" @click="router.post(route('portal.operations.settlements.approve',s.id))" class="rounded-lg border px-2 py-1 text-xs">تأیید</button><button v-if="s.status==='approved'" @click="payOrganizationRecord('portal.operations.settlements.pay',s.id)" class="rounded-lg bg-slate-900 px-2 py-1 text-xs text-white">ثبت پرداخت</button></div></div></div>
       </section>
     </main>
+    <ActionDialog :open="actionDialog.open" :title="actionDialog.title" :description="actionDialog.description" :fields="actionDialog.fields" :errors="actionDialog.errors" :processing="actionDialog.processing" @close="closeAction" @submit="submitAction" />
   </PortalLayout>
 </template>

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive } from 'vue'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import { router, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
@@ -16,24 +17,21 @@ const chooseProvider = provider => { referralForm.target_provider_id = provider.
 const submitFilters = () => router.get(route('portal.medical-network.index'), filter, { preserveState: true, preserveScroll: true })
 const submitProvider = () => providerForm.transform(data => ({ ...data, specialties: data.specialties.split(/[,،]/).map(x => x.trim()).filter(Boolean), services: data.services.split(/[,،]/).map(x => x.trim()).filter(Boolean) })).post(route('portal.medical-network.providers.store'), { onSuccess: () => providerForm.reset() })
 const submitReferral = () => referralForm.post(route('portal.medical-network.referrals.store'), { onSuccess: () => referralForm.reset() })
+const actionDialog = reactive({ open:false,title:'',description:'',fields:[],errors:{},processing:false,submit:null })
+const closeAction = () => { if (!actionDialog.processing) actionDialog.open = false }
+const submitAction = values => {
+  if (typeof actionDialog.submit !== 'function') return
+  actionDialog.processing = true
+  actionDialog.submit(values, { preserveScroll:true, onSuccess:()=>{actionDialog.open=false;actionDialog.errors={}}, onError:errors=>{actionDialog.errors=errors||{}}, onFinish:()=>{actionDialog.processing=false} })
+}
 const updateReferral = (item, status) => {
   const payload = { status }
-  if (status === 'scheduled') {
-    const value = window.prompt('زمان مراجعه را با قالب YYYY-MM-DD HH:mm وارد کنید:')
-    if (!value) return
-    payload.scheduled_at = value
-  }
-  if (status === 'rejected') {
-    const value = window.prompt('علت عدم پذیرش ارجاع را وارد کنید:')
-    if (!value?.trim()) return
-    payload.provider_response = value
-  }
-  if (status === 'completed') {
-    const value = window.prompt('خلاصه نتیجه خدمت را وارد کنید:')
-    if (!value?.trim()) return
-    payload.result_summary = value
-  }
-  router.patch(route('portal.medical-network.referrals.update', item.id), payload, { preserveScroll: true })
+  const fields = []
+  if (status === 'scheduled') fields.push({key:'scheduled_at',label:'زمان مراجعه',type:'datetime-local',required:true})
+  if (status === 'rejected') fields.push({key:'provider_response',label:'علت عدم پذیرش ارجاع',type:'textarea',required:true,maxlength:2000})
+  if (status === 'completed') fields.push({key:'result_summary',label:'خلاصه نتیجه خدمت',type:'textarea',required:true,maxlength:4000})
+  if (!fields.length) { router.patch(route('portal.medical-network.referrals.update', item.id), payload, { preserveScroll:true }); return }
+  Object.assign(actionDialog,{open:true,title:status==='scheduled'?'زمان‌بندی ارجاع':status==='rejected'?'ثبت علت عدم پذیرش':'ثبت نتیجه خدمت',description:'اطلاعات زیر در سابقه ارجاع ثبت می‌شود.',fields,errors:{},processing:false,submit:(values,callbacks)=>router.patch(route('portal.medical-network.referrals.update',item.id),{...payload,...values},callbacks)})
 }
 const canRespond = item => ['sent','accepted','scheduled','in_progress'].includes(item.status)
 const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepted','scheduled','in_progress'].includes(x.status)).length)
@@ -162,5 +160,6 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
       </section>
       <p class="rounded-xl bg-slate-100 p-3 text-xs leading-6 text-slate-600">توجه: پروفایل مراکز جدید پس از بررسی مدیر شبکه فعال می‌شود. ارجاع پزشکی جایگزین تماس در شرایط اورژانسی نیست. برای استفاده عملیاتی باید رضایت بیمار و سیاست‌های محرمانگی و دسترسی مرکز رعایت شود.</p>
     </main>
+    <ActionDialog :open="actionDialog.open" :title="actionDialog.title" :description="actionDialog.description" :fields="actionDialog.fields" :errors="actionDialog.errors" :processing="actionDialog.processing" @close="closeAction" @submit="submitAction" />
   </PortalLayout>
 </template>
