@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -30,6 +31,11 @@ class MedicalReferral extends Model
     public function referringDoctor(): BelongsTo { return $this->belongsTo(Doctor::class, 'referring_doctor_id'); }
     public function sourceClinic(): BelongsTo { return $this->belongsTo(Address::class, 'source_clinic_id'); }
     public function targetProvider(): BelongsTo { return $this->belongsTo(MedicalNetworkProvider::class, 'target_provider_id'); }
+
+    public function scopeForClinics(Builder $query, array $clinicIds): Builder
+    {
+        return $query->whereIn('source_clinic_id', $clinicIds);
+    }
     public function events(): HasMany { return $this->hasMany(MedicalReferralEvent::class); }
     public function settlement(): HasOne { return $this->hasOne(MedicalReferralSettlement::class, 'referral_id'); }
 }
