@@ -19,8 +19,30 @@ final class HealthExchangeGateway
             throw new RuntimeException("اتصال مقصد {$destination} پیکربندی یا فعال نشده است.");
         }
 
+        // نشانی مقصد از تنظیمات سرور می‌آید، اما همچنان باید در فهرست میزبان‌های
+        // مورد تأیید باشد؛ این کنترل از ارسال داده سلامت به مقصد اشتباه یا داخلی جلوگیری می‌کند.
+        $url = (string) $config['url'];
+        $parsedUrl = parse_url($url);
+        $host = strtolower(rtrim((string) ($parsedUrl['host'] ?? ''), '.'));
+        $allowedHosts = array_map(
+            static fn ($value) => strtolower(rtrim(trim((string) $value), '.')),
+            (array) ($config['allowed_hosts'] ?? [])
+        );
+
+        if (
+            ($parsedUrl['scheme'] ?? null) !== 'https' ||
+            $host === '' ||
+            isset($parsedUrl['user']) ||
+            isset($parsedUrl['pass']) ||
+            ! in_array($host, $allowedHosts, true)
+        ) {
+            throw new RuntimeException('نشانی مقصد تبادل سلامت امن یا در فهرست میزبان‌های مجاز نیست.');
+        }
+
+        // تغییر مسیر HTTP را می‌بندیم تا مقصد مجاز نتواند درخواست را به میزبان دیگری هدایت کند.
         $token = $config['token'] ?? null;
         $request = Http::acceptJson()->asJson()
+            ->withOptions(['allow_redirects' => false, 'verify' => true])
             ->connectTimeout((int) ($config['connect_timeout'] ?? 5))
             ->timeout((int) ($config['timeout'] ?? 20));
 
@@ -31,7 +53,7 @@ final class HealthExchangeGateway
             $request = $request->withHeaders($config['headers']);
         }
 
-        $response = $request->post($config['url'], [
+        $response = $request->post($url, [
             'message_id' => $message->idempotency_key,
             'event_type' => $message->event_type,
             'payload' => $message->payload,
