@@ -311,14 +311,12 @@ class ClinicOperationsController extends Controller
             'movement_type' => ['required', Rule::in(['purchase','use','return','adjustment_in','adjustment_out'])],
             // مقدار با دقت سه رقم اعشار ذخیره می‌شود؛ اعشار بیشتر نباید بی‌صدا گرد شود.
             'quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,3', 'max:999999'],
-            'unit_cost' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
+            'unit_cost' => ['required_if:movement_type,purchase', 'nullable', 'integer', 'min:0', 'max:999999999999'],
             'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        // بهای خرید باید صریح باشد؛ برای مصرف و اصلاحات خروجی، بهای میانگین انبار ملاک است.
-        abort_if($data['movement_type'] === 'purchase' && ! array_key_exists('unit_cost', $data), 422,
-            'برای ورود خرید، بهای واحد کالا الزامی است.');
+        // برای مصرف و اصلاحات خروجی، بهای میانگین انبار ملاک است.
 
         DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
             $row = ClinicInventoryItem::query()->whereKey($item)
