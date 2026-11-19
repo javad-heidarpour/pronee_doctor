@@ -111,7 +111,8 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
 
       <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 class="mb-4 font-extrabold">ثبت طرح درمان و اقساط</h2>
-        <form @submit.prevent="planSubmit" class="grid gap-3 md:grid-cols-3">
+        <form @submit.prevent="planSubmit" class="grid min-w-0 gap-3 md:grid-cols-3">
+          <div v-if="Object.keys(planForm.errors).length" role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 md:col-span-3">لطفاً خطاهای فرم طرح درمان را اصلاح کنید: {{ Object.values(planForm.errors).join("، ") }}</div>
           <select v-model="planForm.clinic_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب شعبه</option><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <select v-model="planForm.patient_id" required class="rounded-xl border-slate-300 text-sm"><option value="">انتخاب بیمار</option><option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }} — {{ p.phone || 'بدون تلفن' }}</option></select>
           <input v-model="planForm.title" required placeholder="عنوان طرح؛ مثلاً درمان کامل فک" class="rounded-xl border-slate-300 text-sm" />
@@ -160,7 +161,8 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
 
       <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 class="mb-4 font-extrabold">ثبت هزینه شعبه</h2>
-        <form @submit.prevent="expenseSubmit" class="grid gap-3 md:grid-cols-3">
+        <form @submit.prevent="expenseSubmit" class="grid min-w-0 gap-3 md:grid-cols-3">
+          <div v-if="Object.keys(expenseForm.errors).length" role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 md:col-span-3">لطفاً خطاهای فرم هزینه را اصلاح کنید: {{ Object.values(expenseForm.errors).join("، ") }}</div>
           <select v-model="expenseForm.clinic_id" required class="rounded-xl border-slate-300 text-sm"><option v-for="c in clinics" :key="c.id" :value="c.id">{{ c.name }}</option></select>
           <select v-model="expenseForm.category" class="rounded-xl border-slate-300 text-sm"><option>اجاره</option><option>حقوق و دستمزد</option><option>مواد مصرفی</option><option>تجهیزات</option><option>قبوض</option><option>تعمیرات</option><option>سایر</option></select>
           <input v-model="expenseForm.description" required placeholder="شرح هزینه" class="rounded-xl border-slate-300 text-sm" />

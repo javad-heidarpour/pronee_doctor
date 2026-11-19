@@ -83,9 +83,10 @@
             <FormField v-model="form.full_address" label="آدرس کامل" required :error="$page.props.errors?.full_address" />
             <FormField v-model="form.phone" label="تلفن" :error="$page.props.errors?.phone" />
             <div>
-              <label class="block text-sm font-bold text-gray-700 mb-2">شهر</label>
+              <label for="clinic-city" class="mb-2 block text-sm font-bold text-gray-700">شهر</label>
 
               <select
+                id="clinic-city"
                 v-model="form.city_id"
                 class="w-full px-4 py-3 border border-gray-200 rounded-xl"
               >
@@ -94,8 +95,9 @@
                   {{ city.name }}
                 </option>
               </select>
+              <p v-if="$page.props.errors?.city_id" role="alert" class="mt-1 text-xs text-red-600">{{ $page.props.errors.city_id }}</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-col-reverse gap-2 sm:flex-row">
               <button
                 type="submit"
                 class="flex-1 bg-teal-600 text-white py-3 rounded-xl font-bold"
