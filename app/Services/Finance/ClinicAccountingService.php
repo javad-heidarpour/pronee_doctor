@@ -23,6 +23,7 @@ class ClinicAccountingService
         '2310' => ['name' => 'مطالبات مساعده کارکنان', 'type' => 'asset'],
         '2320' => ['name' => 'مطالبات وام کارکنان', 'type' => 'asset'],
         '2330' => ['name' => 'سایر کسورات پرداختنی کارکنان', 'type' => 'liability'],
+        '2400' => ['name' => 'حساب‌های پرداختنی تأمین‌کنندگان', 'type' => 'liability'],
         '3000' => ['name' => 'سرمایه و مانده افتتاحیه', 'type' => 'equity'],
         '4000' => ['name' => 'درآمد خدمات درمانی', 'type' => 'income'],
         '4100' => ['name' => 'سود تعدیلات موجودی', 'type' => 'income'],
@@ -65,6 +66,14 @@ class ClinicAccountingService
                 'patient_installment_payment', $paymentId, 'دریافت بیمار: ' . $description,
                 $occurredAt, $key, $lines);
         }, 3);
+    }
+
+    public function recordAppointmentPayment(?int $organizationId, int $clinicId, int $doctorId, ?int $userId, int $paymentId, int $amount, string $description, string $occurredAt): ClinicJournalEntry
+    {
+        if ($amount < 1) throw ValidationException::withMessages(['finance' => 'مبلغ پرداخت نوبت معتبر نیست.']);
+        return $this->post($organizationId, $clinicId, $doctorId, $userId, 'appointment_payment', $paymentId,
+            'دریافت آنلاین نوبت: ' . $description, $occurredAt, 'appointment-payment:' . $paymentId,
+            [['code' => '1000', 'debit' => $amount, 'credit' => 0], ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
     }
 
     public function recordExpense(
@@ -125,7 +134,7 @@ class ClinicAccountingService
         if ($totalCost < 1) return null;
         $lines = match ($movementType) {
             'opening' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '3000', 'debit' => 0, 'credit' => $totalCost]],
-            'purchase' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '1000', 'debit' => 0, 'credit' => $totalCost]],
+            'purchase' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '2400', 'debit' => 0, 'credit' => $totalCost]],
             'return' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '5010', 'debit' => 0, 'credit' => $totalCost]],
             'adjustment_in' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '4100', 'debit' => 0, 'credit' => $totalCost]],
             'adjustment_out' => [['code' => '5010', 'debit' => $totalCost, 'credit' => 0], ['code' => '1300', 'debit' => 0, 'credit' => $totalCost]],
@@ -137,7 +146,7 @@ class ClinicAccountingService
     }
 
     public function post(
-        ?int $organizationId, ?int $clinicId, ?int $doctorId, int $userId,
+        ?int $organizationId, ?int $clinicId, ?int $doctorId, ?int $userId,
         string $sourceType, int $sourceId, string $description, string $occurredAt,
         string $idempotencyKey, array $lines
     ): ClinicJournalEntry {
@@ -157,9 +166,11 @@ class ClinicAccountingService
                 if ($debit < 0 || $credit < 0 || ($debit > 0 && $credit > 0) || ($debit === 0 && $credit === 0)) {
                     throw ValidationException::withMessages(['finance' => 'ردیف سند حسابداری نامعتبر است.']);
                 }
+                $code = (string) ($line['code'] ?? '');
+                if (! isset(self::ACCOUNTS[$code])) throw ValidationException::withMessages(['finance' => 'کد حسابداری تعریف‌نشده است: ' . $code]);
                 $debits += $debit;
                 $credits += $credit;
-                $normalized[] = ['code' => (string) $line['code'], 'debit' => $debit, 'credit' => $credit];
+                $normalized[] = ['code' => $code, 'debit' => $debit, 'credit' => $credit];
             }
             if ($debits < 1 || $debits !== $credits) {
                 throw ValidationException::withMessages(['finance' => 'سند حسابداری باید تراز باشد و جمع بدهکار و بستانکار برابر باشد.']);

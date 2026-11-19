@@ -5,6 +5,7 @@ namespace App\Actions\Payments;
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
 use App\Services\Payments\SepPaymentService;
+use App\Services\Finance\ClinicAccountingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -13,7 +14,8 @@ use RuntimeException;
 class VerifyAndSettleSepPaymentAction
 {
     public function __construct(
-        private readonly NormalizeSepVerificationResponseAction $normalizeResponse
+        private readonly NormalizeSepVerificationResponseAction $normalizeResponse,
+        private readonly ClinicAccountingService $accounting
     ) {
     }
 
@@ -218,8 +220,14 @@ class VerifyAndSettleSepPaymentAction
 
             $lockedAppointment->status = 'confirmed';
             $lockedAppointment->reservation_expires_at = null;
-            $lockedAppointment->save();
-
+            $organizationId = DB::table('addresses')->where('id', $lockedAppointment->clinic_id)->value('organization_id');
+            $this->accounting->recordAppointmentPayment(
+                $organizationId !== null ? (int) $organizationId : null, (int) $lockedAppointment->clinic_id,
+                (int) $lockedAppointment->doctor_id, $lockedAppointment->user_id !== null ? (int) $lockedAppointment->user_id : null,
+                (int) $lockedPayment->id, (int) $lockedPayment->amount_rial,
+                'نوبت شماره ' . ($lockedAppointment->visit_number ?: $lockedAppointment->id),
+                ($lockedPayment->paid_at ?? now())->toDateTimeString()
+            );
             return 'success';
         });
 

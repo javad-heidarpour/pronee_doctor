@@ -41,8 +41,12 @@ final class ProcurementController extends Controller
             ->where(fn($b)=>$b->whereNull('q.valid_until')->orWhereDate('q.valid_until','>=',today()))
             ->orderBy('q.unit_cost_rial')->get(['q.id','q.clinic_id','q.supplier_id','q.inventory_item_id','q.minimum_quantity','q.unit_cost_rial','q.lead_time_days','q.valid_until','s.name as supplier_name','i.name as item_name','i.unit']);
         $orders = DB::table('clinic_purchase_orders as o')->join('clinic_suppliers as s','s.id','=','o.supplier_id')
-            ->where('o.doctor_id',$doctor->id)->whereIn('o.clinic_id',$clinicIds)->orderByDesc('o.id')
-            ->limit(40)->get(['o.id','o.order_number','o.clinic_id','o.status','o.total_amount_rial','o.created_at','s.name as supplier_name']);
+            ->where('o.doctor_id',$doctor->id)->whereIn('o.clinic_id',$clinicIds)->orderByDesc('o.id')->limit(40)->get([
+                'o.id','o.order_number','o.clinic_id','o.status','o.total_amount_rial','o.created_at','s.name as supplier_name',
+                DB::raw('(SELECT COALESCE(SUM(ROUND(oi.received_quantity * oi.unit_cost_rial)),0) FROM clinic_purchase_order_items oi WHERE oi.purchase_order_id=o.id) as received_total_rial'),
+                DB::raw('(SELECT COALESCE(SUM(sp.amount_rial),0) FROM clinic_supplier_payments sp WHERE sp.purchase_order_id=o.id) as paid_total_rial'),
+                DB::raw('CASE WHEN (SELECT COALESCE(SUM(ROUND(oi.received_quantity * oi.unit_cost_rial)),0) FROM clinic_purchase_order_items oi WHERE oi.purchase_order_id=o.id) > (SELECT COALESCE(SUM(sp.amount_rial),0) FROM clinic_supplier_payments sp WHERE sp.purchase_order_id=o.id) THEN (SELECT COALESCE(SUM(ROUND(oi.received_quantity * oi.unit_cost_rial)),0) FROM clinic_purchase_order_items oi WHERE oi.purchase_order_id=o.id) - (SELECT COALESCE(SUM(sp.amount_rial),0) FROM clinic_supplier_payments sp WHERE sp.purchase_order_id=o.id) ELSE 0 END as outstanding_rial'),
+            ]);
         $orderItems = DB::table('clinic_purchase_order_items as oi')->join('clinic_inventory_items as i','i.id','=','oi.inventory_item_id')
             ->join('clinic_purchase_orders as o','o.id','=','oi.purchase_order_id')
             ->where('o.doctor_id',$doctor->id)->whereIn('o.clinic_id',$clinicIds)->orderBy('oi.id')
@@ -170,6 +174,43 @@ final class ProcurementController extends Controller
         },3);
         return back()->with('success','دریافت کالا ثبت و موجودی انبار و حسابداری به‌روزرسانی شد.');
     }
+    public function paySupplier(Request $request, int $order, FinanceAccountingService $accounting)
+    {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('inventory.manage', $doctor);
+        $data = $request->validate([
+            'amount_rial' => ['required','integer','min:1','max:999999999999'],
+            'method' => ['required', Rule::in(['cash','card','transfer','cheque'])],
+            'reference' => ['required','string','max:120'], 'paid_at' => ['nullable','date'],
+        ]);
+
+        DB::transaction(function () use ($doctor, $order, $data, $accounting): void {
+            $purchase = DB::table('clinic_purchase_orders')->where('id',$order)->where('doctor_id',$doctor->id)
+                ->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->lockForUpdate()->first();
+            abort_unless($purchase,404);
+            abort_unless(in_array($purchase->status,['partially_received','received'],true),409,'ابتدا باید کالا دریافت شده باشد.');
+            $received = (int) DB::table('clinic_purchase_order_items')->where('purchase_order_id',$order)
+                ->selectRaw('COALESCE(SUM(ROUND(received_quantity * unit_cost_rial)),0) as total')->value('total');
+            $paid = (int) DB::table('clinic_supplier_payments')->where('purchase_order_id',$order)->sum('amount_rial');
+            $amount = (int) $data['amount_rial'];
+            abort_if($amount > max(0,$received-$paid),422,'مبلغ پرداخت از بدهی باقیمانده بیشتر است.');
+            $key = 'supplier-payment:' . $order . ':' . hash('sha256',$amount . '|' . $data['reference']);
+            if (DB::table('clinic_supplier_payments')->where('idempotency_key',$key)->exists()) return;
+            $paymentId = DB::table('clinic_supplier_payments')->insertGetId([
+                'purchase_order_id'=>$order,'supplier_id'=>$purchase->supplier_id,'doctor_id'=>$doctor->id,'clinic_id'=>$purchase->clinic_id,
+                'amount_rial'=>$amount,'method'=>$data['method'],'reference'=>$data['reference'],'recorded_by'=>Auth::guard('web')->id(),
+                'paid_at'=>$data['paid_at']??now(),'idempotency_key'=>$key,'created_at'=>now(),'updated_at'=>now(),
+            ]);
+            $organizationId = Address::query()->whereKey($purchase->clinic_id)->value('organization_id');
+            $accounting->post($organizationId ? (int)$organizationId : null,(int)$purchase->clinic_id,(int)$doctor->id,
+                Auth::guard('web')->id(),'supplier_payment',$paymentId,'پرداخت به تأمین‌کننده سفارش '.$purchase->order_number,
+                \\Illuminate\\Support\\Carbon::parse($data['paid_at']??now())->toDateTimeString(),'supplier-payment-journal:'.$paymentId,
+                [['code'=>'2400','debit'=>$amount,'credit'=>0],['code'=>'1000','debit'=>0,'credit'=>$amount]]);
+        },3);
+
+        return back()->with('success','پرداخت تأمین‌کننده ثبت و مانده بدهی در دفتر کل تسویه شد.');
+    }
+
     private function secretaryHas($doctor, string $permission): bool
     {
         $user = Auth::guard('web')->user();

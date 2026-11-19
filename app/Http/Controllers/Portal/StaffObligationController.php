@@ -39,6 +39,7 @@ final class StaffObligationController extends Controller
             'principal_amount' => ['required','integer','min:1','max:999999999999'],
             'installment_count' => ['required','integer','between:1,60'],
             'first_due_date' => ['required','date'],
+            'planned_disbursement_date' => ['nullable','date','after_or_equal:today'],
             'notes' => ['nullable','string','max:2000'],
         ]);
         $organization = $this->ownedOrganization((int)$data['organization_id']);
@@ -59,7 +60,8 @@ final class StaffObligationController extends Controller
             'kind'=>$data['kind'], 'title'=>$data['title'],
             'principal_amount'=>$principal, 'installment_amount'=>$base + ($remainder > 0 ? 1 : 0),
             'installment_count'=>$count, 'repaid_amount'=>0, 'outstanding_amount'=>$principal,
-            'first_due_date'=>$data['first_due_date'], 'status'=>'draft',
+            'first_due_date'=>$data['first_due_date'],
+            'planned_disbursement_date'=>$data['planned_disbursement_date'] ?? today()->toDateString(), 'status'=>'draft',
             'notes'=>$data['notes'] ?? null, 'created_at'=>now(), 'updated_at'=>now(),
         ]);
         $firstDue = Carbon::parse($data['first_due_date'])->startOfDay();

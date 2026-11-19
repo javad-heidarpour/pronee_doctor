@@ -79,14 +79,25 @@ final class ClinicCashFlowForecastService
         } else {
             $payrolls->where('organization_id', null);
         }
-        $payrolls->whereIn('clinic_id', $clinicIds);
+        $payrolls->where(function ($query) use ($clinicIds, $organizationIds): void {
+            if ($clinicIds !== []) $query->whereIn('clinic_id', $clinicIds);
+            if ($organizationIds !== []) {
+                $method = $clinicIds !== [] ? 'orWhere' : 'where';
+                $query->{$method}(function ($orgScope) use ($organizationIds): void {
+                    $orgScope->whereIn('organization_id', $organizationIds)->whereNull('clinic_id');
+                });
+            }
+        });
         foreach ($payrolls->get(['period_end', 'net_amount']) as $row) {
             $date = max($start->toDateString(), Carbon::parse($row->period_end)->toDateString());
             $movements[$date]['outflows'] += (int) $row->net_amount;
         }
 
         $approvedDisbursements = DB::table('clinic_staff_obligations')
-            ->where('status', 'approved')->whereNull('disbursed_at');
+            ->where('status', 'approved')->whereNull('disbursed_at')
+            ->where(function ($query) use ($end): void {
+                $query->whereDate('planned_disbursement_date', '<=', $end->toDateString())->orWhereNull('planned_disbursement_date');
+            });
         if ($organizationIds !== []) {
             $approvedDisbursements->whereIn('organization_id', $organizationIds);
         }
@@ -94,8 +105,10 @@ final class ClinicCashFlowForecastService
         // The schema has no planned-disbursement date. Approved, unpaid
         // obligations are assumed paid on the forecast date. first_due_date
         // is a repayment date and is not a valid cash-out date.
-        foreach ($approvedDisbursements->get(['principal_amount']) as $row) {
-            $movements[$start->toDateString()]['outflows'] += (int) $row->principal_amount;
+        foreach ($approvedDisbursements->get(['principal_amount', 'planned_disbursement_date', 'created_at']) as $row) {
+            $plannedDate = $row->planned_disbursement_date ?: Carbon::parse($row->created_at)->toDateString();
+            $date = max($start->toDateString(), Carbon::parse($plannedDate)->toDateString());
+            $movements[$date]['outflows'] += (int) $row->principal_amount;
         }
 
         $repayments = DB::table('clinic_staff_obligation_installments as installments')
@@ -112,6 +125,16 @@ final class ClinicCashFlowForecastService
             $movements[$date]['inflows'] += max(0, (int) $row->amount - (int) $row->paid_amount);
         }
 
+        // No contractual due date exists yet; project outstanding received purchases as due today.
+        $paidByOrder = DB::table('clinic_supplier_payments')->select('purchase_order_id')->selectRaw('SUM(amount_rial) as paid_total')->groupBy('purchase_order_id');
+        $supplierPayables = DB::table('clinic_purchase_orders as orders')
+            ->join('clinic_purchase_order_items as items', 'items.purchase_order_id', '=', 'orders.id')
+            ->leftJoinSub($paidByOrder, 'payments', 'payments.purchase_order_id', '=', 'orders.id')
+            ->whereIn('orders.status', ['partially_received', 'received'])->whereIn('orders.clinic_id', $clinicIds)
+            ->groupBy('orders.id', 'payments.paid_total')
+            ->selectRaw('orders.id, SUM(ROUND(items.received_quantity * items.unit_cost_rial)) - COALESCE(payments.paid_total, 0) as outstanding');
+        foreach ($supplierPayables->get() as $payable) $movements[$start->toDateString()]['outflows'] += max(0, (int) $payable->outstanding);
+
         $scenarios = [
             'conservative' => $this->calculator->project($startingBalance, $movements, $horizonDays, 0.65),
             'realistic' => $this->calculator->project($startingBalance, $movements, $horizonDays, 0.85),
@@ -125,7 +148,7 @@ final class ClinicCashFlowForecastService
             'scenarios' => $scenarios,
             'assumptions' => [
                 'collection_factors' => ['conservative' => 0.65, 'realistic' => 0.85, 'optimistic' => 1.0],
-                'included' => ['posted_cash_account_1000_in_accessible_branches_and_organization_level', 'unpaid_installments_on_active_treatment_plans', 'approved_unpaid_payroll', 'approved_undisbursed_staff_obligations_assumed_paid_as_of_forecast_date', 'active_staff_loan_repayments'],
+                'included' => ['posted_cash_account_1000_in_accessible_branches_and_organization_level', 'unpaid_installments_on_active_treatment_plans', 'approved_unpaid_payroll', 'approved_undisbursed_staff_obligations_on_planned_disbursement_date', 'active_staff_loan_repayments', 'received_unpaid_supplier_invoices_assumed_due_as_of_forecast_date'],
                 'excluded' => ['unrecorded_recurring_expenses', 'unissued_checks', 'bank_feed_transactions', 'unapproved_payroll', 'unconfirmed_future_revenue', 'inactive_or_cancelled_treatment_plans'],
                 'currency' => 'IRR',
             ],

@@ -125,6 +125,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/procurement/quotes/{quote}/order', [ProcurementController::class, 'createOrder'])->whereNumber('quote')->name('procurement.quotes.order');
         Route::patch('/procurement/orders/{order}/approve', [ProcurementController::class, 'approveOrder'])->whereNumber('order')->name('procurement.orders.approve');
         Route::post('/procurement/orders/{order}/items/{item}/receive', [ProcurementController::class, 'receiveItem'])->whereNumber('order')->whereNumber('item')->name('procurement.orders.items.receive');
+        Route::post('/procurement/orders/{order}/payments', [ProcurementController::class, 'paySupplier'])->whereNumber('order')->middleware('throttle:10,1')->name('procurement.orders.payments.store');
 
         Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
         Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');

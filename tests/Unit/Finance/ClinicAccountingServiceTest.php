@@ -146,6 +146,17 @@ final class ClinicAccountingServiceTest extends TestCase
         }
     }
 
+    public function test_inventory_purchase_is_booked_to_supplier_payable_not_cash(): void
+    {
+        $entry = app(ClinicAccountingService::class)->recordInventoryMovement(
+            9, 3, 12, 5, 987, 'purchase', 2500, 'دریافت اعتباری کالا', now()->toDateTimeString()
+        );
+
+        $this->assertSame(2500, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '1300'))->sum('debit'));
+        $this->assertSame(2500, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '2400'))->sum('credit'));
+        $this->assertSame(0, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '1000'))->sum('credit'));
+    }
+
     public function test_journal_rejects_unbalanced_entries(): void
     {
         $this->expectException(ValidationException::class);

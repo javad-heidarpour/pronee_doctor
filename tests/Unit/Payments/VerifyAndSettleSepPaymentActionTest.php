@@ -23,6 +23,24 @@ final class VerifyAndSettleSepPaymentActionTest extends TestCase
 
         Carbon::setTestNow('2026-11-17 08:00:00');
 
+        Schema::create('addresses', function (Blueprint $table): void { $table->id(); $table->unsignedBigInteger('organization_id')->nullable(); $table->timestamps(); });
+        Schema::create('clinic_financial_accounts', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('organization_id')->nullable(); $table->unsignedBigInteger('clinic_id')->nullable();
+            $table->string('code'); $table->string('scope_key')->unique(); $table->string('name'); $table->string('type');
+            $table->boolean('is_system')->default(true); $table->boolean('is_active')->default(true); $table->timestamps();
+        });
+        Schema::create('clinic_journal_entries', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('organization_id')->nullable(); $table->unsignedBigInteger('clinic_id')->nullable();
+            $table->unsignedBigInteger('doctor_id')->nullable(); $table->unsignedBigInteger('created_by')->nullable();
+            $table->string('source_type')->nullable(); $table->unsignedBigInteger('source_id')->nullable(); $table->string('reference')->nullable();
+            $table->string('description'); $table->dateTime('occurred_at'); $table->string('status')->default('posted');
+            $table->string('idempotency_key')->nullable()->unique(); $table->timestamps();
+        });
+        Schema::create('clinic_journal_lines', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('journal_entry_id'); $table->unsignedBigInteger('account_id');
+            $table->unsignedBigInteger('debit')->default(0); $table->unsignedBigInteger('credit')->default(0); $table->string('memo')->nullable(); $table->timestamps();
+        });
+
         Schema::create('appointments', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -99,6 +117,10 @@ final class VerifyAndSettleSepPaymentActionTest extends TestCase
         ]);
         $this->assertNotNull($payment->fresh()->paid_at);
         $this->assertNotNull($payment->fresh()->gateway_verified_at);
+        $this->assertDatabaseHas('clinic_journal_entries', [
+            'idempotency_key' => 'appointment-payment:' . $payment->id,
+            'source_type' => 'appointment_payment', 'status' => 'posted',
+        ]);
         $this->assertDatabaseHas('appointments', [
             'id' => $appointment->id,
             'status' => 'confirmed',
@@ -228,6 +250,7 @@ final class VerifyAndSettleSepPaymentActionTest extends TestCase
 
     private function appointment(): Appointment
     {
+        \\Illuminate\\Support\\Facades\\DB::table('addresses')->insertOrIgnore(['id'=>1,'organization_id'=>9,'created_at'=>now(),'updated_at'=>now()]);
         return Appointment::query()->create([
             'doctor_id' => 1,
             'clinic_id' => 1,
