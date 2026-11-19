@@ -201,22 +201,39 @@ final class ProcurementController extends Controller
         $data = $request->validate([
             'amount_rial' => ['required','integer','min:1','max:999999999999'],
             'method' => ['required', Rule::in(['cash','card','transfer','cheque'])],
-            'reference' => ['required','string','max:120', Rule::unique('clinic_supplier_payments', 'reference')->where(fn ($query) => $query->where('doctor_id', $doctor->id))], 'paid_at' => ['nullable','date'],
+            'reference' => ['required','string','max:120'], 'paid_at' => ['nullable','date'],
         ]);
 
         DB::transaction(function () use ($doctor, $order, $data, $accounting): void {
             $purchase = DB::table('clinic_purchase_orders')->where('id',$order)->where('doctor_id',$doctor->id)
                 ->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->lockForUpdate()->first();
             abort_unless($purchase,404);
+            $amount = (int) $data['amount_rial'];
+            // ابتدا retry دقیق را تشخیص می‌دهیم؛ اعتبارسنجی unique در ابتدای درخواست، retry سالم را بی‌دلیل رد می‌کرد.
+            $key = 'supplier-payment:' . $order . ':' . hash('sha256',$amount . '|' . $data['reference']);
+            $existing = DB::table('clinic_supplier_payments')->where('idempotency_key',$key)->first();
+            if ($existing) {
+                abort_unless(
+                    (int) $existing->purchase_order_id === $order
+                    && (int) $existing->amount_rial === $amount
+                    && $existing->reference === $data['reference']
+                    && $existing->method === $data['method'],
+                    409,
+                    'کلید تکرار پرداخت با پرداخت قبلی تطبیق ندارد.'
+                );
+                return;
+            }
+
+            // قید یکتای پایگاه داده نیز درخواست‌های هم‌زمان را پوشش می‌دهد؛ این بررسی پیام خطای قابل‌فهم می‌دهد.
+            $sameReference = DB::table('clinic_supplier_payments')
+                ->where('doctor_id',$doctor->id)->where('reference',$data['reference'])->first();
+            abort_if($sameReference,409,'این شماره پیگیری قبلاً برای پرداخت دیگری ثبت شده است.');
+
             abort_unless(in_array($purchase->status,['partially_received','received'],true),409,'ابتدا باید کالا دریافت شده باشد.');
             $received = (int) DB::table('clinic_purchase_order_items')->where('purchase_order_id',$order)
                 ->selectRaw('COALESCE(SUM(ROUND(received_quantity * unit_cost_rial)),0) as total')->value('total');
             $paid = (int) DB::table('clinic_supplier_payments')->where('purchase_order_id',$order)->sum('amount_rial');
-            $amount = (int) $data['amount_rial'];
             abort_if($amount > max(0,$received-$paid),422,'مبلغ پرداخت از بدهی باقیمانده بیشتر است.');
-            // شماره پیگیری بانکی باید در کل حساب پزشک یکتا باشد؛ تغییر مبلغ نباید راهی برای ثبت دوباره همان تراکنش باز کند.
-            $key = 'supplier-payment:' . $order . ':' . hash('sha256',$amount . '|' . $data['reference']);
-            if (DB::table('clinic_supplier_payments')->where('idempotency_key',$key)->exists()) return;
             $paymentId = DB::table('clinic_supplier_payments')->insertGetId([
                 'purchase_order_id'=>$order,'supplier_id'=>$purchase->supplier_id,'doctor_id'=>$doctor->id,'clinic_id'=>$purchase->clinic_id,
                 'amount_rial'=>$amount,'method'=>$data['method'],'reference'=>$data['reference'],'recorded_by'=>Auth::guard('web')->id(),
