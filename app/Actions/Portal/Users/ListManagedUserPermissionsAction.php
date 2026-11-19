@@ -25,6 +25,7 @@ class ListManagedUserPermissionsAction
             'inventory.view' => 'مشاهده انبار و موجودی',
             'inventory.manage' => 'مدیریت کالا و گردش انبار',
             'organizations.view' => 'مشاهده مجموعه درمانی',
+            'staff.attendance.view' => 'ثبت و مشاهده حضور و غیاب',
         ];
     }
 }

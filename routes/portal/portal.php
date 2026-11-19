@@ -22,6 +22,7 @@ use App\Http\Controllers\Portal\ClinicGrowthController;
 use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 use App\Http\Controllers\Portal\ProcurementController;
+use App\Http\Controllers\Portal\StaffAttendanceController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -96,6 +97,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/growth', [ClinicGrowthController::class, 'index'])->name('growth.index');
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
         Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
+        Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
+        Route::post('/staff-attendance/schedules', [StaffAttendanceController::class, 'storeSchedule'])->name('staff-attendance.schedules.store');
+        Route::post('/staff-attendance/check-in', [StaffAttendanceController::class, 'checkIn'])->middleware('throttle:10,1')->name('staff-attendance.check-in');
+        Route::post('/staff-attendance/check-out', [StaffAttendanceController::class, 'checkOut'])->middleware('throttle:10,1')->name('staff-attendance.check-out');
+        Route::patch('/staff-attendance/{attendance}/correct', [StaffAttendanceController::class, 'correct'])->whereNumber('attendance')->name('staff-attendance.correct');
         Route::post('/procurement/suppliers', [ProcurementController::class, 'storeSupplier'])->name('procurement.suppliers.store');
         Route::post('/procurement/quotes', [ProcurementController::class, 'storeQuote'])->name('procurement.quotes.store');
         Route::post('/procurement/quotes/{quote}/order', [ProcurementController::class, 'createOrder'])->whereNumber('quote')->name('procurement.quotes.order');

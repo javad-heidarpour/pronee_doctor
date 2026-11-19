@@ -147,7 +147,7 @@ class ClinicOrganizationController extends Controller
             'patients.clinical.view','patients.clinical.manage','clinics.view',
             'shifts.view','shifts.manage','working-hours.view','working-hours.manage',
             'finance.view','finance.manage','services.view','services.manage',
-            'inventory.view','inventory.manage',
+            'inventory.view','inventory.manage','staff.attendance.view',
         ];
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
