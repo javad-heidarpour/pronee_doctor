@@ -4,19 +4,14 @@ import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <div
-        class="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0"
-    >
-        <div>
-            <Link href="/">
-                <ApplicationLogo class="h-20 w-20 fill-current text-gray-500" />
+    <main class="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4 py-8 sm:px-6">
+        <div class="mb-2">
+            <Link href="/" aria-label="صفحه اصلی پرونیکس">
+                <ApplicationLogo class="h-16 w-16 fill-current text-gray-500 sm:h-20 sm:w-20" />
             </Link>
         </div>
-
-        <div
-            class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
-        >
+        <section class="mt-4 w-full max-w-md rounded-xl bg-white px-5 py-6 shadow-md sm:px-8 sm:py-7">
             <slot />
-        </div>
-    </div>
+        </section>
+    </main>
 </template>
