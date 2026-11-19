@@ -23,6 +23,19 @@ class AuthenticationTest extends AuthTestCase
         ]);
 
         $this->assertAuthenticated();
+        $response->assertRedirect(route('patient.health.index', absolute: false));
+    }
+
+    public function test_doctors_are_redirected_to_the_public_home_after_login(): void
+    {
+        $doctorUser = User::factory()->create(['role' => 'doctor']);
+
+        $response = $this->post('/login', [
+            'email' => $doctorUser->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated('web');
         $response->assertRedirect(route('home', absolute: false));
     }
 
