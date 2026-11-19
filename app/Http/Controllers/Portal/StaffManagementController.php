@@ -153,6 +153,14 @@ final class StaffManagementController extends Controller
             ]);
         }
 
+        $obligations = DB::table('clinic_staff_obligations as o')
+            ->join('users as u','u.id','=','o.staff_user_id')
+            ->join('addresses as a','a.id','=','o.clinic_id')
+            ->whereIn('o.organization_id',$organizationIds)
+            ->orderByDesc('o.id')
+            ->limit(150)
+            ->get(['o.*','u.name as staff_name','u.family as staff_family','a.name as clinic_name']);
+        
         return Inertia::render('Portal/StaffManagement/Index', [
             'doctor'=>$doctor,
             'organizations'=>$organizations->map(fn($o)=>['id'=>$o->id,'name'=>$o->name])->values(),
@@ -160,6 +168,7 @@ final class StaffManagementController extends Controller
             'members'=>$members,
             'contracts'=>$contracts,
             'payrolls'=>$payrolls,
+            'obligations'=>$obligations,
             'leaveBalances'=>$leaveBalances,
             'performance'=>$performance,
             'coverageSuggestions'=>$coverageSuggestions->values(),
@@ -370,16 +379,24 @@ final class StaffManagementController extends Controller
         return back()->with('success','پیش‌نویس فیش حقوقی بر اساس قرارداد و سوابق ثبت شد؛ پیش از تأیید، جزئیات را بازبینی کنید.');
     }
 
-    public function approvePayroll(int $payroll)
+    public function approvePayroll(int $payroll, ClinicAccountingService $accounting)
     {
         $user=Auth::guard('web')->user();
-        DB::transaction(function()use($payroll,$user):void{
+        DB::transaction(function()use($payroll,$user,$accounting):void{
             $row=ClinicStaffPayroll::query()->whereKey($payroll)
                 ->whereHas('organization',fn($q)=>$q->where('owner_user_id',$user->id))
                 ->lockForUpdate()->firstOrFail();
             abort_unless($row->status==='draft',409,'فقط پیش‌نویس حقوق قابل تأیید است.');
             abort_if((int)$row->net_amount<0,422,'مبلغ خالص حقوق نامعتبر است.');
             $row->update(['status'=>'approved','approved_by'=>$user->id]);
+            if ((int)$row->gross_amount > 0) {
+                $lines = [['code'=>'5200','debit'=>(int)$row->gross_amount,'credit'=>0]];
+                if ((int)$row->net_amount > 0) $lines[] = ['code'=>'2300','debit'=>0,'credit'=>(int)$row->net_amount];
+                if ((int)$row->deduction_amount > 0) $lines[] = ['code'=>'2330','debit'=>0,'credit'=>(int)$row->deduction_amount];
+                $accounting->post($row->organization_id,$row->clinic_id,null,(int)$user->id,
+                    'clinic_staff_payroll_accrual',$row->id,'شناسایی هزینه حقوق کارکنان',
+                    now()->toDateTimeString(),'staff-payroll-accrual:'.$row->id,$lines);
+            }
         },3);
         return back()->with('success','فیش حقوقی تأیید شد.');
     }
@@ -400,7 +417,7 @@ final class StaffManagementController extends Controller
                 $accounting->post($row->organization_id,$row->clinic_id,null,(int)$user->id,
                     'clinic_staff_payroll',$row->id,'پرداخت حقوق کارکنان',now()->toDateTimeString(),
                     'staff-payroll:'.$row->id,
-                    [['code'=>'5200','debit'=>(int)$row->net_amount,'credit'=>0],
+                    [['code'=>'2300','debit'=>(int)$row->net_amount,'credit'=>0],
                      ['code'=>'1000','debit'=>0,'credit'=>(int)$row->net_amount]]);
             }
             $row->update(['status'=>'paid','paid_by'=>$user->id,'paid_at'=>now(),

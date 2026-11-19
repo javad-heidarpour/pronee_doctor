@@ -24,6 +24,7 @@ use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
 use App\Http\Controllers\Portal\StaffManagementController;
+use App\Http\Controllers\Portal\StaffObligationController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -106,6 +107,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/staff-management/payrolls/{payroll}/approve', [StaffManagementController::class, 'approvePayroll'])->whereNumber('payroll')->name('staff-management.payrolls.approve');
         Route::post('/staff-management/payrolls/{payroll}/pay', [StaffManagementController::class, 'payPayroll'])->whereNumber('payroll')->name('staff-management.payrolls.pay');
         Route::post('/staff-management/replacements', [StaffManagementController::class, 'assignReplacement'])->name('staff-management.replacements.store');
+        Route::post('/staff-management/obligations', [StaffObligationController::class, 'store'])->name('staff-management.obligations.store');
+        Route::patch('/staff-management/obligations/{obligation}/approve', [StaffObligationController::class, 'approve'])->whereNumber('obligation')->name('staff-management.obligations.approve');
+        Route::post('/staff-management/obligations/{obligation}/disburse', [StaffObligationController::class, 'disburse'])->whereNumber('obligation')->name('staff-management.obligations.disburse');
+        Route::post('/staff-management/obligations/{obligation}/repayments', [StaffObligationController::class, 'repay'])->whereNumber('obligation')->name('staff-management.obligations.repayments.store');
         Route::post('/staff-attendance/schedules', [StaffAttendanceController::class, 'storeSchedule'])->name('staff-attendance.schedules.store');
         Route::post('/staff-attendance/check-in', [StaffAttendanceController::class, 'checkIn'])->middleware('throttle:10,1')->name('staff-attendance.check-in');
         Route::post('/staff-attendance/check-out', [StaffAttendanceController::class, 'checkOut'])->middleware('throttle:10,1')->name('staff-attendance.check-out');
