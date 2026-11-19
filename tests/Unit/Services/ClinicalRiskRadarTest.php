@@ -55,7 +55,7 @@ final class ClinicalRiskRadarTest extends TestCase
             'id' => $id,
             'status' => 'skipped',
             'scheduled_for' => now()->subDays($id),
-        ]));
+        ]);
         $plans = collect([(object) ['doses' => $doses]]);
 
         $result = app(ClinicalRiskRadar::class)->evaluate($patient, new Collection(), new Collection(), $plans);
