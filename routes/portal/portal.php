@@ -21,6 +21,7 @@ use App\Http\Controllers\Portal\PatientRetentionController;
 use App\Http\Controllers\Portal\ClinicGrowthController;
 use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
+use App\Http\Controllers\Portal\ProcurementController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -94,6 +95,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/patient-retention', [PatientRetentionController::class, 'index'])->name('patient-retention.index');
         Route::get('/growth', [ClinicGrowthController::class, 'index'])->name('growth.index');
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
+        Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
+        Route::post('/procurement/suppliers', [ProcurementController::class, 'storeSupplier'])->name('procurement.suppliers.store');
+        Route::post('/procurement/quotes', [ProcurementController::class, 'storeQuote'])->name('procurement.quotes.store');
+        Route::post('/procurement/quotes/{quote}/order', [ProcurementController::class, 'createOrder'])->whereNumber('quote')->name('procurement.quotes.order');
+        Route::patch('/procurement/orders/{order}/approve', [ProcurementController::class, 'approveOrder'])->whereNumber('order')->name('procurement.orders.approve');
+        Route::post('/procurement/orders/{order}/items/{item}/receive', [ProcurementController::class, 'receiveItem'])->whereNumber('order')->whereNumber('item')->name('procurement.orders.items.receive');
 
         Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
         Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');
