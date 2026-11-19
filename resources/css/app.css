@@ -66,8 +66,8 @@
 
 
 /* ✅ استایل‌های عمومی */
-html, body {
-    font-family: 'Vazir', Tahoma, sans-serif;
+html, body, body * {
+    font-family: 'Vazir', Tahoma, sans-serif !important;
 }
 
 /* Respect the nearest dir attribute instead of forcing RTL on every control. */
