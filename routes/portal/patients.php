@@ -9,7 +9,14 @@ use App\Http\Controllers\Portal\ClinicalRiskRadarController;
 use App\Http\Controllers\Portal\PredictivePatientController;
 use App\Http\Controllers\Portal\PatientCarePathwayController;
 use App\Http\Controllers\Portal\Patient360Controller;
+use App\Http\Controllers\Portal\HealthInteropController;
 
+
+Route::get('/health-interop', [HealthInteropController::class, 'index'])->name('health-interop.index');
+Route::post('/health-interop/patients/{patient}/identity-check', [HealthInteropController::class, 'validateIdentity'])->whereNumber('patient')->middleware('throttle:20,1')->name('health-interop.identity-check');
+Route::post('/health-interop/patients/{patient}/insurance-check', [HealthInteropController::class, 'verifyInsurance'])->whereNumber('patient')->middleware('throttle:10,1')->name('health-interop.insurance-check');
+Route::post('/health-interop/appointments/{appointment}', [HealthInteropController::class, 'queueAppointment'])->whereNumber('appointment')->middleware('throttle:20,1')->name('health-interop.appointments.queue');
+Route::post('/health-interop/encounters/{encounter}', [HealthInteropController::class, 'queueEncounter'])->whereNumber('encounter')->middleware('throttle:20,1')->name('health-interop.encounters.queue');
 
 Route::get('/clinical-risk', [ClinicalRiskRadarController::class, 'index'])->name('clinical-risk.index');
 Route::get('/predictive-patients', [PredictivePatientController::class, 'index'])->name('predictive-patients.index');

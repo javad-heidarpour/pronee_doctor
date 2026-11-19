@@ -1,0 +1,115 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Portal;
+
+use App\Http\Controllers\Controller;
+use App\Models\Appointment;
+use App\Models\HealthExchangeMessage;
+use App\Models\Patient;
+use App\Models\PatientInsuranceVerification;
+use App\Models\PatientEncounter;
+use App\Services\HealthInterop\HealthExchangeOutbox;
+use App\Services\HealthInterop\IranianNationalCode;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+
+final class HealthInteropController extends Controller
+{
+    private function doctor()
+    {
+        $doctor = Auth::guard('web')->user()?->doctorProfile;
+        abort_unless($doctor, 403, 'پروفایل پزشک برای این حساب تعریف نشده است.');
+        return $doctor;
+    }
+
+    public function index()
+    {
+        $doctor = $this->doctor();
+        return Inertia::render('Portal/HealthInterop/Index', [
+            'messages' => HealthExchangeMessage::query()->where('doctor_id', $doctor->id)->latest()->limit(100)->get(),
+            'insuranceChecks' => PatientInsuranceVerification::query()->where('doctor_id', $doctor->id)->latest('id')->limit(50)->get(),
+            'destinations' => collect(['sepas', 'tamin', 'salamat'])->mapWithKeys(fn ($key) => [$key => [
+                'enabled' => (bool) config("health_interop.destinations.{$key}.enabled") && filled(config("health_interop.destinations.{$key}.url")),
+            ]]),
+        ]);
+    }
+
+    public function validateIdentity(Request $request, Patient $patient)
+    {
+        $doctor = $this->doctor();
+        abort_unless((int) $patient->doctor_id === (int) $doctor->id, 404);
+        $valid = filled($patient->national_code) && IranianNationalCode::isValid($patient->national_code);
+
+        return response()->json([
+            'structural_valid' => $valid,
+            'identity_verified' => false,
+            'message' => $valid
+                ? 'ساختار کد ملی معتبر است؛ احراز هویت رسمی هنوز انجام نشده است.'
+                : 'کد ملی از نظر ساختار یا رقم کنترلی معتبر نیست.',
+        ], 200);
+    }
+
+    public function verifyInsurance(Request $request, Patient $patient)
+    {
+        $doctor = $this->doctor();
+        abort_unless((int) $patient->doctor_id === (int) $doctor->id, 404);
+
+        $data = $request->validate([
+            'payer_code' => ['required', 'string', Rule::in(['tamin', 'salamat', 'armed_forces', 'other'])],
+            'payer_name' => ['nullable', 'string', 'max:120'],
+            'policy_number' => ['nullable', 'string', 'max:100'],
+            'member_number' => ['nullable', 'string', 'max:100'],
+            'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
+        ]);
+        if (!empty($data['appointment_id'])) {
+            Appointment::query()->whereKey($data['appointment_id'])->where('doctor_id', $doctor->id)->firstOrFail();
+        }
+
+        $enabled = (bool) config("health_interop.destinations.{$data['payer_code']}.enabled")
+            && filled(config("health_interop.destinations.{$data['payer_code']}.url"));
+
+        $record = PatientInsuranceVerification::query()->create([
+            'doctor_id' => $doctor->id,
+            'patient_id' => $patient->id,
+            'appointment_id' => $data['appointment_id'] ?? null,
+            'payer_code' => $data['payer_code'],
+            'payer_name' => $data['payer_name'] ?? null,
+            'policy_number' => $data['policy_number'] ?? null,
+            'member_number' => $data['member_number'] ?? null,
+            'status' => $enabled ? 'awaiting_integration' : 'not_configured',
+            'checked_at' => null,
+            'failure_message' => $enabled
+                ? 'اتصال فعال است؛ عملیات استعلام تا زمان پیاده‌سازی قرارداد رسمی این بیمه‌گر قابل اجرا نیست.'
+                : 'اتصال رسمی این بیمه‌گر هنوز پیکربندی نشده است.',
+        ]);
+
+        return response()->json([
+            'id' => $record->id,
+            'status' => $record->status,
+            'message' => $record->failure_message,
+            'insurance_approved' => false,
+        ], 202);
+    }
+
+    public function queueAppointment(Appointment $appointment, HealthExchangeOutbox $outbox)
+    {
+        $doctor = $this->doctor();
+        abort_unless((int) $appointment->doctor_id === (int) $doctor->id, 404);
+        abort_unless($appointment->patient_id && $appointment->status !== 'cancelled', 422);
+        $message = $outbox->enqueueAppointment($appointment);
+        return back()->with('success', 'رویداد نوبت در صف تبادل قرار گرفت؛ پذیرش مقصد هنوز تأیید نشده است.');
+    }
+
+    public function queueEncounter(PatientEncounter $encounter, HealthExchangeOutbox $outbox)
+    {
+        $doctor = $this->doctor();
+        abort_unless((int) $encounter->doctor_id === (int) $doctor->id, 404);
+        abort_unless($encounter->status === PatientEncounter::STATUS_SIGNED, 409);
+        $outbox->enqueueEncounter($encounter);
+        return back()->with('success', 'ویزیت و نسخه‌های آن در صف تبادل قرار گرفتند.');
+    }
+}
