@@ -1,5 +1,6 @@
 <template>
   <PortalLayout :doctor="doctor">
+    <ActionDialog :open="signDialogOpen" title="نهایی‌سازی یادداشت ویزیت" description="پس از نهایی‌سازی، یادداشت و داروهای ثبت‌شده قفل می‌شوند و امکان ویرایش مستقیم وجود نخواهد داشت." submit-label="نهایی‌سازی و قفل یادداشت" :processing="processing" @close="signDialogOpen = false" @submit="confirmSignEncounter" />
     <main dir="rtl" class="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
       <header class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div>
@@ -145,6 +146,7 @@ import { computed, reactive, ref } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 import VoiceDictationButton from '@/Components/Portal/VoiceDictationButton.vue'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 
 const props = defineProps({
   doctor: Object, appointment: Object, patient: Object, context: Object,
@@ -155,6 +157,7 @@ const props = defineProps({
 const readonly = computed(() => props.encounter?.status === 'signed')
 const source = props.encounter || props.amendsEncounter
 const processing = ref(false)
+const signDialogOpen = ref(false)
 const form = reactive({
   note_type: source?.note_type || 'consultation',
   subjective: source?.subjective || '',
@@ -193,10 +196,16 @@ const saveDraft = () => {
   else router.post(route('portal.encounters.store', props.appointment.id), payload(), options)
 }
 const signEncounter = () => {
-  if (!canSign.value || !props.encounter) return
-  if (window.confirm('پس از نهایی‌سازی، یادداشت و داروهای ثبت‌شده قفل می‌شوند. ادامه می‌دهید؟')) {
-    processing.value = true
-    router.post(route('portal.encounters.sign', props.encounter.id), {}, { preserveScroll: true, onFinish: () => { processing.value = false } })
-  }
+  if (!canSign.value || !props.encounter || processing.value) return
+  signDialogOpen.value = true
+}
+const confirmSignEncounter = () => {
+  if (!canSign.value || !props.encounter || processing.value) return
+  processing.value = true
+  router.post(route('portal.encounters.sign', props.encounter.id), {}, {
+    preserveScroll: true,
+    onSuccess: () => { signDialogOpen.value = false },
+    onFinish: () => { processing.value = false },
+  })
 }
 </script>
