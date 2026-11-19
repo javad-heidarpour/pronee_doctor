@@ -39,7 +39,7 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
 
 <template>
   <PortalLayout>
-    <main dir="rtl" class="mx-auto max-w-7xl space-y-6 p-4">
+    <main dir="rtl" class="mx-auto w-full min-w-0 max-w-7xl space-y-6 p-3 sm:p-4">
       <header class="rounded-2xl bg-gradient-to-l from-teal-900 to-cyan-800 p-6 text-white">
         <p class="text-xs font-bold text-teal-100">PRONEEX MEDICAL NETWORK</p>
         <h1 class="mt-2 text-2xl font-black">شبکه همکاری و ارجاع پزشکی</h1>
@@ -48,7 +48,7 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
         <div class="mt-4 flex flex-wrap gap-3 text-xs"><span class="rounded-full bg-white/15 px-3 py-2">{{ providers.total }} مرکز فعال در فهرست</span><span class="rounded-full bg-white/15 px-3 py-2">{{ receivedCount }} ارجاع دریافتی باز</span><span class="rounded-full bg-white/15 px-3 py-2">{{ outgoing.length }} ارجاع ارسالی اخیر</span></div>
       </header>
 
-      <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-slate-500">ارجاع‌های باز ارسالی</p><strong class="mt-1 block text-2xl">{{ stats.outgoing_open }}</strong></div>
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-slate-500">ارجاع‌های باز دریافتی</p><strong class="mt-1 block text-2xl">{{ stats.incoming_open }}</strong></div>
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-slate-500">نیازمند پیگیری</p><strong class="mt-1 block text-2xl text-rose-700">{{ stats.overdue }}</strong></div>

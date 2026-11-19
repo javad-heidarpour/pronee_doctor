@@ -69,7 +69,17 @@ const scenarios = computed(() => [
             <button class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white">اعمال</button>
           </form>
         </div>
-        <div class="mt-4 overflow-x-auto">
+        <div class="mt-4 space-y-2 sm:hidden">
+          <article v-for="day in forecast.scenarios.realistic.days" :key="'mobile-'+day.date" class="rounded-xl border border-slate-200 p-3">
+            <div class="flex items-center justify-between gap-2"><b class="text-sm text-slate-800">{{ day.date }}</b><span class="text-xs font-bold" :class="day.closing_balance < 0 ? 'text-rose-700' : 'text-slate-700'">مانده: {{ money(day.closing_balance) }}</span></div>
+            <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <p><span class="text-slate-500">ورودی</span><b class="mt-1 block text-emerald-700">{{ money(day.inflows) }}</b></p>
+              <p><span class="text-slate-500">خروجی</span><b class="mt-1 block text-rose-700">{{ money(day.outflows) }}</b></p>
+              <p class="col-span-2"><span class="text-slate-500">خالص روز</span><b class="mr-2">{{ money(day.net) }}</b></p>
+            </div>
+          </article>
+        </div>
+        <div class="mt-4 hidden overflow-x-auto sm:block">
           <table class="w-full min-w-[620px] text-right text-xs">
             <thead><tr class="border-b text-slate-500"><th class="p-2">تاریخ</th><th class="p-2">ورودی برآوردی</th><th class="p-2">خروجی قطعی/تعهدشده</th><th class="p-2">خالص روز</th><th class="p-2">مانده پایان روز</th></tr></thead>
             <tbody>
