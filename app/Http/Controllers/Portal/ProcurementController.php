@@ -170,4 +170,16 @@ final class ProcurementController extends Controller
         },3);
         return back()->with('success','دریافت کالا ثبت و موجودی انبار و حسابداری به‌روزرسانی شد.');
     }
+    private function secretaryHas($doctor, string $permission): bool
+    {
+        $user = Auth::guard('web')->user();
+        $assignment = $user?->doctors()->where('doctors.id', $doctor->id)->first();
+        $permissions = $assignment?->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        return is_array($permissions) && in_array($permission, $permissions, true);
+    }
+
 }
