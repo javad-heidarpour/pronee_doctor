@@ -1,5 +1,6 @@
 <template>
   <PortalLayout :doctor="doctor">
+    <ActionDialog :open="deleteDialogOpen" title="حذف بازه کاری" description="آیا از حذف این بازه کاری اطمینان دارید؟" submit-label="حذف بازه" @close="deleteDialogOpen = false" @submit="confirmDeleteHour" />
     <!-- آمار -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <StatCard label="کل بازه‌ها" :value="workingHours.total" icon="" color="blue" />
@@ -436,6 +437,7 @@
 import { ref, computed } from "vue";
 import { router, usePage } from "@inertiajs/vue3";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
+import ActionDialog from "@/Components/Portal/ActionDialog.vue";
 import StatCard from "@/Components/Portal/StatCard.vue";
 
 const props = defineProps({
@@ -469,6 +471,8 @@ const filters = ref({
 });
 
 const showModal = ref(false);
+const deleteDialogOpen = ref(false);
+const hourToDelete = ref(null);
 const editingHour = ref(null);
 const processing = ref(false);
 
@@ -501,7 +505,7 @@ const getHoursForClinicAndDay = (clinicId, dayOfWeek) => {
 // فرمت زمان به فارسی
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
-  return timeStr.replace(/\d/g, (d) => "۰۱۳۴۵۶۷۹"[d]);
+  return timeStr.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 };
 
 // باز کردن مودال افزودن
@@ -565,10 +569,13 @@ const toggleStatus = (hour) => {
 };
 
 // حذف
-const deleteHour = (id) => {
-  if (confirm("آیا از حذف این بازه اطمینان دارید؟")) {
-    router.delete(route("portal.working-hours.destroy", id));
-  }
+const deleteHour = (id) => { hourToDelete.value = id; deleteDialogOpen.value = true; };
+const confirmDeleteHour = () => {
+  if (!hourToDelete.value) return;
+  router.delete(route("portal.working-hours.destroy", hourToDelete.value), {
+    preserveScroll: true,
+    onSuccess: () => { deleteDialogOpen.value = false; hourToDelete.value = null; },
+  });
 };
 
 // اعمال فیلتر
