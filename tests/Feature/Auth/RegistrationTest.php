@@ -22,7 +22,7 @@ class RegistrationTest extends AuthTestCase
         ]);
 
         $this->assertAuthenticated('web');
-        $response->assertRedirect(route('home', absolute: false));
+        $response->assertRedirect(route('patient.health.index', absolute: false));
 
         $user = User::query()->where('email', 'test@example.com')->firstOrFail();
 
