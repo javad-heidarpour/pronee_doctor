@@ -5,7 +5,7 @@ const props=defineProps({doctor:Object,organizations:Array,clinics:Array,members
 const contractForm=useForm({organization_id:props.organizations?.[0]?.id??'',clinic_id:'',staff_user_id:'',compensation_type:'monthly',base_monthly_salary:0,hourly_rate:0,standard_monthly_minutes:9600,overtime_multiplier_basis_points:15000,annual_leave_days:26,paid_leave_types:['annual','sick','mission'],effective_from:new Date().toISOString().slice(0,10),effective_until:'',notes:''})
 const balanceForm=useForm({organization_id:props.organizations?.[0]?.id??'',staff_user_id:'',year:props.currentYear,entitled_days:26,carry_over_days:0,adjustment_days:0,notes:''})
 const payrollForm=useForm({organization_id:props.organizations?.[0]?.id??'',clinic_id:'',staff_user_id:'',period_start:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),period_end:new Date().toISOString().slice(0,10),allowance_amount:0,deduction_amount:0,notes:''})
-const obligationForm=useForm({organization_id:props.organizations?.[0]?.id??'',clinic_id:'',staff_user_id:'',kind:'advance',title:'',principal_amount:0,installment_count:1,first_due_date:new Date().toISOString().slice(0,10),notes:''})
+const obligationForm=useForm({organization_id:props.organizations?.[0]?.id??'',clinic_id:'',staff_user_id:'',kind:'advance',title:'',principal_amount:0,installment_count:1,first_due_date:new Date().toISOString().slice(0,10),planned_disbursement_date:new Date().toISOString().slice(0,10),notes:''})
 const createObligation=()=>obligationForm.post(route('portal.staff-management.obligations.store'),{onSuccess:()=>obligationForm.reset('title','principal_amount','notes')})
 const approveObligation=id=>{if(window.confirm('درخواست تأیید شود؟'))router.patch(route('portal.staff-management.obligations.approve',id))}
 const disburseObligation=id=>{if(window.confirm('پرداخت انجام و سند حسابداری ثبت شود؟'))router.post(route('portal.staff-management.obligations.disburse',id))}
@@ -70,6 +70,7 @@ const status=s=>({draft:'پیش‌نویس',approved:'تأییدشده',paid:'پ
 <input v-model="obligationForm.title" required maxlength="180" placeholder="عنوان / علت پرداخت" class="rounded-xl border-slate-300 text-sm">
 <input v-model.number="obligationForm.principal_amount" type="number" min="1" required placeholder="اصل مبلغ (ریال)" class="rounded-xl border-slate-300 text-sm">
 <input v-model.number="obligationForm.installment_count" type="number" min="1" max="60" required placeholder="تعداد اقساط" class="rounded-xl border-slate-300 text-sm">
+<label class="text-xs text-slate-500">تاریخ برنامه‌ریزی پرداخت<input v-model="obligationForm.planned_disbursement_date" type="date" required class="mt-1 w-full rounded-xl border-slate-300 text-sm"></label>
 <label class="text-xs text-slate-500">سررسید قسط اول<input v-model="obligationForm.first_due_date" type="date" required class="mt-1 w-full rounded-xl border-slate-300 text-sm"></label>
 <input v-model="obligationForm.notes" placeholder="توضیحات" class="rounded-xl border-slate-300 text-sm">
 <button :disabled="obligationForm.processing" class="rounded-xl bg-violet-700 p-3 text-sm font-bold text-white sm:col-span-2 lg:col-span-4">ثبت پیش‌نویس و برنامه اقساط</button></form>
