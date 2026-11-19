@@ -155,9 +155,6 @@ class ClinicAccountingService
             $organizationId, $clinicId, $doctorId, $userId, $sourceType, $sourceId,
             $description, $occurredAt, $idempotencyKey, $lines
         ): ClinicJournalEntry {
-            $existing = ClinicJournalEntry::query()->where('idempotency_key', $idempotencyKey)->first();
-            if ($existing) return $existing->load('lines.account');
-
             $normalized = [];
             $debits = 0;
             $credits = 0;
@@ -175,6 +172,50 @@ class ClinicAccountingService
             }
             if ($debits < 1 || $debits !== $credits) {
                 throw ValidationException::withMessages(['finance' => 'سند حسابداری باید تراز باشد و جمع بدهکار و بستانکار برابر باشد.']);
+            }
+
+            // کلید تکرار فقط زمانی نتیجه قبلی را برمی‌گرداند که هم منبع و هم مبلغ سند دقیقاً یکسان باشد.
+            // این کنترل مانع استفاده تصادفی یا عمدی از یک کلید برای عملیات مالی متفاوت می‌شود.
+            $existing = ClinicJournalEntry::query()->where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
+                abort_unless(
+                    $existing->source_type === $sourceType
+                    && (int) $existing->source_id === $sourceId
+                    && (int) ($existing->organization_id ?? 0) === (int) ($organizationId ?? 0)
+                    && (int) ($existing->clinic_id ?? 0) === (int) ($clinicId ?? 0)
+                    && (int) ($existing->doctor_id ?? 0) === (int) ($doctorId ?? 0),
+                    409,
+                    'کلید تکرار سند حسابداری قبلاً برای منبع دیگری استفاده شده است.'
+                );
+
+                $expectedLines = [];
+                foreach ($normalized as $line) {
+                    $code = $line['code'];
+                    $expectedLines[$code] = [
+                        'debit' => ($expectedLines[$code]['debit'] ?? 0) + $line['debit'],
+                        'credit' => ($expectedLines[$code]['credit'] ?? 0) + $line['credit'],
+                    ];
+                }
+                ksort($expectedLines);
+
+                $storedLines = [];
+                foreach ($existing->lines()->with('account')->get() as $storedLine) {
+                    $code = $storedLine->account?->code;
+                    if ($code === null) continue;
+                    $storedLines[$code] = [
+                        'debit' => ($storedLines[$code]['debit'] ?? 0) + (int) $storedLine->debit,
+                        'credit' => ($storedLines[$code]['credit'] ?? 0) + (int) $storedLine->credit,
+                    ];
+                }
+                ksort($storedLines);
+
+                abort_unless(
+                    $storedLines === $expectedLines,
+                    409,
+                    'کلید تکرار سند حسابداری با مبالغ ثبت‌شده قبلی تطبیق ندارد.'
+                );
+
+                return $existing->load('lines.account');
             }
 
             $entry = ClinicJournalEntry::create([
