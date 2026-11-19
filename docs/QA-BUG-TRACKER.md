@@ -12,7 +12,7 @@
 - Baseline CI run: [Quality Checks #879](https://github.com/javad-heidarpour/pronee_doctor/actions/runs/44511955557) — success
 - Repository tree at audit commit `23d6ed3ed7fac58d232d0255f3236f00a555f941`: 905 files; tree response was not truncated.
 - Audit status: **IN PROGRESS — no claim of full-repository completion**
-- Current confirmed bug count: **10 open findings** (BUG-001, BUG-003 through BUG-011). BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
+- Current confirmed bug count: **11 findings** (BUG-001, BUG-003 through BUG-012); BUG-012 has a code fix committed but remains unverified. BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
 
 ## Rules for every continuation
 
@@ -57,6 +57,25 @@ One configuration finding remains open; BUG-002 is retained as rejected history.
 | BUG-009 | High | Operational / Health Interop | `routes/console.php:12-34`; `run-scheduler.php:10-14`; `docs/health-interop.md:15,42`; `.github/workflows/quality.yml:1-68` | Confirmed: no in-repository schedule, cron, supervisor, CI, or deployment hook invokes `health:dispatch-exchange`; only an external/manual worker could dispatch messages | Open | Pending |
 | BUG-010 | Medium | Clinical Data Integrity | `app/Http/Controllers/Portal/ClinicOperationsController.php:159-179,221-226` | Confirmed: appointment is scoped to doctor and clinic but not to the treatment plan's patient; a treatment item for patient A can reference patient B's appointment | Open | Pending |
 | BUG-011 | Medium | Financial Integrity / Concurrency | `app/Http/Controllers/Portal/ClinicOperationsController.php:113-145`; `database/migrations/2026_11_18_220000_create_clinic_organization_operations_tables.php:91-113` | Confirmed race: concurrent distinct item inserts can both pass the plan total cap; sequence uniqueness is validation-only and DB index is non-unique | Open | Pending |
+| BUG-012 | Medium | Runtime / Class Resolution | `app/Http/Controllers/Portal/PatientCarePathwayController.php:13,79,101` | Confirmed: missing import caused both `activate` and `verifyStep` to pass the controller-local class name to the container, which cannot resolve the service | Fixed — unverified | `353bfcc`; tests not run |
+
+
+### BUG-012 — Missing PatientCarePathwayProgress import
+
+- **Severity:** Medium
+- **Category:** Runtime / Class Resolution
+- **Location:** `app/Http/Controllers/Portal/PatientCarePathwayController.php:13,79,101`
+- **Code excerpt:**
+  ```php
+  app(PatientCarePathwayProgress::class)->canActivate(...);
+  app(PatientCarePathwayProgress::class)->isComplete(...);
+  ```
+- **Explanation:** The controller namespace is `App\\Http\\Controllers\\Portal`, while the concrete service is `App\\Services\\PatientCarePathwayProgress`. Without an import or fully-qualified class name, PHP evaluates the class constant to the controller-local FQCN string. The `::class` expression itself does not trigger autoloading or throw; the Laravel container fails when `app(...)` attempts to resolve that non-existent class. This breaks both care-pathway activation and reported-step verification. In `verifyStep`, the failure occurs inside the transaction before the closure returns, so the step update is rolled back.
+- **Confidence:** Confirmed
+- **Suggested remedy:** Import `App\\Services\\PatientCarePathwayProgress` and ensure regression tests resolve the real service rather than binding a fake under the wrong namespace.
+- **Status:** Fixed — unverified
+- **First observed commit:** `eeec38b1b0a34a12629eee958854e445a31e1d7e`
+- **Fix commit / verification:** `353bfcc` (`fix(BUG-012): add missing import`); test rewrite `bb8eec5`; local tests not yet run, no pass claim.
 
 ## Finding template
 
