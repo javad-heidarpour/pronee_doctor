@@ -12,6 +12,7 @@ use App\Services\Finance\ClinicAccountingService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 final class ClinicAccountingServiceTest extends TestCase
@@ -155,6 +156,37 @@ final class ClinicAccountingServiceTest extends TestCase
         $this->assertSame(2500, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '1300'))->sum('debit'));
         $this->assertSame(2500, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '2400'))->sum('credit'));
         $this->assertSame(0, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '1000'))->sum('credit'));
+    }
+
+    public function test_idempotency_key_cannot_be_reused_for_a_different_journal_amount(): void
+    {
+        $accounting = app(ClinicAccountingService::class);
+
+        $accounting->post(
+            9, 3, 12, 5, 'test', 91, 'سند اول', now()->toDateTimeString(),
+            'shared-finance-key', [
+                ['code' => '1000', 'debit' => 100, 'credit' => 0],
+                ['code' => '4000', 'debit' => 0, 'credit' => 100],
+            ]
+        );
+
+        try {
+            $accounting->post(
+                9, 3, 12, 5, 'test', 91, 'سند متفاوت', now()->toDateTimeString(),
+                'shared-finance-key', [
+                    ['code' => '1000', 'debit' => 200, 'credit' => 0],
+                    ['code' => '4000', 'debit' => 0, 'credit' => 200],
+                ]
+            );
+            $this->fail('A reused idempotency key must not silently accept a different amount.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'shared-finance-key')->count());
+        $entry = ClinicJournalEntry::query()->where('idempotency_key', 'shared-finance-key')->firstOrFail();
+        $this->assertSame(100, (int) $entry->lines()->sum('debit'));
+        $this->assertSame(100, (int) $entry->lines()->sum('credit'));
     }
 
     public function test_journal_rejects_unbalanced_entries(): void
