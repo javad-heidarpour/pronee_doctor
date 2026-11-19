@@ -27,13 +27,14 @@ final class ReferralCollaborationOpportunityFinder
      * Find potential partners from this doctor's actual referral demand.
      * The score is a transparent business-fit heuristic, not a clinical rating.
      */
-    public function find(int $doctorId, int $userId, ?string $cityName = null, ?CarbonInterface $now = null): array
+    public function find(int $doctorId, int $userId, ?string $cityName = null, ?CarbonInterface $now = null, ?array $clinicIds = null): array
     {
         $now ??= now();
         $from = $now->copy()->subDays(self::WINDOW_DAYS);
 
         $demand = MedicalReferral::query()
             ->where('referring_doctor_id', $doctorId)
+            ->when($clinicIds !== null, fn ($query) => $query->whereIn('source_clinic_id', $clinicIds))
             ->where('created_at', '>=', $from)
             ->selectRaw('service_type, COUNT(*) as demand_count')
             ->groupBy('service_type')
