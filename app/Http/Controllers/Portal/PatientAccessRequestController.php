@@ -34,48 +34,90 @@ final class PatientAccessRequestController extends Controller
         ]);
     }
 
+    /**
+     * تأیید درخواست فقط پس از بررسی هویت توسط مرکز انجام می‌شود.
+     *
+     * قفل سطری مانع آن است که دو کاربر هم‌زمان یک درخواست را با وضعیت‌های
+     * متفاوت تأیید/رد کنند یا درخواست در فاصله بررسی تا اعطای دسترسی تغییر کند.
+     */
     public function approve(PatientAccessRequest $accessRequest)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        abort_unless((int) $accessRequest->doctor_id === (int) $doctor->id, 404);
-        abort_unless($accessRequest->status === 'pending', 422);
 
-        DB::transaction(function () use ($accessRequest): void {
-            $accessRequest->update([
+        DB::transaction(function () use ($accessRequest, $doctor): void {
+            // درخواست را دوباره در محدوده پزشک فعال و با قفل پایگاه داده می‌خوانیم.
+            $lockedRequest = PatientAccessRequest::query()
+                ->whereKey($accessRequest->id)
+                ->where('doctor_id', $doctor->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($lockedRequest->status === 'pending', 409, 'این درخواست قبلاً بررسی شده است.');
+
+            // رابطه بیمار و پزشک را در لحظه تأیید دوباره کنترل می‌کنیم؛
+            // به شناسه‌های ذخیره‌شده در درخواست به‌تنهایی اعتماد نمی‌کنیم.
+            $patient = Patient::query()
+                ->whereKey($lockedRequest->patient_id)
+                ->where('doctor_id', $doctor->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // فقط حساب کاربری عادی بیمار می‌تواند مالک دسترسی پرونده شود.
+            $patientUser = User::query()
+                ->whereKey($lockedRequest->user_id)
+                ->where('role', 'user')
+                ->firstOrFail();
+
+            $reviewerId = Auth::guard('web')->id();
+
+            $lockedRequest->update([
                 'status' => 'approved',
-                'reviewed_by_user_id' => Auth::guard('web')->id(),
+                'reviewed_by_user_id' => $reviewerId,
                 'reviewed_at' => now(),
             ]);
+
             PatientAccountAccess::query()->updateOrCreate(
-                ['patient_id' => $accessRequest->patient_id, 'user_id' => $accessRequest->user_id],
+                ['patient_id' => $patient->id, 'user_id' => $patientUser->id],
                 [
-                    'granted_by_user_id' => Auth::guard('web')->id(),
+                    'granted_by_user_id' => $reviewerId,
                     'access_type' => 'owner',
                     'permissions' => ['view_summary', 'view_records', 'view_appointments', 'view_followups', 'manage_caregivers'],
                     'expires_at' => null,
                     'revoked_at' => null,
                 ]
             );
-        });
+        }, 3);
 
-        return back()->with('success', 'پس از احراز هویت بیمار، دسترسی پرونده فعال شد.');
+        return back()->with('success', 'پس از تأیید هویت توسط مرکز درمانی، دسترسی پرونده فعال شد.');
     }
 
+    /**
+     * رد درخواست نیز با قفل سطری انجام می‌شود تا وضعیت بررسی‌شده
+     * توسط درخواست هم‌زمان دیگری بازنویسی نشود.
+     */
     public function reject(Request $request, PatientAccessRequest $accessRequest)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        abort_unless((int) $accessRequest->doctor_id === (int) $doctor->id, 404);
-        abort_unless($accessRequest->status === 'pending', 422);
         $data = $request->validate(['review_note' => ['required', 'string', 'max:500']]);
 
-        $accessRequest->update([
-            'status' => 'rejected',
-            'reviewed_by_user_id' => Auth::guard('web')->id(),
-            'reviewed_at' => now(),
-            'review_note' => $data['review_note'],
-        ]);
+        DB::transaction(function () use ($accessRequest, $doctor, $data): void {
+            $lockedRequest = PatientAccessRequest::query()
+                ->whereKey($accessRequest->id)
+                ->where('doctor_id', $doctor->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($lockedRequest->status === 'pending', 409, 'این درخواست قبلاً بررسی شده است.');
+
+            $lockedRequest->update([
+                'status' => 'rejected',
+                'reviewed_by_user_id' => Auth::guard('web')->id(),
+                'reviewed_at' => now(),
+                'review_note' => $data['review_note'],
+            ]);
+        }, 3);
 
         return back()->with('success', 'درخواست دسترسی رد شد.');
     }
