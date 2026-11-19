@@ -311,6 +311,7 @@ class ClinicOperationsController extends Controller
             'movement_type' => ['required', Rule::in(['purchase','use','return','adjustment_in','adjustment_out'])],
             // مقدار با دقت سه رقم اعشار ذخیره می‌شود؛ اعشار بیشتر نباید بی‌صدا گرد شود.
             'quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,3', 'max:999999'],
+            'idempotency_key' => ['required', 'uuid'],
             'unit_cost' => ['required_if:movement_type,purchase', 'nullable', 'integer', 'min:0', 'max:999999999999'],
             'reference' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -322,6 +323,17 @@ class ClinicOperationsController extends Controller
             $row = ClinicInventoryItem::query()->whereKey($item)
                 ->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor))
                 ->lockForUpdate()->firstOrFail();
+
+            // ارسال دوباره یک فرم نباید گردش کالا و سند حسابداری جدید بسازد.
+            $existing = DB::table('clinic_inventory_movements')->where('idempotency_key', $data['idempotency_key'])->first();
+            if ($existing) {
+                abort_unless((int) $existing->inventory_item_id === (int) $row->id
+                    && $existing->movement_type === $data['movement_type']
+                    && round((float) $existing->quantity, 3) === round((float) $data['quantity'], 3)
+                    && (int) $existing->unit_cost === (int) ($data['unit_cost'] ?? $row->average_unit_cost), 409,
+                    'کلید تکرار درخواست قبلاً برای گردش دیگری استفاده شده است.');
+                return;
+            }
 
             $oldQuantity = round((float) $row->current_quantity, 3);
             abort_if($oldQuantity < 0, 409, 'موجودی فعلی انبار نامعتبر است؛ ابتدا مغایرت موجودی را بررسی کنید.');
@@ -355,6 +367,7 @@ class ClinicOperationsController extends Controller
                 'quantity' => $quantity,
                 'unit_cost' => $movementUnitCost,
                 'reference' => $data['reference'] ?? null,
+                'idempotency_key' => $data['idempotency_key'],
                 'notes' => $data['notes'] ?? null,
                 'occurred_at' => now(),
             ]);
