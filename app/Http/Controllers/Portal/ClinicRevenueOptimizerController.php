@@ -19,7 +19,6 @@ class ClinicRevenueOptimizerController extends Controller
 
     public function index(Request $request, ClinicRevenueOptimizer $optimizer)
     {
-        $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('finance.view', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
