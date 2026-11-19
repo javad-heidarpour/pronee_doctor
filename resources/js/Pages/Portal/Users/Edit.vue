@@ -59,15 +59,15 @@ const submit = () => {
           class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
         >
           <div class="bg-gradient-to-l from-teal-600 to-cyan-600 p-6 text-white">
-            <div class="flex items-center gap-4">
+            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
               <div
-                class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 text-2xl font-black"
+                class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-black"
               >
                 {{ form.name?.charAt(0) || "ک" }}
               </div>
 
-              <div>
-                <h2 class="text-xl font-bold">
+              <div class="min-w-0 flex-1">
+                <h2 class="break-words text-lg font-bold sm:text-xl">
                   {{ form.name + " " + form.family || "کاربر جدید" }}
                 </h2>
 
@@ -79,7 +79,7 @@ const submit = () => {
               </div>
               <Link
                 :href="route('portal.users.index')"
-                class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100 sm:w-auto"
               >
                 <span>→</span>
                 بازگشت به فهرست
