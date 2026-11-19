@@ -4,6 +4,8 @@ namespace App\Actions\Portal\Users;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
+use App\Models\Doctor;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -54,6 +56,29 @@ class UpdateManagedUserAction
             }
 
             $lockedUser->save();
+
+            // نقش/وضعیت حساب و پروفایل پزشک یک مرز امنیتی مشترک دارند.
+            // تغییر نقش پزشک به نقش دیگر، پروفایل عمومی و دسترسی‌های حرفه‌ای را می‌بندد.
+            $doctorProfile = Doctor::query()
+                ->where('user_id', $lockedUser->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($doctorProfile) {
+                $doctorProfile->is_active = $newRole === 'doctor' && $newIsActive;
+
+                if ($newRole === 'doctor' && $newIsActive) {
+                    // فقط مدیر مجاز به ویرایش نقش پزشک است؛ فعال‌سازی یعنی تأیید مدیر.
+                    $doctorProfile->registration_status = 'approved';
+                    $doctorProfile->approved_at ??= now();
+                    $doctorProfile->approved_by = Auth::guard('web')->id();
+                    $doctorProfile->rejection_reason = null;
+                    $doctorProfile->trial_started_at ??= now();
+                    $doctorProfile->site_expires_at ??= now()->addDays(7);
+                }
+
+                $doctorProfile->save();
+            }
 
             if ($accessChanged && config('session.driver') === 'database') {
                 DB::connection(config('session.connection'))
