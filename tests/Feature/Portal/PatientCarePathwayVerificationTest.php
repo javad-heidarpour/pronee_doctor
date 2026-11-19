@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\PatientCarePathwayController;
 use App\Models\User;
 use App\Models\PatientCarePathway;
 use App\Models\PatientCarePathwayStep;
+use App\Services\PatientCarePathwayProgress;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -124,16 +125,8 @@ final class PatientCarePathwayVerificationTest extends TestCase
 
         $controller = new PatientCarePathwayController();
 
-        // Keep this regression test focused on the transaction result and audit event.
-        app()->instance(
-            'App\\Http\\Controllers\\Portal\\PatientCarePathwayProgress',
-            new class {
-                public function isComplete($steps): bool
-                {
-                    return false;
-                }
-            }
-        );
+        // Resolve the real service used by the controller; do not mask missing imports.
+        $this->assertInstanceOf(PatientCarePathwayProgress::class, app(PatientCarePathwayProgress::class));
 
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
@@ -152,5 +145,6 @@ final class PatientCarePathwayVerificationTest extends TestCase
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame('verified', $step->fresh()->status);
+        $this->assertSame('completed', $pathway->fresh()->status);
     }
 }
