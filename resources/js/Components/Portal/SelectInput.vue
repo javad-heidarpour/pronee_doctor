@@ -2,7 +2,7 @@
 <template>
   <div class="relative" ref="selectRef">
     <!-- Label -->
-    <label v-if="label" class="block text-sm font-bold text-gray-700 mb-2">
+    <label v-if="label" :for="triggerId" class="block text-sm font-bold text-gray-700 mb-2">
       {{ label }}
       <span v-if="required" class="text-red-500">*</span>
     </label>
@@ -22,7 +22,13 @@
           ? 'bg-gray-100 cursor-not-allowed opacity-60'
           : 'cursor-pointer hover:border-gray-300',
       ]"
+      :id="triggerId"
       :disabled="disabled"
+      :aria-expanded="isOpen ? 'true' : 'false'"
+      aria-haspopup="listbox"
+      :aria-required="required ? 'true' : undefined"
+      :aria-invalid="hasError || errorMessage ? 'true' : undefined"
+      @keydown.esc.prevent="isOpen = false"
     >
       <span
         :class="selectedLabel || searchQuery ? 'text-gray-900' : 'text-gray-400'"
@@ -50,13 +56,14 @@
     <Transition name="dropdown">
       <div
         v-if="isOpen"
-        class="absolute z-50 mt-2 w-full bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+        class="absolute z-50 mt-2 w-full max-w-full overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl"
       >
         <!-- Search Input -->
         <div v-if="searchable" class="p-3 border-b border-gray-100">
           <div class="relative">
             <input
               v-model="searchQuery"
+              :aria-label="searchPlaceholder"
               type="text"
               :placeholder="searchPlaceholder"
               class="w-full px-4 py-2 pr-10 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -79,10 +86,11 @@
         </div>
 
         <!-- Options List -->
-        <div class="max-h-60 overflow-y-auto py-2">
+        <div class="max-h-60 overflow-y-auto py-2" role="listbox">
           <!-- Clear Button (if has value) -->
           <button
             v-if="clearable && modelValue"
+            type="button"
             @click="clearSelection"
             class="w-full px-4 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
@@ -126,6 +134,8 @@
             v-for="option in filteredOptions"
             :key="getOptionValue(option)"
             type="button"
+            role="option"
+            :aria-selected="isSelected(option)"
             @click="selectOption(option)"
             :class="[
               'w-full px-4 py-2.5 text-right text-sm transition-colors flex items-center gap-2',
@@ -166,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, useId } from "vue";
 
 const props = defineProps({
   allowCreate: {
@@ -237,6 +247,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "change", "create"]);
 
+const triggerId = "select-trigger-" + useId();
 const isOpen = ref(false);
 const searchQuery = ref("");
 const selectRef = ref(null);
@@ -334,8 +345,8 @@ const handleClickOutside = (event) => {
         emit("change", matchedOption.value);
         searchQuery.value = "";
       } else {
-        emit("update:modelValue", query);
-        emit("change", query);
+        // متن جست‌وجو بدون انتخاب یا ایجاد صریح نباید به مقدار فیلد تبدیل شود.
+        searchQuery.value = "";
       }
     }
   }
