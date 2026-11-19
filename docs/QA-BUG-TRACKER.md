@@ -442,7 +442,7 @@ Last ledger update: 2026-11-19
 
 ### Deep control-failure review + test audit + next app group
 
-- **Read scope/count correction:** previous confirmed full backend count was 136/535. This pass fully read all 64 files under `tests/`; two tests were already in the 136 count, so this adds 62 unique test files. It also fully read 64 new unique `app/` files and 10 additional files (6 migrations, one service, one model, one request, one controller). Corrected unique total: **268 / 535** backend files fully read; four of the ten additional files were duplicates already present in the preceding full-read lists. The 64 test files include support classes; this is a file count, not 64 executable test classes.
+- **Read scope/count correction:** previous confirmed full backend count was 136/535. This pass fully read all 64 files under `tests/`; two tests were already in the 136 count, so this adds 62 unique test files. It also read 64 new unique `app/` files and 10 additional candidate files; only 6 of those 10 were unique because `PatientCarePathwayProgress.php`, `UpdateAppointmentStatusRequest.php`, `AvailableClinicRequest.php`, and `AvailableSlotsRequest.php` had already been counted. Corrected unique total: **268 / 535** backend files fully read. The 64 test files include support classes; this is a file count, not 64 executable test classes.
 - **Test scan result:** no `markTestSkipped`, `markTestIncomplete`, or `->skip()` calls found in the 64 files. `tests/Unit/ExampleTest.php:14` contains only `$this->assertTrue(true);` and is a vacuous example, not meaningful behavioral coverage. Abstract support files `tests/Feature/Auth/AuthTestCase.php` and `tests/TestCase.php` are not counted as assertion-empty test cases.
 - **Test coverage gaps (not standalone bugs):**
   - `tests/Unit/Payments/InitiateAppointmentPaymentActionTest.php` does not exercise zero/negative fee input; the action itself rejects `amount <= 0`.
@@ -751,7 +751,7 @@ Last ledger update: 2026-11-19
 - **Source revision reviewed:** `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`.
 - **Final inventory:** recursive Git tree contains **535** files in the backend scope (`app/`, `routes/`, `database/`, `config/`, `bootstrap/`, `tests/`). The 64 test files are included in this 535, not added on top.
 - **Completed this pass:** all **192** paths that remained after the corrected deduplication pass were fetched and read in full. This includes the remaining Controllers, Actions, Models, DTOs, Requests, Repositories, Support classes, routes, configs, factories, migrations, and bootstrap files.
-- **Final status:** **535 unique files fully read; 0 remaining**. No test suite was executed in this audit; the repository CI workflow declares test commands, but this review did not run them.
+- **Final status:** **535 unique files fully read; 0 remaining**. Earlier per-pass notes saying files were not yet reviewed are historical snapshots and are superseded by this completion pass. No test suite was executed in this audit; the repository CI workflow declares test commands, but this review did not run them.
 - **BUG-009 — missing automatic health-exchange dispatch.**
   - `routes/console.php:12-34` schedules appointment expiry, appointment reminders, patient follow-up reminders, installment reminders, and collateral reminders. It does **not** schedule `health:dispatch-exchange`.
   - `run-scheduler.php:10-14` only calls Laravel's `schedule:run`; it does not call the health dispatcher directly.
