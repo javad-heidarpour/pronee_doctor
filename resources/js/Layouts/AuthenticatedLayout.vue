@@ -26,12 +26,12 @@ const showingNavigationDropdown = ref(false);
               </div>
 
               <!-- Navigation Links -->
-              <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+              <div class="hidden items-center gap-8 sm:-my-px sm:ms-10 sm:flex">
                 <NavLink
                   :href="route('dashboard')"
                   :active="route().current('dashboard')"
                 >
-                  Dashboard
+                  داشبورد
                 </NavLink>
               </div>
             </div>
@@ -65,9 +65,9 @@ const showingNavigationDropdown = ref(false);
                   </template>
 
                   <template #content>
-                    <DropdownLink :href="route('profile.edit')"> Profile </DropdownLink>
+                    <DropdownLink :href="route('profile.edit')"> پروفایل </DropdownLink>
                     <DropdownLink :href="route('logout')" method="post" as="button">
-                      Log Out
+                      خروج از حساب کاربری
                     </DropdownLink>
                   </template>
                 </Dropdown>
@@ -77,6 +77,9 @@ const showingNavigationDropdown = ref(false);
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
               <button
+                type="button"
+                aria-label="نمایش یا بستن منو"
+                :aria-expanded="showingNavigationDropdown"
                 @click="showingNavigationDropdown = !showingNavigationDropdown"
                 class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
               >
@@ -125,7 +128,7 @@ const showingNavigationDropdown = ref(false);
               :href="route('dashboard')"
               :active="route().current('dashboard')"
             >
-              Dashboard
+              داشبورد
             </ResponsiveNavLink>
           </div>
 
@@ -146,7 +149,7 @@ const showingNavigationDropdown = ref(false);
                 Profile
               </ResponsiveNavLink>
               <ResponsiveNavLink :href="route('logout')" method="post" as="button">
-                Log Out
+                خروج از حساب کاربری
               </ResponsiveNavLink>
             </div>
           </div>
