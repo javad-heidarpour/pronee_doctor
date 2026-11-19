@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import PortalLayout from "@/Layouts/PortalLayout.vue";
+import ActionDialog from "@/Components/Portal/ActionDialog.vue";
 
 const props = defineProps({
   users: {
@@ -22,6 +23,8 @@ const search = ref("");
 const selectedRole = ref("all");
 const selectedStatus = ref("all");
 const sortBy = ref("newest");
+const deleteDialogOpen = ref(false);
+const userPendingAction = ref(null);
 
 const userList = computed(() => {
   if (Array.isArray(props.users)) {
@@ -168,14 +171,15 @@ const changeStatus = (user) => {
 const confirmDelete = (user) => {
   const isDeleted = Boolean(user.deleted_at);
 
-  const message = isDeleted
-    ? `آیا می‌خواهید کاربر «${fullName(user)}» بازیابی شود؟`
-    : `آیا از حذف کاربر «${fullName(user)}» مطمئن هستید؟`;
+  userPendingAction.value = { id: user.id, isDeleted, name: fullName(user) };
+  deleteDialogOpen.value = true;
+};
 
-  if (!window.confirm(message)) return;
-
-  router.delete(route("portal.users.destroy", user.id), {
+const confirmUserAction = () => {
+  if (!userPendingAction.value) return;
+  router.delete(route("portal.users.destroy", userPendingAction.value.id), {
     preserveScroll: true,
+    onSuccess: () => { deleteDialogOpen.value = false; userPendingAction.value = null; },
   });
 };
 
@@ -190,6 +194,14 @@ const resetFilters = () => {
 
 <template>
   <PortalLayout :doctor="doctor">
+    <ActionDialog
+      :open="deleteDialogOpen"
+      :title="userPendingAction?.isDeleted ? 'بازیابی کاربر' : 'حذف کاربر'"
+      :description="userPendingAction ? (userPendingAction.isDeleted ? 'کاربر «' + userPendingAction.name + '» بازیابی شود؟' : 'کاربر «' + userPendingAction.name + '» حذف شود؟') : 'عملیات را تأیید کنید.'"
+      :submit-label="userPendingAction?.isDeleted ? 'بازیابی کاربر' : 'حذف کاربر'"
+      @close="deleteDialogOpen = false"
+      @submit="confirmUserAction"
+    />
     <div dir="rtl" class="w-full text-slate-800 sm:p-5">
       <div class="mx-auto w-full max-w-[1800px]">
         <!-- Header -->
