@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import { useForm, router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
@@ -38,9 +39,12 @@ const activePeriodicPartnerships = computed(() => props.partnerships.filter(x =>
 const submit = () => form.post(route('portal.professional-partnerships.store'), { preserveScroll: true, onSuccess: () => form.reset('provider_id','service_fee_rial','fixed_fee_rial','periodic_fee_rial','ends_at','terms') })
 const recordSession = () => sessionForm.post(route('portal.professional-partnerships.sessions.store'), { preserveScroll: true, onSuccess: () => sessionForm.reset('gross_amount_rial','adjustment_amount_rial','appointment_id') })
 const respond = (item, decision) => router.patch(route('portal.professional-partnerships.respond', item.id), { decision }, { preserveScroll: true })
-const confirmSession = item => { const reference = window.prompt('شناسه یا مرجع پرداخت (اختیاری):'); if (reference === null) return; router.patch(route('portal.professional-partnerships.sessions.confirm', item.id), { payment_reference: reference || null }, { preserveScroll: true }) }
+const actionDialog=reactive({open:false,title:'',description:'',fields:[],errors:{},processing:false,submit:null})
+const closeAction=()=>{if(!actionDialog.processing)actionDialog.open=false}
+const submitAction=values=>{if(typeof actionDialog.submit!=='function')return;actionDialog.processing=true;actionDialog.submit(values,{preserveScroll:true,onSuccess:()=>{actionDialog.open=false;actionDialog.errors={}},onError:errors=>{actionDialog.errors=errors||{}},onFinish:()=>{actionDialog.processing=false}})}
+const confirmSession = item => Object.assign(actionDialog,{open:true,title:'تأیید تسویه جلسه',description:'در صورت وجود، شناسه یا مرجع پرداخت را وارد کنید.',errors:{},processing:false,fields:[{key:'payment_reference',label:'شناسه یا مرجع پرداخت',maxlength:160}],submit:(v,cb)=>router.patch(route('portal.professional-partnerships.sessions.confirm',item.id),{payment_reference:v.payment_reference||null},cb)})
 const generateDue = () => periodicForm.post(route('portal.professional-partnerships.dues.store'), { preserveScroll: true })
-const confirmDue = item => { const reference = window.prompt('شناسه یا مرجع پرداخت (اختیاری):'); if (reference === null) return; router.patch(route('portal.professional-partnerships.dues.confirm', item.id), { payment_reference: reference || null }, { preserveScroll: true }) }
+const confirmDue = item => Object.assign(actionDialog,{open:true,title:'تأیید تسویه صورتحساب دوره‌ای',description:'در صورت وجود، شناسه یا مرجع پرداخت را وارد کنید.',errors:{},processing:false,fields:[{key:'payment_reference',label:'شناسه یا مرجع پرداخت',maxlength:160}],submit:(v,cb)=>router.patch(route('portal.professional-partnerships.dues.confirm',item.id),{payment_reference:v.payment_reference||null},cb)})
 const invoice = item => window.open(route('portal.professional-partnerships.dues.invoice', item.id), '_blank', 'noopener')
 </script>
 
@@ -159,5 +163,6 @@ const invoice = item => window.open(route('portal.professional-partnerships.dues
         <p class="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-900">این ماژول دفتر توافق و محاسبه داخلی است؛ انتقال بانکی، صدور فاکتور رسمی مالیاتی و محاسبه مالیات همچنان به درگاه و سامانه حسابداری معتبر متصل نیستند. صورتحساب دوره‌ای و تأیید دوطرفه ثبت داخلی است و جایگزین تأیید بانکی نیست. قراردادها باید با مقررات حرفه‌ای و تعرفه‌های مجاز تطبیق داده شوند؛ پرداخت بابت معرفی بیمار یا کمیسیون ارجاع در این ماژول وجود ندارد.</p>
       </section>
     </main>
+    <ActionDialog :open="actionDialog.open" :title="actionDialog.title" :description="actionDialog.description" :fields="actionDialog.fields" :errors="actionDialog.errors" :processing="actionDialog.processing" @close="closeAction" @submit="submitAction" />
   </PortalLayout>
 </template>

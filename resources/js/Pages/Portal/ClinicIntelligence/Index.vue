@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import { router, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
@@ -19,25 +20,11 @@ const simulation = useForm({
 const money = value => new Intl.NumberFormat('fa-IR').format(Math.round(Number(value || 0))) + ' ریال'
 const riskLabel = risk => ({ out: 'اتمام موجودی', critical: 'بحرانی', warning: 'نیازمند سفارش', healthy: 'مناسب' })[risk] || risk
 const confidenceLabel = value => ({ service_mix: 'الگوی تخصص/خدمت', historical_fallback: 'مصرف تاریخی', insufficient_data: 'داده ناکافی' })[value] || value
-const updateSettings = item => {
-  const lead = window.prompt('زمان تأمین کالا به روز', String(item.lead_time_days))
-  if (lead === null) return
-  const safety = window.prompt('ذخیره احتیاطی به روز', String(item.safety_stock_days))
-  if (safety === null) return
-  const supplier = window.prompt('تأمین‌کننده پیشنهادی', item.preferred_supplier || '') ?? ''
-  router.post(route('portal.intelligence.inventory.settings', item.id), {
-    lead_time_days: Number(lead), safety_stock_days: Number(safety), preferred_supplier: supplier,
-  })
-}
-const award = membership => {
-  const activity_key = window.prompt('نوع فعالیت: education_completed / self_care_goal_completed / preventive_checklist_completed', 'education_completed')
-  if (!activity_key) return
-  const description = window.prompt('شرح فعالیت انجام‌شده', 'تکمیل محتوای آموزشی سلامت')
-  if (!description) return
-  const source_key = window.prompt('شناسه یکتای رویداد (برای جلوگیری از امتیاز تکراری)', '')
-  if (!source_key) return
-  router.post(route('portal.intelligence.health.points', membership.id), { activity_key, description, source_key })
-}
+const actionDialog=reactive({open:false,title:'',description:'',fields:[],errors:{},processing:false,submit:null})
+const closeAction=()=>{if(!actionDialog.processing)actionDialog.open=false}
+const submitAction=values=>{if(typeof actionDialog.submit!=='function')return;actionDialog.processing=true;actionDialog.submit(values,{preserveScroll:true,onSuccess:()=>{actionDialog.open=false;actionDialog.errors={}},onError:errors=>{actionDialog.errors=errors||{}},onFinish:()=>{actionDialog.processing=false}})}
+const updateSettings = item => Object.assign(actionDialog,{open:true,title:'تنظیم پیش‌بینی موجودی',description:'پارامترهای تأمین و ذخیره احتیاطی برای '+item.name,errors:{},processing:false,fields:[{key:'lead_time_days',label:'زمان تأمین کالا (روز)',type:'number',min:0,max:365,required:true,value:item.lead_time_days},{key:'safety_stock_days',label:'ذخیره احتیاطی (روز)',type:'number',min:0,max:365,required:true,value:item.safety_stock_days},{key:'preferred_supplier',label:'تأمین‌کننده پیشنهادی',value:item.preferred_supplier||'',maxlength:160}],submit:(v,cb)=>router.post(route('portal.intelligence.inventory.settings',item.id),{lead_time_days:Number(v.lead_time_days),safety_stock_days:Number(v.safety_stock_days),preferred_supplier:v.preferred_supplier||''},cb)})
+const award = membership => Object.assign(actionDialog,{open:true,title:'ثبت فعالیت پیشگیرانه بیمار',description:'ثبت امتیاز فقط برای فعالیت انجام‌شده و با شناسه یکتای رویداد مجاز است.',errors:{},processing:false,fields:[{key:'activity_key',label:'نوع فعالیت',type:'select',required:true,value:'education_completed',options:[{value:'education_completed',label:'تکمیل آموزش سلامت'},{value:'self_care_goal_completed',label:'تکمیل هدف خودمراقبتی'},{value:'preventive_checklist_completed',label:'تکمیل چک‌لیست پیشگیری'}]},{key:'description',label:'شرح فعالیت انجام‌شده',type:'textarea',required:true,value:'تکمیل محتوای آموزشی سلامت',maxlength:1000},{key:'source_key',label:'شناسه یکتای رویداد',required:true,maxlength:160}],submit:(v,cb)=>router.post(route('portal.intelligence.health.points',membership.id),v,cb)})
 const saveSimulation = () => simulation.post(route('portal.intelligence.simulate'))
 const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scenarios[0].results === 'string' ? JSON.parse(props.scenarios[0].results) : props.scenarios[0].results) : null)
 </script>
@@ -144,5 +131,6 @@ const result = computed(() => props.scenarios?.[0]?.results ? (typeof props.scen
         <div v-if="scenarios.length" class="space-y-2"><h3 class="font-bold">سناریوهای ذخیره‌شده</h3><div v-for="scenario in scenarios" :key="scenario.id" class="flex flex-wrap justify-between gap-2 rounded-xl border p-3 text-sm"><b>{{ scenario.name }}</b><span class="text-slate-500">{{ scenario.scenario_type }} · {{ new Date(scenario.created_at).toLocaleDateString('fa-IR') }}</span></div></div>
       </section>
     </main>
+    <ActionDialog :open="actionDialog.open" :title="actionDialog.title" :description="actionDialog.description" :fields="actionDialog.fields" :errors="actionDialog.errors" :processing="actionDialog.processing" @close="closeAction" @submit="submitAction" />
   </PortalLayout>
 </template>
