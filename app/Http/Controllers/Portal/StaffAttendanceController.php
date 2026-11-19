@@ -23,6 +23,8 @@ final class StaffAttendanceController extends Controller
         $user = Auth::guard('web')->user();
         $this->authorizeSecretaryPermission('staff.attendance.view', $doctor);
         $month = $request->validate(['month' => ['nullable', 'date_format:Y-m']])['month'] ?? now()->format('Y-m');
+        $periodStart = Carbon::parse($month . '-01')->startOfDay();
+        $periodEnd = $periodStart->copy()->endOfMonth();
         $organizations = $doctor->clinicOrganizations()->wherePivot('status', 'active')->get();
         $scopes = [];
         foreach ($organizations as $organization) {
@@ -93,6 +95,71 @@ final class StaffAttendanceController extends Controller
 
         $todayRows = DB::table('clinic_staff_attendances')->where('staff_user_id',$user->id)
             ->whereIn('organization_id',$organizationIds)->whereDate('work_date',now()->toDateString())->get();
+
+        $leaveQuery = DB::table('clinic_staff_leave_requests as l')
+            ->join('users as staff','staff.id','=','l.staff_user_id')
+            ->join('addresses as c','c.id','=','l.clinic_id');
+        $scopeFilter($leaveQuery, 'l');
+        $leaveRequests = $leaveQuery->whereDate('l.start_date','<=',$periodEnd->toDateString())
+            ->whereDate('l.end_date','>=',$periodStart->toDateString())
+            ->orderByDesc('l.start_date')
+            ->get(['l.id','l.organization_id','l.clinic_id','l.staff_user_id','l.leave_type','l.start_date','l.end_date','l.status','l.reason','l.decision_note','l.decided_at','staff.name as staff_name','staff.family as staff_family','c.name as clinic_name'])
+            ->map(function($leave) use ($scopes): object {
+                $leave->can_decide=collect($scopes)->contains(fn($scope)=>$scope['is_owner']&&(int)$scope['organization']->id===(int)$leave->organization_id);
+                return $leave;
+            });
+
+        $holidays = DB::table('clinic_organization_holidays')
+            ->whereIn('organization_id',$organizationIds)
+            ->whereBetween('holiday_date',[$periodStart->toDateString(),$periodEnd->toDateString()])
+            ->orderBy('holiday_date')->get(['id','organization_id','holiday_date','name'])
+            ->map(function($holiday) use ($scopes): object {
+                $holiday->can_delete=collect($scopes)->contains(fn($scope)=>$scope['is_owner']&&(int)$scope['organization']->id===(int)$holiday->organization_id);
+                return $holiday;
+            });
+
+        $reportSchedules = DB::table('clinic_staff_work_schedules as s')
+            ->join('users as u','u.id','=','s.staff_user_id')
+            ->join('addresses as c','c.id','=','s.clinic_id');
+        $scopeFilter($reportSchedules, 's');
+        $reportSchedules = $reportSchedules->where('s.is_active',true)
+            ->whereDate('s.effective_from','<=',$periodEnd->toDateString())
+            ->where(fn($q)=>$q->whereNull('s.effective_until')->orWhereDate('s.effective_until','>=',$periodStart->toDateString()))
+            ->get(['s.organization_id','s.clinic_id','s.staff_user_id','s.weekday','s.start_time','s.end_time','s.effective_from','s.effective_until','u.name as staff_name','u.family as staff_family','c.name as clinic_name']);
+
+        $attendanceKeys = $attendances->filter(fn($row)=>!empty($row->check_in_at))
+            ->mapWithKeys(fn($row)=>[$row->organization_id.'|'.$row->clinic_id.'|'.$row->staff_user_id.'|'.$row->work_date=>true]);
+        $holidayKeys = $holidays->mapWithKeys(fn($row)=>[$row->organization_id.'|'.$row->holiday_date=>true]);
+        $absenceRows = collect();
+        $today = Carbon::now();
+        foreach ($reportSchedules as $schedule) {
+            $from = Carbon::parse(max($periodStart->toDateString(), $schedule->effective_from));
+            $untilDate = min($periodEnd->toDateString(), $today->toDateString(), $schedule->effective_until ?: '9999-12-31');
+            $until = Carbon::parse($untilDate);
+            if ($from->greaterThan($until)) continue;
+            for ($day=$from->copy(); $day->lessThanOrEqualTo($until); $day->addDay()) {
+                if ($day->dayOfWeek !== (int)$schedule->weekday) continue;
+                $date = $day->toDateString();
+                $isHoliday=$holidayKeys->has($schedule->organization_id.'|'.$date);
+                $hasLeave = $leaveRequests->contains(fn($leave)=>
+                    (int)$leave->organization_id===(int)$schedule->organization_id
+                    && (int)$leave->clinic_id===(int)$schedule->clinic_id
+                    && (int)$leave->staff_user_id===(int)$schedule->staff_user_id
+                    && in_array($leave->status,['pending','approved'],true)
+                    && $date >= $leave->start_date && $date <= $leave->end_date
+                );
+                $key=$schedule->organization_id.'|'.$schedule->clinic_id.'|'.$schedule->staff_user_id.'|'.$date;
+                $shiftEnd=Carbon::parse($date.' '.$schedule->end_time,$today->timezone);
+                if (!StaffAttendanceCalculator::shouldCountAbsence($day,$shiftEnd,$today,$attendanceKeys->has($key),$isHoliday,$hasLeave)) continue;
+                $absenceRows->push([
+                    'organization_id'=>$schedule->organization_id,'clinic_id'=>$schedule->clinic_id,
+                    'staff_user_id'=>$schedule->staff_user_id,'work_date'=>$date,
+                    'staff_name'=>$schedule->staff_name,'staff_family'=>$schedule->staff_family,
+                    'clinic_name'=>$schedule->clinic_name,
+                ]);
+            }
+        }
+
         $auditQuery = DB::table('clinic_staff_attendance_events as e')
             ->leftJoin('users as actor','actor.id','=','e.actor_user_id')
             ->join('users as staff','staff.id','=','e.staff_user_id');
@@ -104,6 +171,7 @@ final class StaffAttendanceController extends Controller
             'late_days' => $attendances->where('minutes_late','>',0)->count(),
             'worked_minutes' => (int) $attendances->sum('minutes_worked'),
             'incomplete_days' => $attendances->whereNull('check_out_at')->count(),
+            'absent_days' => $absenceRows->count(),
         ];
 
         return Inertia::render('Portal/StaffAttendance/Index', [
@@ -114,6 +182,9 @@ final class StaffAttendanceController extends Controller
             'schedules'=>$schedules,
             'todayAttendances'=>$todayRows,
             'auditEvents'=>$auditEvents,
+            'leaveRequests'=>$leaveRequests,
+            'holidays'=>$holidays,
+            'absenceRows'=>$absenceRows->values(),
             'summary'=>$summary,
             'month'=>$month,
             'currentUserId'=>(int)$user->id,
@@ -260,6 +331,82 @@ final class StaffAttendanceController extends Controller
             $this->event($row->id,$row->organization_id,$row->clinic_id,$row->staff_user_id,Auth::guard('web')->id(),'manager_correction',$old,$new,$data['reason'],$request);
         },3);
         return back()->with('success','سوابق حضور اصلاح شد و تغییرات در گزارش حسابرسی ثبت شد.');
+    }
+
+
+    public function storeLeave(Request $request)
+    {
+        $this->authorizeSecretaryPermission('staff.attendance.view', $this->currentDoctor());
+        $data=$request->validate([
+            'organization_id'=>['required','integer'],
+            'clinic_id'=>['required','integer'],
+            'leave_type'=>['required','in:annual,sick,unpaid,mission'],
+            'start_date'=>['required','date','after_or_equal:today'],
+            'end_date'=>['required','date','after_or_equal:start_date'],
+            'reason'=>['required','string','min:5','max:2000'],
+        ]);
+        [$organization,$clinicIds]=$this->memberOrganization((int)$data['organization_id']);
+        abort_unless(in_array((int)$data['clinic_id'],$clinicIds,true),403);
+        $user=Auth::guard('web')->user();
+        $overlap=DB::table('clinic_staff_leave_requests')
+            ->where('organization_id',$organization->id)->where('staff_user_id',$user->id)
+            ->where('clinic_id',$data['clinic_id'])->whereIn('status',['pending','approved'])
+            ->whereDate('start_date','<=',$data['end_date'])
+            ->whereDate('end_date','>=',$data['start_date'])->exists();
+        abort_if($overlap,422,'برای این بازه زمانی درخواست مرخصی فعال یا در انتظار بررسی دارید.');
+        DB::table('clinic_staff_leave_requests')->insert([
+            'organization_id'=>$organization->id,'clinic_id'=>$data['clinic_id'],'staff_user_id'=>$user->id,
+            'leave_type'=>$data['leave_type'],'start_date'=>$data['start_date'],'end_date'=>$data['end_date'],
+            'status'=>'pending','reason'=>$data['reason'],'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        return back()->with('success','درخواست مرخصی/مأموریت برای بررسی مدیر ثبت شد.');
+    }
+
+    public function decideLeave(Request $request,int $leave)
+    {
+        $data=$request->validate([
+            'decision'=>['required','in:approved,rejected'],
+            'decision_note'=>['nullable','string','max:1000'],
+        ]);
+        $row=DB::table('clinic_staff_leave_requests')->where('id',$leave)->first();
+        abort_unless($row,404);
+        [$organization,$clinicIds]=$this->ownerOrganization((int)$row->organization_id);
+        abort_unless(in_array((int)$row->clinic_id,$clinicIds,true),403);
+        DB::transaction(function()use($row,$data):void{
+            $locked=DB::table('clinic_staff_leave_requests')->where('id',$row->id)->lockForUpdate()->first();
+            abort_unless($locked->status==='pending',409,'این درخواست قبلاً بررسی شده است.');
+            DB::table('clinic_staff_leave_requests')->where('id',$row->id)->update([
+                'status'=>$data['decision'],'decision_note'=>$data['decision_note']??null,
+                'decided_by'=>Auth::guard('web')->id(),'decided_at'=>now(),'updated_at'=>now(),
+            ]);
+        },3);
+        return back()->with('success',$data['decision']==='approved'?'درخواست تأیید شد.':'درخواست رد شد.');
+    }
+
+    public function storeHoliday(Request $request)
+    {
+        [$organization,$clinicIds]=$this->ownerOrganization((int)$request->input('organization_id'));
+        $data=$request->validate([
+            'holiday_date'=>['required','date'],
+            'name'=>['required','string','max:160'],
+        ]);
+        $exists=DB::table('clinic_organization_holidays')->where('organization_id',$organization->id)
+            ->whereDate('holiday_date',$data['holiday_date'])->exists();
+        abort_if($exists,409,'برای این تاریخ قبلاً تعطیلی ثبت شده است.');
+        DB::table('clinic_organization_holidays')->insert([
+            'organization_id'=>$organization->id,'holiday_date'=>$data['holiday_date'],'name'=>$data['name'],
+            'created_by'=>Auth::guard('web')->id(),'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        return back()->with('success','تعطیلی مجموعه ثبت شد.');
+    }
+
+    public function deleteHoliday(int $holiday)
+    {
+        $row=DB::table('clinic_organization_holidays')->where('id',$holiday)->first();
+        abort_unless($row,404);
+        $this->ownerOrganization((int)$row->organization_id);
+        DB::table('clinic_organization_holidays')->where('id',$holiday)->delete();
+        return back()->with('success','تعطیلی ثبت‌شده حذف شد.');
     }
 
     private function memberOrganization(int $id): array

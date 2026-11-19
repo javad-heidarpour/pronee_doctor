@@ -25,4 +25,23 @@ final class StaffAttendanceCalculator
 
         return max(0, (int) $checkIn->diffInMinutes($checkOut) - max(0, $breakMinutes));
     }
+
+    public static function shouldCountAbsence(
+        Carbon $scheduledDay,
+        Carbon $shiftEnd,
+        Carbon $now,
+        bool $hasCheckIn,
+        bool $isHoliday,
+        bool $hasPendingOrApprovedLeave
+    ): bool {
+        if ($hasCheckIn || $isHoliday || $hasPendingOrApprovedLeave) {
+            return false;
+        }
+
+        if ($scheduledDay->isAfter($now)) {
+            return false;
+        }
+
+        return !$scheduledDay->isSameDay($now) || $now->greaterThan($shiftEnd);
+    }
 }

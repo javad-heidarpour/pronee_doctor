@@ -191,6 +191,7 @@ class DoctorAuth
             'portal.staff-attendance.index' => 'staff.attendance.view',
             'portal.staff-attendance.check-in' => 'staff.attendance.view',
             'portal.staff-attendance.check-out' => 'staff.attendance.view',
+            'portal.staff-attendance.leaves.store' => 'staff.attendance.view',
             'portal.operations.services.store' => 'services.manage',
             'portal.operations.treatment-items.store' => 'patients.clinical.manage',
             'portal.operations.treatment-items.update' => 'patients.clinical.manage',

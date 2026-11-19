@@ -102,6 +102,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/staff-attendance/check-in', [StaffAttendanceController::class, 'checkIn'])->middleware('throttle:10,1')->name('staff-attendance.check-in');
         Route::post('/staff-attendance/check-out', [StaffAttendanceController::class, 'checkOut'])->middleware('throttle:10,1')->name('staff-attendance.check-out');
         Route::patch('/staff-attendance/{attendance}/correct', [StaffAttendanceController::class, 'correct'])->whereNumber('attendance')->name('staff-attendance.correct');
+        Route::post('/staff-attendance/leaves', [StaffAttendanceController::class, 'storeLeave'])->middleware('throttle:10,1')->name('staff-attendance.leaves.store');
+        Route::patch('/staff-attendance/leaves/{leave}/decision', [StaffAttendanceController::class, 'decideLeave'])->whereNumber('leave')->name('staff-attendance.leaves.decision');
+        Route::post('/staff-attendance/holidays', [StaffAttendanceController::class, 'storeHoliday'])->name('staff-attendance.holidays.store');
+        Route::delete('/staff-attendance/holidays/{holiday}', [StaffAttendanceController::class, 'deleteHoliday'])->whereNumber('holiday')->name('staff-attendance.holidays.destroy');
         Route::post('/procurement/suppliers', [ProcurementController::class, 'storeSupplier'])->name('procurement.suppliers.store');
         Route::post('/procurement/quotes', [ProcurementController::class, 'storeQuote'])->name('procurement.quotes.store');
         Route::post('/procurement/quotes/{quote}/order', [ProcurementController::class, 'createOrder'])->whereNumber('quote')->name('procurement.quotes.order');
