@@ -10,9 +10,9 @@
 - Baseline commit message: `feat(finance): add idempotency key for installment receipts`
 - Baseline checked: 2026-11-19
 - Baseline CI run: [Quality Checks #879](https://github.com/javad-heidarpour/pronee_doctor/actions/runs/44511955557) — success
-- Repository tree at baseline: 904 files; tree response was not truncated.
+- Repository tree at audit commit `23d6ed3ed7fac58d232d0255f3236f00a555f941`: 905 files; tree response was not truncated.
 - Audit status: **IN PROGRESS — no claim of full-repository completion**
-- Current confirmed bug count: **0** (no new bug has yet been validated to the required evidence standard in this audit cycle).
+- Current confirmed bug count: **1** (BUG-001; backend review is still partial).
 
 ## Rules for every continuation
 
@@ -42,11 +42,11 @@
 
 ## Bug register
 
-No validated findings have been entered yet.
+One validated finding has been entered; backend review is not complete.
 
 | ID | Severity | Category | Location | Confidence | Status | Fix commit / verification |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:7,15` | Confirmed | Open | Pending |
 
 ## Finding template
 
@@ -136,6 +136,75 @@ The following paths were fetched/read at least in part in an earlier preliminary
 
 **Important:** This list records prior fetch/read activity, not a declaration that every listed file was fully reviewed. Some were retrieved in large batches and need targeted re-reading before line-specific claims.
 
+
+### Current audit pass — 2026-11-19
+
+- Active source revision: `23d6ed3ed7fac58d232d0255f3236f00a555f941`.
+- Repository tree: 905 files, recursive response not truncated.
+- Backend scope inventory: 535 files across `app/` (367), `routes/` (21), `database/` (68), `config/` (11), `bootstrap/` (4), and `tests/` (64).
+- Frontend scope: `resources/` (325 files; 172 Vue files).
+- Backend status: **PARTIAL — do not claim file-by-file completion**.
+- Files fully read in this pass:
+  - `app/Models/User.php`
+  - `app/Models/Doctor.php`
+  - `app/Models/Appointment.php`
+  - `app/Models/AppointmentPayment.php`
+  - `app/Models/Patient.php`
+  - `app/Models/PatientClinicalRecord.php`
+  - `app/Models/ClinicOrganization.php`
+  - `app/Http/Middleware/DoctorAuth.php`
+  - `app/Http/Middleware/HandleInertiaRequests.php`
+  - `app/Providers/AuthServiceProvider.php`
+  - `app/Policies/Portal/DoctorPolicy.php`
+  - `app/Policies/DoctorImagePolicy.php`
+  - `app/Actions/Portal/Auth/AuthenticatePortalUserAction.php`
+  - `app/Actions/Portal/Appointment/CreatePortalAppointmentAction.php`
+  - `app/Actions/Portal/Appointment/UpdateAppointmentStatusAction.php`
+  - `app/Actions/Payments/InitiateAppointmentPaymentAction.php`
+  - `app/Actions/Payments/VerifyAndSettleSepPaymentAction.php`
+  - `app/Actions/Payments/ProcessLocalSepPaymentCallbackAction.php`
+  - `app/Services/Payments/SepPaymentService.php`
+  - `app/Services/HealthInterop/HealthExchangeGateway.php`
+  - `app/Services/HealthInterop/HealthExchangeOutbox.php`
+  - `app/Http/Controllers/Portal/HealthInteropController.php`
+  - `app/Console/Commands/DispatchHealthExchangeMessages.php`
+  - `app/Models/HealthExchangeMessage.php`
+  - `app/Services/Finance/ClinicAccountingService.php`
+  - `app/Support/StaffPayrollCalculator.php`
+  - `app/Http/Controllers/Portal/Concerns/HasActiveDoctor.php`
+  - `app/Actions/Portal/Dashboard/SelectActiveDoctorAction.php`
+  - `app/Models/Menu.php`
+  - `config/health_interop.php`
+  - `database/migrations/2026_11_19_120000_create_health_interop_and_insurance_tables.php`
+  - `routes/portal/patients.php`
+- Partially read in this pass:
+  - `app/Http/Controllers/Portal/StaffManagementController.php` — lines 1–180 only.
+  - `routes/portal/portal.php` — retrieved in a multi-file response that was truncated; not considered fully read.
+- The following are **not reviewed in this pass**: all other backend files among the 535-file backend scope, including the remaining Actions, Controllers, Requests, Models, Services, routes, migrations, factories, configuration, bootstrap files, and tests. The earlier preliminary-inspection list above does not count as a full review.
+- No application code, test, configuration, migration, or dependency file was changed.
+
+### BUG-001 — Doctor policy namespace mismatch
+
+- **Severity:** Medium
+- **Category:** Configuration / Authorization
+- **Location:** `app/Providers/AuthServiceProvider.php:7,15`
+- **Code excerpt:**
+  ```php
+  use App\\Policies\\DoctorPolicy;
+
+  protected $policies = [
+      Doctor::class => DoctorPolicy::class,
+  ];
+  ```
+- **Cross-file evidence:** The only DoctorPolicy file in the active tree is `app/Policies/Portal/DoctorPolicy.php`; its namespace is `App\\Policies\\Portal`, not `App\\Policies`.
+- **Explanation:** The provider registers a fully-qualified class name that does not match the class defined in the repository. When this policy is resolved, the registered class cannot be autoloaded.
+- **Confidence:** Confirmed (namespace/registration mismatch); runtime impact depends on a code path invoking this policy.
+- **Suggested remedy:** Make the provider import and registration match the actual policy namespace, then test the relevant authorization paths.
+- **Status:** Open
+- **First observed commit:** `23d6ed3ed7fac58d232d0255f3236f00a555f941`
+- **Fix commit / verification:** Pending
+
+
 ## Open questions / evidence needed
 
 - Confirm expected permission matrix for doctor, secretary, clinic manager, and system administrator.
@@ -147,7 +216,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 ## Continuation protocol for future chats
 
 At the start of a later chat:
-1. Fetch this file from the current `main` branch.
+1. Fetch this file from the latest QA audit branch (do not write to `main`); compare its base with the current `main` HEAD without modifying `main`.
 2. Read the current branch HEAD and compare it with the audit baseline.
 3. Preserve all existing BUG IDs and statuses.
 4. Continue from the first unchecked review area; do not ask the user to repeat findings already recorded here.
