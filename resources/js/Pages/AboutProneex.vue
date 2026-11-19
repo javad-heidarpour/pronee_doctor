@@ -1,270 +1,241 @@
 <script setup>
-import { Head, Link } from "@inertiajs/vue3";
+import { ref } from 'vue'
+import { Head, Link } from '@inertiajs/vue3'
 
-const features = [
-  {
-    number: "۰۱",
-    title: "نوبت‌دهی و پذیرش",
-    description: "مدیریت نوبت‌ها، زمان‌های کاری، شعب و پذیرش بیمار در یک مسیر روشن و منظم.",
-    icon: "calendar",
-  },
-  {
-    number: "۰۲",
-    title: "پرونده و مستندسازی پزشکی",
-    description: "ثبت اطلاعات بیمار و مستندات ویزیت با ساختار SOAP؛ از پیش‌نویس تا نهایی‌سازی یادداشت بالینی.",
-    icon: "file",
-  },
-  {
-    number: "۰۳",
-    title: "نسخه و پیگیری بیمار",
-    description: "ثبت اقلام دارویی و پیگیری مراحل مراقبت، یادآوری‌ها و تماس‌های بعدی با رعایت رضایت بیمار.",
-    icon: "heart",
-  },
-  {
-    number: "۰۴",
-    title: "مدیریت کلینیک و تیم",
-    description: "سامان‌دهی پزشکان، منشی‌ها، کارکنان، شعب و سطح دسترسی هر عضو در محدوده مسئولیت خودش.",
-    icon: "users",
-  },
-  {
-    number: "۰۵",
-    title: "مالی، انبار و تدارکات",
-    description: "مدیریت دریافت‌ها، هزینه‌ها، سهم همکاران، موجودی و گردش‌های عملیاتی کلینیک.",
-    icon: "wallet",
-  },
-  {
-    number: "۰۶",
-    title: "مغز هوشمند مدیریت کلینیک",
-    description: "نمایی روشن از ظرفیت نوبت‌ها، روند مراجعه، لغوها و فرصت‌های بهبود برنامه‌ریزی.",
-    icon: "brain",
-  },
-  {
-    number: "۰۷",
-    title: "همکاری حرفه‌ای",
-    description: "پشتیبانی از همکاری پزشکان و ارائه‌دهندگان خدمات، توافق‌های مالی و تسویه‌های داخلی.",
-    icon: "handshake",
-  },
-  {
-    number: "۰۸",
-    title: "زیرساخت تبادل سلامت",
-    description: "آماده‌سازی ساختار امن صف تبادل و ثبت وضعیت پیام‌ها برای اتصال به سرویس‌های رسمی پس از دریافت قرارداد و مشخصات فنی.",
-    icon: "shield",
-  },
-];
+const openFaq = ref(0)
 
 const audiences = [
-  { title: "پزشکان و متخصصان", text: "تمرکز بیشتر بر مراقبت و مدیریت ساده‌تر مطب." },
-  { title: "کلینیک‌ها و درمانگاه‌ها", text: "هماهنگی شعب، تیم، پذیرش و عملیات روزانه." },
-  { title: "منشی‌ها و کارکنان", text: "انجام مسئولیت‌ها بر اساس دسترسی تعریف‌شده." },
-  { title: "بیماران", text: "دسترسی منظم‌تر به نوبت، اطلاعات و پیگیری مراقبت." },
-];
+  { icon: '🏥', title: 'مدیران کلینیک و درمانگاه', text: 'هماهنگی پذیرش، نوبت‌ها، کارکنان و روندهای روزانه در یک فضای منظم.' },
+  { icon: '🩺', title: 'پزشکان و متخصصان', text: 'مدیریت برنامه کاری، پرونده و روند مراجعه بیماران و حضور حرفه‌ای آنلاین.' },
+  { icon: '🧑‍💼', title: 'منشی‌ها و تیم پذیرش', text: 'ثبت و پیگیری نوبت‌ها و انجام امور روزانه بر اساس سطح دسترسی.' },
+  { icon: '💚', title: 'بیماران و مراجعان', text: 'دسترسی ساده‌تر به نوبت‌ها و اطلاعات سلامت و پیگیری برنامه مراقبت.' },
+]
 
-const steps = [
-  { title: "ثبت‌نام و راه‌اندازی", text: "حساب کاربری و اطلاعات مجموعه درمانی را تکمیل کنید." },
-  { title: "تعریف تیم و خدمات", text: "پزشکان، شعب، کارکنان، زمان‌ها و خدمات را سامان دهید." },
-  { title: "شروع مدیریت روزانه", text: "نوبت‌ها، پرونده‌ها و امور کلینیک را از پنل دنبال کنید." },
-];
+const modules = [
+  { number: '۰۱', icon: '📅', title: 'نوبت‌دهی و پذیرش', text: 'ثبت نوبت آنلاین و حضوری، مدیریت زمان‌های کاری، پیگیری وضعیت مراجعه و سامان‌دهی پذیرش.' },
+  { number: '۰۲', icon: '🗂️', title: 'پرونده و اطلاعات بیمار', text: 'دسترسی ساختارمند به اطلاعات و سوابق ثبت‌شده بیمار، با رعایت سطح دسترسی کاربران.' },
+  { number: '۰۳', icon: '💊', title: 'نسخه و مراقبت درمانی', text: 'ثبت و پیگیری برنامه‌های دارویی، ثبت مصرف دارو و همراهی بیمار در مسیر مراقبت.' },
+  { number: '۰۴', icon: '👥', title: 'مدیریت تیم و دسترسی‌ها', text: 'تعریف نقش پزشک و منشی، تعیین دسترسی‌ها و هماهنگی فعالیت کاربران در محیط کلینیک.' },
+  { number: '۰۵', icon: '💳', title: 'پرداخت و امور مالی', text: 'پشتیبانی از فرایند پرداخت نوبت و ثبت اطلاعات مالی مرتبط با خدمات.' },
+  { number: '۰۶', icon: '📊', title: 'گزارش و مدیریت عملکرد', text: 'نمایی منظم از وضعیت نوبت‌ها و فعالیت‌ها برای تصمیم‌گیری بهتر مدیران.' },
+  { number: '۰۷', icon: '🌐', title: 'معرفی پزشک و جذب بیمار', text: 'صفحه اختصاصی پزشک برای معرفی خدمات، نمایش اطلاعات مطب و دریافت نوبت آنلاین.' },
+  { number: '۰۸', icon: '🤝', title: 'همکاری حرفه‌ای', text: 'زیرساخت همکاری پزشکان و مراکز، تعریف توافق‌ها و پیگیری تسویه‌های داخلی.' },
+]
 
-const iconPaths = {
-  calendar: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
-  file: "M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6m-6 4h6",
-  heart: "M20.8 8.8c0 5.2-8.8 11-8.8 11s-8.8-5.8-8.8-11A4.8 4.8 0 0 1 12 6.4a4.8 4.8 0 0 1 8.8 2.4ZM12 9v6m-3-3h6",
-  users: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-7.5a4 4 0 0 1 0 7.7M20 15a4 4 0 0 1 2 3.5V21",
-  wallet: "M3 6.5A2.5 2.5 0 0 1 5.5 4H20v16H5.5A2.5 2.5 0 0 1 3 17.5v-11ZM3 7h17m-5 6h5m-5 0a1 1 0 1 0 0 .01",
-  brain: "M9 4a3 3 0 0 0-5 2.2A3.5 3.5 0 0 0 4 13a3 3 0 0 0 5 2.2V4Zm6 0a3 3 0 0 1 5 2.2A3.5 3.5 0 0 1 20 13a3 3 0 0 1-5 2.2V4ZM9 8H7m2 5H6m9-5h2m-2 5h3M12 3v18",
-  handshake: "m8 12 2.5 2.5a2 2 0 0 0 2.8 0L18 10m-9-4 3-2 3 2 3-1 3 4-3 3M3 9l3-3 3 2-4 8-3-2 1-5Zm18 0-3-3-3 2 4 8 3-2-1-5Z",
-  shield: "M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Zm-3 9 2 2 4-4",
-};
+const faqs = [
+  { q: 'پرونیکس برای چه مجموعه‌هایی مناسب است؟', a: 'برای مطب پزشکان، کلینیک‌ها، درمانگاه‌ها و مجموعه‌های ارائه‌دهنده خدمات سلامت طراحی شده است. امکانات قابل استفاده به نقش و نوع فعالیت هر مجموعه بستگی دارد.' },
+  { q: 'آیا بیمار هم می‌تواند از پرونیکس استفاده کند؟', a: 'بله. بخش‌های مرتبط با بیمار برای مشاهده و پیگیری اطلاعات سلامت و برنامه‌های مراقبتی در نظر گرفته شده‌اند؛ دسترسی به اطلاعات تابع مجوز و تنظیمات سامانه است.' },
+  { q: 'آیا پرونیکس به بیمه‌ها و سامانه سپاس متصل است؟', a: 'زیرساخت فنی تبادل اطلاعات و ثبت وضعیت استعلام‌ها در حال توسعه است. اتصال عملیاتی به هر سازمان، منوط به دریافت مستندات، مجوزها و دسترسی رسمی همان سرویس است.' },
+  { q: 'قابلیت‌های هوش مصنوعی چه زمانی ارائه می‌شوند؟', a: 'قابلیت‌های هوشمند به‌عنوان مسیر توسعه محصول دنبال می‌شوند و تا زمان عرضه و فعال‌سازی رسمی، نباید آن‌ها را جزو خدمات فعال سامانه در نظر گرفت.' },
+]
+
+const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 </script>
 
 <template>
-  <Head title="درباره پرونیکس | مدیریت هوشمند خدمات سلامت" />
+  <Head title="معرفی پرونیکس | مدیریت هوشمند خدمات سلامت">
+    <meta name="description" content="پرونیکس؛ بستری یکپارچه برای مدیریت نوبت، پذیرش، پرونده بیمار، مراقبت درمانی و امور روزمره مطب و کلینیک." />
+    <meta property="og:title" content="پرونیکس؛ مدیریت منظم‌تر خدمات سلامت" />
+    <meta property="og:description" content="از نوبت‌دهی تا پیگیری مراقبت؛ ابزارهای کاربردی برای پزشکان، کلینیک‌ها و بیماران." />
+  </Head>
 
-  <div dir="rtl" class="min-h-screen overflow-hidden bg-[#f7faf8] text-slate-800">
-    <header class="sticky top-0 z-40 border-b border-emerald-950/5 bg-white/90 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" class="flex items-center gap-3">
-          <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-lg shadow-emerald-900/15">
-            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-              <path d="M12 4v16M4 12h16" /><circle cx="12" cy="12" r="9" />
-            </svg>
-          </span>
+  <div dir="rtl" class="min-h-screen overflow-hidden bg-[#f5f8f5] font-[Vazirmatn,IRANSans,Tahoma,sans-serif] text-slate-800">
+    <header class="relative isolate overflow-hidden bg-[#103f32] text-white">
+      <div class="pointer-events-none absolute -left-24 -top-28 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+      <div class="pointer-events-none absolute -bottom-48 right-1/3 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
+      <nav class="relative mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
+        <a href="#top" class="flex items-center gap-3" aria-label="پرونیکس">
+          <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-2xl text-emerald-800 shadow-lg">✚</span>
           <span>
-            <span class="block text-lg font-black text-slate-900">پرونیکس</span>
-            <span class="block text-[11px] text-slate-500">مدیریت هوشمند خدمات سلامت</span>
+            <strong class="block text-xl font-black tracking-tight">پرونیکس</strong>
+            <span class="text-[10px] text-emerald-100/75">همراه مدیریت خدمات سلامت</span>
           </span>
-        </Link>
-        <nav class="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex">
-          <a href="#features" class="transition hover:text-emerald-700">امکانات</a>
-          <a href="#audience" class="transition hover:text-emerald-700">برای چه کسانی؟</a>
-          <a href="#start" class="transition hover:text-emerald-700">شروع کار</a>
-        </nav>
-        <Link href="/portal/login" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800 sm:px-5 sm:text-sm">
-          ورود به پنل
-        </Link>
-      </div>
-    </header>
+        </a>
+        <div class="hidden items-center gap-7 text-sm font-semibold text-emerald-50/90 md:flex">
+          <button @click="scrollTo('features')" class="transition hover:text-lime-200">امکانات</button>
+          <button @click="scrollTo('audience')" class="transition hover:text-lime-200">برای چه کسانی؟</button>
+          <button @click="scrollTo('faq')" class="transition hover:text-lime-200">پرسش‌های رایج</button>
+        </div>
+        <Link href="/register/doctor" class="rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-emerald-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-lime-100 sm:text-sm">شروع همکاری</Link>
+      </nav>
 
-    <main>
-      <section class="relative isolate overflow-hidden">
-        <div class="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_85%_20%,rgba(16,185,129,.15),transparent_40%),radial-gradient(ellipse_at_5%_90%,rgba(20,184,166,.10),transparent_35%)]"></div>
-        <div class="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.1fr_.9fr] lg:px-8 lg:py-28">
-          <div>
-            <span class="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white/80 px-4 py-2 text-xs font-bold text-emerald-800 shadow-sm">
-              <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-              یک همراه برای مدیریت بهتر خدمات سلامت
-            </span>
-            <h1 class="mt-6 max-w-2xl text-3xl font-black leading-[1.7] tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
-              پرونیکس؛ نظم بیشتر برای کلینیک،
-              <span class="text-emerald-700">رسیدگی بهتر به بیمار</span>
-            </h1>
-            <p class="mt-5 max-w-2xl text-sm leading-9 text-slate-600 sm:text-base">
-              پرونیکس یک سامانه یکپارچه برای مدیریت مطب و کلینیک است؛ از نوبت‌دهی و پذیرش تا پرونده پزشکی، پیگیری بیمار، امور مالی و هماهنگی تیم درمان. ابزارهایی که کارهای روزانه را منظم‌تر می‌کنند تا فرصت بیشتری برای مراقبت از بیمار داشته باشید.
-            </p>
-            <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#features" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:bg-emerald-800">
-                آشنایی با امکانات
-                <span aria-hidden="true">←</span>
-              </a>
-              <Link href="/portal/login" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 transition hover:border-emerald-200 hover:text-emerald-800">
-                ورود کاربران
-              </Link>
-            </div>
-            <div class="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs text-slate-500">
-              <span class="inline-flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>مناسب مطب و مجموعه درمانی</span>
-              <span class="inline-flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>دسترسی نقش‌محور</span>
-              <span class="inline-flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>طراحی‌شده برای گردش کار واقعی</span>
-            </div>
+      <section id="top" class="relative mx-auto grid max-w-7xl items-center gap-12 px-5 pb-24 pt-12 sm:px-8 sm:pb-32 sm:pt-20 lg:grid-cols-[1.05fr_.95fr]">
+        <div class="max-w-2xl">
+          <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-emerald-100 backdrop-blur">
+            <span class="h-2 w-2 rounded-full bg-lime-300"></span>
+            یک مسیر ساده‌تر برای مدیریت خدمات سلامت
           </div>
+          <h1 class="text-4xl font-black leading-[1.5] tracking-tight sm:text-5xl lg:text-[3.5rem]">
+            تمرکز شما بر درمان؛
+            <span class="block text-lime-200">نظم بیشتر در مدیریت</span>
+          </h1>
+          <p class="mt-6 max-w-xl text-base leading-9 text-emerald-50/85 sm:text-lg">
+            پرونیکس مجموعه‌ای از ابزارهای کاربردی برای مدیریت مطب و کلینیک است؛ از نوبت‌دهی و پذیرش تا پرونده بیمار، پیگیری مراقبت و هماهنگی تیم.
+          </p>
+          <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link href="/register/doctor" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-lime-300 px-7 py-4 text-sm font-black text-emerald-950 shadow-xl shadow-black/10 transition hover:-translate-y-1 hover:bg-lime-200">
+              ثبت‌نام پزشک <span aria-hidden="true">←</span>
+            </Link>
+            <button @click="scrollTo('features')" class="rounded-2xl border border-white/25 bg-white/5 px-7 py-4 text-sm font-bold text-white transition hover:bg-white/10">آشنایی با امکانات</button>
+          </div>
+          <div class="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs font-medium text-emerald-100/75">
+            <span>✓ محیط فارسی و ساده</span>
+            <span>✓ مناسب موبایل و دسکتاپ</span>
+            <span>✓ دسترسی بر اساس نقش کاربر</span>
+          </div>
+        </div>
 
-          <div class="relative mx-auto w-full max-w-lg">
-            <div class="absolute -inset-5 rounded-[2.5rem] bg-gradient-to-br from-emerald-200/50 to-teal-100/30 blur-2xl"></div>
-            <div class="relative rounded-[2rem] border border-white bg-white/90 p-5 shadow-[0_30px_90px_rgba(15,70,50,.13)] backdrop-blur">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div class="relative mx-auto w-full max-w-xl">
+          <div class="absolute -inset-5 rounded-[2.5rem] bg-emerald-300/10 blur-2xl"></div>
+          <div class="relative rounded-[2rem] border border-white/15 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
+            <div class="rounded-[1.5rem] bg-[#f8fbf8] p-5 text-slate-800 sm:p-7">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-5">
                 <div>
-                  <p class="text-xs text-slate-500">نمایی از تجربه مدیریت</p>
-                  <h2 class="mt-1 text-base font-black text-slate-900">همه‌چیز در یک نگاه</h2>
+                  <span class="text-xs font-bold text-emerald-700">نمای کلی سامانه</span>
+                  <h2 class="mt-1 text-lg font-black">مدیریت روز کاری</h2>
                 </div>
-                <span class="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">پرونیکس</span>
+                <span class="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-800">پرونیکس</span>
               </div>
               <div class="mt-5 grid grid-cols-2 gap-3">
                 <div class="rounded-2xl bg-emerald-50 p-4">
-                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-emerald-700">
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13H3V6a2 2 0 0 1 2-2Z"/></svg>
-                  </span>
-                  <p class="mt-4 text-sm font-black text-slate-800">نوبت و پذیرش</p>
-                  <p class="mt-1 text-xs leading-6 text-slate-500">برنامه‌ریزی و نظم روزانه</p>
+                  <span class="text-2xl">📅</span>
+                  <p class="mt-3 text-xs text-slate-500">نوبت‌دهی</p>
+                  <strong class="mt-1 block text-sm font-black">برنامه‌ریزی مراجعه</strong>
                 </div>
                 <div class="rounded-2xl bg-sky-50 p-4">
-                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sky-700">
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6m-6 4h6"/></svg>
-                  </span>
-                  <p class="mt-4 text-sm font-black text-slate-800">پرونده بیمار</p>
-                  <p class="mt-1 text-xs leading-6 text-slate-500">سوابق و مستندات ویزیت</p>
-                </div>
-                <div class="rounded-2xl bg-violet-50 p-4">
-                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-violet-700">
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18m-6-6 6 6 6-6M5 5h14"/></svg>
-                  </span>
-                  <p class="mt-4 text-sm font-black text-slate-800">مدیریت عملیات</p>
-                  <p class="mt-1 text-xs leading-6 text-slate-500">تیم، مالی و منابع</p>
+                  <span class="text-2xl">🗂️</span>
+                  <p class="mt-3 text-xs text-slate-500">اطلاعات بیمار</p>
+                  <strong class="mt-1 block text-sm font-black">سوابق ساختارمند</strong>
                 </div>
                 <div class="rounded-2xl bg-amber-50 p-4">
-                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-amber-700">
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Zm-3 9 2 2 4-4"/></svg>
-                  </span>
-                  <p class="mt-4 text-sm font-black text-slate-800">امنیت و دسترسی</p>
-                  <p class="mt-1 text-xs leading-6 text-slate-500">دسترسی متناسب با نقش</p>
+                  <span class="text-2xl">💊</span>
+                  <p class="mt-3 text-xs text-slate-500">مراقبت درمانی</p>
+                  <strong class="mt-1 block text-sm font-black">پیگیری برنامه‌ها</strong>
+                </div>
+                <div class="rounded-2xl bg-violet-50 p-4">
+                  <span class="text-2xl">👥</span>
+                  <p class="mt-3 text-xs text-slate-500">تیم درمان</p>
+                  <strong class="mt-1 block text-sm font-black">هماهنگی کاربران</strong>
                 </div>
               </div>
-              <div class="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white p-4">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
-                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18V9m5 9V5m5 13v-6m5 6V3"/></svg>
-                </span>
-                <div>
-                  <p class="text-sm font-bold text-slate-800">تصمیم‌گیری با دید بهتر</p>
-                  <p class="mt-1 text-xs leading-6 text-slate-500">گزارش‌ها و تحلیل‌های عملیاتی برای شناخت وضعیت کلینیک</p>
+              <div class="mt-4 rounded-2xl border border-slate-100 bg-white p-4">
+                <div class="flex items-center justify-between">
+                  <strong class="text-sm font-extrabold">یک جریان کاری منظم</strong>
+                  <span class="text-xs text-emerald-700">از پذیرش تا پیگیری</span>
+                </div>
+                <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-slate-500 sm:text-xs">
+                  <span class="flex-1 rounded-lg bg-emerald-100 px-2 py-3 text-center text-emerald-800">نوبت</span>
+                  <span>←</span>
+                  <span class="flex-1 rounded-lg bg-sky-100 px-2 py-3 text-center text-sky-800">پذیرش</span>
+                  <span>←</span>
+                  <span class="flex-1 rounded-lg bg-amber-100 px-2 py-3 text-center text-amber-800">مراقبت</span>
                 </div>
               </div>
-              <p class="mt-4 text-center text-[10px] text-slate-400">تصویر مفهومی از بخش‌های سامانه، نه داده واقعی بیماران</p>
+              <p class="mt-4 text-center text-[10px] leading-6 text-slate-400">تصویر نمایشی برای معرفی مسیرهای کاری؛ اطلاعات و اعداد نمونه نیستند.</p>
             </div>
           </div>
+          <div class="absolute -bottom-6 -left-3 hidden rounded-2xl border border-white/20 bg-white px-4 py-3 text-xs font-extrabold text-emerald-900 shadow-xl sm:block">سلامت، با مدیریت منظم‌تر</div>
+        </div>
+      </section>
+      <div class="absolute bottom-0 left-0 h-12 w-full bg-[#f5f8f5]" style="clip-path: ellipse(60% 55% at 50% 100%)"></div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-5 sm:px-8">
+      <section class="py-16 sm:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <span class="text-xs font-black tracking-wide text-emerald-700">چرا پرونیکس؟</span>
+          <h2 class="mt-3 text-2xl font-black leading-relaxed text-slate-900 sm:text-3xl">ابزارهای پراکنده را به یک جریان کاری روشن تبدیل کنید</h2>
+          <p class="mt-4 text-sm leading-8 text-slate-500 sm:text-base">وقتی نوبت، پذیرش، اطلاعات بیمار و هماهنگی کارکنان در مسیرهای مشخص قرار بگیرند، مدیریت روزانه قابل‌پیگیری‌تر می‌شود و تیم درمان فرصت بیشتری برای تمرکز بر بیمار خواهد داشت.</p>
+        </div>
+        <div class="mt-10 grid gap-4 sm:grid-cols-3">
+          <article class="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
+            <span class="text-3xl">🧭</span><h3 class="mt-4 font-black">همه‌چیز روشن‌تر</h3><p class="mt-2 text-sm leading-7 text-slate-500">وضعیت نوبت‌ها و کارهای روزانه را در مسیر مشخص دنبال کنید.</p>
+          </article>
+          <article class="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
+            <span class="text-3xl">🔐</span><h3 class="mt-4 font-black">دسترسی متناسب با نقش</h3><p class="mt-2 text-sm leading-7 text-slate-500">هر کاربر بر اساس مسئولیت و مجوزهای تعریف‌شده به بخش‌های مربوط دسترسی دارد.</p>
+          </article>
+          <article class="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
+            <span class="text-3xl">📱</span><h3 class="mt-4 font-black">همراه در هر اندازه</h3><p class="mt-2 text-sm leading-7 text-slate-500">رابط کاربری واکنش‌گرا برای استفاده در موبایل، تبلت و رایانه.</p>
+          </article>
         </div>
       </section>
 
-      <section id="features" class="scroll-mt-24 bg-white py-16 sm:py-20">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div class="mx-auto max-w-2xl text-center">
-            <span class="text-xs font-black tracking-wide text-emerald-700">امکانات پرونیکس</span>
-            <h2 class="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">کارهای مهم درمانگاه، در کنار هم</h2>
-            <p class="mt-4 text-sm leading-8 text-slate-500">به‌جای پراکندگی اطلاعات و ابزارها، مسیرهای اصلی مدیریت مجموعه درمانی را یکپارچه‌تر دنبال کنید.</p>
+      <section id="features" class="scroll-mt-8 rounded-[2rem] bg-[#eaf3ed] px-5 py-14 sm:px-10 sm:py-16">
+        <div class="max-w-2xl">
+          <span class="text-xs font-black text-emerald-700">امکانات پرونیکس</span>
+          <h2 class="mt-3 text-2xl font-black leading-relaxed text-slate-900 sm:text-3xl">از اولین تماس بیمار تا پیگیری پس از مراجعه</h2>
+          <p class="mt-3 text-sm leading-8 text-slate-600">بخش‌های اصلی سامانه در کنار هم طراحی شده‌اند تا فرایندهای متداول مطب و کلینیک ساده‌تر مدیریت شوند.</p>
+        </div>
+        <div class="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <article v-for="item in modules" :key="item.number" class="group rounded-3xl border border-white bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <div class="flex items-center justify-between">
+              <span class="text-3xl">{{ item.icon }}</span>
+              <span class="text-xs font-black text-emerald-300">{{ item.number }}</span>
+            </div>
+            <h3 class="mt-5 font-black text-slate-900">{{ item.title }}</h3>
+            <p class="mt-2 text-xs leading-7 text-slate-500">{{ item.text }}</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="audience" class="scroll-mt-8 py-16 sm:py-20">
+        <div class="text-center">
+          <span class="text-xs font-black text-emerald-700">یک سامانه، چند نقش</span>
+          <h2 class="mt-3 text-2xl font-black text-slate-900 sm:text-3xl">پرونیکس در کنار اعضای زنجیره سلامت</h2>
+        </div>
+        <div class="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <article v-for="person in audiences" :key="person.title" class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-3xl">{{ person.icon }}</span>
+            <h3 class="mt-5 font-black text-slate-900">{{ person.title }}</h3>
+            <p class="mt-2 text-sm leading-7 text-slate-500">{{ person.text }}</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="overflow-hidden rounded-[2rem] bg-[#123f32] px-6 py-12 text-white sm:px-12 sm:py-14">
+        <div class="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
+          <div>
+            <span class="text-xs font-bold text-lime-200">نگاه رو به آینده</span>
+            <h2 class="mt-3 text-2xl font-black leading-relaxed sm:text-3xl">مدیریت سلامت، هوشمندتر و پیوسته‌تر</h2>
+            <p class="mt-4 max-w-2xl text-sm leading-8 text-emerald-50/80">پرونیکس در مسیر توسعه قابلیت‌های تحلیلی و هوش مصنوعی قرار دارد. این قابلیت‌ها پس از تکمیل، ارزیابی و فعال‌سازی رسمی در دسترس کاربران قرار خواهند گرفت.</p>
           </div>
-          <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <article v-for="feature in features" :key="feature.number" class="group rounded-3xl border border-slate-100 bg-[#fbfdfb] p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/5">
-              <div class="flex items-center justify-between">
-                <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white">
-                  <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path :d="iconPaths[feature.icon]" /></svg>
-                </span>
-                <span class="text-xs font-bold text-slate-300">{{ feature.number }}</span>
-              </div>
-              <h3 class="mt-5 text-sm font-black text-slate-900">{{ feature.title }}</h3>
-              <p class="mt-2 text-xs leading-7 text-slate-500">{{ feature.description }}</p>
+          <div class="flex h-28 w-28 items-center justify-center rounded-[2rem] border border-white/15 bg-white/10 text-5xl">✦</div>
+        </div>
+      </section>
+
+      <section id="faq" class="scroll-mt-8 py-16 sm:py-20">
+        <div class="mx-auto max-w-3xl">
+          <div class="text-center">
+            <span class="text-xs font-black text-emerald-700">پرسش‌های رایج</span>
+            <h2 class="mt-3 text-2xl font-black text-slate-900 sm:text-3xl">قبل از شروع، بیشتر بدانید</h2>
+          </div>
+          <div class="mt-8 space-y-3">
+            <article v-for="(faq, index) in faqs" :key="faq.q" class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <button class="flex w-full items-center justify-between gap-4 px-5 py-5 text-right text-sm font-extrabold text-slate-800" :aria-expanded="openFaq === index" @click="openFaq = openFaq === index ? -1 : index">
+                {{ faq.q }}
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-lg text-emerald-800">{{ openFaq === index ? '−' : '+' }}</span>
+              </button>
+              <div v-if="openFaq === index" class="border-t border-slate-100 px-5 py-4 text-sm leading-8 text-slate-500">{{ faq.a }}</div>
             </article>
           </div>
-          <p class="mx-auto mt-7 max-w-4xl rounded-2xl bg-amber-50 px-5 py-4 text-xs leading-7 text-amber-900">
-            <strong>یک نکته شفاف:</strong>
-            اتصال عملیاتی به سامانه‌های بیرونی مانند سپاس و بیمه‌گرها، به قرارداد، مستندات فنی و دسترسی رسمی هر سرویس وابسته است. پرونیکس زیرساخت تبادل و ثبت وضعیت را فراهم می‌کند؛ فعال بودن اتصال زنده هر سرویس باید جداگانه تأیید شود.
-          </p>
         </div>
       </section>
 
-      <section id="audience" class="scroll-mt-24 py-16 sm:py-20">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div class="grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
-            <div>
-              <span class="text-xs font-black text-emerald-700">برای اعضای زنجیره سلامت</span>
-              <h2 class="mt-3 text-2xl font-black leading-relaxed text-slate-950 sm:text-3xl">هرکس، ابزار مناسب نقش خودش</h2>
-              <p class="mt-4 text-sm leading-8 text-slate-600">از مطب مستقل تا مجموعه چندپزشکی؛ پرونیکس برای هماهنگی بهتر میان افراد و فرایندهای درمانی طراحی شده است.</p>
-            </div>
-            <div class="grid gap-3 sm:grid-cols-2">
-              <article v-for="(item, index) in audiences" :key="item.title" class="flex gap-4 rounded-2xl border border-slate-200/80 bg-white p-5">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-sm font-black text-emerald-700">۰{{ index + ۱ }}</span>
-                <div>
-                  <h3 class="text-sm font-black text-slate-900">{{ item.title }}</h3>
-                  <p class="mt-1 text-xs leading-7 text-slate-500">{{ item.text }}</p>
-                </div>
-              </article>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="start" class="scroll-mt-24 bg-[#103d32] py-16 text-white sm:py-20">
-        <div class="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
-          <span class="text-xs font-bold text-emerald-200">شروعی ساده و مرحله‌به‌مرحله</span>
-          <h2 class="mt-3 text-2xl font-black sm:text-3xl">برای مدیریت منظم‌تر، از همین‌جا شروع کنید</h2>
-          <div class="mt-10 grid gap-7 text-right sm:grid-cols-3">
-            <div v-for="(step, index) in steps" :key="step.title" class="relative">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-sm font-black text-emerald-200">۰{{ index + ۱ }}</span>
-              <h3 class="mt-4 text-sm font-black">{{ step.title }}</h3>
-              <p class="mt-2 text-xs leading-7 text-emerald-100/75">{{ step.text }}</p>
-            </div>
-          </div>
-          <Link href="/portal/login" class="mt-10 inline-flex items-center justify-center rounded-2xl bg-white px-7 py-3.5 text-sm font-black text-emerald-900 transition hover:-translate-y-0.5 hover:bg-emerald-50">ورود به پرونیکس</Link>
-          <p class="mt-4 text-[11px] text-emerald-100/60">برای دریافت اطلاعات راه‌اندازی و دسترسی، با تیم پرونیکس در ارتباط باشید.</p>
+      <section class="mb-16 rounded-[2rem] border border-emerald-100 bg-white px-6 py-10 text-center shadow-sm sm:mb-20 sm:px-12">
+        <span class="text-3xl">🌱</span>
+        <h2 class="mt-4 text-2xl font-black text-slate-900">برای مدیریت بهتر، از همین‌جا شروع کنید</h2>
+        <p class="mx-auto mt-3 max-w-xl text-sm leading-8 text-slate-500">اگر پزشک هستید، صفحه اختصاصی خود را بسازید و مسیر استفاده از ابزارهای پرونیکس را آغاز کنید.</p>
+        <div class="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link href="/register/doctor" class="rounded-2xl bg-emerald-800 px-8 py-4 text-sm font-black text-white transition hover:bg-emerald-900">ثبت‌نام پزشک</Link>
+          <Link href="/portal" class="rounded-2xl border border-emerald-200 px-8 py-4 text-sm font-black text-emerald-900 transition hover:bg-emerald-50">ورود به پنل</Link>
         </div>
       </section>
     </main>
 
-    <footer class="border-t border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-7 text-center sm:flex-row sm:px-6 lg:px-8">
-        <div class="flex items-center gap-2">
-          <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-700 text-sm font-black text-white">پ</span>
-          <span class="text-sm font-black text-slate-800">پرونیکس</span>
-        </div>
-        <p class="text-xs text-slate-400">هوش مصنوعی پرونیکس © ۲۰۲۶</p>
-        <Link href="/" class="text-xs font-bold text-emerald-700 hover:text-emerald-900">صفحه اصلی</Link>
-      </div>
+    <footer class="bg-[#103f32] px-5 py-8 text-center text-emerald-50 sm:px-8">
+      <div class="font-black">پرونیکس</div>
+      <p class="mt-2 text-xs text-emerald-100/70">همراه مدیریت خدمات سلامت</p>
+      <p class="mt-4 text-[11px] text-emerald-100/50">© ۲۰۲۶ پرونیکس — تمامی حقوق محفوظ است.</p>
     </footer>
   </div>
 </template>
