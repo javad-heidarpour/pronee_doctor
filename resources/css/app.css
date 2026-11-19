@@ -66,8 +66,11 @@
 
 
 /* ✅ استایل‌های عمومی */
-html, body, body * {
-    font-family: 'Vazir', Tahoma, sans-serif !important;
+@layer base {
+    html,
+    body {
+        @apply font-sans;
+    }
 }
 
 /* Respect the nearest dir attribute instead of forcing RTL on every control. */
