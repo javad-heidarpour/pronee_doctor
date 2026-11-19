@@ -6,11 +6,12 @@ namespace Tests\Feature\Portal;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientCarePathwayController;
-use App\Models\Doctor;
+use App\Models\User;
 use App\Models\PatientCarePathway;
 use App\Models\PatientCarePathwayStep;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
@@ -21,6 +22,21 @@ final class PatientCarePathwayVerificationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Schema::create('doctors', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('deleted_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('addresses', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
 
         Schema::create('patient_care_pathways', function (Blueprint $table): void {
             $table->id();
@@ -62,6 +78,8 @@ final class PatientCarePathwayVerificationTest extends TestCase
     {
         Schema::dropIfExists('patient_care_pathway_steps');
         Schema::dropIfExists('patient_care_pathways');
+        Schema::dropIfExists('addresses');
+        Schema::dropIfExists('doctors');
 
         parent::tearDown();
     }
@@ -83,25 +101,28 @@ final class PatientCarePathwayVerificationTest extends TestCase
             'status' => 'patient_reported',
         ]);
 
-        $controller = new class extends PatientCarePathwayController {
-            public Doctor $testDoctor;
+        DB::table('doctors')->insert([
+            'id' => 11,
+            'user_id' => 99,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-            protected function currentDoctor(): Doctor
-            {
-                return $this->testDoctor;
-            }
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
 
-            protected function authorizeSecretaryPermission(string $permission, ?Doctor $doctor = null): void
-            {
-            }
-
-            protected function accessibleClinicIds(?Doctor $doctor = null): array
-            {
-                return [31];
-            }
-        };
-        $controller->testDoctor = new Doctor();
-        $controller->testDoctor->id = 11;
+        $controller = new PatientCarePathwayController();
 
         // Keep this regression test focused on the transaction result and audit event.
         app()->instance(
