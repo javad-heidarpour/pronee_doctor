@@ -19,6 +19,7 @@ use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
 use App\Http\Controllers\Portal\PatientRetentionController;
 use App\Http\Controllers\Portal\ClinicGrowthController;
+use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/', function () {
@@ -95,6 +96,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/patient-access-requests', [PatientAccessRequestController::class, 'index'])->name('patient-access-requests.index');
         Route::patch('/patient-access-requests/{accessRequest}/approve', [PatientAccessRequestController::class, 'approve'])->whereNumber('accessRequest')->name('patient-access-requests.approve');
         Route::patch('/patient-access-requests/{accessRequest}/reject', [PatientAccessRequestController::class, 'reject'])->whereNumber('accessRequest')->name('patient-access-requests.reject');
+
+        Route::get('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'index'])->name('professional-partnerships.index');
+        Route::post('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'store'])->middleware('throttle:10,1')->name('professional-partnerships.store');
+        Route::patch('/professional-partnerships/{partnership}/respond', [ClinicProfessionalPartnershipController::class, 'respond'])->whereNumber('partnership')->name('professional-partnerships.respond');
+        Route::post('/professional-partnerships/sessions', [ClinicProfessionalPartnershipController::class, 'storeSession'])->middleware('throttle:20,1')->name('professional-partnerships.sessions.store');
+        Route::patch('/professional-partnerships/sessions/{session}/paid', [ClinicProfessionalPartnershipController::class, 'markPaid'])->whereNumber('session')->name('professional-partnerships.sessions.paid');
 
         Route::get('/medical-network', [MedicalNetworkController::class, 'index'])->name('medical-network.index');
         Route::get('/medical-network/contracts', [MedicalCollaborationContractController::class, 'index'])->name('medical-network.contracts.index');

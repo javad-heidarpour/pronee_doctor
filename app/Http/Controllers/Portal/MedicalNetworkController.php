@@ -99,9 +99,20 @@ final class MedicalNetworkController extends Controller
             'filters' => $request->only(['type', 'city', 'search']),
             'providerTypes' => [
                 ['value' => 'doctor', 'label' => 'پزشک'],
+                ['value' => 'psychiatrist', 'label' => 'روان‌پزشک'],
+                ['value' => 'psychologist', 'label' => 'روان‌شناس'],
+                ['value' => 'counselor', 'label' => 'مشاور'],
+                ['value' => 'social_worker', 'label' => 'مددکار اجتماعی'],
+                ['value' => 'speech_therapist', 'label' => 'گفتاردرمانگر'],
+                ['value' => 'occupational_therapist', 'label' => 'کاردرمانگر'],
+                ['value' => 'nutritionist', 'label' => 'متخصص تغذیه'],
+                ['value' => 'nurse', 'label' => 'پرستار'],
+                ['value' => 'midwife', 'label' => 'ماما'],
+                ['value' => 'physiotherapist', 'label' => 'فیزیوتراپیست'],
                 ['value' => 'laboratory', 'label' => 'آزمایشگاه'],
                 ['value' => 'imaging', 'label' => 'تصویربرداری'],
-                ['value' => 'rehabilitation', 'label' => 'توان‌بخشی'],
+                ['value' => 'rehabilitation', 'label' => 'مرکز توان‌بخشی'],
+                ['value' => 'other', 'label' => 'سایر گروه‌ها'],
             ],
         ]);
     }
@@ -113,7 +124,7 @@ final class MedicalNetworkController extends Controller
         $doctor = $this->currentDoctor();
 
         $data = $request->validate([
-            'provider_type' => ['required', Rule::in(['doctor', 'laboratory', 'imaging', 'rehabilitation'])],
+            'provider_type' => ['required', Rule::in(['doctor', 'psychiatrist', 'psychologist', 'counselor', 'social_worker', 'speech_therapist', 'occupational_therapist', 'nutritionist', 'nurse', 'midwife', 'physiotherapist', 'laboratory', 'imaging', 'rehabilitation', 'other'])],
             'name' => ['required', 'string', 'max:180'],
             'city' => ['nullable', 'string', 'max:100'],
             'address' => ['nullable', 'string', 'max:500'],
@@ -167,7 +178,7 @@ final class MedicalNetworkController extends Controller
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $data['source_clinic_id']))->firstOrFail();
         $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->firstOrFail();
         abort_if($provider->doctor_id === $doctor->id, 422, 'ارجاع به پروفایل خودتان امکان‌پذیر نیست.');
-        $expectedService = $provider->provider_type === 'doctor' ? 'consultation' : $provider->provider_type;
+        $expectedService = in_array($provider->provider_type, ['doctor', 'psychiatrist', 'psychologist', 'counselor', 'social_worker', 'speech_therapist', 'occupational_therapist', 'nutritionist', 'nurse', 'midwife', 'physiotherapist', 'other'], true) ? 'consultation' : $provider->provider_type;
         abort_unless($data['service_type'] === $expectedService, 422, 'نوع خدمت با نوع مرکز مقصد همخوانی ندارد.');
 
         $referral = DB::transaction(function () use ($data, $doctor, $user): MedicalReferral {
