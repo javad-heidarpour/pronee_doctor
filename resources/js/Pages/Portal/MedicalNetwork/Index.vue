@@ -115,6 +115,7 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
           <button :disabled="providerForm.processing" class="rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 md:col-span-2">ارسال درخواست عضویت برای بررسی</button>
         </form>
       </section>
+      <section class="rounded-2xl border bg-white p-4">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="font-black">جست‌وجوی همکاران شبکه</h2><span class="text-xs text-slate-500">نمایش مراکز تأییدشده</span></div>
         <form class="grid gap-2 md:grid-cols-4" @submit.prevent="submitFilters">
           <input v-model="filter.search" class="rounded-xl border-slate-300 text-sm" placeholder="نام مرکز، خدمت یا نشانی">
