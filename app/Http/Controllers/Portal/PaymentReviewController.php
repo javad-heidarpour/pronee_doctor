@@ -16,7 +16,7 @@ use Inertia\Response;
 class PaymentReviewController extends Controller
 {
     /**
-     * Gateway reconciliation queue is restricted to system administrators.
+     * صف تطبیق درگاه و بررسی پرداخت‌های مشکوک فقط برای مدیر سامانه است.
      */
 
     /**
@@ -62,6 +62,10 @@ class PaymentReviewController extends Controller
         ListPaymentReviewRequest $request,
         ListPaymentsRequiringReviewAction $action
     ): Response {
+        // فهرست پرداخت‌های نیازمند بررسی، اطلاعات مالی چند پزشک را تجمیع می‌کند؛
+        // پزشک و منشی نباید از طریق این صفحه به پرداخت‌های سایر مجموعه‌ها دسترسی یابند.
+        abort_unless(Auth::guard('web')->user()?->role === 'admin', 403);
+
         $filters = $request->validated();
 
         return Inertia::render('Portal/Payments/ReviewQueue', [
