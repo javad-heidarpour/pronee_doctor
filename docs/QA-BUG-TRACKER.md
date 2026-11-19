@@ -12,7 +12,7 @@
 - Baseline CI run: [Quality Checks #879](https://github.com/javad-heidarpour/pronee_doctor/actions/runs/44511955557) — success
 - Repository tree at audit commit `23d6ed3ed7fac58d232d0255f3236f00a555f941`: 905 files; tree response was not truncated.
 - Audit status: **IN PROGRESS — no claim of full-repository completion**
-- Current confirmed bug count: **1 open finding** (BUG-001). BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
+- Current confirmed bug count: **7 open findings** (BUG-001, BUG-003 through BUG-008). BUG-002 was reviewed against live call paths and rejected; backend review remains partial.
 
 ## Rules for every continuation
 
@@ -48,6 +48,12 @@ One configuration finding remains open; BUG-002 is retained as rejected history.
 |---|---|---|---|---|---|---|
 | BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:9,17` | Confirmed | Open | Pending |
 | BUG-002 | Medium | Authorization / Type Contract | `config/auth.php:23-40`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30` | Rejected: current call path passes `Doctor` directly; no live `DoctorPolicy` Gate invocation found | Rejected | Not a runtime defect on reviewed paths |
+| BUG-003 | Medium | Logic / Auditability | `app/Http/Controllers/Portal/PatientCarePathwayController.php:92-100` | Confirmed | Open | Pending |
+| BUG-004 | Medium | Frontend-backend contract | `app/Actions/Home/BuildPublicWorkingHoursAction.php:20-21,56-59` | Confirmed when a doctor has multiple clinics open on the same weekday | Open | Pending |
+| BUG-005 | Medium | Logic / Booking / Payment | `app/Actions/Portal/Appointment/UpdateAppointmentStatusAction.php:59-81`; `app/Actions/Payments/InitiateAppointmentPaymentAction.php:38-45` | Confirmed conditional on reactivating an expired cancelled reservation | Open | Pending |
+| BUG-006 | Low | Concurrency / Idempotency | `app/Http/Controllers/Portal/ClinicFinanceController.php:308-322`; `database/migrations/2026_11_19_200000_add_idempotency_key_to_patient_installment_payments.php:15` | Confirmed race; occurrence requires concurrent same-key requests on different installments | Open | Pending |
+| BUG-007 | Medium | Reliability / Health Interop | `app/Console/Commands/DispatchHealthExchangeMessages.php:21-42` | Confirmed crash-recovery gap; stuck state requires interruption after claim | Open | Pending |
+| BUG-008 | Medium | Authorization / Middleware | `app/Http/Middleware/DoctorAuth.php:128-135,163-240`; `routes/portal/patients.php:23-26` | Confirmed for secretary accounts with otherwise sufficient controller-level permission | Open | Pending |
 
 ## Finding template
 
@@ -635,3 +641,97 @@ Last ledger update: 2026-11-19
 - `app/Http/Requests/Portal/UpdateAppointmentStatusRequest.php`
 - `app/Http/Controllers/HomeController.php`
 - **No application code, test code, route, migration, config, dependency, or frontend file was changed.** Only this tracker is updated on the audit branch.
+
+
+### Policy / middleware / commands / observers / health interop / SMS / request validation pass
+
+- **Source revision:** `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`.
+- **Count correction:** the prior 272/535 consisted of 136 earlier unique files + 64 new `app/` files + 10 additional files + 62 newly counted tests (64 test files were read, 2 already counted). This pass adds **68 unique fully read files**; 23 other files in the targeted groups were re-read but were already in the 272. New total: **340 / 535**; remaining: **195**. The 535 inventory includes all 64 files under `tests/`; the test files are not an extra category beyond 535.
+- **Targeted group coverage:** all 88 files found in the recursive-tree filter for Policies, Middleware, Console Commands, Observers, Services, Requests, and `PatientCarePathwayController` were fetched/read in full across this and earlier passes. Of those, 23 were already counted in the earlier 272. No files under `app/Jobs/` were present in the recursive tree; eight Console Command files were inspected.
+- **BUG-003 severity re-evaluation:** remains **Medium**, not High on the evidence available. In `verifyStep()`, there is no outer/local `$pathway` assignment before the transaction. The only assignment is inside the closure at lines 94-96; line 99 reads it after the closure, outside PHP closure scope. The database transaction can commit the step update and possible pathway completion before the undefined-variable error. The staff member receives a 500 despite the persisted verification, and the audit event is not recorded. No controller-level test for `PatientCarePathwayController::verifyStep` was found in the 64 fully read test files; the existing `PatientCarePathwayProgressTest` exercises the service, not this controller endpoint. The route is declared once at `routes/portal/patients.php:26`; no second route/call path was identified. High would become defensible if the system's regulatory/clinical policy requires this audit event as a safety-critical control or if verification failure is shown to stop a critical patient-care process; neither was established by current repository evidence.
+- **BUG-004 end-user impact:** a patient or public visitor opening the doctor's public profile sees only one clinic's hours for a weekday when multiple clinics have hours on that same weekday. The other clinic's schedule is absent from the public `working_hours` data, so patients may wrongly infer that the second branch is unavailable or may contact/book against the wrong location. No data is deleted; the defect is a misleading/incomplete public schedule. Medium retained.
+- **BUG-005 end-user impact:** a doctor/secretary can change an expired, cancelled public reservation back to `pending`; the portal then shows a pending appointment, but the patient cannot complete online payment because the original `reservation_expires_at` remains in the past and payment initiation rejects it. Staff may believe the reservation was reopened while the patient encounters an expired-reservation/payment failure. Medium retained.
+- **New finding — BUG-007 — stale PROCESSING health-exchange messages are never reclaimed.**
+  - `app/Console/Commands/DispatchHealthExchangeMessages.php:21-28` selects only `pending`, `failed`, and `blocked` messages.
+  - Lines 31-42 change a row to `processing` and commit that state before the outbound HTTP call at line 48.
+  - If the PHP process/worker is terminated after the claim transaction commits and before the success/failure update at lines 49-63, the row remains `processing`. Future command runs never select it, and no lease/timeout/reaper for `processing` was found in the inspected command, model, scheduler, or service paths. The queued clinical message can remain undelivered indefinitely without an automatic retry.
+  - **Severity:** Medium. **Confidence:** Confirmed for the unrecoverable state transition; occurrence depends on process interruption. Suggested remedy: add a claim lease/processing timestamp and reclaim expired claims safely, with remote idempotency preserved.
+- **New finding — BUG-008 — care-pathway routes are not mapped to secretary permissions in DoctorAuth.**
+  - `routes/portal/patients.php:23-26` declares route names `portal.care-pathways.index`, `portal.care-pathways.store`, and `portal.care-pathway-steps.verify`.
+  - `PatientCarePathwayController::index/store/verifyStep` explicitly calls `authorizeSecretaryPermission(...)`, indicating that secretary access is intended when the corresponding permission exists.
+  - `app/Http/Middleware/DoctorAuth.php:219-228` maps only prefixes such as `portal.patients.`, `portal.follow-ups.`, and `portal.encounters.`; it has no mapping for `portal.care-pathways.` or `portal.care-pathway-steps.`.
+  - At lines 128-135, an unmapped route returns null and the middleware aborts 403 before the controller's permission check. Therefore, a secretary with `patients.clinical.view` / `patients.manage` still cannot view/create care pathways or verify patient-reported steps. This is an authorization/feature-access defect, not unauthorized access. **Severity:** Medium. **Confidence:** Confirmed. Suggested remedy: map these route names to the intended permission(s), retaining the controller's doctor/secretary checks.
+- **Other targeted review results:** no additional confirmed bypass was found in the inspected identity/insurance/SEP paths. The health identity endpoint explicitly reports structural validation only and does not claim official identity verification. Insurance verification explicitly records `awaiting_integration`/`not_configured` and returns `insurance_approved=false`; it does not falsely approve a patient. The outbox encrypts payloads, and the gateway enforces HTTPS, an allow-listed hostname, disabled redirects, and explicit remote acceptance. SMS reminders require consent flags for installment reminders; follow-up reminders are claimed before sending and capped at three attempts. The OTP service hashes codes, limits attempts, consumes a code once, and serializes verification per phone. No Jobs directory was found; the health-exchange dispatcher command is not in `routes/console.php` scheduler, so automatic delivery additionally depends on an external/manual invocation. This scheduling gap is recorded as an operational question, not a confirmed bug without proof that the command is expected to run automatically.
+- **Request-validation review:** reviewed request classes generally constrain enumerations, numeric ranges, dates, and file types. Some request `authorize()` methods only check authenticated/active user, but the route middleware/controller/action applies the actual role, doctor, clinic, and patient scope on the inspected high-risk flows. No standalone exploitable request-validation bypass was confirmed in this group. `StorePatientFollowUpRequest` accepts a `sms_consent_confirmed` boolean from the staff form; the create action only enables SMS when that flag is true. Whether this staff-entered flag constitutes adequate evidence of consent is a product/legal control question, not a proven code-level bypass from repository evidence.
+- **Files newly fully read and counted in this pass (68 unique paths):**
+  - `app/Console/Commands/BackfillPatientsFromAppointments.php`
+  - `app/Console/Commands/CreateCollateralDueReminders.php`
+  - `app/Console/Commands/ExpirePendingAppointments.php`
+  - `app/Console/Commands/GenerateAppointmentSlots.php`
+  - `app/Console/Commands/SendAppointmentReminders.php`
+  - `app/Console/Commands/SendInstallmentReminders.php`
+  - `app/Console/Commands/SendPatientFollowUpReminders.php`
+  - `app/Actions/Security/RecordSecurityAuditEventAction.php`
+  - `app/Services/HealthInterop/IranianNationalCode.php`
+  - `app/Services/Sms/GhasedakSmsGateway.php`
+  - `app/Services/LoginOtp.php`
+  - `routes/console.php`
+  - `app/Providers/AppServiceProvider.php`
+  - `app/Http/Requests/BookAppointmentRequest.php`
+  - `app/Http/Requests/Portal/StorePortalAppointmentRequest.php`
+  - `app/Http/Requests/Portal/GenerateTimeSlotsRequest.php`
+  - `app/Http/Requests/Portal/StoreTimeSlotRequest.php`
+  - `app/Http/Requests/Portal/UpdateTimeSlotRequest.php`
+  - `app/Http/Requests/Portal/SaveWorkingHourRequest.php`
+  - `app/Http/Requests/Portal/UpdateAppointmentStatusRequest.php`
+  - `app/Http/Requests/Portal/UpdateFeeRequest.php`
+  - `app/Http/Requests/Portal/ClinicRequest.php`
+  - `app/Http/Requests/Portal/ListPaymentReviewRequest.php`
+  - `app/Http/Requests/Portal/ListSecurityAuditLogsRequest.php`
+  - `app/Http/Requests/Portal/UpdateManagedUserStatusRequest.php`
+  - `app/Http/Requests/Portal/ReplyDoctorReviewRequest.php`
+  - `app/Http/Requests/Portal/StoreGalleryImagesRequest.php`
+  - `app/Http/Requests/StoreReviewRequest.php`
+  - `app/Http/Requests/ReplyReviewRequest.php`
+  - `app/Observers/AppointmentAuditObserver.php`
+  - `app/Observers/PatientAuditObserver.php`
+  - `app/Observers/PatientClinicalRecordObserver.php`
+  - `app/Services/AppointmentSlotGenerator.php`
+  - `app/Services/ClinicBrain/ClinicBrainAnalyzer.php`
+  - `app/Services/ClinicBrain/WaitlistOfferEligibility.php`
+  - `app/Services/ClinicIntelligence/InventoryDemandForecaster.php`
+  - `app/Services/ClinicalDecisionSupport.php`
+  - `app/Services/ClinicalRiskRadar.php`
+  - `app/Services/Finance/ClinicCashFlowForecastService.php`
+  - `app/Services/Finance/ClinicRevenueOptimizer.php`
+  - `app/Services/Growth/ClinicGrowthEngine.php`
+  - `app/Services/MedicalReferralSettlementGenerator.php`
+  - `app/Services/MedicalReferralWorkflow.php`
+  - `app/Services/PatientCarePathwayProgress.php`
+  - `app/Services/PatientHealthIntelligence.php`
+  - `app/Services/PatientRetention/RetentionSegment.php`
+  - `app/Services/ReferralCollaborationOpportunityFinder.php`
+  - `app/Services/PredictivePatientEngine.php`
+  - `app/Services/ReferralNetworkIntelligence.php`
+  - `app/Services/ProfileService.php`
+  - `app/Http/Requests/Auth/ConfirmPasswordRequest.php`
+  - `app/Http/Requests/Auth/LoginRequest.php`
+  - `app/Http/Requests/Auth/RegisterPublicUserRequest.php`
+  - `app/Http/Requests/Auth/SendDoctorRegistrationOtpRequest.php`
+  - `app/Http/Requests/Auth/SendPasswordResetLinkRequest.php`
+  - `app/Http/Requests/Auth/StoreDoctorRegistrationRequest.php`
+  - `app/Http/Requests/Auth/StoreNewPasswordRequest.php`
+  - `app/Http/Requests/Auth/UpdateAuthenticatedPasswordRequest.php`
+  - `app/Http/Requests/Auth/VerifyDoctorRegistrationOtpRequest.php`
+  - `app/Http/Requests/Portal/StorePostRequest.php`
+  - `app/Http/Requests/Portal/UpdateAppointmentDescriptionRequest.php`
+  - `app/Http/Requests/Portal/UpdateGalleryImageRequest.php`
+  - `app/Http/Requests/Profile/DeleteProfileRequest.php`
+  - `app/Http/Requests/Profile/UpdateProfilePasswordRequest.php`
+  - `app/Http/Requests/Profile/UpdateProfileRequest.php`
+  - `app/Http/Requests/ProfileUpdateRequest.php`
+  - `app/Http/Requests/StoreCommentRequest.php`
+  - `app/Services/ClinicProfessionalSettlementCalculator.php`
+- **Targeted files re-read but not counted again** because they were already in the 272 baseline: `app/Http/Controllers/Portal/PatientCarePathwayController.php`, `app/Policies/DoctorImagePolicy.php`, `app/Policies/Portal/DoctorPolicy.php`, `app/Http/Middleware/DoctorAuth.php`, `app/Http/Middleware/HandleInertiaRequests.php`, `app/Console/Commands/DispatchHealthExchangeMessages.php`, `routes/portal/patients.php`, `app/Services/HealthInterop/HealthExchangeGateway.php`, `app/Services/HealthInterop/HealthExchangeOutbox.php`, `app/Services/Payments/SepPaymentService.php`, `app/Http/Controllers/Portal/HealthInteropController.php`, `app/Models/HealthExchangeMessage.php`, `bootstrap/app.php`, `bootstrap/providers.php`, `app/Http/Controllers/Portal/Concerns/HasActiveDoctor.php`, `routes/portal/portal.php`, `app/Http/Requests/Portal/StorePatientEncounterRequest.php`, `app/Http/Requests/Portal/SavePatientClinicalRecordRequest.php`, `app/Http/Requests/Portal/StorePatientFollowUpRequest.php`, `app/Http/Requests/Portal/StorePatientVitalSignRequest.php`, `app/Http/Requests/Portal/SaveManagedUserRequest.php`, `app/Http/Requests/Portal/UpdateSecretaryAssignmentsRequest.php`, `app/Services/Finance/ClinicAccountingService.php`.
+- **Not yet reviewed in the 535-file backend inventory:** 195 files. This is a count only; the remaining inventory still needs a fresh tree-based exact path list and staged review.
+- **No application code, test code, route, migration, configuration, dependency, or frontend file was changed.** Only this tracker is updated on the audit branch.
