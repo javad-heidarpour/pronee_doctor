@@ -188,5 +188,38 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
         <div class="mt-4 space-y-2"><div v-for="expense in expenses" :key="expense.id" class="flex justify-between gap-2 border-t pt-2 text-sm"><span>{{ expense.description }} — {{ expense.clinic?.name }}</span><b>{{ money(expense.amount) }}</b></div></div>
       </section>
     </div>
+
+    <Teleport to="body">
+      <div v-if="paymentModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5" @click.self="paymentModalOpen = false">
+        <section role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" class="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+          <h2 id="payment-modal-title" class="text-lg font-black text-slate-900">ثبت دریافت قسط</h2>
+          <p v-if="selectedInstallment" class="mt-1 text-sm text-slate-500">مانده قسط: {{ money(Number(selectedInstallment.amount)-Number(selectedInstallment.paid_amount)) }}</p>
+          <form class="mt-5 space-y-4" @submit.prevent="submitPayment">
+            <label class="block text-sm font-semibold text-slate-700">مبلغ دریافتی (ریال)<input v-model.number="paymentForm.amount" type="number" min="1" required inputmode="numeric" class="mt-1 w-full rounded-xl border-slate-300" /></label>
+            <p v-if="paymentForm.errors.amount" role="alert" class="text-xs text-red-600">{{ paymentForm.errors.amount }}</p>
+            <label class="block text-sm font-semibold text-slate-700">روش پرداخت<select v-model="paymentForm.method" required class="mt-1 w-full rounded-xl border-slate-300"><option value="cash">نقدی</option><option value="card">کارتخوان</option><option value="transfer">انتقال بانکی</option><option value="online">آنلاین</option><option value="cheque">چک</option></select></label>
+            <p v-if="paymentForm.errors.method" role="alert" class="text-xs text-red-600">{{ paymentForm.errors.method }}</p>
+            <div class="flex flex-col-reverse gap-2 sm:flex-row"><button type="button" @click="paymentModalOpen=false" class="rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 sm:flex-1">انصراف</button><button type="submit" :disabled="paymentForm.processing" class="rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:flex-1">{{ paymentForm.processing ? "در حال ثبت..." : "ثبت دریافت" }}</button></div>
+          </form>
+        </section>
+      </div>
+      <div v-if="collateralModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5" @click.self="collateralModalOpen=false">
+        <section role="dialog" aria-modal="true" aria-labelledby="collateral-modal-title" class="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+          <h2 id="collateral-modal-title" class="text-lg font-black text-slate-900">ثبت وثیقه طرح درمان</h2>
+          <form class="mt-5 space-y-4" @submit.prevent="submitCollateral">
+            <label class="block text-sm font-semibold text-slate-700">نوع وثیقه<select v-model="collateralForm.type" class="mt-1 w-full rounded-xl border-slate-300"><option value="cheque">چک</option><option value="promissory_note">سفته</option><option value="guarantor">ضامن</option><option value="other">سایر</option></select></label>
+            <p v-if="collateralForm.errors.type" role="alert" class="text-xs text-red-600">{{ collateralForm.errors.type }}</p>
+            <label class="block text-sm font-semibold text-slate-700">شناسه / شماره سند<input v-model="collateralForm.identifier" type="text" maxlength="120" class="mt-1 w-full rounded-xl border-slate-300" /></label>
+            <p v-if="collateralForm.errors.identifier" role="alert" class="text-xs text-red-600">{{ collateralForm.errors.identifier }}</p>
+            <label class="block text-sm font-semibold text-slate-700">مبلغ اسمی (ریال)<input v-model.number="collateralForm.face_value" type="number" min="1" inputmode="numeric" class="mt-1 w-full rounded-xl border-slate-300" /></label>
+            <p v-if="collateralForm.errors.face_value" role="alert" class="text-xs text-red-600">{{ collateralForm.errors.face_value }}</p>
+            <label class="block text-sm font-semibold text-slate-700">تاریخ سررسید<input v-model="collateralForm.due_date" type="date" class="mt-1 w-full rounded-xl border-slate-300" /></label>
+            <p v-if="collateralForm.errors.due_date" role="alert" class="text-xs text-red-600">{{ collateralForm.errors.due_date }}</p>
+            <label class="flex items-center gap-2 text-sm text-slate-700"><input v-model="collateralForm.reminder_enabled" type="checkbox" class="rounded border-slate-300" /> یادآوری سررسید فعال باشد</label>
+            <div class="flex flex-col-reverse gap-2 sm:flex-row"><button type="button" @click="collateralModalOpen=false" class="rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 sm:flex-1">انصراف</button><button type="submit" :disabled="collateralForm.processing" class="rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50 sm:flex-1">{{ collateralForm.processing ? "در حال ثبت..." : "ثبت وثیقه" }}</button></div>
+          </form>
+        </section>
+      </div>
+    </Teleport>
   </PortalLayout>
 </template>
