@@ -134,7 +134,8 @@ class ClinicAccountingService
         if ($totalCost < 1) return null;
         $lines = match ($movementType) {
             'opening' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '3000', 'debit' => 0, 'credit' => $totalCost]],
-            'purchase' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '2400', 'debit' => 0, 'credit' => $totalCost]],
+            'purchase' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '1000', 'debit' => 0, 'credit' => $totalCost]],
+            'purchase_credit' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '2400', 'debit' => 0, 'credit' => $totalCost]],
             'return' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '5010', 'debit' => 0, 'credit' => $totalCost]],
             'adjustment_in' => [['code' => '1300', 'debit' => $totalCost, 'credit' => 0], ['code' => '4100', 'debit' => 0, 'credit' => $totalCost]],
             'adjustment_out' => [['code' => '5010', 'debit' => $totalCost, 'credit' => 0], ['code' => '1300', 'debit' => 0, 'credit' => $totalCost]],

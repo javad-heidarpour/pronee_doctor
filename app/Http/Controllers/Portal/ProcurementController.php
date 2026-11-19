@@ -161,7 +161,7 @@ final class ProcurementController extends Controller
                 'notes'=>'دریافت سفارش خرید '.$purchase->order_number,'occurred_at'=>now(),
             ]);
             $accounting->recordInventoryMovement($stock->organization_id,$stock->clinic_id,$doctor->id,
-                (int)Auth::guard('web')->id(),$movement->id,'purchase',(int)round($quantity*(int)$line->unit_cost_rial),
+                (int)Auth::guard('web')->id(),$movement->id,'purchase_credit',(int)round($quantity*(int)$line->unit_cost_rial),
                 'دریافت خرید: '.$stock->name,now()->toDateTimeString());
             $received=round((float)$line->received_quantity+$quantity,3);
             DB::table('clinic_purchase_order_items')->where('id',$line->id)->update(['received_quantity'=>$received,'updated_at'=>now()]);

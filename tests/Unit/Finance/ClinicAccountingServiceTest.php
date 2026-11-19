@@ -149,7 +149,7 @@ final class ClinicAccountingServiceTest extends TestCase
     public function test_inventory_purchase_is_booked_to_supplier_payable_not_cash(): void
     {
         $entry = app(ClinicAccountingService::class)->recordInventoryMovement(
-            9, 3, 12, 5, 987, 'purchase', 2500, 'دریافت اعتباری کالا', now()->toDateTimeString()
+            9, 3, 12, 5, 987, 'purchase_credit', 2500, 'دریافت اعتباری کالا', now()->toDateTimeString()
         );
 
         $this->assertSame(2500, (int) $entry->lines()->whereHas('account', fn ($q) => $q->where('code', '1300'))->sum('debit'));
