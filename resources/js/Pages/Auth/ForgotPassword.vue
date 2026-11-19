@@ -58,7 +58,7 @@ const submit = () => {
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    ایمیل Password Reset Link
+                    ارسال پیوند بازیابی رمز عبور
                 </PrimaryButton>
             </div>
         </form>
