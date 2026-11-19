@@ -34,7 +34,13 @@ class DoctorAuth
                 ->where('status', 'active')
                 ->where('is_verified', true)
                 ->exists();
-            abort_unless($hasVerifiedProfessionalProfile, 403, 'دسترسی پرتال حرفه‌ای برای این حساب فعال نیست.');
+            if (!$hasVerifiedProfessionalProfile) {
+                $this->logout($request);
+
+                return redirect()->route('portal.login')->withErrors([
+                    'email' => 'شما مجاز به ورود به این پنل نیستید.',
+                ]);
+            }
 
             abort_unless($request->routeIs(
                 'portal.professional-partnerships.index',
