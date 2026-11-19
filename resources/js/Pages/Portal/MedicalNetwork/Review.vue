@@ -1,11 +1,15 @@
 <script setup>
+import { reactive } from 'vue'
 import { router } from '@inertiajs/vue3'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 defineProps({ providers: Object })
 const approve = provider => router.patch(route('portal.medical-network.providers.approve', provider.id), {}, { preserveScroll: true })
-const reject = provider => {
-  const reason = window.prompt('دلیل رد درخواست را وارد کنید:')
-  if (reason?.trim()) router.patch(route('portal.medical-network.providers.reject', provider.id), { reason }, { preserveScroll: true })
+const dialog=reactive({open:false,errors:{},processing:false,provider:null})
+const reject = provider => Object.assign(dialog,{open:true,provider,errors:{},processing:false})
+const submitReject = values => {
+  dialog.processing=true
+  router.patch(route('portal.medical-network.providers.reject',dialog.provider.id),values,{preserveScroll:true,onSuccess:()=>{dialog.open=false;dialog.errors={}},onError:errors=>{dialog.errors=errors||{}},onFinish:()=>{dialog.processing=false}})
 }
 </script>
 <template>
@@ -20,5 +24,6 @@ const reject = provider => {
       </article>
       <p v-if="!providers.data.length" class="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">درخواست تأییدنشده‌ای وجود ندارد.</p>
     </main>
+    <ActionDialog :open="dialog.open" title="رد درخواست عضویت مرکز" description="دلیل رد درخواست را ثبت کنید تا در سابقه بررسی باقی بماند." :fields="[{key:'reason',label:'دلیل رد درخواست',type:'textarea',required:true,maxlength:2000}]" :errors="dialog.errors" :processing="dialog.processing" @close="dialog.open=false" @submit="submitReject" />
   </PortalLayout>
 </template>

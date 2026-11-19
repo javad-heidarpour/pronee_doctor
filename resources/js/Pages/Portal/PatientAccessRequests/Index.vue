@@ -1,13 +1,17 @@
 <script setup>
+import { reactive } from 'vue'
 import { router } from '@inertiajs/vue3'
+import ActionDialog from '@/Components/Portal/ActionDialog.vue'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 defineProps({ requests: Object, doctor: Object })
 const approve = item => {
   if (window.confirm('پس از احراز هویت بیمار، دسترسی پرونده فعال شود؟')) router.patch(route('portal.patient-access-requests.approve', item.id), {}, { preserveScroll: true })
 }
-const reject = item => {
-  const note = window.prompt('دلیل رد درخواست را ثبت کنید:')
-  if (note?.trim()) router.patch(route('portal.patient-access-requests.reject', item.id), { review_note: note }, { preserveScroll: true })
+const dialog=reactive({open:false,errors:{},processing:false,item:null})
+const reject = item => Object.assign(dialog,{open:true,item,errors:{},processing:false})
+const submitReject = values => {
+  dialog.processing=true
+  router.patch(route('portal.patient-access-requests.reject',dialog.item.id),{review_note:values.review_note},{preserveScroll:true,onSuccess:()=>{dialog.open=false;dialog.errors={}},onError:errors=>{dialog.errors=errors||{}},onFinish:()=>{dialog.processing=false}})
 }
 </script>
 <template>
@@ -21,5 +25,6 @@ const reject = item => {
       </article>
       <p v-if="!requests.data.length" class="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">درخواست در انتظار بررسی وجود ندارد.</p>
     </main>
+    <ActionDialog :open="dialog.open" title="رد درخواست دسترسی پرونده" description="دلیل رد درخواست را ثبت کنید." :fields="[{key:'review_note',label:'دلیل رد درخواست',type:'textarea',required:true,maxlength:2000}]" :errors="dialog.errors" :processing="dialog.processing" @close="dialog.open=false" @submit="submitReject" />
   </PortalLayout>
 </template>
