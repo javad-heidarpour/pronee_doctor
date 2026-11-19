@@ -100,9 +100,10 @@
             <div class="flex flex-col-reverse gap-2 sm:flex-row">
               <button
                 type="submit"
+                :disabled="processing"
                 class="flex-1 bg-teal-600 text-white py-3 rounded-xl font-bold"
               >
-                ذخیره
+                {{ processing ? "در حال ذخیره..." : "ذخیره" }}
               </button>
               <button
                 type="button"
@@ -139,6 +140,7 @@ const page = usePage();
 const isSecretary = computed(() => page.props.auth?.user?.role === "secretary");
 
 const showModal = ref(false);
+const processing = ref(false);
 const editingClinic = ref(null);
 const form = ref({ name: "", full_address: "", phone: "", city_id: "" });
 
@@ -151,9 +153,12 @@ const openModal = (clinic = null) => {
 };
 
 const submitClinic = () => {
+  if (!form.value.name?.trim() || !form.value.full_address?.trim()) return;
+  processing.value = true;
   const options = {
     preserveScroll: true,
     onError: () => { showModal.value = true; },
+    onFinish: () => { processing.value = false; },
     onSuccess: () => { showModal.value = false; },
   };
 

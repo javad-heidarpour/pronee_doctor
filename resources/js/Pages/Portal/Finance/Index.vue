@@ -21,27 +21,40 @@ const expenseForm = useForm({
   payment_method: 'transfer', reference: '', notes: '',
 })
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
+const paymentModalOpen = ref(false)
+const collateralModalOpen = ref(false)
+const selectedInstallment = ref(null)
+const selectedPlan = ref(null)
+const paymentForm = useForm({ amount: '', method: 'card' })
+const collateralForm = useForm({ type: 'cheque', identifier: '', face_value: '', due_date: '', reminder_enabled: false })
 const pay = row => {
-  const remaining = Number(row.amount) - Number(row.paid_amount)
-  const amount = window.prompt('مبلغ دریافتی (ریال) — مانده: ' + money(remaining), String(remaining))
-  if (!amount || !/^\d+$/.test(amount) || Number(amount) < 1) return
-  const methodChoice = window.prompt('روش پرداخت را انتخاب کنید: ۱ نقدی، ۲ کارتخوان، ۳ انتقال بانکی، ۴ آنلاین، ۵ چک', '۲')
-  const methods = { '۱': 'cash', '۲': 'card', '۳': 'transfer', '۴': 'online', '۵': 'cheque' }
-  const method = methods[methodChoice]
-  if (!method) return
-  router.post(route('portal.finance.installments.payments.store', row.id), { amount: Number(amount), method })
+  selectedInstallment.value = row
+  paymentForm.reset()
+  paymentForm.amount = Math.max(0, Number(row.amount) - Number(row.paid_amount))
+  paymentForm.method = 'card'
+  paymentModalOpen.value = true
+}
+const submitPayment = () => {
+  if (!selectedInstallment.value || Number(paymentForm.amount) < 1) return
+  paymentForm.post(route('portal.finance.installments.payments.store', selectedInstallment.value.id), {
+    preserveScroll: true,
+    onSuccess: () => { paymentModalOpen.value = false; selectedInstallment.value = null; paymentForm.reset() },
+  })
 }
 const updateCollateral = (item, status) => router.put(route('portal.finance.collaterals.update', item.id), { status })
 const revokeConsent = (plan, scope) => { if (window.confirm('ارسال پیامک‌های این نوع برای این طرح درمان متوقف شود؟')) router.post(route('portal.finance.plans.sms-consent.revoke', plan.id), { scope }) }
 const addCollateral = plan => {
-  const typeChoice = window.prompt('نوع وثیقه را انتخاب کنید: ۱ چک، ۲ سفته، ۳ ضامن، ۴ سایر', '۱')
-  const types = { '۱': 'cheque', '۲': 'promissory_note', '۳': 'guarantor', '۴': 'other' }
-  const type = types[typeChoice]
-  if (!type) return
-  const identifier = window.prompt('شناسه / شماره چک یا سفته (اختیاری)', '') || ''
-  const face_value = window.prompt('مبلغ اسمی وثیقه به ریال (اختیاری)', '') || ''
-  const due_date = window.prompt('تاریخ سررسید به فرمت سال-ماه-روز (اختیاری)', '') || ''
-  router.post(route('portal.finance.collaterals.store', plan.id), { type, identifier, face_value: face_value || null, due_date: due_date || null, reminder_enabled: Boolean(due_date) })
+  selectedPlan.value = plan
+  collateralForm.reset()
+  collateralForm.type = 'cheque'
+  collateralModalOpen.value = true
+}
+const submitCollateral = () => {
+  if (!selectedPlan.value) return
+  collateralForm.post(route('portal.finance.collaterals.store', selectedPlan.value.id), {
+    preserveScroll: true,
+    onSuccess: () => { collateralModalOpen.value = false; selectedPlan.value = null; collateralForm.reset() },
+  })
 }
 const planSubmit = () => planForm.post(route('portal.finance.plans.store'), { onSuccess: () => planForm.reset('patient_id', 'title', 'total_amount', 'discount_amount', 'deposit_amount', 'clinical_notes', 'financial_terms') })
 const expenseSubmit = () => expenseForm.post(route('portal.finance.expenses.store'), { onSuccess: () => expenseForm.reset('description', 'amount', 'reference', 'notes') })
