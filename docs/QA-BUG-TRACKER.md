@@ -46,7 +46,7 @@ One configuration finding remains open; BUG-002 is retained as rejected history.
 
 | ID | Severity | Category | Location | Confidence | Status | Fix commit / verification |
 |---|---|---|---|---|---|---|
-| BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:7,15` | Confirmed | Open | Pending |
+| BUG-001 | Medium | Configuration / Authorization | `app/Providers/AuthServiceProvider.php:9,17` | Confirmed | Open | Pending |
 | BUG-002 | Medium | Authorization / Type Contract | `config/auth.php:23-40`; `app/Policies/DoctorImagePolicy.php:10,15`; `app/Policies/Portal/DoctorPolicy.php:14,22,30` | Rejected: current call path passes `Doctor` directly; no live `DoctorPolicy` Gate invocation found | Rejected | Not a runtime defect on reviewed paths |
 
 ## Finding template
@@ -248,7 +248,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 
 - **Severity:** Medium
 - **Category:** Configuration / Authorization
-- **Location:** `app/Providers/AuthServiceProvider.php:7,15`
+- **Location:** `app/Providers/AuthServiceProvider.php:9,17`
 - **Code excerpt:**
   ```php
   use App\\Policies\\DoctorPolicy;
