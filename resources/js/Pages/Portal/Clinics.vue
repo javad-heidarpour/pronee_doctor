@@ -79,9 +79,9 @@
     <!-- {{ cities }} -->
 
           <form @submit.prevent="submitClinic" class="space-y-4">
-            <FormField v-model="form.name" label="نام مطب" required />
-            <FormField v-model="form.full_address" label="آدرس کامل" required />
-            <FormField v-model="form.phone" label="تلفن" />
+            <FormField v-model="form.name" label="نام مطب" required :error="$page.props.errors?.name" />
+            <FormField v-model="form.full_address" label="آدرس کامل" required :error="$page.props.errors?.full_address" />
+            <FormField v-model="form.phone" label="تلفن" :error="$page.props.errors?.phone" />
             <div>
               <label class="block text-sm font-bold text-gray-700 mb-2">شهر</label>
 
@@ -149,12 +149,17 @@ const openModal = (clinic = null) => {
 };
 
 const submitClinic = () => {
+  const options = {
+    preserveScroll: true,
+    onError: () => { showModal.value = true; },
+    onSuccess: () => { showModal.value = false; },
+  };
+
   if (editingClinic.value) {
-    router.put(route("portal.clinics.update", editingClinic.value.id), form.value);
+    router.put(route("portal.clinics.update", editingClinic.value.id), form.value, options);
   } else {
-    router.post(route("portal.clinics.store"), form.value);
+    router.post(route("portal.clinics.store"), form.value, options);
   }
-  showModal.value = false;
 };
 
 const deleteClinic = (id) => {
