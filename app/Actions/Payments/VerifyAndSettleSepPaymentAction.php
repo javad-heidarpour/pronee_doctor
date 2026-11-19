@@ -220,6 +220,8 @@ class VerifyAndSettleSepPaymentAction
 
             $lockedAppointment->status = 'confirmed';
             $lockedAppointment->reservation_expires_at = null;
+            $lockedAppointment->save();
+
             $organizationId = DB::table('addresses')->where('id', $lockedAppointment->clinic_id)->value('organization_id');
             $this->accounting->recordAppointmentPayment(
                 $organizationId !== null ? (int) $organizationId : null, (int) $lockedAppointment->clinic_id,
