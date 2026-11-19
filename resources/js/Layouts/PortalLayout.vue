@@ -388,7 +388,7 @@
           </div>
 
           <!-- Left: Status + Flash -->
-          <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div class="flex min-w-0 max-w-[55%] flex-wrap items-center justify-end gap-2 sm:gap-3">
             <!-- Success Message -->
             <Transition
               enter-active-class="transition-all duration-300"
@@ -415,7 +415,7 @@
                 </svg>
 
                 <span
-                  class="min-w-0 truncate text-[11px] font-medium text-emerald-700 sm:max-w-48 sm:text-xs"
+                  class="min-w-0 break-words text-[11px] font-medium text-emerald-700 sm:max-w-48 sm:text-xs"
                 >
                   {{ flashSuccess }}
                 </span>
@@ -434,8 +434,8 @@
                 :class="flashNotice.type === 'error'
                   ? 'border-rose-100 bg-rose-50 text-rose-700'
                   : 'border-sky-100 bg-sky-50 text-sky-700'"
-                role="status"
-                aria-live="polite"
+                :role="flashNotice.type === 'error' ? 'alert' : 'status'"
+                :aria-live="flashNotice.type === 'error' ? 'assertive' : 'polite'"
               >
                 <span class="min-w-0 break-words text-[11px] font-medium sm:text-xs">{{ flashNotice.message }}</span>
               </div>
