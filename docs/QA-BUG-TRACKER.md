@@ -196,7 +196,7 @@ The following paths were fetched/read at least in part in an earlier preliminary
 ### Priority audit pass — payment, authorization, booking, patient/staff access
 
 - Source revision reviewed: `main` at `23d6ed3ed7fac58d232d0255f3236f00a555f941`; audit ledger updates remain isolated to branch `qa/backend-audit-2026-11-19`.
-- Full-file count after this pass: **79 / 535** backend-scope files. The 38 additional unique backend full-file reads are:
+- Full-file count after this pass: **78 / 535** (38 backend files; the separate Blade view below is outside the 535-file backend scope) backend-scope files. The 38 additional unique backend full-file reads are:
   - `app/Http/Controllers/Portal/StaffManagementController.php` (all 490 lines, assembled from complete line ranges)
   - `app/Http/Controllers/Portal/PatientController.php`
   - `routes/portal/portal.php`
@@ -229,7 +229,6 @@ The following paths were fetched/read at least in part in an earlier preliminary
   - `bootstrap/providers.php`
   - `routes/web.php`
   - `app/Http/Controllers/VisitController.php`
-  - `resources/views/payments/sep-redirect.blade.php` (one additional full read outside the 535-file backend scope)
   - `app/Actions/Home/BookAppointmentAction.php`
   - `app/Actions/Portal/Appointment/ListAvailableSlotsAction.php`
   - `app/Actions/Portal/Appointment/EnsureSecretaryCanBookClinicAction.php`
@@ -308,3 +307,125 @@ At the start of a later chat:
 
 ---
 Last ledger update: 2026-11-19
+
+### Clarification and continuation — payment evidence + patient/clinical/finance audit
+
+- **Branch safety:** `main` remained at `23d6ed3ed7fac58d232d0255f3236f00a555f941`. This tracker update is confined to `qa/backend-audit-2026-11-19`.
+- **Correction to the previous section:** its list contained 39 bullets because it mixed 38 backend files with `resources/views/payments/sep-redirect.blade.php`. The Blade file is out of backend scope. The correct backend total after the previous pass was **78 / 535**, not 79. The 38 backend paths are retained below; the Blade file was also fully read but is not counted.
+- **Current backend full-file total:** **136 / 535** (78 prior + 58 new unique backend files in this group). No frontend completion claim is made.
+- **Three controller read ranges (complete):**
+  - `app/Http/Controllers/Portal/ClinicOrganizationController.php`: **282 lines**, complete range **1–282**.
+  - `app/Http/Controllers/Portal/ClinicFinanceController.php`: **424 lines**, complete range **1–424**.
+  - `app/Http/Controllers/Portal/ProcurementController.php`: **265 lines**, complete range **1–265**.
+- **Prior pass — exact 38 backend files fully read:**
+- `app/Http/Controllers/Portal/StaffManagementController.php`
+- `app/Http/Controllers/Portal/PatientController.php`
+- `routes/portal/portal.php`
+- `app/Http/Controllers/Portal/GalleryController.php`
+- `app/Models/DoctorImage.php`
+- `routes/portal/gallery.php`
+- `routes/portal/Profile.php`
+- `app/Http/Controllers/ProfileController.php`
+- `app/Http/Controllers/Portal/AuthController.php`
+- `app/Http/Controllers/Portal/Concerns/AuthorizesPortalAppointments.php`
+- `app/Http/Controllers/AppointmentPaymentController.php`
+- `routes/payment.php`
+- `routes/appointment.php`
+- `app/Actions/Payments/FindSepCallbackPaymentAction.php`
+- `app/Actions/Payments/ValidateSepCallbackTerminalAction.php`
+- `app/Actions/Payments/NormalizeSepVerificationResponseAction.php`
+- `app/Actions/Payments/RecordSepCallbackFailureAction.php`
+- `app/Actions/Payments/CancelFailedAppointmentAction.php`
+- `app/Actions/Payments/ProcessLocalSepPaymentTestAction.php`
+- `app/Actions/Payments/ReconcileKnownSepPaymentAction.php`
+- `app/Http/Controllers/Portal/PaymentReviewController.php`
+- `app/Http/Controllers/Portal/ProcurementController.php`
+- `app/Http/Controllers/Portal/StaffAttendanceController.php`
+- `app/Http/Controllers/Portal/ClinicOrganizationController.php`
+- `app/Http/Controllers/Portal/ClinicFinanceController.php`
+- `database/migrations/2026_11_17_090000_add_unique_gateway_reference_to_appointment_payments.php`
+- `tests/Unit/Payments/VerifyAndSettleSepPaymentActionTest.php`
+- `tests/Unit/Payments/InitiateAppointmentPaymentActionTest.php`
+- `bootstrap/app.php`
+- `bootstrap/providers.php`
+- `routes/web.php`
+- `app/Http/Controllers/VisitController.php`
+- `app/Actions/Home/BookAppointmentAction.php`
+- `app/Actions/Portal/Appointment/ListAvailableSlotsAction.php`
+- `app/Actions/Portal/Appointment/EnsureSecretaryCanBookClinicAction.php`
+- `database/migrations/2026_11_19_100000_create_clinic_staff_attendance_tables.php`
+- `database/migrations/2026_11_19_120000_create_staff_compensation_and_replacement_tables.php`
+- `app/Models/TimeSlot.php`
+- Additional out-of-scope file fully read but not counted: `resources/views/payments/sep-redirect.blade.php`.
+- **Payment and booking controls — source evidence (active source revision `23d6ed3`):**
+  - SEP callback execution: `routes/payment.php:23-25` maps GET/POST `/payment/callback` to the callback controller; `app/Http/Controllers/AppointmentPaymentController.php:245-250` invokes `$settlementAction->handle(...)`.
+  - Payment initiation serializes the appointment and its payment attempts: `app/Actions/Payments/InitiateAppointmentPaymentAction.php:26-31` locks the appointment; `48-52` locks payment rows before checking paid/review/pending attempts.
+  - Amount reconciliation: `app/Actions/Payments/VerifyAndSettleSepPaymentAction.php:123-137` compares the numeric verified amount with `$payment->amount_rial` and returns `amount_mismatch` on mismatch.
+  - Settlement locks: `app/Actions/Payments/VerifyAndSettleSepPaymentAction.php:140-159` starts the transaction and locks appointment first, payment second.
+  - RefNum replay/ownership: `app/Actions/Payments/VerifyAndSettleSepPaymentAction.php:173-194` rejects a changed RefNum for the same payment and checks whether the RefNum belongs to another payment.
+  - Database uniqueness: `database/migrations/2026_11_17_090000_add_unique_gateway_reference_to_appointment_payments.php:36-40` adds unique index `appointment_payments_gateway_ref_unique` over `gateway_name, ref_num`.
+  - Public slot locking: `app/Actions/Home/BookAppointmentAction.php:43-73` locks doctor, clinic, then selected time slot; checks active appointments and availability before creating the appointment. `110-132` continues the national-code duplicate check and creation.
+  - Portal slot locking: `app/Actions/Portal/Appointment/CreatePortalAppointmentAction.php:34-41` locks doctor and selected time slot; `53-56` checks clinic relation under lock; `78-84` checks active appointment and slot status.
+- **Patient / clinical / finance group — 58 new unique backend files fully read:**
+- `app/Http/Controllers/PatientHealthController.php`
+- `app/Http/Controllers/PatientMedicationController.php`
+- `app/Http/Controllers/Portal/PatientEncounterController.php`
+- `app/Http/Controllers/Portal/PatientFollowUpController.php`
+- `app/Http/Controllers/Portal/PatientAccessRequestController.php`
+- `app/Http/Controllers/Portal/Patient360Controller.php`
+- `app/Http/Controllers/Portal/ClinicCashFlowController.php`
+- `app/Http/Controllers/Portal/PatientCarePathwayController.php`
+- `app/Http/Controllers/Portal/ClinicalRiskRadarController.php`
+- `app/Http/Controllers/Portal/PredictivePatientController.php`
+- `app/Actions/Portal/Patient/ArchivePatientClinicalRecordAction.php`
+- `app/Actions/Portal/Patient/BackfillPatientsFromAppointmentsAction.php`
+- `app/Actions/Portal/Patient/CreatePatientEncounterAction.php`
+- `app/Actions/Portal/Patient/CreatePatientFollowUpAction.php`
+- `app/Actions/Portal/Patient/ListPortalPatientsAction.php`
+- `app/Actions/Portal/Patient/LoadPortalPatientRecordAction.php`
+- `app/Actions/Portal/Patient/RecordPatientVitalSignAction.php`
+- `app/Actions/Portal/Patient/ResolveOrCreatePatientAction.php`
+- `app/Actions/Portal/Patient/RestorePatientClinicalRecordAction.php`
+- `app/Actions/Portal/Patient/SavePatientClinicalRecordAction.php`
+- `app/Actions/Portal/Patient/SignPatientEncounterAction.php`
+- `app/Actions/Portal/Patient/UpdatePatientEncounterAction.php`
+- `app/Actions/Visit/ShowVisitAction.php`
+- `app/Http/Requests/Portal/SavePatientClinicalRecordRequest.php`
+- `app/Http/Requests/Portal/StorePatientEncounterRequest.php`
+- `app/Http/Requests/Portal/StorePatientFollowUpRequest.php`
+- `app/Http/Requests/Portal/StorePatientVitalSignRequest.php`
+- `app/Http/Requests/Portal/AvailableSlotsRequest.php`
+- `app/Http/Requests/Portal/AvailableClinicRequest.php`
+- `app/Models/PatientEncounter.php`
+- `app/Models/PatientEncounterPrescription.php`
+- `app/Models/PatientMedicationPlan.php`
+- `app/Models/PatientMedicationDose.php`
+- `app/Models/PatientVitalSign.php`
+- `app/Models/PatientHealthObservation.php`
+- `app/Models/PatientAccountAccess.php`
+- `app/Models/PatientAccessRequest.php`
+- `app/Models/PatientCarePathway.php`
+- `app/Models/PatientTreatmentPlan.php`
+- `app/Models/PatientInstallmentPayment.php`
+- `app/Models/PatientTreatmentInstallment.php`
+- `app/Models/PatientTreatmentItem.php`
+- `database/migrations/2026_11_17_140000_create_patients_table_and_link_appointments.php`
+- `database/migrations/2026_11_17_180000_create_patient_clinical_records_table.php`
+- `database/migrations/2026_11_18_090000_create_patient_vital_signs_table.php`
+- `database/migrations/2026_11_18_160000_add_related_record_to_patient_clinical_records.php`
+- `database/migrations/2026_11_18_170000_add_related_allergy_record_to_patient_clinical_records.php`
+- `database/migrations/2026_11_18_180000_add_structured_details_to_patient_clinical_records.php`
+- `database/migrations/2026_11_18_190000_create_patient_follow_up_tables.php`
+- `database/migrations/2026_11_18_200000_create_patient_encounters_tables.php`
+- `database/migrations/2026_11_18_210000_create_clinic_finance_and_treatment_plans_tables.php`
+- `database/migrations/2026_11_18_340000_create_patient_portal_access_tables.php`
+- `database/migrations/2026_11_18_250000_link_treatment_followups_and_consent_revocation.php`
+- `database/migrations/2026_11_18_260000_create_service_inventory_requirements.php`
+- `database/migrations/2026_11_19_160000_add_supplier_payables_and_obligation_dates.php`
+- `database/migrations/2026_11_19_180000_add_unique_supplier_payment_reference.php`
+- `database/migrations/2026_11_19_190000_add_inventory_movement_idempotency_key.php`
+- `database/migrations/2026_11_19_200000_add_idempotency_key_to_patient_installment_payments.php`
+- **Findings:** No new confirmed bug was established in this group. Do not interpret this as proof that all patient, prescription, clinical-history, or finance code is bug-free. Existing BUG-001 remains Open; BUG-002 remains Rejected. No IDs were allocated because no new root cause met the evidence threshold.
+- **Coverage notes:** Patient access, owner/caregiver paths, encounter create/update/sign, prescriptions, medication reminders, vital signs, follow-ups, care pathways, risk radar, patient 360, treatment plans, installment receipts, supplier payments, inventory movement idempotency, and accounting journal posting were inspected along the listed paths.
+- **Not yet reviewed / remaining in this area:** `database/migrations/2026_11_18_350000_create_patient_health_observations_table.php`; patient-treatment item completion and its complete route-to-controller call path; remaining treatment/finance migrations and tests not listed above; any unlisted patient/clinical/finance files among the remaining backend inventory. These remain Not reviewed until fetched and read.
+- **No application code, routes, tests, migrations, configuration, dependencies, or frontend files were changed.** Only this audit tracker is updated on the audit branch.
