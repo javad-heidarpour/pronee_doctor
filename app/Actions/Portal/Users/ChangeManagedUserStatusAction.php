@@ -4,6 +4,8 @@ namespace App\Actions\Portal\Users;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
+use App\Models\Doctor;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -28,6 +30,31 @@ class ChangeManagedUserStatusAction
             }
 
             $lockedUser->save();
+
+            // حساب پزشک و پروفایل حرفه‌ای باید همیشه یک وضعیت دسترسی داشته باشند.
+            // فعال‌سازی پزشک از این مسیر فقط در اختیار مدیر سامانه است.
+            if ($lockedUser->role === 'doctor') {
+                $doctorProfile = Doctor::query()
+                    ->where('user_id', $lockedUser->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($doctorProfile) {
+                    $doctorProfile->is_active = $isActive;
+
+                    if ($isActive) {
+                        // فعال‌سازی مدیر به معنی تأیید صلاحیت حرفه‌ای ثبت‌شده است.
+                        $doctorProfile->registration_status = 'approved';
+                        $doctorProfile->approved_at ??= now();
+                        $doctorProfile->approved_by = Auth::guard('web')->id();
+                        $doctorProfile->rejection_reason = null;
+                        $doctorProfile->trial_started_at ??= now();
+                        $doctorProfile->site_expires_at ??= now()->addDays(7);
+                    }
+
+                    $doctorProfile->save();
+                }
+            }
 
             // نشست‌های کاربر غیرفعال فوراً از مخزن نشست حذف می‌شوند.
             // میان‌افزار DoctorAuth نیز در هر درخواست وضعیت حساب را دوباره بررسی می‌کند.
