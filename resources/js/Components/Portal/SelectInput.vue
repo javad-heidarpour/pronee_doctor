@@ -213,7 +213,7 @@ const props = defineProps({
   },
   noResultsText: {
     type: String,
-    default: "",
+    default: "موردی یافت نشد",
   },
   clearable: {
     type: Boolean,
