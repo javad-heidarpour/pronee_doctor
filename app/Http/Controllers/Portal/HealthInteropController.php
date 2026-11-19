@@ -66,7 +66,11 @@ final class HealthInteropController extends Controller
             'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
         ]);
         if (!empty($data['appointment_id'])) {
-            Appointment::query()->whereKey($data['appointment_id'])->where('doctor_id', $doctor->id)->firstOrFail();
+            Appointment::query()
+                ->whereKey($data['appointment_id'])
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->firstOrFail();
         }
 
         $enabled = (bool) config("health_interop.destinations.{$data['payer_code']}.enabled")
