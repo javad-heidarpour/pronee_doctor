@@ -63,7 +63,7 @@ final class RegisterDoctorAction
                     'phone' => $data->phone,
                     'password' => $temporaryPassword,
                     'role' => 'doctor',
-                    'is_active' => true,
+                    'is_active' => false,
                 ]);
 
                 $user->save();
@@ -80,11 +80,14 @@ final class RegisterDoctorAction
                     'email' => $data->email,
                     'phone' => $data->phone,
                     'Medical_system_number' => $data->medicalSystemNumber,
-                    'is_active' => true,
-                    'registration_status' => 'approved',
-                    'approved_at' => now(),
-                    'trial_started_at' => now(),
-                    'site_expires_at' => now()->addDays(7),
+                    'is_active' => false,
+                    // ثبت‌نام پیامکی فقط مالکیت شماره را ثابت می‌کند، نه صلاحیت حرفه‌ای را.
+                    // تا بررسی مدیر، هم حساب ورود و هم پروفایل عمومی غیرفعال می‌مانند.
+                    'registration_status' => 'pending',
+                    'approved_at' => null,
+                    'approved_by' => null,
+                    'trial_started_at' => null,
+                    'site_expires_at' => null,
                 ]);
 
                 $doctor->save();
