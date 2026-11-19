@@ -37,7 +37,6 @@
               placeholder="همه مطب‌ها"
               :clearable="true"
               searchable
-              @keydown.enter.prevent
             />
           </div>
 
@@ -52,7 +51,6 @@
               placeholder="همه وضعیت‌های پرداخت"
               :clearable="true"
               searchable
-              @keydown.enter.prevent
             />
           </div>
 
@@ -65,7 +63,6 @@
               placeholder="همه وضعیت‌ها"
               :clearable="true"
               searchable
-              @keydown.enter.prevent
             />
           </div>
 
