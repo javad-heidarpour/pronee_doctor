@@ -31,7 +31,7 @@
           <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{{ patients.total }} بیمار</span>
         </div>
 
-        <div v-if="patients.data.length" class="overflow-x-auto">
+        <div v-if="patients.data.length" class="hidden overflow-x-auto md:block">
           <table class="w-full min-w-[760px] text-right">
             <thead class="bg-slate-50 text-xs text-slate-500">
               <tr>
@@ -58,6 +58,31 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div v-if="patients.data.length" class="divide-y divide-slate-100 md:hidden">
+          <article v-for="patient in patients.data" :key="'mobile-' + patient.patient_key" class="space-y-3 p-4">
+            <div class="flex min-w-0 items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h4 class="break-words text-sm font-extrabold text-slate-800">{{ patient.patient_name || 'بدون نام' }}</h4>
+                <p class="mt-1 text-xs text-slate-500">{{ Number(patient.appointments_count).toLocaleString('fa-IR') }} نوبت ثبت‌شده</p>
+              </div>
+              <span class="shrink-0 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-bold text-teal-700">{{ formatDate(patient.last_appointment_date) }}</span>
+            </div>
+            <dl class="grid grid-cols-1 gap-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-2">
+              <div class="flex min-w-0 items-center justify-between gap-2">
+                <dt class="shrink-0 text-slate-500">شماره تماس</dt>
+                <dd class="min-w-0 truncate font-semibold text-slate-700" dir="ltr">{{ patient.patient_phone || '—' }}</dd>
+              </div>
+              <div class="flex min-w-0 items-center justify-between gap-2">
+                <dt class="shrink-0 text-slate-500">کد ملی</dt>
+                <dd class="min-w-0 truncate font-semibold text-slate-700" dir="ltr">{{ patient.patient_national_code || '—' }}</dd>
+              </div>
+            </dl>
+            <Link :href="route('portal.patients.directory.record', patient.latest_appointment_id)" class="inline-flex w-full items-center justify-center rounded-xl bg-teal-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-teal-700">
+              مشاهده پرونده و سوابق
+            </Link>
+          </article>
         </div>
 
         <div v-else class="px-5 py-16 text-center">
