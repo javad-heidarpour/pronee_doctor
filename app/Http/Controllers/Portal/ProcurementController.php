@@ -160,7 +160,8 @@ final class ProcurementController extends Controller
                 abort_unless((int)$existing->inventory_item_id===(int)$line->inventory_item_id
                     && $existing->movement_type==='purchase'
                     && round((float)$existing->quantity,3)===round((float)$data['quantity'],3)
-                    && $existing->reference===$purchase->order_number,409,
+                    && $existing->reference===$purchase->order_number
+                    && $existing->notes==='دریافت سفارش خرید '.$purchase->order_number.' - ردیف '.$line->id,409,
                     'کلید تکرار درخواست قبلاً برای دریافت دیگری استفاده شده است.');
                 return;
             }
@@ -176,7 +177,7 @@ final class ProcurementController extends Controller
                 'recorded_by'=>Auth::guard('web')->id(),'movement_type'=>'purchase','quantity'=>$quantity,
                 'unit_cost'=>$line->unit_cost_rial,'reference'=>$purchase->order_number,
                 'idempotency_key'=>$data['idempotency_key'],
-                'notes'=>'دریافت سفارش خرید '.$purchase->order_number,'occurred_at'=>now(),
+                'notes'=>'دریافت سفارش خرید '.$purchase->order_number.' - ردیف '.$line->id,'occurred_at'=>now(),
             ]);
             $accounting->recordInventoryMovement($stock->organization_id,$stock->clinic_id,$doctor->id,
                 (int)Auth::guard('web')->id(),$movement->id,'purchase_credit',(int)round($quantity*(int)$line->unit_cost_rial),
