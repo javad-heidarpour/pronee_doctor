@@ -12,6 +12,7 @@ use App\Services\Payments\SepPaymentService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\TestCase;
 
@@ -250,7 +251,7 @@ final class VerifyAndSettleSepPaymentActionTest extends TestCase
 
     private function appointment(): Appointment
     {
-        \\Illuminate\\Support\\Facades\\DB::table('addresses')->insertOrIgnore(['id'=>1,'organization_id'=>9,'created_at'=>now(),'updated_at'=>now()]);
+        DB::table('addresses')->insertOrIgnore(['id'=>1,'organization_id'=>9,'created_at'=>now(),'updated_at'=>now()]);
         return Appointment::query()->create([
             'doctor_id' => 1,
             'clinic_id' => 1,

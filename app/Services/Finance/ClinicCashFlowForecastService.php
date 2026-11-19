@@ -79,7 +79,10 @@ final class ClinicCashFlowForecastService
         } else {
             $payrolls->where('organization_id', null);
         }
-        $payrolls->where(function ($query) use ($clinicIds, $organizationIds): void {
+        if ($clinicIds === [] && $organizationIds === []) {
+            $payrolls->whereRaw('1 = 0');
+        } else {
+            $payrolls->where(function ($query) use ($clinicIds, $organizationIds): void {
             if ($clinicIds !== []) $query->whereIn('clinic_id', $clinicIds);
             if ($organizationIds !== []) {
                 $method = $clinicIds !== [] ? 'orWhere' : 'where';
@@ -87,7 +90,8 @@ final class ClinicCashFlowForecastService
                     $orgScope->whereIn('organization_id', $organizationIds)->whereNull('clinic_id');
                 });
             }
-        });
+            });
+        }
         foreach ($payrolls->get(['period_end', 'net_amount']) as $row) {
             $date = max($start->toDateString(), Carbon::parse($row->period_end)->toDateString());
             $movements[$date]['outflows'] += (int) $row->net_amount;

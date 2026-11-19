@@ -12,6 +12,7 @@ use App\Services\Finance\ClinicAccountingService as FinanceAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -204,7 +205,7 @@ final class ProcurementController extends Controller
             $organizationId = Address::query()->whereKey($purchase->clinic_id)->value('organization_id');
             $accounting->post($organizationId ? (int)$organizationId : null,(int)$purchase->clinic_id,(int)$doctor->id,
                 Auth::guard('web')->id(),'supplier_payment',$paymentId,'پرداخت به تأمین‌کننده سفارش '.$purchase->order_number,
-                \\Illuminate\\Support\\Carbon::parse($data['paid_at']??now())->toDateTimeString(),'supplier-payment-journal:'.$paymentId,
+                Carbon::parse($data['paid_at']??now())->toDateTimeString(),'supplier-payment-journal:'.$paymentId,
                 [['code'=>'2400','debit'=>$amount,'credit'=>0],['code'=>'1000','debit'=>0,'credit'=>$amount]]);
         },3);
 
