@@ -16,7 +16,7 @@ class PatientInstallmentPayment extends Model
         static::deleting(fn () => throw ValidationException::withMessages(['record' => 'سابقه مالی ثبت‌شده قابل حذف نیست.']));
     }
 
-    protected $fillable = ['installment_id', 'received_by', 'amount', 'method', 'reference', 'paid_at', 'notes'];
+    protected $fillable = ['installment_id', 'received_by', 'amount', 'method', 'reference', 'idempotency_key', 'paid_at', 'notes'];
     protected $casts = ['amount' => 'integer', 'paid_at' => 'datetime'];
     public function installment(): BelongsTo { return $this->belongsTo(PatientTreatmentInstallment::class, 'installment_id'); }
 }
