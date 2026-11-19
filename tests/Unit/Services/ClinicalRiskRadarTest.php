@@ -51,7 +51,7 @@ final class ClinicalRiskRadarTest extends TestCase
         $patient->setAttribute('name', 'بیمار آزمایشی');
         $patient->setRelation('vitalSigns', new Collection());
 
-        $doses = collect([1, 2, 3]->map(fn ($id) => (object) [
+        $doses = collect([1, 2, 3])->map(fn ($id) => (object) [
             'id' => $id,
             'status' => 'skipped',
             'scheduled_for' => now()->subDays($id),
