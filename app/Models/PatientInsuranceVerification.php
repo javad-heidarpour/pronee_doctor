@@ -19,5 +19,7 @@ final class PatientInsuranceVerification extends Model
         'valid_from' => 'date',
         'valid_until' => 'date',
         'response_payload' => 'encrypted:array',
+        'policy_number' => 'encrypted',
+        'member_number' => 'encrypted',
     ];
 }

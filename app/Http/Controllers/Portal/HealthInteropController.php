@@ -30,8 +30,8 @@ final class HealthInteropController extends Controller
     {
         $doctor = $this->doctor();
         return Inertia::render('Portal/HealthInterop/Index', [
-            'messages' => HealthExchangeMessage::query()->where('doctor_id', $doctor->id)->latest()->limit(100)->get(),
-            'insuranceChecks' => PatientInsuranceVerification::query()->where('doctor_id', $doctor->id)->latest('id')->limit(50)->get(),
+            'messages' => HealthExchangeMessage::query()->where('doctor_id', $doctor->id)->latest()->limit(100)->get(['id', 'destination', 'event_type', 'status', 'attempts', 'sent_at', 'remote_tracking_id', 'last_error', 'created_at']),
+            'insuranceChecks' => PatientInsuranceVerification::query()->where('doctor_id', $doctor->id)->latest('id')->limit(50)->get(['id', 'patient_id', 'payer_code', 'payer_name', 'status', 'checked_at', 'failure_message', 'created_at']),
             'destinations' => collect(['sepas', 'tamin', 'salamat'])->mapWithKeys(fn ($key) => [$key => [
                 'enabled' => (bool) config("health_interop.destinations.{$key}.enabled") && filled(config("health_interop.destinations.{$key}.url")),
             ]]),

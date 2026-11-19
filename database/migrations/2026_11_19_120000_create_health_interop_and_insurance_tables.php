@@ -17,8 +17,8 @@ return new class extends Migration
             $table->foreignId('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
             $table->string('payer_code', 40);
             $table->string('payer_name', 120)->nullable();
-            $table->string('policy_number', 100)->nullable();
-            $table->string('member_number', 100)->nullable();
+            $table->longText('policy_number')->nullable();
+            $table->longText('member_number')->nullable();
             $table->string('status', 30)->default('not_checked');
             $table->timestamp('checked_at')->nullable();
             $table->date('valid_from')->nullable();
