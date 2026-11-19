@@ -125,7 +125,24 @@ const appointmentStatusLabel = (status) => ({
           <p class="mt-1 text-sm text-slate-500">در حال حاضر پرداخت نامشخصی در صف بررسی نیست.</p>
         </div>
 
-        <div v-else class="overflow-x-auto">
+        <div v-else-if="rows.length" class="space-y-3 p-3 md:hidden">
+          <article v-for="payment in rows" :key="'mobile-'+payment.id" class="rounded-xl border border-slate-200 p-3">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div><p class="font-black text-slate-900">پرداخت #{{ payment.id }} · نوبت #{{ payment.appointment_id }}</p><p class="mt-1 text-xs text-slate-500">{{ payment.appointment?.appointment_date || "—" }} <span v-if="payment.appointment?.appointment_time"> · {{ payment.appointment.appointment_time }}</span></p></div>
+              <span class="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">{{ statusLabel(payment.status) }}</span>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-3 text-xs">
+              <div><p class="text-slate-500">مبلغ</p><p class="mt-1 font-black tabular-nums">{{ money(payment.amount_rial) }}</p></div>
+              <div><p class="text-slate-500">درگاه</p><p class="mt-1 font-semibold">{{ payment.gateway || "—" }}</p></div>
+              <div class="min-w-0"><p class="text-slate-500">شناسه درگاه</p><p class="mt-1 break-all font-mono">{{ payment.ref_num || "—" }}</p></div>
+              <div><p class="text-slate-500">آخرین تغییر</p><p class="mt-1">{{ dateTime(payment.updated_at) }}</p></div>
+            </div>
+            <p class="mt-3 break-words rounded-lg bg-slate-50 p-2 text-xs leading-6 text-slate-600">{{ payment.result_message || "پیام ثبت نشده است." }}</p>
+            <button v-if="payment.ref_num" type="button" :disabled="reconcilingId !== null" @click="reconcile(payment)" class="mt-3 w-full rounded-lg bg-teal-700 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50">{{ reconcilingId === payment.id ? "در حال استعلام..." : "استعلام مجدد SEP" }}</button>
+            <p v-else class="mt-3 text-xs text-amber-700">فاقد RefNum؛ پیگیری از گزارش پذیرنده</p>
+          </article>
+        </div>
+        <div v-if="rows.length" class="hidden overflow-x-auto md:block">
           <table class="w-full min-w-[1180px] text-right text-sm">
             <thead class="bg-slate-50 text-xs text-slate-500">
               <tr>
