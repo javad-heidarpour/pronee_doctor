@@ -8,7 +8,7 @@
         @click.self="closeModal"
       >
         <div
-          class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          class="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[92vh]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="appointment-modal-title"
@@ -65,7 +65,7 @@
           </div>
 
           <!-- Body -->
-          <form class="overflow-y-auto" @submit.prevent="submitForm">
+          <form class="min-h-0 overflow-y-auto overscroll-contain" @submit.prevent="submitForm">
             <div class="space-y-7 p-5 sm:p-7">
               <!-- Appointment selection -->
               <section>
@@ -89,7 +89,6 @@
                     placeholder="انتخاب مطب"
                     :clearable="true"
                     searchable
-                      @keydown.enter.prevent
 
                   />
 
@@ -141,7 +140,6 @@
                       placeholder="انتخاب ساعت آزاد"
                       :clearable="true"
                       searchable
-                      @keydown.enter.prevent
 
                     />
 
@@ -267,7 +265,6 @@
                       searchPlaceholder="جست‌وجو یا تایپ مقدار جدید..."
                       :clearable="true"
                       searchable
-                      @keydown.enter.prevent
 
                     />
 
