@@ -199,6 +199,32 @@ class Doctor extends Model
         return mb_substr($this->name, 0, 1);
     }
 
+    /**
+     * Remove account and internal lifecycle fields before serializing a doctor
+     * record into a public-facing page.
+     */
+    public function hidePrivatePublicFields(): self
+    {
+        return $this->makeHidden([
+            'user_id',
+            'email',
+            'password',
+            'phone',
+            'Medical_system_number',
+            'registration_status',
+            'site_expires_at',
+            'trial_started_at',
+            'approved_at',
+            'approved_by',
+            'rejection_reason',
+            'email_verified_at',
+            'remember_token',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]);
+    }
+
     public function getPhotoUrlAttribute(): ?string
     {
         return $this->photo ? asset('storage/' . $this->photo) : null;
