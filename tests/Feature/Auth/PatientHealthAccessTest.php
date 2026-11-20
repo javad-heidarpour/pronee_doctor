@@ -196,6 +196,61 @@ final class PatientHealthAccessTest extends AuthTestCase
         ]);
     }
 
+    public function test_granting_caregiver_does_not_downgrade_an_existing_owner_access(): void
+    {
+        $owner = User::query()->create([
+            'name' => 'Owner',
+            'family' => 'Test',
+            'email' => 'owner-grant@example.test',
+            'username' => 'owner-grant-test',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $existingOwner = User::query()->create([
+            'name' => 'Existing',
+            'family' => 'Owner',
+            'email' => 'existing-owner@example.test',
+            'username' => 'existing-owner-test',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $doctor = Doctor::query()->create([
+            'name' => 'Doctor',
+            'family' => 'Test',
+            'slug' => 'doctor-owner-grant-test',
+        ]);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Patient',
+        ]);
+
+        $permissions = ['view_summary', 'view_records', 'view_appointments', 'view_followups', 'manage_caregivers'];
+
+        PatientAccountAccess::query()->create([
+            'patient_id' => $patient->id,
+            'user_id' => $owner->id,
+            'access_type' => 'owner',
+            'permissions' => $permissions,
+        ]);
+        $existingOwnerAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $patient->id,
+            'user_id' => $existingOwner->id,
+            'access_type' => 'owner',
+            'permissions' => $permissions,
+        ]);
+
+        $this->actingAs($owner, 'web')
+            ->post(route('patient.health.caregivers.store'), [
+                'email' => $existingOwner->email,
+            ])
+            ->assertStatus(409);
+
+        $this->assertSame('owner', $existingOwnerAccess->fresh()->access_type);
+        $this->assertSame($permissions, $existingOwnerAccess->fresh()->permissions);
+    }
+
     public function test_caregiver_receives_only_appointments_and_followups_explicitly_granted(): void
     {
         [$user, $access] = $this->createScenario([

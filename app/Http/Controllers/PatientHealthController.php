@@ -299,16 +299,30 @@ final class PatientHealthController extends Controller
         $caregiver = User::query()->where('email', $data['email'])->where('role', 'user')->where('is_active', true)->first();
         abort_unless($caregiver && (int) $caregiver->id !== (int) $user->id, 422, 'حساب مراقب یافت نشد یا معتبر نیست.');
 
-        $caregiverAccess = PatientAccountAccess::query()->updateOrCreate(
-            ['patient_id' => $ownerAccess->patient_id, 'user_id' => $caregiver->id],
-            [
-                'granted_by_user_id' => $user->id,
-                'access_type' => 'caregiver',
-                'permissions' => ['view_summary', 'view_appointments', 'view_followups'],
-                'expires_at' => now()->addDays(90),
-                'revoked_at' => null,
-            ]
-        );
+        $caregiverAccess = DB::transaction(function () use ($ownerAccess, $caregiver, $user): PatientAccountAccess {
+            $existingAccess = PatientAccountAccess::query()
+                ->where('patient_id', $ownerAccess->patient_id)
+                ->where('user_id', $caregiver->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_if(
+                $existingAccess?->access_type === 'owner',
+                409,
+                'این حساب از قبل مالک پرونده است و نمی‌توان دسترسی آن را به مراقب تنزل داد.'
+            );
+
+            return PatientAccountAccess::query()->updateOrCreate(
+                ['patient_id' => $ownerAccess->patient_id, 'user_id' => $caregiver->id],
+                [
+                    'granted_by_user_id' => $user->id,
+                    'access_type' => 'caregiver',
+                    'permissions' => ['view_summary', 'view_appointments', 'view_followups'],
+                    'expires_at' => now()->addDays(90),
+                    'revoked_at' => null,
+                ]
+            );
+        });
 
         $audit->handle('patient.caregiver.access_granted', $caregiverAccess);
 
