@@ -37,6 +37,7 @@ final class MedicalNetworkReferralTest extends TestCase
         Schema::create('doctors', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('user_id');
+            $table->string('slug')->nullable();
             $table->string('name')->nullable();
             $table->string('family')->nullable();
             $table->boolean('is_active')->default(true);
