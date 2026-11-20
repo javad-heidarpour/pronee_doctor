@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Visit;
 
+use App\Actions\Sms\SendAppointmentLifecycleSmsAction;
 use App\Models\Appointment;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
@@ -12,9 +13,14 @@ use Illuminate\Validation\ValidationException;
 
 final class CancelPublicAppointmentAction
 {
+    public function __construct(
+        private readonly SendAppointmentLifecycleSmsAction $smsAction
+    ) {
+    }
+
     public function handle(int $visitNumber, string $patientPhone): string
     {
-        return DB::transaction(function () use ($visitNumber, $patientPhone): string {
+        $result = DB::transaction(function () use ($visitNumber, $patientPhone): string {
             $appointment = Appointment::query()
                 ->whereKey($visitNumber)
                 ->lockForUpdate()
@@ -78,5 +84,11 @@ final class CancelPublicAppointmentAction
 
             return 'cancelled';
         });
+
+        if ($result === 'cancelled') {
+            $this->smsAction->handle($visitNumber, 'cancelled');
+        }
+
+        return $result;
     }
 }
