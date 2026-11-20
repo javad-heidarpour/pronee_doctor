@@ -38,6 +38,10 @@ final class StaffCredentialsTest extends TestCase
             $table->string('role')->default('user'); $table->boolean('is_active')->default(true);
             $table->timestamps(); $table->softDeletes();
         });
+        Schema::create('doctor_user', function (Blueprint $table): void {
+            $table->unsignedBigInteger('doctor_id'); $table->unsignedBigInteger('user_id');
+            $table->primary(['doctor_id', 'user_id']);
+        });
         Schema::create('doctors', function (Blueprint $table): void {
             $table->id(); $table->unsignedBigInteger('user_id')->nullable();
             $table->string('name')->nullable(); $table->string('family')->nullable();
@@ -96,6 +100,7 @@ final class StaffCredentialsTest extends TestCase
             'user_id' => $this->owner->id, 'name' => 'Owner', 'family' => 'Doctor',
             'slug' => 'owner-credentials', 'is_active' => true,
         ]);
+        DB::table('doctor_user')->insert(['doctor_id' => $this->doctor->id, 'user_id' => $this->owner->id]);
         $this->organization = ClinicOrganization::query()->create([
             'owner_user_id' => $this->owner->id, 'name' => 'Credentials Organization',
             'slug' => 'credentials-org', 'timezone' => 'Asia/Tehran', 'status' => 'active',
@@ -137,7 +142,7 @@ final class StaffCredentialsTest extends TestCase
             'issued_at' => '2025-01-01',
             'expires_at' => '2027-01-01',
             'file' => UploadedFile::fake()->create('license.pdf', 80, 'application/pdf'),
-        ]));
+        ]), app(RecordSecurityAuditEventAction::class));
 
         $credential = ClinicStaffCredential::query()->firstOrFail();
         $this->assertSame('pending', $credential->status);
