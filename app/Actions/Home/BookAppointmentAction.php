@@ -11,6 +11,7 @@ use App\Models\Doctor;
 use App\Models\DoctorHoliday;
 use App\Models\Fee;
 use App\Models\TimeSlot;
+use App\Models\VisitReason;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -165,6 +166,19 @@ final class BookAppointmentAction
 
                 $description = trim($data->description ?? '');
                 $newVisitReason = trim($data->newVisitReason ?? '');
+                $visitReasonId = null;
+
+                if ($newVisitReason === '' && $data->visitReasonId !== null) {
+                    $visitReason = VisitReason::query()->find($data->visitReasonId);
+
+                    if (!$visitReason) {
+                        throw ValidationException::withMessages([
+                            'visit_reason_id' => 'دلیل مراجعه انتخاب‌شده معتبر نیست.',
+                        ]);
+                    }
+
+                    $visitReasonId = $visitReason->id;
+                }
 
                 // A free-text reason belongs to this visit only; it must not
                 // create an unmoderated global lookup record.
@@ -200,7 +214,7 @@ final class BookAppointmentAction
                     'appointment_date' => $timeSlot->date,
                     'appointment_time' => $timeSlot->start_time,
                     'reservation_expires_at' => now()->addMinutes(10),
-                    'visit_reason_id' => $data->visitReasonId,
+                    'visit_reason_id' => $visitReasonId,
                 ]);
 
                 $timeSlot->update(['status' => 'booked']);
