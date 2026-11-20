@@ -42,7 +42,7 @@ const form = useForm({
   username: "",
   password: "",
   password_confirmation: "",
-  role: "doctor",
+  role: props.roles[0]?.value ?? "secretary",
   is_active: true,
 });
 
