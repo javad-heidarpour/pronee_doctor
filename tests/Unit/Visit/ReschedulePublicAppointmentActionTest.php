@@ -246,7 +246,7 @@ final class ReschedulePublicAppointmentActionTest extends TestCase
         );
 
         $this->assertSame($oldSlot->id, $appointment->fresh()->time_slot_id);
-        $this->assertSame('booked', $newSlot->fresh()->status);
+        $this->assertSame('available', $newSlot->fresh()->status);
     }
 
     private function appointmentWithNewSlot(): array
