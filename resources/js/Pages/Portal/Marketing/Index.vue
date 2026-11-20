@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router, useForm, Link } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({ doctor: Object, clinics: Array, campaigns: Array, totals: Object, canManage: Boolean })
