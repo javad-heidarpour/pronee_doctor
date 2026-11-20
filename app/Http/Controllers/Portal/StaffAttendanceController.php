@@ -222,6 +222,8 @@ final class StaffAttendanceController extends Controller
                 ->where('staff_user_id', $data['staff_user_id'])
                 ->where('weekday', $data['weekday'])
                 ->where('is_active', true)
+                ->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time'])
                 ->whereDate('effective_from', '<=', $data['effective_until'] ?? '9999-12-31')
                 ->where(fn ($query) => $query->whereNull('effective_until')
                     ->orWhereDate('effective_until', '>=', $data['effective_from']))
