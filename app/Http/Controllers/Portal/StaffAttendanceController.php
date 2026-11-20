@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use Carbon\Carbon;
 use App\Support\StaffAttendanceCalculator;
+use App\Services\Staff\StaffAttendancePerformanceEvaluator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -166,6 +167,8 @@ final class StaffAttendanceController extends Controller
         $scopeFilter($auditQuery, 'e');
         $auditEvents = $auditQuery->orderByDesc('e.created_at')->limit(100)
             ->get(['e.id','e.attendance_id','e.event_type','e.old_values','e.new_values','e.reason','e.created_at','actor.name as actor_name','actor.family as actor_family','staff.name as staff_name','staff.family as staff_family']);
+        $performanceEvaluations = app(StaffAttendancePerformanceEvaluator::class)->evaluate($attendances, $absenceRows);
+
         $summary = [
             'days_recorded' => $attendances->count(),
             'late_days' => $attendances->where('minutes_late','>',0)->count(),
@@ -186,6 +189,7 @@ final class StaffAttendanceController extends Controller
             'holidays'=>$holidays,
             'absenceRows'=>$absenceRows->values(),
             'summary'=>$summary,
+            'performanceEvaluations'=>$performanceEvaluations,
             'month'=>$month,
             'currentUserId'=>(int)$user->id,
             'canManage'=>$canManage,
