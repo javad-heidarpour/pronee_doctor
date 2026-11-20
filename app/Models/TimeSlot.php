@@ -32,6 +32,26 @@ class TimeSlot extends Model
         return $this->hasOne(Appointment::class);
     }
 
+    public function scopePubliclyBookable(Builder $query): Builder
+    {
+        $today = now()->toDateString();
+        $minimumTime = now()->addHour()->format('H:i:s');
+
+        return $query
+            ->where('status', 'available')
+            ->where(function (Builder $builder) use ($today, $minimumTime): void {
+                $builder
+                    ->where('date', '>', $today)
+                    ->orWhere(function (Builder $sameDay) use ($today, $minimumTime): void {
+                        $sameDay
+                            ->where('date', $today)
+                            ->where('start_time', '>=', $minimumTime);
+                    });
+            })
+            ->whereDoesntHave('appointment', fn (Builder $appointment): Builder => $appointment
+                ->whereIn('status', ['pending', 'confirmed']));
+    }
+
     public function isBooked(): bool
     {
         return $this->status === 'booked' || $this->appointment()
