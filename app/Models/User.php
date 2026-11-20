@@ -73,10 +73,14 @@ class User extends Authenticatable implements MustVerifyEmailContract
         }
 
         if ($this->role === 'secretary') {
-            return $query->whereIn(
-                'doctors.id',
-                $this->doctors()->select('doctors.id')
-            );
+            return $query
+                ->whereHas('user', fn (Builder $doctorUser) => $doctorUser
+                    ->where('role', 'doctor')
+                    ->where('is_active', true))
+                ->whereIn(
+                    'doctors.id',
+                    $this->doctors()->select('doctors.id')
+                );
         }
 
         return $query->whereRaw('1 = 0');
