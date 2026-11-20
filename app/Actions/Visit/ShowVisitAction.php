@@ -33,11 +33,24 @@ class ShowVisitAction
         // آخرین تلاش پرداخت
         $payment = $appointment->latestPayment;
 
-        // آیا برای این نوبت قبلاً پرداخت موفق ثبت شده است؟
-        $hasPaidPayment = AppointmentPayment::query()
+        // آخرین پرداخت موفق مبنای رسید است؛ تلاش‌های بعدی ناموفق نباید رسید قبلی را پنهان کنند.
+        $paidPayment = AppointmentPayment::query()
             ->where('appointment_id', $appointment->id)
             ->where('status', 'paid')
-            ->exists();
+            ->orderByDesc('paid_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $hasPaidPayment = $paidPayment !== null;
+
+        $paymentReceipt = $paidPayment ? [
+            'receipt_number' => 'PRX-' . str_pad((string) $paidPayment->id, 8, '0', STR_PAD_LEFT),
+            'amount_rial' => (int) $paidPayment->amount_rial,
+            'amount_toman' => intdiv((int) $paidPayment->amount_rial, 10),
+            'reference' => $paidPayment->ref_num,
+            'gateway' => $paidPayment->gateway_name === 'sep' ? 'سامان‌کیش' : 'درگاه بانکی',
+            'paid_at' => $paidPayment->paid_at?->format('Y-m-d H:i:s'),
+        ] : null;
 
         $doctorName = trim(
             ($doctor?->name ?? '') . ' ' .
@@ -125,6 +138,7 @@ class ShowVisitAction
             'appointment_status_label' => $appointment->status_badge,
             'fee_rial' => $appointment->fee_rial,
             'payment_status' => $paymentStatus,
+            'payment_receipt' => $paymentReceipt,
         ];
     }
 }
