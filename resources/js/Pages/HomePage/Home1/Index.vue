@@ -174,6 +174,36 @@ const reviewStatsFallback = {
         </div>
       </section>
 
+      <section
+        v-if="doctor.services?.length"
+        id="doctor-services"
+        class="scroll-mt-24 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6"
+      >
+        <div class="mb-5">
+          <span class="text-xs font-bold text-emerald-700">خدمات مطب</span>
+          <h2 class="mt-1 text-xl font-black text-slate-900">خدمات پزشکی قابل ارائه</h2>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <article
+            v-for="service in doctor.services"
+            :key="service.id"
+            class="rounded-2xl border border-slate-100 bg-slate-50 p-4"
+          >
+            <span class="text-xs font-bold text-emerald-700">{{ service.category || "خدمات پزشکی" }}</span>
+            <h3 class="mt-2 font-extrabold text-slate-800">{{ service.title }}</h3>
+            <p v-if="service.short_description" class="mt-2 text-sm leading-7 text-slate-600">
+              {{ service.short_description }}
+            </p>
+            <a
+              href="#booking-section"
+              class="mt-3 inline-flex text-xs font-bold text-emerald-700 hover:text-emerald-900"
+            >
+              دریافت نوبت
+            </a>
+          </article>
+        </div>
+      </section>
+
       <section id="booking-section" class="scroll-mt-24">
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
