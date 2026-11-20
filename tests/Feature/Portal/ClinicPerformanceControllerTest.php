@@ -39,6 +39,7 @@ final class ClinicPerformanceControllerTest extends TestCase
         Schema::create('doctors', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('user_id');
+            $table->string('slug')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
