@@ -71,6 +71,61 @@ final class UpdateManagedUserActionTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_deleting_secretary_revokes_organization_and_direct_grants_before_soft_delete(): void
+    {
+        DB::table('users')->insert([
+            'id' => 11,
+            'name' => 'Deleted Secretary',
+            'role' => 'secretary',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('doctors')->insert([
+            'id' => 21,
+            'user_id' => 31,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('doctor_user')->insert([
+            'doctor_id' => 21,
+            'user_id' => 11,
+            'permissions' => json_encode(['appointments.view']),
+            'clinic_ids' => json_encode([102]),
+            'managed_by_organization' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('clinic_organization_members')->insert([
+            'organization_id' => 41,
+            'user_id' => 11,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = User::query()->findOrFail(11);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')->once();
+
+        $restored = app(\App\Actions\Portal\Users\RestoreOrDeleteManagedUserAction::class)
+            ->handle($user, $audit);
+
+        $this->assertFalse($restored);
+        $this->assertTrue($user->fresh()->trashed());
+        $this->assertFalse((bool) $user->fresh()->is_active);
+        $this->assertDatabaseHas('clinic_organization_members', [
+            'organization_id' => 41,
+            'user_id' => 11,
+            'is_active' => false,
+        ]);
+        $this->assertDatabaseMissing('doctor_user', [
+            'doctor_id' => 21,
+            'user_id' => 11,
+        ]);
+    }
+
     public function test_changing_secretary_role_deactivates_organization_memberships_and_removes_direct_grants(): void
     {
         DB::table('users')->insert([
