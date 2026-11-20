@@ -11,6 +11,9 @@
           <Link v-if="patient.id && canViewClinicalRecords" :href="route('portal.patients.documents.index', patient.id)" class="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800">
             اسناد پزشکی
           </Link>
+          <Link v-if="patient.id && canViewClinicalRecords" :href="route('portal.patients.consents.index', patient.id)" class="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800">
+            رضایت‌نامه‌ها
+          </Link>
           <Link :href="route('portal.patients.directory')" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
             بازگشت به دفترچه بیماران
           </Link>
