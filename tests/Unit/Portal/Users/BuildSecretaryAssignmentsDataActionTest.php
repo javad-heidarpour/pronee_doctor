@@ -30,7 +30,6 @@ final class BuildSecretaryAssignmentsDataActionTest extends TestCase
             $table->boolean('is_active')->default(true);
             $table->string('remember_token')->nullable();
             $table->softDeletes();
-            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -49,6 +48,7 @@ final class BuildSecretaryAssignmentsDataActionTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
