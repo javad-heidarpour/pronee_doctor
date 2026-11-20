@@ -188,6 +188,7 @@
             @click="
               selectedDateIndex = dIndex;
               selectedSlot = null;
+              availabilityMessage = "";
             "
             :class="[
               'flex flex-col items-center min-w-[80px] p-3 m-1 rounded-2xl border-2 transition-all duration-200 snap-center flex-shrink-0',
