@@ -486,6 +486,7 @@ function selectClinic(index) {
   selectedClinicIndex.value = index;
   selectedDateIndex.value = 0;
   selectedSlot.value = null;
+  availabilityMessage.value = "";
 
   const dates = clinics.value[index]?.dates ?? [];
 
@@ -504,6 +505,7 @@ function changeClinic() {
   selectedClinicIndex.value = null;
   selectedDateIndex.value = 0;
   selectedSlot.value = null;
+  availabilityMessage.value = "";
 }
 
 function selectDate(index) {
