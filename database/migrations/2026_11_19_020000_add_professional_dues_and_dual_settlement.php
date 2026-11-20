@@ -14,10 +14,14 @@ return new class extends Migration
         Schema::table('clinic_professional_sessions', function (Blueprint $table): void {
             $table->unsignedBigInteger('settlement_amount_rial')->default(0)->after('clinic_amount_rial');
             $table->timestamp('payer_confirmed_at')->nullable()->after('paid_at');
-            $table->foreignId('payer_confirmed_by_user_id')->nullable()->after('payer_confirmed_at')->constrained('users')->nullOnDelete();
+            $table->foreignId('payer_confirmed_by_user_id')->nullable()->after('payer_confirmed_at');
+            $table->foreign('payer_confirmed_by_user_id', 'cps_payer_confirmed_user_fk')
+                ->references('id')->on('users')->nullOnDelete();
             $table->string('payer_reference', 120)->nullable()->after('payer_confirmed_by_user_id');
             $table->timestamp('receiver_confirmed_at')->nullable()->after('payer_reference');
-            $table->foreignId('receiver_confirmed_by_user_id')->nullable()->after('receiver_confirmed_at')->constrained('users')->nullOnDelete();
+            $table->foreignId('receiver_confirmed_by_user_id')->nullable()->after('receiver_confirmed_at');
+            $table->foreign('receiver_confirmed_by_user_id', 'cps_receiver_confirmed_user_fk')
+                ->references('id')->on('users')->nullOnDelete();
             $table->string('receiver_reference', 120)->nullable()->after('receiver_confirmed_by_user_id');
             $table->string('status', 24)->default('pending')->change();
         });
@@ -67,8 +71,8 @@ return new class extends Migration
         Schema::dropIfExists('clinic_professional_dues');
         DB::table('clinic_professional_sessions')->where('status', 'partially_confirmed')->update(['status' => 'pending']);
         Schema::table('clinic_professional_sessions', function (Blueprint $table): void {
-            $table->dropForeign(['payer_confirmed_by_user_id']);
-            $table->dropForeign(['receiver_confirmed_by_user_id']);
+            $table->dropForeign('cps_payer_confirmed_user_fk');
+            $table->dropForeign('cps_receiver_confirmed_user_fk');
             $table->dropColumn([
                 'settlement_amount_rial', 'payer_confirmed_at', 'payer_confirmed_by_user_id', 'payer_reference',
                 'receiver_confirmed_at', 'receiver_confirmed_by_user_id', 'receiver_reference',

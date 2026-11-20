@@ -52,6 +52,13 @@ final class CoreSchemaMigrationTest extends TestCase
             'failed_jobs',
             'password_reset_tokens',
             'personal_access_tokens',
+            'patient_treatment_plans',
+            'patient_treatment_installments',
+            'patient_installment_payments',
+            'patient_collaterals',
+            'clinic_expenses',
+            'clinic_financial_ledger',
+            'clinic_professional_dues',
             'permissions',
             'roles',
             'model_has_permissions',
@@ -69,6 +76,8 @@ final class CoreSchemaMigrationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('doctor_user', 'clinic_ids'));
         $this->assertTrue(Schema::hasColumn('appointment_payments', 'gateway_name'));
         $this->assertTrue(Schema::hasColumn('appointment_payments', 'ref_num'));
+        $this->assertTrue(Schema::hasColumn('clinic_professional_sessions', 'payer_confirmed_by_user_id'));
+        $this->assertTrue(Schema::hasColumn('clinic_professional_sessions', 'receiver_confirmed_by_user_id'));
 
         // Blog is deliberately maintained in a separate project.
         $this->assertFalse(Schema::hasTable('posts'));

@@ -33,7 +33,9 @@ return new class extends Migration
             $table->boolean('follow_up_sms_enabled')->default(false);
             $table->boolean('follow_up_sms_consent_confirmed')->default(false);
             $table->timestamp('follow_up_sms_consent_confirmed_at')->nullable();
-            $table->foreignId('follow_up_sms_consent_recorded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('follow_up_sms_consent_recorded_by')->nullable();
+            $table->foreign('follow_up_sms_consent_recorded_by', 'ptp_followup_sms_consent_user_fk')
+                ->references('id')->on('users')->nullOnDelete();
             $table->date('started_at')->nullable();
             $table->date('completed_at')->nullable();
             $table->timestamps();
