@@ -41,6 +41,12 @@ final class SendAppointmentLifecycleSmsAction
             return 'skipped';
         }
 
+        $template = trim((string) config($templates[$event]['template'], ''));
+
+        if ($template === '' || !config('services.ghasedak.api_key')) {
+            return 'skipped';
+        }
+
         $appointment = Appointment::query()
             ->with('clinic.city')
             ->find($appointmentId);
@@ -57,11 +63,10 @@ final class SendAppointmentLifecycleSmsAction
             return 'skipped';
         }
 
-        $template = trim((string) config($templates[$event]['template'], ''));
         $sms = $this->inputsBuilder->handle($appointment);
         $mobile = $sms['mobile'];
 
-        if ($template === '' || !config('services.ghasedak.api_key') || !preg_match('/^09\d{9}$/', $mobile)) {
+        if (!preg_match('/^09\d{9}$/', $mobile)) {
             return 'skipped';
         }
 
