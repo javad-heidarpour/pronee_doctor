@@ -28,6 +28,14 @@ class SendPatientFollowUpReminders extends Command
         PatientFollowUpTask::query()
             ->where('status', 'pending')
             ->where('send_sms', true)
+            ->where('sms_consent_confirmed', true)
+            ->where(function ($query): void {
+                $query->whereNull('treatment_plan_id')
+                    ->orWhereHas('treatmentPlan', fn ($plan) => $plan
+                        ->where('follow_up_sms_enabled', true)
+                        ->where('follow_up_sms_consent_confirmed', true)
+                        ->whereNull('follow_up_sms_consent_revoked_at'));
+            })
             ->whereNull('sms_sent_at')
             ->where('sms_attempts', '<', 3)
             ->where(function ($q): void {
@@ -43,6 +51,15 @@ class SendPatientFollowUpReminders extends Command
                     $claimed = PatientFollowUpTask::query()
                         ->whereKey($task->id)
                         ->where('status', 'pending')
+                        ->where('send_sms', true)
+                        ->where('sms_consent_confirmed', true)
+                        ->where(function ($query): void {
+                            $query->whereNull('treatment_plan_id')
+                                ->orWhereHas('treatmentPlan', fn ($plan) => $plan
+                                    ->where('follow_up_sms_enabled', true)
+                                    ->where('follow_up_sms_consent_confirmed', true)
+                                    ->whereNull('follow_up_sms_consent_revoked_at'));
+                        })
                         ->whereNull('sms_sent_at')
                         ->where('sms_attempts', '<', 3)
                         ->where(function ($q): void {
