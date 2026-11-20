@@ -67,16 +67,6 @@ final class BookAppointmentAction
                     ]);
                 }
 
-                if (DoctorHoliday::query()
-                    ->where('doctor_id', $doctor->id)
-                    ->where('clinic_id', $clinic->id)
-                    ->whereDate('holiday_date', $slotSnapshot->date ?? now()->toDateString())
-                    ->exists()) {
-                    throw ValidationException::withMessages([
-                        'time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
-                    ]);
-                }
-
                 $timeSlot = TimeSlot::query()
                     ->whereKey($data->timeSlotId)
                     ->lockForUpdate()
@@ -89,6 +79,16 @@ final class BookAppointmentAction
                 ) {
                     throw ValidationException::withMessages([
                         'time_slot_id' => 'اطلاعات ساعت انتخاب‌شده تغییر کرده است؛ دوباره انتخاب کنید.',
+                    ]);
+                }
+
+                if (DoctorHoliday::query()
+                    ->where('doctor_id', $doctor->id)
+                    ->where('clinic_id', $clinic->id)
+                    ->whereDate('holiday_date', $timeSlot->date->format('Y-m-d'))
+                    ->exists()) {
+                    throw ValidationException::withMessages([
+                        'time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
                     ]);
                 }
 
