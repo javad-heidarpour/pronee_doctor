@@ -75,6 +75,64 @@ final class SavePatientClinicalRecordActionTest extends TestCase
         ]);
     }
 
+    public function test_it_saves_a_structured_medical_history_with_dates_and_description(): void
+    {
+        $doctor = $this->makeDoctor('doctor-medical-history');
+        $patient = $this->makePatient($doctor);
+
+        $record = app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_HISTORY,
+            'title' => 'سابقه جراحی آپاندیس',
+            'description' => 'بیمار سابقه جراحی آپاندیس در بیمارستان دارد.',
+            'start_date' => '2018-05-12',
+            'end_date' => '2018-05-12',
+            'is_active' => true,
+        ]);
+
+        $this->assertSame(PatientClinicalRecord::KIND_HISTORY, $record->kind);
+        $this->assertSame('سابقه جراحی آپاندیس', $record->title);
+        $this->assertSame('بیمار سابقه جراحی آپاندیس در بیمارستان دارد.', $record->description);
+        $this->assertSame('2018-05-12', $record->start_date->format('Y-m-d'));
+        $this->assertSame('2018-05-12', $record->end_date->format('Y-m-d'));
+        $this->assertTrue($record->is_active);
+        $this->assertDatabaseHas('patient_clinical_records', [
+            'id' => $record->id,
+            'doctor_id' => $doctor->id,
+            'patient_id' => $patient->id,
+            'kind' => PatientClinicalRecord::KIND_HISTORY,
+            'title' => 'سابقه جراحی آپاندیس',
+        ]);
+    }
+
+    public function test_it_updates_medical_history_without_changing_patient_ownership(): void
+    {
+        $doctor = $this->makeDoctor('doctor-medical-history-update');
+        $patient = $this->makePatient($doctor);
+        $record = PatientClinicalRecord::query()->create([
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'kind' => PatientClinicalRecord::KIND_HISTORY,
+            'title' => 'سابقه قبلی',
+            'description' => 'توضیح قبلی',
+            'is_active' => true,
+        ]);
+
+        $updated = app(SavePatientClinicalRecordAction::class)->handle($patient, [
+            'kind' => PatientClinicalRecord::KIND_HISTORY,
+            'title' => 'سابقه به‌روزشده',
+            'description' => 'شرح حال تکمیل‌شده',
+            'start_date' => '2020-01-10',
+            'end_date' => null,
+            'is_active' => false,
+        ], $record);
+
+        $this->assertSame('سابقه به‌روزشده', $updated->title);
+        $this->assertSame('شرح حال تکمیل‌شده', $updated->description);
+        $this->assertFalse($updated->is_active);
+        $this->assertSame($patient->id, $updated->patient_id);
+        $this->assertSame($doctor->id, $updated->doctor_id);
+    }
+
     public function test_it_updates_a_record_belonging_to_the_same_patient(): void
     {
         $doctor = $this->makeDoctor('doctor-b');
