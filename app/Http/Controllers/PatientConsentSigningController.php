@@ -18,22 +18,19 @@ final class PatientConsentSigningController extends Controller
     public function show(int $consent, RecordSecurityAuditEventAction $audit)
     {
         $user = $this->authenticatedPatient();
-        $access = PatientAccountAccess::query()->active()
-            ->where('user_id', $user->id)
-            ->where('access_type', 'owner')
-            ->firstOrFail();
-
         $model = PatientConsent::query()
             ->whereKey($consent)
-            ->where('patient_id', $access->patient_id)
-            ->with(['doctor:id,name,family,specialty_title', 'clinic:id,name'])
+            ->whereHas('patient.accountAccesses', fn ($query) => $query->active()
+                ->where('user_id', $user->id)
+                ->where('access_type', 'owner'))
+            ->with(['patient:id,name', 'doctor:id,name,family,specialty_title', 'clinic:id,name'])
             ->firstOrFail();
 
         $audit->handle('patient.consent.viewed', $model);
 
         return Inertia::render('Patient/Consent', [
             'consent' => $model,
-            'patientName' => $model->patient()->value('name'),
+            'patientName' => $model->patient->name,
         ]);
     }
 
@@ -46,15 +43,15 @@ final class PatientConsentSigningController extends Controller
         ]);
 
         $signed = DB::transaction(function () use ($user, $consent, $data, $request): PatientConsent {
-            $access = PatientAccountAccess::query()->active()
-                ->where('user_id', $user->id)
-                ->where('access_type', 'owner')
+            $model = PatientConsent::query()
+                ->whereKey($consent)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $model = PatientConsent::query()
-                ->whereKey($consent)
-                ->where('patient_id', $access->patient_id)
+            PatientAccountAccess::query()->active()
+                ->where('user_id', $user->id)
+                ->where('access_type', 'owner')
+                ->where('patient_id', $model->patient_id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
