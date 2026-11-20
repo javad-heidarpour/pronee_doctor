@@ -128,7 +128,60 @@ final class Patient360Controller extends Controller
 
         $timeline = $timeline->sortByDesc(fn (array $item) => $item['sort_at'] ?? '')->take(100)->values();
 
-        $latestVitalByType = $vitals->groupBy('measurement_type')->map(fn (Collection $items) => $items->first())->values();
+        // The recent timeline is intentionally capped, but the latest value of
+        // every measurement type must not disappear just because another type
+        // has many newer readings.
+        $latestVitalTypes = $canViewClinical
+            ? PatientVitalSign::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->distinct()
+                ->pluck('measurement_type')
+            : collect();
+
+        $latestVitalByType = $latestVitalTypes
+            ->map(fn (string $type) => PatientVitalSign::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->where('measurement_type', $type)
+                ->orderByDesc('measured_at')
+                ->orderByDesc('id')
+                ->first())
+            ->filter()
+            ->values();
+
+        // Summary cards report true totals, not the size of the capped lists
+        // rendered below.
+        $summary = [
+            'appointments' => $patient->appointments()
+                ->whereIn('clinic_id', $clinicIds)
+                ->count(),
+            'encounters' => $canViewClinical
+                ? PatientEncounter::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->whereIn('clinic_id', $clinicIds)->count()
+                : 0,
+            'active_allergies' => $canViewClinical
+                ? PatientClinicalRecord::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->where('kind', PatientClinicalRecord::KIND_ALLERGY)
+                    ->where('is_active', true)->count()
+                : 0,
+            'active_medications' => $canViewClinical
+                ? PatientClinicalRecord::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->where('kind', PatientClinicalRecord::KIND_MEDICATION)
+                    ->where('is_active', true)->count()
+                : 0,
+            'open_follow_ups' => $canViewClinical
+                ? PatientFollowUpTask::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)
+                    ->where(fn ($query) => $query->whereIn('clinic_id', $clinicIds)->orWhereNull('clinic_id'))
+                    ->whereIn('status', ['pending', 'in_progress'])->count()
+                : 0,
+            'active_pathways' => $canViewClinical
+                ? PatientCarePathway::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->whereIn('clinic_id', $clinicIds)
+                    ->whereIn('status', ['active', 'in_progress'])->count()
+                : 0,
+        ];
 
         $audit->handle('patient.360.viewed', $patient, [
             'doctor_id' => $doctor->id,
@@ -146,14 +199,7 @@ final class Patient360Controller extends Controller
                 'created_at' => $patient->created_at?->toDateString(),
             ],
             'canViewClinical' => $canViewClinical,
-            'summary' => [
-                'appointments' => $appointments->count(),
-                'encounters' => $encounters->count(),
-                'active_allergies' => $clinicalRecords->where('kind', PatientClinicalRecord::KIND_ALLERGY)->count(),
-                'active_medications' => $clinicalRecords->where('kind', PatientClinicalRecord::KIND_MEDICATION)->count(),
-                'open_follow_ups' => $followUps->whereIn('status', ['pending','in_progress'])->count(),
-                'active_pathways' => $pathways->whereIn('status', ['active','in_progress'])->count(),
-            ],
+            'summary' => $summary,
             'clinicalRecords' => $clinicalRecords->map(fn ($item) => [
                 'id'=>$item->id,'kind'=>$item->kind,'title'=>$item->title,'description'=>$item->description,
                 'dosage'=>$item->dosage,'frequency'=>$item->frequency,'start_date'=>$item->start_date?->format('Y-m-d'),
