@@ -59,6 +59,7 @@ final class InitiateAppointmentPaymentActionTest extends TestCase
     public function test_it_creates_a_payment_claim_and_saves_the_gateway_token(): void
     {
         $appointment = $this->appointment();
+        config(['services.sep.callback_url' => 'https://proneex.ir/payment/callback']);
 
         $sep = Mockery::mock(SepPaymentService::class);
         $sep->shouldReceive('requestToken')
@@ -66,7 +67,7 @@ final class InitiateAppointmentPaymentActionTest extends TestCase
             ->with(
                 7000000,
                 Mockery::type('string'),
-                'https://doctorvafaei.com/payment/callback',
+                'https://proneex.ir/payment/callback',
                 '09120000000'
             )
             ->andReturn([
@@ -88,6 +89,32 @@ final class InitiateAppointmentPaymentActionTest extends TestCase
             'gateway_token' => 'sep-token-123',
             'gateway_name' => 'sep',
         ]);
+    }
+
+    public function test_it_falls_back_to_the_application_payment_callback_url_when_not_configured(): void
+    {
+        $appointment = $this->appointment();
+        config(['services.sep.callback_url' => null]);
+        $callbackUrl = route('payment.callback', [], true);
+
+        $sep = Mockery::mock(SepPaymentService::class);
+        $sep->shouldReceive('requestToken')
+            ->once()
+            ->with(
+                7000000,
+                Mockery::type('string'),
+                $callbackUrl,
+                '09120000000'
+            )
+            ->andReturn(['token' => 'fallback-token']);
+
+        $token = app(InitiateAppointmentPaymentAction::class)->handle(
+            $appointment,
+            '09120000000',
+            $sep
+        );
+
+        $this->assertSame('fallback-token', $token);
     }
 
     public function test_it_reuses_an_existing_initiated_gateway_token(): void
