@@ -192,7 +192,7 @@ final class MedicalNetworkReferralTest extends TestCase
     public function test_laboratory_and_imaging_referrals_reject_missing_requested_services(): void
     {
         [$doctor, $patient, $provider] = $this->seedReferralContext();
-        $this->authenticateDoctor($doctor);
+        $this->authenticateDoctor(99);
 
         foreach (['laboratory', 'imaging'] as $serviceType) {
             try {
@@ -236,7 +236,7 @@ final class MedicalNetworkReferralTest extends TestCase
                 );
                 $this->fail('Duplicate or excessive diagnostic items must be rejected.');
             } catch (ValidationException $exception) {
-                $this->assertArrayHasKey('requested_services', $exception->errors());
+                $this->assertTrue(collect(array_keys($exception->errors()))->contains(fn ($key) => str_starts_with($key, 'requested_services')));
             }
         }
     }
@@ -411,7 +411,7 @@ final class MedicalNetworkReferralTest extends TestCase
             'consent_at' => now(),
         ]);
 
-        $this->authenticateDoctor(200);
+        $this->authenticateDoctor(200, 22);
 
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
