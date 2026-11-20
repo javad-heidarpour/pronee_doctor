@@ -186,7 +186,7 @@ class PatientController extends Controller
             $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
 
         if ($canViewClinicalRecords) {
-            $visits->loadMissing(['patient.clinicalRecords.relatedRecord', 'patient.clinicalRecords.relatedAllergyRecord', 'patient.archivedClinicalRecords', 'patient.vitalSigns']);
+            $visits->loadMissing(['patient.clinicalRecords.relatedRecord', 'patient.clinicalRecords.relatedAllergyRecord', 'patient.archivedClinicalRecords', 'patient.vitalSigns', 'patient.problems']);
             $audit->handle('patient.clinical_records.viewed', $appointment, [
                 'doctor_id' => $doctor->id,
             ]);
