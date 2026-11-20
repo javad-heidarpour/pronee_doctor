@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onUnmounted } from "vue";
 
-defineProps({
+const props = defineProps({
   doctor: {
     type: Object,
     required: true,
@@ -113,7 +113,7 @@ onUnmounted(() => {
             <a
               v-for="item in menuItems"
               :key="item.href"
-              :href="item.currentDoctor ? route(item.href, { doctor: doctor.slug }) : route(item.href)"
+              :href="route(item.href, item.currentDoctor ? { doctor: props.doctor.slug } : { slug: props.doctor.slug })"
               @click="closeDrawer"
             >
               <span>{{ item.title }}</span>
