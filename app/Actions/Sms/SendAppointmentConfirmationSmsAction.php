@@ -10,7 +10,6 @@ use App\Models\SmsLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Morilog\Jalali\Jalalian;
 use Throwable;
 
 final class SendAppointmentConfirmationSmsAction
@@ -40,7 +39,8 @@ final class SendAppointmentConfirmationSmsAction
             ], 422);
         }
 
-        $mobile = trim((string) $appointment->patient_phone);
+        $sms = $this->inputsBuilder->handle($appointment);
+        $mobile = $sms['mobile'];
 
         if (!preg_match('/^09\d{9}$/', $mobile)) {
             return response()->json([
@@ -85,27 +85,10 @@ final class SendAppointmentConfirmationSmsAction
                 'provider' => 'ghasedak',
             ]);
 
-            $patientName = trim((string) $appointment->patient_name) ?: 'مراجع گرامی';
-            $date = Jalalian::fromDateTime($appointment->appointment_date)->format('j F Y');
-            $time = substr((string) $appointment->appointment_time, 0, 5);
-            $clinic = $appointment->clinic;
-            $clinicAddress = trim(implode('، ', array_filter([
-                $clinic?->city?->name,
-                $clinic?->full_address,
-            ])));
-
-            if ($clinicAddress === '') {
-                $clinicAddress = $clinic?->name ?: 'اطلاعات مطب در دسترس نیست';
-            }
-
             $this->gateway->sendTemplate(
                 $mobile,
                 $template,
-                [
-                    ['param' => 'param1', 'value' => $patientName],
-                    ['param' => 'param2', 'value' => $date . ' ساعت ' . $time],
-                    ['param' => 'param3', 'value' => $clinicAddress],
-                ],
+                $sms['inputs'],
                 'visit-' . $visitNumber
             );
 
