@@ -196,6 +196,28 @@ final class ReschedulePublicAppointmentActionTest extends TestCase
         $this->assertSame($oldSlot->id, $appointment->fresh()->time_slot_id);
     }
 
+    public function test_rescheduling_rejects_a_slot_with_less_than_one_hour_notice(): void
+    {
+        [$appointment, $oldSlot, $newSlot] = $this->appointmentWithNewSlot();
+        $newSlot->update([
+            'date' => '2026-11-20',
+            'start_time' => '08:30:00',
+        ]);
+
+        $this->assertValidationFailure(
+            fn () => app(ReschedulePublicAppointmentAction::class)->handle(
+                $appointment->id,
+                '09120000000',
+                $newSlot->id
+            ),
+            'new_time_slot_id'
+        );
+
+        $this->assertSame($oldSlot->id, $appointment->fresh()->time_slot_id);
+        $this->assertSame('booked', $oldSlot->fresh()->status);
+        $this->assertSame('available', $newSlot->fresh()->status);
+    }
+
     public function test_expired_pending_reservation_cannot_be_rescheduled(): void
     {
         [$appointment, $oldSlot, $newSlot] = $this->appointmentWithNewSlot();
