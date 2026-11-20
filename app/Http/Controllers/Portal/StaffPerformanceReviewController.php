@@ -142,16 +142,19 @@ final class StaffPerformanceReviewController extends Controller
     {
         $user = Auth::guard('web')->user();
         abort_unless($user,401);
-        $row = DB::table('clinic_staff_performance_reviews as r')
-            ->join('clinic_organizations as o','o.id','=','r.organization_id')
-            ->where('r.id',$review)->where('o.owner_user_id',$user->id)
-            ->select('r.*')->first();
-        abort_unless($row,404);
-        abort_unless($this->currentDoctor()->clinicOrganizations()->whereKey($row->organization_id)->exists(),404);
-        abort_unless($row->status==='draft',409,'فقط پیش‌نویس قابل انتشار است.');
-        DB::table('clinic_staff_performance_reviews')->where('id',$review)->where('status','draft')->update([
-            'status'=>'published','published_at'=>now(),'updated_at'=>now(),
-        ]);
+        $row = DB::transaction(function () use ($review,$user): object {
+            $locked = DB::table('clinic_staff_performance_reviews')->where('id',$review)->lockForUpdate()->first();
+            abort_unless($locked,404);
+            $organization = $this->currentDoctor()->clinicOrganizations()
+                ->wherePivot('status','active')->where('clinic_organizations.status','active')
+                ->where('owner_user_id',$user->id)->whereKey($locked->organization_id)->first();
+            abort_unless($organization,404);
+            abort_unless($locked->status==='draft',409,'فقط پیش‌نویس قابل انتشار است.');
+            DB::table('clinic_staff_performance_reviews')->where('id',$review)->where('status','draft')->update([
+                'status'=>'published','published_at'=>now(),'updated_at'=>now(),
+            ]);
+            return $locked;
+        },3);
         $audit->handle('staff.performance_review.published',(object)['id'=>$review],[
             'organization_id'=>(int)$row->organization_id,'clinic_id'=>(int)$row->clinic_id,
             'staff_user_id'=>(int)$row->staff_user_id,'changed_fields'=>['status'],
