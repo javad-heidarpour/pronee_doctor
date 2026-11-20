@@ -22,7 +22,6 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->softDeletes();
-            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -30,6 +29,7 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('doctor_id')->nullable();
             $table->string('name')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
