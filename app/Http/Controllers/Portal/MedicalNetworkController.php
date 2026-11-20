@@ -192,6 +192,7 @@ final class MedicalNetworkController extends Controller
                 'source_clinic_id' => $data['source_clinic_id'],
                 'created_by_user_id' => $user->id,
                 'service_type' => $data['service_type'],
+                'requested_services' => $data['requested_services'] ?? null,
                 'priority' => $data['priority'],
                 'status' => 'sent',
                 'reason' => $data['reason'],
