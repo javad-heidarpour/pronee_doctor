@@ -56,6 +56,8 @@ final class ClinicPerformanceControllerTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('patient_id')->nullable();
+            $table->unsignedBigInteger('time_slot_id')->nullable();
             $table->date('appointment_date');
             $table->time('appointment_time');
             $table->string('status');
