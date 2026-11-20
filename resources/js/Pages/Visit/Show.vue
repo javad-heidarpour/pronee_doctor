@@ -58,7 +58,7 @@ const paymentStatus = computed(() => {
     };
   }
 
-  if (props.visit.appointment_status === "visited") {
+  if (["visited", "completed"].includes(props.visit.appointment_status)) {
     return {
       title: "ویزیت انجام شده",
       description: "این نوبت در وضعیت ویزیت انجام‌شده قرار دارد.",
@@ -258,6 +258,26 @@ const pay = () => {
               </p>
             </div>
           </div>
+
+          <!-- وضعیت نوبت -->
+          <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs text-slate-500">وضعیت نوبت</p>
+                <p class="mt-2 font-bold text-slate-900">
+                  {{ visit.appointment_status_label || "در حال بررسی" }}
+                </p>
+              </div>
+              <span
+                class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200"
+              >
+                {{ visit.appointment_status === "completed" ? "تکمیل‌شده" : visit.appointment_status === "visited" ? "ویزیت‌شده" : visit.appointment_status === "confirmed" ? "تأییدشده" : visit.appointment_status === "cancelled" || visit.appointment_status === "canceled" ? "لغوشده" : visit.appointment_status === "contacted" ? "تماس گرفته شده" : "در انتظار" }}
+              </span>
+            </div>
+            <p class="mt-2 text-sm leading-6 text-slate-600">
+              این وضعیت آخرین مرحله ثبت‌شده برای نوبت شماست. برای اطلاعات پرداخت، وضعیت پرداخت را جداگانه بررسی کنید.
+            </p>
+          </section>
 
           <!-- مشخصات پزشک و بیمار -->
           <section>
