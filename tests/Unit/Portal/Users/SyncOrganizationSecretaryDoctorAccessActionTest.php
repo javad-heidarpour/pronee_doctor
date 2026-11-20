@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
@@ -140,6 +141,38 @@ final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
 
         $this->assertSame(['patients.view'], json_decode($pivot->permissions, true));
         $this->assertSame([$secondClinic->id], json_decode($pivot->clinic_ids, true));
+    }
+
+    public function test_organization_grants_cannot_exceed_two_clinics_across_the_secretary_account(): void
+    {
+        $secretary = $this->secretary();
+        $doctor = $this->doctor();
+        $firstClinic = $this->clinic($doctor, 601);
+        $secondClinic = $this->clinic($doctor, 602);
+        $thirdClinic = $this->clinic($doctor, 603);
+
+        $this->organizationGrant(601, $doctor, $secretary, $firstClinic, ['appointments.view']);
+        $this->organizationGrant(602, $doctor, $secretary, $secondClinic, ['patients.view']);
+        app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+        $this->organizationGrant(603, $doctor, $secretary, $thirdClinic, ['finance.view']);
+
+        try {
+            app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+            $this->fail('The third active clinic grant must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('clinic_ids', $exception->errors());
+        }
+
+        $pivot = DB::table('doctor_user')
+            ->where('doctor_id', $doctor->id)
+            ->where('user_id', $secretary->id)
+            ->first();
+
+        $this->assertSameCanonical(
+            [$firstClinic->id, $secondClinic->id],
+            json_decode($pivot->clinic_ids, true)
+        );
     }
 
     public function test_pending_doctor_membership_and_inactive_user_do_not_grant_access(): void
