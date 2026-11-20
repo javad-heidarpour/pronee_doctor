@@ -18,6 +18,7 @@ const processing = ref(false);
 const ErrTxt = ref(null);
 const cancelForm = useForm({ patient_phone: "" });
 const cancellationSuccess = computed(() => page.props.flash?.success ?? "");
+const rescheduleForm = useForm({ patient_phone: "", new_time_slot_id: "" });
 
 const paid = computed(() => props.visit?.payment_status === "paid");
 
@@ -96,7 +97,10 @@ const formatPrice = (value) => {
 const getPersianFullDate = (dateStr) => {
   if (!dateStr) return "مشخص نشده";
 
-  const date = new Date(dateStr);
+  const match = String(dateStr).match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)
+    : new Date(dateStr);
 
   if (Number.isNaN(date.getTime())) {
     return "مشخص نشده";
@@ -109,6 +113,20 @@ const getPersianFullDate = (dateStr) => {
     day: "numeric",
     weekday: "long",
   }).format(date);
+};
+
+const rescheduleAppointment = () => {
+  if (
+    !props.visit?.can_reschedule ||
+    rescheduleForm.processing ||
+    !props.visit?.reschedule_url ||
+    !rescheduleForm.new_time_slot_id
+  ) return;
+
+  rescheduleForm.post(props.visit.reschedule_url, {
+    preserveScroll: true,
+    onSuccess: () => rescheduleForm.reset(),
+  });
 };
 
 const cancelAppointment = () => {
@@ -420,6 +438,75 @@ const pay = () => {
                 {{ cancelForm.processing ? "در حال لغو نوبت..." : "تأیید و لغو نوبت" }}
               </button>
             </form>
+          </section>
+
+          <!-- جابه‌جایی نوبت -->
+          <section
+            v-if="visit.can_reschedule"
+            class="rounded-2xl border border-blue-100 bg-blue-50/50 p-5"
+          >
+            <h2 class="font-bold text-slate-900">تغییر زمان نوبت</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-600">
+              می‌توانید ساعت دیگری را برای همین پزشک و همین شعبه انتخاب کنید.
+              وضعیت پرداخت و مبلغ پرداخت‌شده برای نوبت حفظ می‌شود.
+            </p>
+
+            <div v-if="visit.available_slots?.length" class="mt-4">
+              <form class="space-y-3" @submit.prevent="rescheduleAppointment">
+                <label for="new_time_slot_id" class="block text-sm font-medium text-slate-700">
+                  زمان جدید مراجعه
+                </label>
+                <select
+                  id="new_time_slot_id"
+                  v-model="rescheduleForm.new_time_slot_id"
+                  required
+                  class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-right focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="" disabled>انتخاب تاریخ و ساعت جدید</option>
+                  <option
+                    v-for="slot in visit.available_slots"
+                    :key="slot.id"
+                    :value="String(slot.id)"
+                  >
+                    {{ getPersianFullDate(slot.date) }} — ساعت {{ slot.start_time }}
+                  </option>
+                </select>
+                <p v-if="rescheduleForm.errors.new_time_slot_id" class="text-sm text-rose-700" role="alert">
+                  {{ rescheduleForm.errors.new_time_slot_id }}
+                </p>
+
+                <label for="reschedule_patient_phone" class="block text-sm font-medium text-slate-700">
+                  شماره موبایل ثبت‌شده
+                </label>
+                <input
+                  id="reschedule_patient_phone"
+                  v-model="rescheduleForm.patient_phone"
+                  type="tel"
+                  inputmode="numeric"
+                  autocomplete="tel"
+                  maxlength="11"
+                  minlength="11"
+                  pattern="09[0-9]{9}"
+                  dir="ltr"
+                  required
+                  class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="09123456789"
+                />
+                <p v-if="rescheduleForm.errors.patient_phone" class="text-sm text-rose-700" role="alert">
+                  {{ rescheduleForm.errors.patient_phone }}
+                </p>
+                <button
+                  type="submit"
+                  :disabled="rescheduleForm.processing || rescheduleForm.patient_phone.length !== 11 || !rescheduleForm.new_time_slot_id"
+                  class="flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {{ rescheduleForm.processing ? "در حال تغییر زمان..." : "تأیید زمان جدید" }}
+                </button>
+              </form>
+            </div>
+            <p v-else class="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
+              در حال حاضر ساعت آزاد دیگری برای این شعبه وجود ندارد.
+            </p>
           </section>
 
           <!-- مبلغ و پرداخت -->
