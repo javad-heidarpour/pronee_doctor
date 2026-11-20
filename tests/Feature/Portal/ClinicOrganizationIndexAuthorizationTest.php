@@ -241,6 +241,7 @@ final class ClinicOrganizationIndexAuthorizationTest extends TestCase
     public function test_doctor_cannot_create_an_organization_with_another_doctors_clinic(): void
     {
         $owner = $this->user('doctor');
+        $this->doctorProfile($owner->id);
         $other = $this->user('doctor');
         $otherDoctorId = $this->doctorProfile($other->id);
         $foreignClinicId = DB::table('addresses')->insertGetId([
