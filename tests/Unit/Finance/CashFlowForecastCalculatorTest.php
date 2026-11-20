@@ -28,6 +28,42 @@ final class CashFlowForecastCalculatorTest extends TestCase
         self::assertSame(-50, $result['days'][1]['closing_balance']);
     }
 
+    public function test_projection_respects_the_requested_day_limit(): void
+    {
+        $result = (new CashFlowForecastCalculator())->project(1000, [
+            '2026-11-20' => ['inflows' => 100, 'outflows' => 0],
+            '2026-11-21' => ['inflows' => 200, 'outflows' => 0],
+            '2026-11-22' => ['inflows' => 300, 'outflows' => 0],
+        ], 2);
+
+        self::assertCount(2, $result['days']);
+        self::assertSame(1300, $result['ending_balance']);
+        self::assertSame(300, $result['total_inflows']);
+    }
+
+    public function test_collection_factor_is_bounded_and_negative_movements_do_not_inflate_cash(): void
+    {
+        $result = (new CashFlowForecastCalculator())->project(100, [
+            '2026-11-20' => ['inflows' => 50, 'outflows' => -100],
+            '2026-11-21' => ['inflows' => 50, 'outflows' => 20],
+        ], 2, 2.5);
+
+        self::assertSame(100, $result['total_inflows']);
+        self::assertSame(20, $result['total_outflows']);
+        self::assertSame(180, $result['ending_balance']);
+    }
+
+    public function test_negative_collection_factor_cannot_create_negative_inflows(): void
+    {
+        $result = (new CashFlowForecastCalculator())->project(100, [
+            '2026-11-20' => ['inflows' => 500, 'outflows' => 20],
+        ], 1, -0.5);
+
+        self::assertSame(0, $result['total_inflows']);
+        self::assertSame(20, $result['total_outflows']);
+        self::assertSame(80, $result['ending_balance']);
+    }
+
     public function test_it_identifies_the_first_day_cash_becomes_negative(): void
     {
         $result = (new CashFlowForecastCalculator())->project(100, [
