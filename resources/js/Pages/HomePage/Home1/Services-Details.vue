@@ -13,7 +13,7 @@ const props = defineProps({
   },
 });
 
-const bookingUrl = route("booking");
+const bookingUrl = route("booking", { slug: props.doctor.slug });
 
 const categoryLabels = {
   general_surgery: "جراحی عمومی",
@@ -72,7 +72,7 @@ const pageDescription =
 
             <div class="flex flex-wrap gap-3 mt-8">
               <Link
-                              :href="route('booking')"
+                              :href="bookingUrl"
 
                 class="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-emerald-700 text-white font-bold hover:bg-emerald-800 transition shadow-lg shadow-emerald-900/10"
               >
@@ -241,7 +241,7 @@ const pageDescription =
           </p>
 
           <Link
-                         :href="route('booking')"
+                         :href="bookingUrl"
 
             class="inline-flex items-center gap-2 mt-6 px-7 py-3 rounded-xl bg-emerald-700 text-white font-bold hover:bg-emerald-800 transition"
           >
@@ -313,7 +313,7 @@ const pageDescription =
 
         <div class="text-center mt-5">
           <Link
-                          :href="route('booking')"
+                          :href="bookingUrl"
 
             class="inline-flex items-center gap-3 px-9 py-4 rounded-2xl bg-emerald-700 text-white font-bold hover:bg-emerald-800 transition shadow-lg"
           >
