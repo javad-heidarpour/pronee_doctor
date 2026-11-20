@@ -27,7 +27,7 @@ final class SavePatientProblemAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $encounterId = $data['encounter_id'] ?? null;
+            $encounterId = array_key_exists('encounter_id', $data)\n                ? $data['encounter_id']\n                : $problem?->encounter_id;
             if ($encounterId !== null) {
                 $encounterQuery = PatientEncounter::query()
                     ->whereKey($encounterId)
@@ -48,9 +48,9 @@ final class SavePatientProblemAction
                 }
             }
 
-            $status = $data['status'] ?? PatientProblem::STATUS_ACTIVE;
+            $status = $data['status'] ?? $problem?->status ?? PatientProblem::STATUS_ACTIVE;
             $resolvedOn = $status === PatientProblem::STATUS_RESOLVED
-                ? ($data['resolved_on'] ?? now()->toDateString())
+                ? ($data['resolved_on'] ?? $problem?->resolved_on?->toDateString() ?? now()->toDateString())
                 : null;
 
             $attributes = [
