@@ -76,6 +76,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
             PaymentReviewController::class,
             'index'
         ])->name('payments.review-queue');
+        Route::get('/payments/refunds', [PaymentReviewController::class, 'refunds'])->name('payments.refunds');
+        Route::post('/payments/{payment}/refund', [PaymentReviewController::class, 'refund'])
+            ->whereNumber('payment')->middleware('throttle:3,1')->name('payments.refund');
 
         Route::post('/payments/{payment}/reconcile', [
             PaymentReviewController::class,
