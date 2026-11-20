@@ -73,7 +73,7 @@ final class PatientProblemController extends Controller
         return Patient::query()
             ->whereKey($patient->id)
             ->where('doctor_id', $doctor->id)
-            ->whereHas('appointments', fn ($query) => $query->whereIn('clinic_id', $clinicIds))
+            ->whereHas('appointments', fn ($query) => $query->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds))
             ->firstOrFail();
     }
 }
