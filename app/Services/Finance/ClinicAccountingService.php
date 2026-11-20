@@ -39,8 +39,11 @@ class ClinicAccountingService
     ): ClinicJournalEntry {
         return DB::transaction(function () use ($organizationId, $clinicId, $doctorId, $userId, $paymentId, $planId, $amount, $description, $occurredAt): ClinicJournalEntry {
             $key = 'patient-payment:' . $paymentId;
-            $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
-            if ($existing) return $existing->load('lines.account');
+            $existing = $this->existingEntryOrFail(
+                $key, 'patient_installment_payment', $paymentId,
+                $organizationId, $clinicId, $doctorId, $amount
+            );
+            if ($existing !== null) return $existing;
 
             $remaining = $amount;
             $receivableApplied = 0;
@@ -93,8 +96,11 @@ class ClinicAccountingService
     ): ClinicJournalEntry {
         return DB::transaction(function () use ($organizationId, $clinicId, $doctorId, $userId, $treatmentItemId, $planId, $amount, $description, $occurredAt): ClinicJournalEntry {
             $key = 'treatment-revenue:' . $treatmentItemId;
-            $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
-            if ($existing) return $existing->load('lines.account');
+            $existing = $this->existingEntryOrFail(
+                $key, 'patient_treatment_item', $treatmentItemId,
+                $organizationId, $clinicId, $doctorId, $amount
+            );
+            if ($existing !== null) return $existing;
 
             $item = PatientTreatmentItem::query()->whereKey($treatmentItemId)
                 ->where('treatment_plan_id', $planId)->lockForUpdate()->firstOrFail();
@@ -144,6 +150,41 @@ class ClinicAccountingService
         return $this->post($organizationId, $clinicId, $doctorId, $userId,
             'clinic_inventory_movement', $movementId, $description, $occurredAt,
             'inventory-movement:' . $movementId, $lines);
+    }
+
+    /**
+     * Return a previous source entry only when its identity and total value match.
+     * Source-specific methods must not bypass the stricter idempotency checks in post().
+     */
+    private function existingEntryOrFail(
+        string $key,
+        string $sourceType,
+        int $sourceId,
+        ?int $organizationId,
+        ?int $clinicId,
+        ?int $doctorId,
+        int $amount
+    ): ?ClinicJournalEntry {
+        $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
+        if ($existing === null) return null;
+
+        $existing->load('lines.account');
+        $debit = (int) $existing->lines->sum('debit');
+        $credit = (int) $existing->lines->sum('credit');
+
+        abort_unless(
+            $existing->source_type === $sourceType
+            && (int) $existing->source_id === $sourceId
+            && (int) ($existing->organization_id ?? 0) === (int) ($organizationId ?? 0)
+            && (int) ($existing->clinic_id ?? 0) === (int) ($clinicId ?? 0)
+            && (int) ($existing->doctor_id ?? 0) === (int) ($doctorId ?? 0)
+            && $debit === $amount
+            && $credit === $amount,
+            409,
+            'کلید تکرار سند حسابداری قبلاً با مشخصات یا مبلغ متفاوت ثبت شده است.'
+        );
+
+        return $existing;
     }
 
     public function post(
