@@ -197,6 +197,35 @@ final class PatientConsentSigningTest extends TestCase
         ]);
     }
 
+    public function test_signing_is_rejected_if_pending_consent_content_was_tampered_with(): void
+    {
+        [$userId, , $consentId] = $this->seedConsent();
+        $this->authenticatePatient($userId);
+        DB::table('patient_consents')->where('id', $consentId)->update([
+            'consent_text' => 'Altered content after issuance',
+        ]);
+
+        try {
+            app(PatientConsentSigningController::class)->sign(
+                Request::create('/my-health/consents/'.$consentId.'/sign', 'POST', [
+                    'signer_name' => 'مریم رضایی',
+                    'accept' => 'yes',
+                ]),
+                $consentId,
+                app(RecordSecurityAuditEventAction::class)
+            );
+            $this->fail('A modified consent must not be signed.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('patient_consents', [
+            'id' => $consentId,
+            'status' => 'pending',
+            'signed_by_user_id' => null,
+        ]);
+    }
+
     private function seedConsent(): array
     {
         $userId = DB::table('users')->insertGetId([
