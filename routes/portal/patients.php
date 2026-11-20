@@ -12,6 +12,7 @@ use App\Http\Controllers\Portal\Patient360Controller;
 use App\Http\Controllers\Portal\HealthInteropController;
 use App\Http\Controllers\Portal\PatientProblemController;
 use App\Http\Controllers\Portal\PatientDocumentController;
+use App\Http\Controllers\Portal\PatientConsentController;
 
 
 Route::get('/health-interop', [HealthInteropController::class, 'index'])->name('health-interop.index');
@@ -60,6 +61,8 @@ Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
 
 Route::prefix('patients')->name('patients.')->group(function () {
     Route::get('/{patient}/360', [Patient360Controller::class, 'show'])->whereNumber('patient')->name('360');
+    Route::get('/{patient}/consents', [PatientConsentController::class, 'index'])->whereNumber('patient')->name('consents.index');
+    Route::post('/{patient}/consents', [PatientConsentController::class, 'store'])->whereNumber('patient')->middleware('throttle:20,1')->name('consents.store');
     Route::get('/{patient}/documents', [PatientDocumentController::class, 'index'])->whereNumber('patient')->name('documents.index');
     Route::post('/{patient}/documents', [PatientDocumentController::class, 'store'])->whereNumber('patient')->middleware('throttle:20,1')->name('documents.store');
     Route::get('/{patient}/documents/{document}/download', [PatientDocumentController::class, 'download'])->whereNumber('patient')->whereNumber('document')->middleware('throttle:30,1')->name('documents.download');
