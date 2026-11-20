@@ -77,7 +77,6 @@ class ClinicOrganizationController extends Controller
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'doctor', 403);
-        $ownedDoctor = $user->ownedDoctorProfiles()->where('is_active', true)->firstOrFail();
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:180'],
@@ -85,27 +84,67 @@ class ClinicOrganizationController extends Controller
             'registration_number' => ['nullable', 'string', 'max:80'],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255'],
-            
             'clinic_ids' => ['nullable', 'array'],
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
-        $requestedClinicIds = array_values(array_unique(array_map('intval', $data['clinic_ids'] ?? [])));
-        $clinicIds = Address::query()
-            ->where('doctor_id', $ownedDoctor->id)
-            ->whereNull('organization_id')
-            ->where('is_active', true)
-            ->whereIn('id', $requestedClinicIds)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
 
-        if (count($clinicIds) !== count($requestedClinicIds)) {
-            throw ValidationException::withMessages([
-                'clinic_ids' => 'یک یا چند شعبه انتخاب‌شده متعلق به شما نیست یا قبلاً به مجموعه دیگری متصل شده است.',
-            ]);
-        }
+        $requestedClinicIds = array_values(array_unique(array_map(
+            'intval',
+            $data['clinic_ids'] ?? []
+        )));
 
-        $organization = DB::transaction(function () use ($user, $ownedDoctor, $data, $clinicIds): ClinicOrganization {
+        DB::transaction(function () use ($user, $data, $requestedClinicIds): void {
+            User::query()
+                ->whereKey($user->id)
+                ->where('role', 'doctor')
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $ownedDoctor = Doctor::query()
+                ->where('user_id', $user->id)
+                ->where('is_active', true)
+                ->whereHas('user', fn ($query) => $query
+                    ->where('role', 'doctor')
+                    ->where('is_active', true))
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $clinics = collect();
+
+            if ($requestedClinicIds !== []) {
+                $clinics = Address::query()
+                    ->where('doctor_id', $ownedDoctor->id)
+                    ->whereNull('organization_id')
+                    ->where('is_active', true)
+                    ->whereIn('id', $requestedClinicIds)
+                    ->lockForUpdate()
+                    ->get(['id']);
+
+                $clinicIds = $clinics->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                if (count($clinicIds) !== count($requestedClinicIds)) {
+                    throw ValidationException::withMessages([
+                        'clinic_ids' => 'یک یا چند شعبه انتخاب‌شده متعلق به شما نیست یا قبلاً به مجموعه دیگری متصل شده است.',
+                    ]);
+                }
+
+                $alreadyLinkedElsewhere = DB::table('clinic_organization_clinics')
+                    ->whereIn('clinic_id', $clinicIds)
+                    ->where('status', 'active')
+                    ->exists();
+
+                if ($alreadyLinkedElsewhere) {
+                    throw ValidationException::withMessages([
+                        'clinic_ids' => 'یکی از شعب انتخاب‌شده در ارتباط فعال با یک مجموعه درمانی دیگر قرار دارد.',
+                    ]);
+                }
+            } else {
+                $clinicIds = [];
+            }
+
             $organization = ClinicOrganization::create([
                 'owner_user_id' => $user->id,
                 'name' => $data['name'],
@@ -115,20 +154,33 @@ class ClinicOrganizationController extends Controller
                 'phone' => $data['phone'] ?? null,
                 'email' => $data['email'] ?? null,
             ]);
+
             $organization->doctors()->attach($ownedDoctor->id, [
-                'role' => 'owner', 'status' => 'active', 'revenue_share_basis_points' => 7000, 'joined_at' => today(),
+                'role' => 'owner',
+                'status' => 'active',
+                'revenue_share_basis_points' => 7000,
+                'joined_at' => today(),
             ]);
-            if ($clinicIds) {
+
+            if ($clinicIds !== []) {
                 $organization->clinics()->attach($clinicIds, ['status' => 'active']);
-                \App\Models\Address::whereIn('id', $clinicIds)->update(['organization_id' => $organization->id]);
+
+                Address::query()
+                    ->whereIn('id', $clinicIds)
+                    ->update(['organization_id' => $organization->id]);
             }
+
             $organization->members()->attach($user->id, [
-                'role' => 'owner', 'permissions' => json_encode(['*']), 'clinic_ids' => json_encode($clinicIds), 'is_active' => true,
+                'role' => 'owner',
+                'permissions' => json_encode(['*']),
+                'clinic_ids' => json_encode($clinicIds),
+                'is_active' => true,
             ]);
-            return $organization;
         });
 
-        return redirect()->route('portal.organizations.index')->with('success', 'مجموعه درمانی ایجاد شد.');
+        return redirect()
+            ->route('portal.organizations.index')
+            ->with('success', 'مجموعه درمانی ایجاد شد.');
     }
 
     public function inviteDoctor(Request $request, ClinicOrganization $organization)
