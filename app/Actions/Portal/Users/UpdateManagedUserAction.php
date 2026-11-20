@@ -33,6 +33,17 @@ class UpdateManagedUserAction
                 : $oldIsActive;
 
             if ($oldRole === 'secretary' && $newRole !== 'secretary') {
+                // Revoke both direct doctor assignments and organization
+                // memberships. Leaving an active organization membership behind
+                // could recreate doctor_user grants during a later organization sync.
+                DB::table('clinic_organization_members')
+                    ->where('user_id', $lockedUser->id)
+                    ->where('is_active', true)
+                    ->update([
+                        'is_active' => false,
+                        'updated_at' => now(),
+                    ]);
+
                 $lockedUser->doctors()->detach();
             }
 

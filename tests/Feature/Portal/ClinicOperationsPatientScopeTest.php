@@ -45,6 +45,7 @@ final class ClinicOperationsPatientScopeTest extends TestCase
             $table->unsignedBigInteger('organization_id')->nullable();
             $table->string('name');
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -53,6 +54,9 @@ final class ClinicOperationsPatientScopeTest extends TestCase
             $table->unsignedBigInteger('user_id');
             $table->json('permissions')->nullable();
             $table->json('clinic_ids')->nullable();
+            $table->json('base_permissions')->nullable();
+            $table->json('base_clinic_ids')->nullable();
+            $table->boolean('managed_by_organization')->default(false);
             $table->timestamps();
         });
 
@@ -176,6 +180,14 @@ final class ClinicOperationsPatientScopeTest extends TestCase
 
     public function test_inventory_only_secretary_does_not_load_patient_treatment_plans(): void
     {
+        DB::table('users')->insert([
+            'id' => 77,
+            'name' => 'Doctor owner',
+            'role' => 'doctor',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         DB::table('doctors')->insert([
             'id' => 11,
             'user_id' => 77,

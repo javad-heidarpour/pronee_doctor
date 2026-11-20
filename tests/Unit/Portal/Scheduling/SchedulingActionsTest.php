@@ -42,6 +42,7 @@ final class SchedulingActionsTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 

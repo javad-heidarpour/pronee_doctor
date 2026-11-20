@@ -107,7 +107,12 @@ class WorkingHourController extends Controller
         $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
 
         $this->authorizeWorkingHour($workingHour, $doctor);
-        $action->handle($workingHour);
+
+        if (!$action->handle($workingHour)) {
+            return back()->withErrors([
+                'error' => 'این بازه با یک شیفت فعال دیگر هم‌پوشانی دارد و قابل فعال‌سازی نیست.',
+            ]);
+        }
 
         return back()->with('success', __('working_hours.status_changed'));
     }

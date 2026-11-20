@@ -48,18 +48,26 @@ class SaveWorkingHourAction
                 );
             }
 
-            $query = DoctorWorkingHour::query()
-                ->where('doctor_id', $doctor->id)
-                ->where('day_of_week', $data->dayOfWeek)
-                ->where('start_time', '<', $data->endTime)
-                ->where('end_time', '>', $data->startTime)
-                ->with('clinic');
+            // Only active schedules reserve time. Inactive records remain as
+            // history and must not prevent a replacement active schedule.
+            $willBeActive = !$lockedWorkingHour || $lockedWorkingHour->is_active;
+            $duplicate = null;
 
-            if ($lockedWorkingHour) {
-                $query->where('id', '!=', $lockedWorkingHour->id);
+            if ($willBeActive) {
+                $query = DoctorWorkingHour::query()
+                    ->where('doctor_id', $doctor->id)
+                    ->where('is_active', true)
+                    ->where('day_of_week', $data->dayOfWeek)
+                    ->where('start_time', '<', $data->endTime)
+                    ->where('end_time', '>', $data->startTime)
+                    ->with('clinic');
+
+                if ($lockedWorkingHour) {
+                    $query->where('id', '!=', $lockedWorkingHour->id);
+                }
+
+                $duplicate = $query->lockForUpdate()->first();
             }
-
-            $duplicate = $query->lockForUpdate()->first();
 
             if ($duplicate) {
                 return ['saved' => false, 'duplicate' => $duplicate];

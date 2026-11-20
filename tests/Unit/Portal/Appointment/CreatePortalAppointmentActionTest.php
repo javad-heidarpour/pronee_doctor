@@ -28,6 +28,7 @@ final class CreatePortalAppointmentActionTest extends TestCase
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->softDeletes();
+            
             $table->timestamps();
         });
 
@@ -36,6 +37,7 @@ final class CreatePortalAppointmentActionTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -232,6 +234,34 @@ final class CreatePortalAppointmentActionTest extends TestCase
             'name' => 'Updated Patient Name',
             'phone' => '09129999999',
         ]);
+    }
+
+    public function test_it_rejects_a_second_active_appointment_for_a_phone_only_patient(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $firstSlot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        $secondSlot = $this->slot($doctor, $clinic, '2026-11-19', '09:00');
+
+        $action = app(CreatePortalAppointmentAction::class);
+        $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
+            'time_slot_id' => $firstSlot->id,
+            'patient_name' => 'Phone Only Patient',
+            'patient_phone' => '09125555555',
+            'patient_national_code' => null,
+        ]));
+
+        try {
+            $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
+                'time_slot_id' => $secondSlot->id,
+                'patient_name' => 'Phone Only Patient',
+                'patient_phone' => '09125555555',
+                'patient_national_code' => null,
+            ]));
+            $this->fail('A second active appointment for the same phone-only patient must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('patient_phone', $exception->errors());
+        }
     }
 
     private function appointmentData(int $slotId, ?string $nationalCode = null): CreatePortalAppointmentData

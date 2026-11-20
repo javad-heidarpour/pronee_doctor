@@ -33,6 +33,9 @@ final class ProfileController extends Controller
         $doctor = $user->doctorProfile;
         abort_unless($doctor !== null, 403);
 
+        // The database stores a relative storage path; expose its public URL to Inertia.
+        $doctor->append('photo_url');
+
         return Inertia::render('Portal/Profile', [
             'doctor' => $doctor,
             'mustVerifyEmail' => $user instanceof MustVerifyEmail

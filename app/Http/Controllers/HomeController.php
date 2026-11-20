@@ -64,6 +64,11 @@ class HomeController extends Controller
             'message' => 'نوبت با موفقیت ثبت شد.',
             'appointment_id' => $appointment->id,
             'fee_rial' => $appointment->fee_rial,
+            'payment_url' => URL::temporarySignedRoute(
+                'payment.pay',
+                now()->addMinutes(15),
+                ['visit_number' => $appointment->id]
+            ),
         ]);
     }
 }

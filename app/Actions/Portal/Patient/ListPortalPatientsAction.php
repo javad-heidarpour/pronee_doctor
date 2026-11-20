@@ -60,7 +60,11 @@ class ListPortalPatientsAction
             if ($nationalCode !== '') {
                 $latestVisitQuery->where('patient_national_code', $nationalCode);
             } else {
-                $latestVisitQuery->where('patient_phone', $phone);
+                // A phone-only identity must not absorb visits belonging to a
+                // different patient who shares the same phone but has a national code.
+                $latestVisitQuery
+                    ->whereNull('patient_national_code')
+                    ->where('patient_phone', $phone);
             }
 
             $patient->latest_appointment_id = $latestVisitQuery

@@ -42,6 +42,7 @@ const form = useForm({
         permissions: [...(doctor.permissions || [])],
         clinics: [...(doctor.clinics || [])],
         clinic_ids: [...(doctor.clinic_ids || []).map(Number)],
+        organization_clinic_ids: [...(doctor.organization_clinic_ids || []).map(Number)],
     })),
 });
 
@@ -50,9 +51,15 @@ const selectedCount = computed(
 );
 
 const selectedClinicCount = computed(() =>
-    form.doctors
-        .filter((item) => item.assigned)
-        .reduce((total, item) => total + item.clinic_ids.length, 0)
+    form.doctors.reduce(
+        (total, item) =>
+            total +
+            new Set([
+                ...(item.assigned ? item.clinic_ids : []),
+                ...item.organization_clinic_ids,
+            ]).size,
+        0
+    )
 );
 
 const togglePermission = (doctor, permission, checked) => {
@@ -65,6 +72,17 @@ const togglePermission = (doctor, permission, checked) => {
             (item) => item !== permission
         );
     }
+};
+
+const toggleClinic = (doctor, clinicId, checked) => {
+    if (checked) {
+        if (!doctor.clinic_ids.includes(clinicId)) {
+            doctor.clinic_ids.push(clinicId);
+        }
+        return;
+    }
+
+    doctor.clinic_ids = doctor.clinic_ids.filter((id) => id !== clinicId);
 };
 
 const hasPermission = (doctor, permission) =>
@@ -197,6 +215,15 @@ const save = () => {
                         </label>
                     </div>
 
+                    <div
+                        v-if="!doctorItem.assigned && doctorItem.organization_clinic_ids.length"
+                        class="border-t border-indigo-100 bg-indigo-50/60 px-5 py-3 text-xs leading-6 text-indigo-800"
+                    >
+                        این منشی از طریق عضویت سازمانی به
+                        {{ doctorItem.organization_clinic_ids.length }}
+                        مطب این پزشک دسترسی دارد. این دسترسی از بخش سازمان‌ها مدیریت می‌شود.
+                    </div>
+
                     <!-- Permissions -->
                     <div
                         v-if="doctorItem.assigned"
@@ -217,10 +244,10 @@ const save = () => {
                                     class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"
                                 >
                                     <input
-                                        v-model="doctorItem.clinic_ids"
                                         type="checkbox"
-                                        :value="clinic.id"
-                                        :disabled="!clinic.is_active || (!doctorItem.clinic_ids.includes(clinic.id) && selectedClinicCount >= 2)"
+                                        :checked="doctorItem.clinic_ids.includes(clinic.id) || doctorItem.organization_clinic_ids.includes(clinic.id)"
+                                        :disabled="!clinic.is_active || doctorItem.organization_clinic_ids.includes(clinic.id) || (!doctorItem.clinic_ids.includes(clinic.id) && selectedClinicCount >= 2)"
+                                        @change="toggleClinic(doctorItem, clinic.id, $event.target.checked)"
                                         class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                     />
                                     <span class="text-sm font-medium text-slate-700">
@@ -231,7 +258,13 @@ const save = () => {
                                     </span>
                                 </label>
                             </div>
-                            <p v-else class="mt-3 text-sm text-rose-600">
+                            <p
+                                v-if="doctorItem.organization_clinic_ids.length"
+                                class="mt-3 text-xs font-medium text-indigo-700"
+                            >
+                                {{ doctorItem.organization_clinic_ids.length }} مطب از طریق عضویت سازمانی در دسترس این منشی است.
+                            </p>
+                            <p v-else-if="!doctorItem.clinics.length" class="mt-3 text-sm text-rose-600">
                                 برای این پزشک مطب فعالی تعریف نشده است.
                             </p>
                             <p

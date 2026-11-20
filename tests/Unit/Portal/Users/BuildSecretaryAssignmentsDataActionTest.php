@@ -48,6 +48,7 @@ final class BuildSecretaryAssignmentsDataActionTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -56,6 +57,9 @@ final class BuildSecretaryAssignmentsDataActionTest extends TestCase
             $table->unsignedBigInteger('user_id');
             $table->text('permissions')->nullable();
             $table->text('clinic_ids')->nullable();
+            $table->text('base_permissions')->nullable();
+            $table->text('base_clinic_ids')->nullable();
+            $table->boolean('managed_by_organization')->default(false);
             $table->timestamps();
             $table->primary(['doctor_id', 'user_id']);
         });
