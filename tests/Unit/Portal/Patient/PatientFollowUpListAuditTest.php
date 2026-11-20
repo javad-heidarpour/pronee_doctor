@@ -7,6 +7,7 @@ namespace Tests\Unit\Portal\Patient;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientFollowUpController;
 use App\Models\User;
+use App\Models\PatientFollowUpTemplate;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
