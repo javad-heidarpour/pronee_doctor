@@ -19,9 +19,15 @@
       <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 class="mb-4 text-base font-extrabold">ثبت پیگیری جدید</h2>
         <form @submit.prevent="createTask" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <select v-model="form.patient_id" required class="rounded-xl border-slate-300 text-sm">
+          <select v-model="form.patient_id" @change="form.treatment_plan_id = ''" required class="rounded-xl border-slate-300 text-sm">
             <option value="">انتخاب بیمار</option>
             <option v-for="patient in patients" :key="patient.id" :value="patient.id">{{ patient.name }} — {{ patient.phone || 'بدون تلفن' }}</option>
+          </select>
+          <select v-model="form.treatment_plan_id" :disabled="!form.patient_id" class="rounded-xl border-slate-300 text-sm">
+            <option value="">بدون اتصال به طرح درمان</option>
+            <option v-for="plan in treatmentPlans.filter(item => String(item.patient_id) === String(form.patient_id))" :key="plan.id" :value="plan.id">
+              {{ plan.title }} — {{ plan.status }}
+            </option>
           </select>
           <select v-model="form.template_id" @change="applyTemplate" class="rounded-xl border-slate-300 text-sm">
             <option value="">بدون الگو (عنوان دستی)</option>
@@ -132,13 +138,14 @@ const props = defineProps({
   tasks: Object,
   patients: Array,
   templates: Array,
+  treatmentPlans: Array,
   secretaries: Array,
   filters: Object,
   stats: Object,
 })
 const processing = ref(false)
 const isDoctor = computed(() => ['doctor', 'admin'].includes(props.userRole))
-const form = reactive({ patient_id: props.selectedPatientId || '', appointment_id: props.selectedAppointmentId || null, template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false, sms_consent_confirmed: false }] })
+const form = reactive({ patient_id: props.selectedPatientId || '', appointment_id: props.selectedAppointmentId || null, treatment_plan_id: '', template_id: '', due_at: '', assigned_to: '', priority: 'normal', contact_method: 'call', steps: [{ title: 'تماس اولیه با بیمار', days: 3, contact_method: 'call', send_sms: false, sms_consent_confirmed: false }] })
 const templateForm = reactive({ title: '', category: 'general', description: '', default_days: 3, contact_method: 'call', send_sms: false })
 const editingTemplateId = ref(null)
 const filters = reactive({ ...props.filters })

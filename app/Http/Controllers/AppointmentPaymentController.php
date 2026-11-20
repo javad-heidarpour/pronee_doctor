@@ -35,7 +35,7 @@ class AppointmentPaymentController extends Controller
         // صفحه جزئیات نوبت شامل نام بیمار است؛ لینک آن باید امضاشده و زمان‌دار باشد.
         $visitUrl = fn () => redirect()->to(URL::temporarySignedRoute(
             'visit.show',
-            now()->addMinutes(30),
+            now()->addDays(180),
             ['visit_number' => $appointment->id]
         ));
 
@@ -96,7 +96,7 @@ class AppointmentPaymentController extends Controller
         $visitRedirect = function (int $appointmentId) {
             return redirect()->to(URL::temporarySignedRoute(
                 'visit.show',
-                now()->addMinutes(30),
+                now()->addDays(180),
                 ['visit_number' => $appointmentId]
             ));
         };

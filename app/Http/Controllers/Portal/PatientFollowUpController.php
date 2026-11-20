@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\Patient\CreatePatientFollowUpAction;
+use App\Actions\Portal\Patient\EnsureDefaultPatientFollowUpTemplatesAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
@@ -12,9 +13,11 @@ use App\Http\Requests\Portal\StorePatientFollowUpRequest;
 use App\Models\Patient;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientFollowUpTemplate;
+use App\Models\PatientTreatmentPlan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -26,6 +29,7 @@ class PatientFollowUpController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
+        app(EnsureDefaultPatientFollowUpTemplatesAction::class)->handle($doctor);
 
         $filters = $request->validate([
             'status' => ['nullable', Rule::in(['pending', 'completed', 'unsuccessful', 'cancelled'])],
@@ -80,6 +84,14 @@ class PatientFollowUpController extends Controller
         $templates = PatientFollowUpTemplate::query()
             ->where('doctor_id', $doctor->id)->where('is_active', true)->orderBy('title')->get();
 
+        $treatmentPlans = PatientTreatmentPlan::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $clinicIds)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get(['id', 'patient_id', 'clinic_id', 'title', 'status']);
+
         $secretaries = $doctor->secretaries()->where('users.is_active', true)
             ->orderBy('users.name')->get(['users.id', 'users.name', 'users.family']);
 
@@ -96,6 +108,7 @@ class PatientFollowUpController extends Controller
             'tasks' => $tasks,
             'patients' => $patients,
             'templates' => $templates,
+            'treatmentPlans' => $treatmentPlans,
             'secretaries' => $secretaries,
             'filters' => array_merge(['status' => '', 'scope' => 'all', 'search' => ''], $filters),
             'stats' => [
@@ -133,46 +146,50 @@ class PatientFollowUpController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
 
-        $followUp = PatientFollowUpTask::query()
-            ->whereKey($task)->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->firstOrFail();
-
         $data = $request->validate([
             'status' => ['required', Rule::in(['pending', 'completed', 'unsuccessful', 'cancelled'])],
             'outcome' => ['nullable', Rule::in(['reached', 'no_answer', 'rescheduled', 'referred', 'needs_visit', 'other'])],
             'result_notes' => ['nullable', 'string', 'max:3000'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-            'due_at' => ['nullable', 'date'],
+            'due_at' => ['sometimes', 'required', 'date', 'after_or_equal:now'],
         ]);
 
-        if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== null) {
-            $secretary = $doctor->secretaries()->where('users.id', $data['assigned_to'])
-                ->where('users.is_active', true)->first();
-            $secretaryClinicIds = $secretary?->pivot?->clinic_ids ?? [];
-            if (is_string($secretaryClinicIds)) {
-                $secretaryClinicIds = json_decode($secretaryClinicIds, true) ?: [];
+        DB::transaction(function () use ($task, $doctor, $data, $audit): void {
+            $followUp = PatientFollowUpTask::query()
+                ->whereKey($task)
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== null) {
+                $secretary = $doctor->secretaries()->where('users.id', $data['assigned_to'])
+                    ->where('users.is_active', true)->first();
+                $secretaryClinicIds = $secretary?->pivot?->clinic_ids ?? [];
+                if (is_string($secretaryClinicIds)) {
+                    $secretaryClinicIds = json_decode($secretaryClinicIds, true) ?: [];
+                }
+                abort_unless(
+                    $secretary && is_array($secretaryClinicIds) &&
+                    in_array((int) $followUp->clinic_id, array_map('intval', $secretaryClinicIds), true),
+                    422,
+                    'مسئول پیگیری به مطب این برنامه دسترسی ندارد.'
+                );
             }
-            abort_unless(
-                $secretary && is_array($secretaryClinicIds) &&
-                in_array((int) $followUp->clinic_id, array_map('intval', $secretaryClinicIds), true),
-                422,
-                'مسئول پیگیری به مطب این برنامه دسترسی ندارد.'
-            );
-        }
 
-        $followUp->fill($data);
-        if ($data['status'] === 'completed' || $data['status'] === 'unsuccessful') {
-            $followUp->completed_at = now();
-        } elseif ($data['status'] === 'pending') {
-            $followUp->completed_at = null;
-        }
-        $followUp->save();
+            $followUp->fill($data);
+            $followUp->completed_at = in_array($data['status'], ['completed', 'unsuccessful'], true)
+                ? now()
+                : null;
+            $followUp->save();
 
-        $audit->handle('patient.follow_up.updated', $followUp, [
-            'doctor_id' => $doctor->id,
-            'status_changed' => true,
-            'changed_fields' => array_keys($data),
-        ]);
+            $audit->handle('patient.follow_up.updated', $followUp, [
+                'doctor_id' => $doctor->id,
+                'status_changed' => true,
+                'changed_fields' => array_keys($data),
+            ]);
+        });
 
         return back()->with('success', 'وضعیت پیگیری به‌روزرسانی شد.');
     }

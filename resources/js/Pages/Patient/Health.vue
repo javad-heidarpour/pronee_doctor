@@ -1,10 +1,10 @@
 <script setup>
-import { useForm, router } from '@inertiajs/vue3'
+import { Link, useForm, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 const props = defineProps({
   hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, accessType: String,
-  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array, carePathways: { type: Array, default: () => [] },
+  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array, consents: { type: Array, default: () => [] }, carePathways: { type: Array, default: () => [] },
 })
 const linkForm = useForm({ national_code: '', phone: '' })
 const clinicToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
@@ -76,6 +76,24 @@ const statusLabel = value => ({ pending: 'در انتظار', confirmed: 'تأی
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div><p class="text-xs text-teal-700">پرونده سلامت متصل</p><h2 class="mt-1 text-xl font-black">{{ patient.name }}</h2><p class="mt-1 text-xs text-slate-500">{{ patient.doctor?.caption }} {{ patient.doctor?.name }} {{ patient.doctor?.family }} · {{ patient.doctor?.specialty_title }}</p></div>
             <span class="rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">{{ accessType === 'owner' ? 'دسترسی صاحب پرونده' : 'دسترسی مراقب' }}</span>
+          </div>
+        </section>
+        <section v-if="accessType === 'owner' && consents?.length" class="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="font-black text-slate-900">رضایت‌نامه‌های درمانی</h2>
+              <p class="mt-1 text-xs text-slate-500">متن و وضعیت رضایت‌نامه‌هایی که مرکز درمانی برای شما ثبت کرده است.</p>
+            </div>
+            <span class="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">{{ consents.length.toLocaleString('fa-IR') }} مورد</span>
+          </div>
+          <div class="mt-3 divide-y divide-slate-100">
+            <article v-for="consent in consents" :key="consent.id" class="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div class="min-w-0">
+                <p class="font-bold text-slate-800">{{ consent.title }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ consent.doctor?.name }} {{ consent.doctor?.family }} · {{ consent.clinic?.name }} · {{ dateLabel(consent.created_at) }}</p>
+              </div>
+              <Link :href="route('patient.health.consents.show', consent.id)" class="rounded-lg px-3 py-2 text-xs font-bold" :class="consent.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'">{{ consent.status === 'signed' ? 'مشاهده امضاشده' : 'مطالعه و امضا' }}</Link>
+            </article>
           </div>
         </section>
         <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

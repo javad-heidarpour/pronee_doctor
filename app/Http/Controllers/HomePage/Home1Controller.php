@@ -89,9 +89,14 @@ class Home1Controller extends Controller
 
     public function contact(
         string $slug,
-        FindPublicDoctorBySlugAction $doctorAction
+        FindPublicDoctorBySlugAction $doctorAction,
+        BuildPublicDoctorBookingPageAction $bookingAction
     ) {
         $doctor = $this->findDoctor($slug, $doctorAction);
+        $doctor->setAttribute(
+            'clinics_with_slots',
+            $bookingAction->handle($doctor)['clinicsWithSlots']
+        );
 
         return Inertia::render('HomePage/Home1/contact', [
             'doctor' => $doctor,
@@ -130,18 +135,23 @@ class Home1Controller extends Controller
         string $slug,
         BuildPublicDoctorBookingPageAction $action,
         FindPublicDoctorBySlugAction $doctorAction,
-        $clinic = null
+        ?int $clinic = null
     ) {
         $doctor = $this->findDoctor($slug, $doctorAction);
         $bookingPage = $action->handle($doctor);
         $clinicsWithSlots = $bookingPage['clinicsWithSlots'];
+        $selectedClinicId = $clinic !== null && $clinicsWithSlots->contains(
+            fn (array $item): bool => (int) ($item['clinic']['id'] ?? 0) === $clinic
+        ) ? $clinic : null;
+        $requestedClinicUnavailable = $clinic !== null && $selectedClinicId === null;
 
         $doctor->setAttribute('clinics_with_slots', $clinicsWithSlots);
 
         return Inertia::render('HomePage/Home1/Booking', [
             'doctor' => $doctor,
             'clinicsWithSlots' => $clinicsWithSlots,
-            'selectedClinic' => $clinic,
+            'clinicId' => $selectedClinicId,
+            'requestedClinicUnavailable' => $requestedClinicUnavailable,
             'visitReasons' => $bookingPage['visitReasons'],
         ]);
     }

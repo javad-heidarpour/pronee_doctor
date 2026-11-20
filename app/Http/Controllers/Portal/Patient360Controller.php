@@ -15,6 +15,9 @@ use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientMedicationPlan;
 use App\Models\PatientVitalSign;
+use App\Services\Patient\PatientClinicalSummaryBuilder;
+use App\Services\Patient\PhysicianWorkflowAssistant;
+use App\Models\PatientProblem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +27,12 @@ final class Patient360Controller extends Controller
 {
     use HasActiveDoctor;
 
-    public function show(Patient $patient, RecordSecurityAuditEventAction $audit)
+    public function show(
+        Patient $patient,
+        RecordSecurityAuditEventAction $audit,
+        ?PatientClinicalSummaryBuilder $summaryBuilder = null,
+        ?PhysicianWorkflowAssistant $workflowAssistant = null
+    )
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
@@ -59,6 +67,7 @@ final class Patient360Controller extends Controller
         $followUps = collect();
         $pathways = collect();
         $medicationPlans = collect();
+        $problems = collect();
 
         if ($canViewClinical) {
             $encounters = PatientEncounter::query()
@@ -73,6 +82,15 @@ final class Patient360Controller extends Controller
                 ->where('patient_id', $patient->id)
                 ->where('is_active', true)
                 ->orderByDesc('updated_at')->limit(50)->get();
+
+            $problems = PatientProblem::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->orderByRaw("CASE WHEN status = 'active' THEN 0 WHEN status = 'resolved' THEN 1 ELSE 2 END")
+                ->orderByDesc('onset_date')
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get();
 
             $vitals = PatientVitalSign::query()
                 ->where('doctor_id', $doctor->id)
@@ -108,6 +126,9 @@ final class Patient360Controller extends Controller
             foreach ($clinicalRecords as $item) {
                 $timeline->push($this->timelineItem($item->kind, $item->updated_at, $this->recordLabel($item->kind), $item->title, $item->is_active ? 'active' : 'inactive', $item->id));
             }
+            foreach ($problems as $item) {
+                $timeline->push($this->timelineItem('problem', $item->created_at, 'تشخیص / مشکل: '.$item->title, $item->description, $item->status, $item->id));
+            }
             foreach ($vitals as $item) {
                 $timeline->push($this->timelineItem('vital', $item->measured_at, 'اندازه‌گیری '.$item->measurement_type, $item->value.' '.$item->unit, 'recorded', $item->id));
             }
@@ -128,7 +149,81 @@ final class Patient360Controller extends Controller
 
         $timeline = $timeline->sortByDesc(fn (array $item) => $item['sort_at'] ?? '')->take(100)->values();
 
-        $latestVitalByType = $vitals->groupBy('measurement_type')->map(fn (Collection $items) => $items->first())->values();
+        // The recent timeline is intentionally capped, but the latest value of
+        // every measurement type must not disappear just because another type
+        // has many newer readings.
+        $latestVitalTypes = $canViewClinical
+            ? PatientVitalSign::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->distinct()
+                ->pluck('measurement_type')
+            : collect();
+
+        $latestVitalByType = $latestVitalTypes
+            ->map(fn (string $type) => PatientVitalSign::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->where('measurement_type', $type)
+                ->orderByDesc('measured_at')
+                ->orderByDesc('id')
+                ->first())
+            ->filter()
+            ->values();
+
+        // Summary cards report true totals, not the size of the capped lists
+        // rendered below.
+        $summary = [
+            'appointments' => $patient->appointments()
+                ->whereIn('clinic_id', $clinicIds)
+                ->count(),
+            'encounters' => $canViewClinical
+                ? PatientEncounter::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->whereIn('clinic_id', $clinicIds)->count()
+                : 0,
+            'active_allergies' => $canViewClinical
+                ? PatientClinicalRecord::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->where('kind', PatientClinicalRecord::KIND_ALLERGY)
+                    ->where('is_active', true)->count()
+                : 0,
+            'active_medications' => $canViewClinical
+                ? PatientClinicalRecord::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->where('kind', PatientClinicalRecord::KIND_MEDICATION)
+                    ->where('is_active', true)->count()
+                : 0,
+            'active_problems' => $canViewClinical
+                ? PatientProblem::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->where('status', PatientProblem::STATUS_ACTIVE)->count()
+                : 0,
+            'open_follow_ups' => $canViewClinical
+                ? PatientFollowUpTask::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)
+                    ->where(fn ($query) => $query->whereIn('clinic_id', $clinicIds)->orWhereNull('clinic_id'))
+                    ->whereIn('status', ['pending', 'in_progress'])->count()
+                : 0,
+            'active_pathways' => $canViewClinical
+                ? PatientCarePathway::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->whereIn('clinic_id', $clinicIds)
+                    ->whereIn('status', ['active', 'in_progress'])->count()
+                : 0,
+        ];
+
+        $summaryBuilder ??= app(PatientClinicalSummaryBuilder::class);
+        $workflowAssistant ??= app(PhysicianWorkflowAssistant::class);
+        $clinicalSummary = null;
+        $workflowSuggestions = null;
+        if ($canViewClinical) {
+            $clinicalSummary = $summaryBuilder->build(
+                (string) $patient->name,
+                $encounters,
+                $problems,
+                $clinicalRecords,
+                $vitals,
+                $followUps,
+                $pathways
+            );
+            $workflowSuggestions = $workflowAssistant->suggest($clinicalSummary);
+        }
 
         $audit->handle('patient.360.viewed', $patient, [
             'doctor_id' => $doctor->id,
@@ -146,18 +241,19 @@ final class Patient360Controller extends Controller
                 'created_at' => $patient->created_at?->toDateString(),
             ],
             'canViewClinical' => $canViewClinical,
-            'summary' => [
-                'appointments' => $appointments->count(),
-                'encounters' => $encounters->count(),
-                'active_allergies' => $clinicalRecords->where('kind', PatientClinicalRecord::KIND_ALLERGY)->count(),
-                'active_medications' => $clinicalRecords->where('kind', PatientClinicalRecord::KIND_MEDICATION)->count(),
-                'open_follow_ups' => $followUps->whereIn('status', ['pending','in_progress'])->count(),
-                'active_pathways' => $pathways->whereIn('status', ['active','in_progress'])->count(),
-            ],
+            'summary' => $summary,
+            'clinicalSummary' => $clinicalSummary,
+            'workflowSuggestions' => $workflowSuggestions,
             'clinicalRecords' => $clinicalRecords->map(fn ($item) => [
                 'id'=>$item->id,'kind'=>$item->kind,'title'=>$item->title,'description'=>$item->description,
                 'dosage'=>$item->dosage,'frequency'=>$item->frequency,'start_date'=>$item->start_date?->format('Y-m-d'),
                 'end_date'=>$item->end_date?->format('Y-m-d'),'is_active'=>$item->is_active,
+            ])->values(),
+            'problems' => $problems->map(fn ($item) => [
+                'id'=>$item->id,'category'=>$item->category,'title'=>$item->title,'code'=>$item->code,
+                'code_system'=>$item->code_system,'description'=>$item->description,'status'=>$item->status,
+                'severity'=>$item->severity,'onset_date'=>$item->onset_date?->format('Y-m-d'),
+                'resolved_on'=>$item->resolved_on?->format('Y-m-d'),'source'=>$item->source,
             ])->values(),
             'vitals' => $vitals->map(fn ($item) => [
                 'id'=>$item->id,'type'=>$item->measurement_type,'value'=>$item->value,'unit'=>$item->unit,

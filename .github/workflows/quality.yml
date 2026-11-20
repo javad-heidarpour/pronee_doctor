@@ -66,6 +66,13 @@ jobs:
       - name: Run unit tests
         run: php artisan test --testsuite=Unit
 
+      # Public visit tracking uses an isolated SQLite schema and runs independently of the full production schema.
+      - name: Run public visit tracking feature tests
+        run: php artisan test tests/Feature/Visit
+
+      - name: Run SMS delivery feature tests
+        run: php artisan test tests/Feature/Sms
+
       # These focused Portal tests create their own minimal SQLite schemas.
       - name: Run isolated portal regression tests
         run: php artisan test tests/Feature/Portal

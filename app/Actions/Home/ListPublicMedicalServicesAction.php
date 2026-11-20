@@ -11,6 +11,7 @@ class ListPublicMedicalServicesAction
     {
         return MedicalService::query()
             ->where('is_active', true)
+            ->select(['id', 'title', 'category', 'short_description'])
             ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get();

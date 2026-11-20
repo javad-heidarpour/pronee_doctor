@@ -34,7 +34,10 @@ final class StaffPayrollCalculator
 
         $creditedMinutes = $workedMinutes + $paidLeaveMinutes;
         if ($type === 'hourly') {
-            $basePay = intdiv($creditedMinutes * $hourlyRate, 60);
+            // Overtime minutes are paid at the overtime multiplier below.
+            // Exclude them from regular hourly pay to avoid paying their base rate twice.
+            $regularMinutes = max(0, $creditedMinutes - $overtimeMinutes);
+            $basePay = intdiv($regularMinutes * $hourlyRate, 60);
             $regularHourlyRate = $hourlyRate;
         } else {
             $basePay = intdiv(min($creditedMinutes, $standardMinutes) * $monthlyBase, $standardMinutes);

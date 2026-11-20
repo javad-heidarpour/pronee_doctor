@@ -6,6 +6,7 @@ namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Portal\Patient\CreatePatientEncounterAction;
 use App\Actions\Portal\Patient\SignPatientEncounterAction;
+use App\Actions\Portal\Patient\UpdatePatientEncounterAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientEncounterController;
 use App\Models\Appointment;
@@ -31,7 +32,7 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->id();
             $table->string('name')->nullable();
             $table->string('family')->nullable();
-            $table->timestamp('deleted_at')->nullable();
+                        $table->softDeletes();
             $table->timestamps();
         });
 
@@ -48,6 +49,7 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->unsignedBigInteger('doctor_id')->nullable();
             $table->string('name');
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -347,6 +349,164 @@ final class PatientEncounterWorkflowTest extends TestCase
         $this->assertSame('draft', $amendment->status);
         $this->assertSame('Original assessment', $original->fresh()->assessment);
         $this->assertSame('signed', $original->fresh()->status);
+    }
+
+    public function test_creation_rechecks_the_locked_appointment_status(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 14;
+        $author = new User();
+        $author->id = 24;
+        $patient = Patient::query()->create([
+            'doctor_id' => 14,
+            'name' => 'Cancelled Visit Patient',
+        ]);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 14,
+            'patient_id' => $patient->id,
+            'clinic_id' => 34,
+            'status' => 'confirmed',
+        ]);
+
+        DB::table('appointments')->where('id', $appointment->id)->update([
+            'status' => 'cancelled',
+        ]);
+
+        try {
+            app(CreatePatientEncounterAction::class)->handle($doctor, $author, $appointment, [
+                'note_type' => 'consultation',
+                'assessment' => 'Assessment',
+                'plan' => 'Plan',
+                'reviewed_allergies' => true,
+                'reviewed_medications' => true,
+                'reviewed_vitals' => true,
+                'clinical_snapshot' => [],
+                'prescriptions' => [],
+            ]);
+            $this->fail('A cancelled appointment must not accept a new encounter.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('patient_encounters', 0);
+        }
+    }
+
+    public function test_signing_rejects_an_appointment_whose_patient_no_longer_matches_the_encounter(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 15;
+        $signer = new User();
+        $signer->id = 25;
+        $patient = Patient::query()->create(['doctor_id' => 15, 'name' => 'Original Patient']);
+        $otherPatient = Patient::query()->create(['doctor_id' => 15, 'name' => 'Different Patient']);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 15,
+            'patient_id' => $patient->id,
+            'clinic_id' => 35,
+            'status' => 'confirmed',
+        ]);
+        $encounter = PatientEncounter::query()->create([
+            'doctor_id' => 15,
+            'patient_id' => $patient->id,
+            'appointment_id' => $appointment->id,
+            'clinic_id' => 35,
+            'author_id' => 25,
+            'note_type' => 'consultation',
+            'status' => 'draft',
+            'assessment' => 'Assessment',
+            'plan' => 'Plan',
+            'reviewed_allergies' => true,
+            'reviewed_medications' => true,
+            'reviewed_vitals' => true,
+        ]);
+
+        DB::table('appointments')->where('id', $appointment->id)->update([
+            'patient_id' => $otherPatient->id,
+        ]);
+
+        try {
+            app(SignPatientEncounterAction::class)->handle($encounter, $signer);
+            $this->fail('An encounter cannot be signed against a different patient appointment.');
+        } catch (ValidationException) {
+            $this->assertSame('draft', $encounter->fresh()->status);
+            $this->assertSame('confirmed', DB::table('appointments')->where('id', $appointment->id)->value('status'));
+        }
+    }
+
+    public function test_only_draft_encounters_can_be_updated_and_prescriptions_are_replaced_atomically(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 16;
+        $author = new User();
+        $author->id = 26;
+        $patient = Patient::query()->create(['doctor_id' => 16, 'name' => 'Update Patient']);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 16,
+            'patient_id' => $patient->id,
+            'clinic_id' => 36,
+            'status' => 'confirmed',
+        ]);
+
+        $draft = app(CreatePatientEncounterAction::class)->handle($doctor, $author, $appointment, [
+            'note_type' => 'consultation',
+            'assessment' => 'Initial assessment',
+            'plan' => 'Initial plan',
+            'reviewed_allergies' => true,
+            'reviewed_medications' => true,
+            'reviewed_vitals' => true,
+            'clinical_snapshot' => [],
+            'prescriptions' => [[
+                'medication_name' => 'Old medicine',
+                'dosage' => 'One tablet',
+                'route' => 'oral',
+                'frequency' => 'Daily',
+            ]],
+        ]);
+
+        $updated = app(UpdatePatientEncounterAction::class)->handle($draft, [
+            'note_type' => 'progress',
+            'subjective' => 'Updated subjective',
+            'objective' => 'Updated objective',
+            'assessment' => 'Updated assessment',
+            'plan' => 'Updated plan',
+            'reviewed_allergies' => true,
+            'reviewed_medications' => true,
+            'reviewed_vitals' => true,
+            'clinical_snapshot' => ['captured_at' => now()->toIso8601String()],
+            'prescriptions' => [[
+                'medication_name' => 'New medicine',
+                'dosage' => 'Two tablets',
+                'route' => 'oral',
+                'frequency' => 'Twice daily',
+            ]],
+        ]);
+
+        $this->assertSame('Updated assessment', $updated->assessment);
+        $this->assertSame('Updated plan', $updated->plan);
+        $this->assertSame('New medicine', $updated->prescriptions->first()->medication_name);
+        $this->assertDatabaseMissing('patient_encounter_prescriptions', [
+            'encounter_id' => $draft->id,
+            'medication_name' => 'Old medicine',
+        ]);
+
+        $signer = new User();
+        $signer->id = 26;
+        $signed = app(SignPatientEncounterAction::class)->handle($updated, $signer);
+        $this->assertSame(PatientEncounter::STATUS_SIGNED, $signed->status);
+
+        try {
+            app(UpdatePatientEncounterAction::class)->handle($signed, [
+                'note_type' => 'progress',
+                'assessment' => 'Tampered assessment',
+                'plan' => 'Tampered plan',
+                'reviewed_allergies' => true,
+                'reviewed_medications' => true,
+                'reviewed_vitals' => true,
+                'prescriptions' => [],
+            ]);
+            $this->fail('A signed encounter must not be editable.');
+        } catch (ValidationException) {
+            $this->assertSame('Updated assessment', $signed->fresh()->assessment);
+            $this->assertSame(PatientEncounter::STATUS_SIGNED, $signed->fresh()->status);
+        }
     }
 
 }

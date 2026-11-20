@@ -13,6 +13,7 @@ use App\Models\PatientHealthObservation;
 use App\Models\PatientMedicationPlan;
 use App\Models\PatientCarePathway;
 use App\Models\PatientCarePathwayStep;
+use App\Models\PatientConsent;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\PatientEncounterPrescription;
 use App\Models\User;
@@ -142,6 +143,16 @@ final class PatientHealthController extends Controller
                 ->get()
             : collect();
 
+        $consents = $accessType === 'owner'
+            ? PatientConsent::query()
+                ->where('patient_id', $patient->id)
+                ->with('doctor:id,name,family,specialty_title', 'clinic:id,name')
+                ->latest()->limit(30)->get([
+                    'id', 'patient_id', 'doctor_id', 'clinic_id', 'title',
+                    'consent_type', 'status', 'signed_at', 'created_at',
+                ])
+            : collect();
+
         $intelligence = $accessType === 'owner'
             ? app(PatientHealthIntelligence::class)->build($patient, $followUps, $observations)
             : ['summary' => [], 'insights' => [], 'trends' => []];
@@ -161,6 +172,7 @@ final class PatientHealthController extends Controller
             'encounters' => $encounters,
             'followUps' => $followUps,
             'caregivers' => $caregivers,
+            'consents' => $consents,
             'intelligence' => $intelligence,
             'observations' => $observations,
             'medicationPlans' => $medicationPlans,
@@ -172,13 +184,35 @@ final class PatientHealthController extends Controller
     public function reportCarePathwayStep(Request $request, int $pathway, int $step, RecordSecurityAuditEventAction $audit)
     {
         $user = $this->authenticatedPatient();
-        $activePathway = PatientCarePathway::query()->whereKey($pathway)->where('status', 'active')->firstOrFail();
-        PatientAccountAccess::query()->active()->where('user_id', $user->id)
-            ->where('access_type', 'owner')->where('patient_id', $activePathway->patient_id)->firstOrFail();
-        $item = PatientCarePathwayStep::query()->whereKey($step)->where('pathway_id', $activePathway->id)->firstOrFail();
-        abort_unless($item->status === 'pending', 422, 'این گام در وضعیت قابل گزارش نیست.');
-        $item->update(['status' => 'patient_reported', 'patient_reported_at' => now()]);
+
+        [$item] = DB::transaction(function () use ($user, $pathway, $step): array {
+            $activePathway = PatientCarePathway::query()
+                ->whereKey($pathway)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            PatientAccountAccess::query()->active()
+                ->where('user_id', $user->id)
+                ->where('access_type', 'owner')
+                ->where('patient_id', $activePathway->patient_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $item = PatientCarePathwayStep::query()
+                ->whereKey($step)
+                ->where('pathway_id', $activePathway->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($item->status === 'pending', 422, 'این گام در وضعیت قابل گزارش نیست.');
+            $item->update(['status' => 'patient_reported', 'patient_reported_at' => now()]);
+
+            return [$item];
+        });
+
         $audit->handle('patient.care_pathway.step_reported', $item, ['pathway_id' => $pathway]);
+
         return back()->with('success', 'انجام این گام برای بررسی به مرکز درمانی گزارش شد.');
     }
 

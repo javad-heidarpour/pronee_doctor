@@ -4,6 +4,7 @@ namespace App\Actions\Portal\Users;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
+use App\Models\Doctor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -30,6 +31,13 @@ class RestoreOrDeleteManagedUserAction
                 $lockedUser->restore();
                 $lockedUser->save();
 
+                if ($lockedUser->role === 'doctor') {
+                    Doctor::query()
+                        ->where('user_id', $lockedUser->id)
+                        ->lockForUpdate()
+                        ->update(['is_active' => false]);
+                }
+
                 $audit->handle('managed_user.restored', $lockedUser, [
                     'role' => $lockedUser->role,
                     'restored' => true,
@@ -37,6 +45,28 @@ class RestoreOrDeleteManagedUserAction
                 ]);
 
                 return true;
+            }
+
+            if ($lockedUser->role === 'doctor') {
+                // حذف حساب نباید وب‌سایت عمومی یا امکان رزرو پزشک را فعال باقی بگذارد.
+                Doctor::query()
+                    ->where('user_id', $lockedUser->id)
+                    ->lockForUpdate()
+                    ->update(['is_active' => false]);
+            }
+
+            // حذف حساب منشی باید عضویت‌های سازمانی و تخصیص‌های مستقیم او را
+            // نیز لغو کند؛ بازیابی بعدی فقط حساب غیرفعال را برمی‌گرداند.
+            if ($lockedUser->role === 'secretary') {
+                DB::table('clinic_organization_members')
+                    ->where('user_id', $lockedUser->id)
+                    ->where('is_active', true)
+                    ->update([
+                        'is_active' => false,
+                        'updated_at' => now(),
+                    ]);
+
+                $lockedUser->doctors()->detach();
             }
 
             // حذف حساب باید کوکی‌های remember و نشست‌های قبلی را نیز بی‌اعتبار کند.

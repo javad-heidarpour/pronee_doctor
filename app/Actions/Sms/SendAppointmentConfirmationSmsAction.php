@@ -1,20 +1,40 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Sms;
 
+use App\Contracts\Sms\SmsGateway;
 use App\Models\Appointment;
 use App\Models\SmsLog;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Morilog\Jalali\Jalalian;
 use Throwable;
 
-class SendAppointmentConfirmationSmsAction
+final class SendAppointmentConfirmationSmsAction
 {
+    public function __construct(
+        private readonly SmsGateway $gateway,
+        private readonly BuildAppointmentSmsInputsAction $inputsBuilder
+    ) {
+    }
+
     public function handle(int $visitNumber): JsonResponse
     {
+        $template = trim((string) config(
+            'services.ghasedak.appointment_confirmation_template',
+            'AppointmentConfirmationSMS'
+        ));
+
+        if ($template === '' || !config('services.ghasedak.api_key')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
+            ], 503);
+        }
+
         $appointment = Appointment::query()
             ->with('clinic.city')
             ->find($visitNumber);
@@ -26,14 +46,15 @@ class SendAppointmentConfirmationSmsAction
             ], 404);
         }
 
-        if ($appointment->status === 'cancelled') {
+        if ($appointment->status !== 'confirmed') {
             return response()->json([
                 'success' => false,
-                'message' => 'برای نوبت لغوشده امکان ارسال پیامک تأیید وجود ندارد.',
+                'message' => 'ارسال پیامک تأیید فقط برای نوبت تأییدشده امکان‌پذیر است.',
             ], 422);
         }
 
-        $mobile = trim((string) $appointment->patient_phone);
+        $sms = $this->inputsBuilder->handle($appointment);
+        $mobile = $sms['mobile'];
 
         if (!preg_match('/^09\d{9}$/', $mobile)) {
             return response()->json([
@@ -42,30 +63,19 @@ class SendAppointmentConfirmationSmsAction
             ], 422);
         }
 
-        if (!config('services.ghasedak.api_key')) {
-            Log::warning('Appointment confirmation SMS unavailable: provider not configured', [
-                'appointment_id' => $visitNumber,
-            ]);
+        $updatedAt = $appointment->updated_at?->format('YmdHis') ?? now()->format('YmdHis');
+        $deduplicationKey = 'appointment-confirmation:' . $appointment->id . ':' . $updatedAt;
 
+        $existingLog = SmsLog::query()
+            ->where('deduplication_key', $deduplicationKey)
+            ->first();
+
+        if ($existingLog && $existingLog->status !== 'failed') {
             return response()->json([
                 'success' => false,
-                'message' => 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
-            ], 503);
-        }
-
-        $patientName = trim((string) $appointment->patient_name) ?: 'مراجع گرامی';
-        $date = Jalalian::fromDateTime($appointment->appointment_date)->format('j F Y');
-        $time = substr((string) $appointment->appointment_time, 0, 5);
-        $appointmentDateTime = $date . ' ساعت ' . $time;
-
-        $clinic = $appointment->clinic;
-        $clinicAddress = trim(implode('، ', array_filter([
-            $clinic?->city?->name,
-            $clinic?->full_address,
-        ])));
-
-        if ($clinicAddress === '') {
-            $clinicAddress = $clinic?->name ?: 'اطلاعات مطب در دسترس نیست';
+                'message' => 'پیامک تأیید این نوبت قبلاً ثبت شده است.',
+                'visit_number' => $visitNumber,
+            ], 429);
         }
 
         $cacheKey = 'appointment-confirmation-sms:' . $visitNumber;
@@ -81,52 +91,47 @@ class SendAppointmentConfirmationSmsAction
         $smsLog = null;
 
         try {
-            $smsLog = SmsLog::create([
-                'appointment_id' => $appointment->id,
-                'type' => 'appointment_confirmation',
-                'status' => 'pending',
-                'provider' => 'ghasedak',
-            ]);
-
-            $response = Http::timeout(15)->withHeaders([
-                'ApiKey' => config('services.ghasedak.api_key'),
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ])->post(
-                'https://gateway.ghasedak.me/rest/api/v1/WebService/SendOtpSMS',
-                [
-                    'sendDate' => null,
-                    'receptors' => [[
-                        'mobile' => $mobile,
-                        'clientReferenceId' => 'visit-' . $visitNumber,
-                    ]],
-                    'templateName' => 'AppointmentConfirmationSMS',
-                    'inputs' => [
-                        ['param' => 'param1', 'value' => $patientName],
-                        ['param' => 'param2', 'value' => $appointmentDateTime],
-                        ['param' => 'param3', 'value' => $clinicAddress],
-                    ],
-                    'isVoice' => false,
-                ]
-            );
-
-            if (!$response->successful() || $response->json('IsSuccess') === false) {
-                Cache::forget($cacheKey);
+            if ($existingLog) {
+                $smsLog = $existingLog;
                 $smsLog->update([
-                    'status' => 'failed',
-                    'error_message' => 'provider_rejected_request',
+                    'status' => 'pending',
+                    'error_message' => null,
+                    'sent_at' => null,
                 ]);
-
-                Log::warning('Appointment confirmation SMS rejected by provider', [
-                    'appointment_id' => $visitNumber,
-                    'http_status' => $response->status(),
+            } else {
+                $smsLog = SmsLog::create([
+                    'appointment_id' => $appointment->id,
+                    'type' => 'appointment_confirmation',
+                    'status' => 'pending',
+                    'provider' => 'ghasedak',
+                    'deduplication_key' => $deduplicationKey,
                 ]);
+            }
+        } catch (QueryException $exception) {
+            Cache::forget($cacheKey);
 
+            $existingLog = SmsLog::query()
+                ->where('deduplication_key', $deduplicationKey)
+                ->first();
+
+            if ($existingLog && $existingLog->status !== 'failed') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'ارسال پیامک ناموفق بود. لطفاً بعداً تلاش کنید.',
-                ], 422);
+                    'message' => 'پیامک تأیید این نوبت قبلاً ثبت شده است.',
+                    'visit_number' => $visitNumber,
+                ], 429);
             }
+
+            throw $exception;
+        }
+
+        try {
+            $this->gateway->sendTemplate(
+                $mobile,
+                $template,
+                $sms['inputs'],
+                'visit-' . $visitNumber
+            );
 
             $smsLog->update([
                 'status' => 'sent',
@@ -144,11 +149,11 @@ class SendAppointmentConfirmationSmsAction
             if ($smsLog) {
                 $smsLog->update([
                     'status' => 'failed',
-                    'error_message' => 'provider_connection_error',
+                    'error_message' => 'provider_or_connection_error',
                 ]);
             }
 
-            Log::error('Appointment confirmation SMS exception', [
+            Log::error('Appointment confirmation SMS failed', [
                 'appointment_id' => $visitNumber,
                 'exception' => get_class($exception),
             ]);
@@ -156,7 +161,7 @@ class SendAppointmentConfirmationSmsAction
             return response()->json([
                 'success' => false,
                 'message' => 'خطا در ارسال پیامک. لطفاً مجدداً تلاش کنید.',
-            ], 500);
+            ], 503);
         }
     }
 }

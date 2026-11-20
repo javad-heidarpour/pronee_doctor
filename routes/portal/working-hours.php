@@ -12,4 +12,6 @@ Route::prefix('working-hours')->name('working-hours.')
         Route::put('/{workingHour}', 'update')->name('update');
         Route::put('/{workingHour}/toggle', 'toggle')->name('toggle');
         Route::delete('/{workingHour}', 'destroy')->name('destroy');
+        Route::post('/holidays', 'storeHoliday')->name('holidays.store');
+        Route::delete('/holidays/{holiday}', 'destroyHoliday')->whereNumber('holiday')->name('holidays.destroy');
     });

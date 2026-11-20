@@ -11,6 +11,7 @@ class ListPublicSurgicalProceduresAction
     {
         return SurgicalProcedure::query()
             ->where('is_active', true)
+            ->select(['id', 'title', 'category', 'short_description', 'intro_title'])
             ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get();

@@ -6,7 +6,19 @@
       <div
         class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-6"
       >
-        <h3 class="text-lg font-bold text-gray-900 mb-6">اطلاعات شخصی</h3>
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-bold text-gray-900">اطلاعات شخصی</h3>
+          <a
+            v-if="doctor.slug"
+            :href="route('portal.profile.preview')"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-800 transition hover:bg-teal-100"
+          >
+            پیش‌نمایش صفحه عمومی
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
 
         <form @submit.prevent="submitProfile" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -54,13 +66,91 @@
             <p v-if="errors.description" class="mt-1 text-sm text-red-600" role="alert">{{ errors.description }}</p>
           </div>
 
+          <section class="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 space-y-4">
+            <div>
+              <h4 class="font-bold text-slate-800">تنظیمات نمایش در گوگل</h4>
+              <p class="mt-1 text-xs text-slate-500">عنوان و توضیحی که می‌تواند در نتایج جست‌وجو برای صفحه عمومی پزشک نمایش داده شود.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2" for="profile-meta-title">عنوان صفحه (SEO)</label>
+              <input id="profile-meta-title" v-model="form.meta_title" type="text" maxlength="255" :aria-invalid="errors.meta_title ? 'true' : undefined" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500" placeholder="مثلاً دکتر ... | تخصص و خدمات" />
+              <p v-if="errors.meta_title" class="mt-1 text-sm text-red-600" role="alert">{{ errors.meta_title }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2" for="profile-meta-description">توضیحات صفحه (SEO)</label>
+              <textarea id="profile-meta-description" v-model="form.meta_description" rows="3" maxlength="320" :aria-invalid="errors.meta_description ? 'true' : undefined" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500" placeholder="معرفی کوتاه تخصص، خدمات و محل فعالیت پزشک" />
+              <p v-if="errors.meta_description" class="mt-1 text-sm text-red-600" role="alert">{{ errors.meta_description }}</p>
+              <p class="mt-1 text-xs text-slate-500">حداکثر ۳۲۰ نویسه</p>
+            </div>
+          </section>
+
+          <section class="space-y-4 rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+            <div>
+              <h4 class="font-bold text-slate-800">سوابق و افتخارات قابل انتشار</h4>
+              <p class="mt-1 text-xs leading-6 text-slate-600">مواردی که اینجا ثبت می‌کنید در صفحه عمومی پزشک نمایش داده می‌شوند.</p>
+            </div>
+
+            <div v-if="honorBadges.length" class="space-y-3">
+              <div
+                v-for="(badge, index) in honorBadges"
+                :key="index"
+                class="grid grid-cols-[minmax(0,1fr)_76px_auto] items-center gap-2"
+              >
+                <input
+                  v-model.trim="badge.title"
+                  type="text"
+                  maxlength="255"
+                  :aria-label="`عنوان سابقه ${index + 1}`"
+                  class="min-w-0 rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm"
+                  placeholder="مثلاً عضو انجمن تخصصی"
+                />
+                <input
+                  v-model="badge.icon"
+                  type="text"
+                  maxlength="24"
+                  :aria-label="`نماد سابقه ${index + 1}`"
+                  class="w-full rounded-xl border border-amber-200 bg-white px-2 py-2.5 text-center"
+                  placeholder="🏅"
+                />
+                <button
+                  type="button"
+                  @click="removeHonorBadge(index)"
+                  class="rounded-lg px-2 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                  :aria-label="`حذف سابقه ${index + 1}`"
+                >
+                  حذف
+                </button>
+              </div>
+            </div>
+            <p v-else class="rounded-xl bg-white/70 p-3 text-sm text-slate-500">هنوز سابقه‌ای برای نمایش ثبت نشده است.</p>
+
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                @click="addHonorBadge"
+                class="rounded-xl border border-amber-200 bg-white px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100"
+              >
+                افزودن سابقه
+              </button>
+              <button
+                type="button"
+                @click="submitHonorBadges"
+                :disabled="processingHonorBadges"
+                class="rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {{ processingHonorBadges ? "در حال ذخیره..." : "ذخیره سوابق" }}
+              </button>
+            </div>
+            <p v-if="honorBadgeError" role="alert" class="text-sm text-red-600">{{ honorBadgeError }}</p>
+          </section>
+
           <!-- آپلود عکس -->
           <div>
             <label for="profile-photo" class="block text-sm font-bold text-gray-700 mb-2">عکس پروفایل</label>
             <div class="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
               <img
                 v-if="previewImage || doctor.photo"
-                :src="previewImage || doctor.photo"
+                :src="previewImage || doctor.photo_url"
                 alt="تصویر پروفایل پزشک"
                 class="w-20 h-20 rounded-full object-cover border-2 border-teal-200"
               />
@@ -171,6 +261,8 @@ const form = ref({
   years_of_experience: props.doctor.years_of_experience,
   Medical_system_number: props.doctor.Medical_system_number,
   description: props.doctor.description,
+  meta_title: props.doctor.meta_title || "",
+  meta_description: props.doctor.meta_description || "",
   photo: props.doctor.photo,
 });
 
@@ -179,6 +271,59 @@ const passwordForm = ref({
   password: "",
   password_confirmation: "",
 });
+
+const honorBadges = ref((props.doctor.honor_badges || []).map((badge) => ({
+  title: badge.title || "",
+  icon: badge.icon || "🏅",
+})));
+const processingHonorBadges = ref(false);
+const honorBadgeError = ref("");
+
+const addHonorBadge = () => {
+  if (honorBadges.value.length >= 20) {
+    honorBadgeError.value = "حداکثر ۲۰ سابقه قابل ثبت است.";
+    return;
+  }
+  honorBadgeError.value = "";
+  honorBadges.value.push({ title: "", icon: "🏅" });
+};
+
+const removeHonorBadge = (index) => {
+  honorBadges.value.splice(index, 1);
+  honorBadgeError.value = "";
+};
+
+const submitHonorBadges = () => {
+  processingHonorBadges.value = true;
+  honorBadgeError.value = "";
+
+  router.post(
+    route("portal.profile.honor-badges.update"),
+    {
+      honor_badges: honorBadges.value.map((badge) => ({
+        title: badge.title,
+        icon: badge.icon,
+      })),
+    },
+    {
+      preserveScroll: true,
+      onSuccess: (page) => {
+        honorBadges.value = (page.props.doctor?.honor_badges || []).map((badge) => ({
+          title: badge.title || "",
+          icon: badge.icon || "🏅",
+        }));
+      },
+      onError: (returnedErrors) => {
+        honorBadgeError.value =
+          Object.values(returnedErrors || {}).find((message) => typeof message === "string") ||
+          "ذخیره سوابق انجام نشد. اطلاعات را بررسی کنید.";
+      },
+      onFinish: () => {
+        processingHonorBadges.value = false;
+      },
+    }
+  );
+};
 
 const previewImage = ref(null);
 const fileError = ref("");

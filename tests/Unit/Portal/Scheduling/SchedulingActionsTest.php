@@ -42,7 +42,20 @@ final class SchedulingActionsTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
+        });
+
+        Schema::create('doctor_holidays', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->date('holiday_date');
+            $table->string('title', 160);
+            $table->text('note')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+            $table->unique(['doctor_id', 'clinic_id', 'holiday_date']);
         });
 
         Schema::create('time_slots', function (Blueprint $table): void {
@@ -53,6 +66,7 @@ final class SchedulingActionsTest extends TestCase
             $table->time('start_time');
             $table->time('end_time');
             $table->string('status');
+            $table->string('cancelled_reason', 24)->nullable();
             $table->timestamps();
         });
 
@@ -217,6 +231,73 @@ final class SchedulingActionsTest extends TestCase
         $this->assertSame(1, $result['skipped']);
         $this->assertTrue($result['has_working_hours']);
         $this->assertDatabaseCount('time_slots', 2);
+    }
+
+    public function test_repeated_generation_is_idempotent_and_does_not_duplicate_slots(): void
+    {
+        Carbon::setTestNow('2026-11-14 08:00:00');
+
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+
+        DoctorWorkingHour::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'day_of_week' => 0,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        $action = app(GenerateTimeSlotsAction::class);
+        $data = new GenerateTimeSlotsData(1, $clinic->id);
+
+        $firstRun = $action->handle($doctor, $data);
+        $secondRun = $action->handle($doctor, $data);
+
+        $this->assertSame(2, $firstRun['generated']);
+        $this->assertSame(0, $secondRun['generated']);
+        $this->assertSame(2, $secondRun['skipped']);
+        $this->assertDatabaseCount('time_slots', 2);
+    }
+
+    public function test_generate_slots_skips_slots_that_have_already_started_today(): void
+    {
+        Carbon::setTestNow('2026-11-14 09:15:00');
+
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+
+        DoctorWorkingHour::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'day_of_week' => 0,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        $result = app(GenerateTimeSlotsAction::class)->handle(
+            $doctor,
+            new GenerateTimeSlotsData(1, $clinic->id)
+        );
+
+        $this->assertSame(1, $result['generated']);
+        $this->assertSame(1, $result['skipped']);
+        $this->assertDatabaseHas('time_slots', [
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'date' => '2026-11-14',
+            'start_time' => '09:30:00',
+        ]);
+        $this->assertDatabaseMissing('time_slots', [
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'date' => '2026-11-14',
+            'start_time' => '09:00:00',
+        ]);
     }
 
     public function test_generate_slots_ignores_working_hours_for_inactive_clinics(): void

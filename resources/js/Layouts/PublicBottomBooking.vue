@@ -1,6 +1,6 @@
 <template>
   <!-- CTA -->
-  <section class="py-16 px-5">
+  <section v-if="showBooking" class="py-16 px-5">
     <div
       class="max-w-6xl mx-auto relative overflow-hidden rounded-[2rem] bg-[#164e3e] p-8 md:p-14 text-white"
     >
@@ -26,7 +26,7 @@
         </div>
 
         <Link
-          :href="route('booking')"
+          :href="route('booking', { slug: props.doctor.slug })"
           class="shrink-0 inline-flex items-center gap-3 bg-white text-emerald-900 px-8 py-4 rounded-2xl font-black hover:bg-emerald-50 transition"
         >
           دریافت نوبت آنلاین
@@ -50,8 +50,8 @@ const props = defineProps({
     default: true,
   },
   doctor: {
-    type: Boolean,
-    default: true,
+    type: Object,
+    required: true,
   },
 });
 </script>

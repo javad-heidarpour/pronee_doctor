@@ -36,6 +36,12 @@ class RecordSecurityAuditEventAction
             'password_changed',
             'reconciliation_status',
             'changed_fields',
+            'organization_id',
+            'clinic_id',
+            'staff_user_id',
+            'credential_type',
+            'file_size',
+            'decision',
         ]));
 
         SecurityAuditLog::create([

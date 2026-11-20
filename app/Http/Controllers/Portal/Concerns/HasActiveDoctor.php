@@ -81,8 +81,14 @@ trait HasActiveDoctor
             $permissions = json_decode($permissions, true) ?: [];
         }
 
+        $hasPermission = is_array($permissions) && in_array($permission, $permissions, true);
+        if (!$hasPermission && str_ends_with($permission, '.view')) {
+            $managePermission = substr($permission, 0, -5) . '.manage';
+            $hasPermission = is_array($permissions) && in_array($managePermission, $permissions, true);
+        }
+
         abort_unless(
-            is_array($permissions) && in_array($permission, $permissions, true),
+            $hasPermission,
             403,
             'مجوز انجام این عملیات برای حساب شما فعال نیست.'
         );

@@ -7,6 +7,7 @@ namespace App\Actions\Portal\Patient;
 use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\PatientFollowUpTask;
+use App\Models\PatientTreatmentPlan;
 use App\Models\PatientFollowUpTemplate;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -50,11 +51,37 @@ final class CreatePatientFollowUpAction
                 }
             }
 
-            $clinicId = !empty($data['appointment_id'])
+            $treatmentPlan = null;
+            if (!empty($data['treatment_plan_id'])) {
+                $treatmentPlan = PatientTreatmentPlan::query()
+                    ->whereKey($data['treatment_plan_id'])
+                    ->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)
+                    ->whereIn('clinic_id', $accessibleClinicIds)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->first();
+
+                if (!$treatmentPlan) {
+                    throw ValidationException::withMessages([
+                        'treatment_plan_id' => 'طرح درمان انتخاب‌شده متعلق به این بیمار، پزشک یا مطب مجاز نیست.',
+                    ]);
+                }
+            }
+
+            $clinicId = $treatmentPlan?->clinic_id ?? (!empty($data['appointment_id'])
                 ? $patient->appointments()->whereKey($data['appointment_id'])->value('clinic_id')
                 : $patient->appointments()->where('doctor_id', $doctor->id)
                     ->whereIn('clinic_id', $accessibleClinicIds)
-                    ->orderByDesc('appointment_date')->value('clinic_id');
+                    ->orderByDesc('appointment_date')->orderByDesc('id')->value('clinic_id'));
+
+            if ($treatmentPlan && !empty($data['appointment_id'])) {
+                $appointmentClinicId = $patient->appointments()->whereKey($data['appointment_id'])->value('clinic_id');
+                if ((int) $appointmentClinicId !== (int) $treatmentPlan->clinic_id) {
+                    throw ValidationException::withMessages([
+                        'appointment_id' => 'نوبت و طرح درمان باید متعلق به یک مطب باشند.',
+                    ]);
+                }
+            }
 
             if (!$clinicId || !in_array((int) $clinicId, $accessibleClinicIds, true)) {
                 throw ValidationException::withMessages([
@@ -93,7 +120,7 @@ final class CreatePatientFollowUpAction
             $planUuid = (string) Str::uuid();
             $steps = $data['steps'] ?? [[
                 'title' => $template?->title ?? $data['title'],
-                'days' => 0,
+                'days' => (int) ($template?->default_days ?? 0),
                 'contact_method' => $template?->contact_method ?? ($data['contact_method'] ?? 'call'),
                 'send_sms' => ((bool) ($data['send_sms'] ?? false) || (bool) ($template?->send_sms ?? false)) && (bool) ($data['sms_consent_confirmed'] ?? false),
                 'sms_consent_confirmed' => (bool) ($data['sms_consent_confirmed'] ?? false),
@@ -108,6 +135,7 @@ final class CreatePatientFollowUpAction
                     'clinic_id' => $clinicId,
                     'patient_id' => $patient->id,
                     'appointment_id' => $data['appointment_id'] ?? null,
+                    'treatment_plan_id' => $treatmentPlan?->id,
                     'template_id' => $template?->id,
                     'assigned_to' => $assigneeId,
                     'created_by' => $actor->id,
@@ -117,7 +145,13 @@ final class CreatePatientFollowUpAction
                     'due_at' => $baseDate->copy()->addDays((int) ($step['days'] ?? 0)),
                     'priority' => $data['priority'] ?? 'normal',
                     'contact_method' => $step['contact_method'] ?? 'call',
-                    'send_sms' => (bool) ($step['send_sms'] ?? false) && (bool) ($step['sms_consent_confirmed'] ?? false),
+                    'send_sms' => (bool) ($step['send_sms'] ?? false)
+                        && (bool) ($step['sms_consent_confirmed'] ?? false)
+                        && (!$treatmentPlan || (
+                            $treatmentPlan->follow_up_sms_enabled
+                            && $treatmentPlan->follow_up_sms_consent_confirmed
+                            && !$treatmentPlan->follow_up_sms_consent_revoked_at
+                        )),
                     'sms_consent_confirmed' => (bool) ($step['sms_consent_confirmed'] ?? false),
                     'status' => 'pending',
                 ]));

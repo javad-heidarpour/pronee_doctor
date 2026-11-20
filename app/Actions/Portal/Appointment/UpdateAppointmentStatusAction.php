@@ -2,6 +2,8 @@
 
 namespace App\Actions\Portal\Appointment;
 
+use App\Actions\Sms\SendAppointmentConfirmationSmsAction;
+use App\Actions\Sms\SendAppointmentLifecycleSmsAction;
 use App\Models\Appointment;
 use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +11,12 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateAppointmentStatusAction
 {
+    public function __construct(
+        private readonly SendAppointmentConfirmationSmsAction $confirmationSms,
+        private readonly SendAppointmentLifecycleSmsAction $lifecycleSms
+    ) {
+    }
+
     /**
      * Update appointment and its slot atomically.
      *
@@ -22,13 +30,13 @@ class UpdateAppointmentStatusAction
             ]);
         }
 
-        return DB::transaction(function () use ($appointment, $newStatus) {
+        $result = DB::transaction(function () use ($appointment, $newStatus) {
             $lockedAppointment = Appointment::query()
                 ->whereKey($appointment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedAppointment->status === 'visited') {
+            if (in_array($lockedAppointment->status, ['visited', 'completed'], true)) {
                 return 'already_visited';
             }
 
@@ -59,9 +67,13 @@ class UpdateAppointmentStatusAction
             if (in_array($newStatus, ['pending', 'confirmed'], true)) {
                 // A cancelled legacy appointment without a slot cannot be safely
                 // reactivated: it would become active without reserving any time.
-                if (!$lockedAppointment->time_slot_id || !$timeSlot) {
+                if (
+                    !$lockedAppointment->time_slot_id ||
+                    !$timeSlot ||
+                    $timeSlot->status !== 'available'
+                ) {
                     throw ValidationException::withMessages([
-                        'status' => 'برای فعال‌سازی مجدد این نوبت، ساعت معتبر در دسترس نیست. لطفاً نوبت جدیدی با انتخاب ساعت آزاد ثبت کنید.',
+                        'status' => 'برای فعال‌سازی مجدد این نوبت، ساعت معتبر و آزاد در دسترس نیست. لطفاً نوبت جدیدی با انتخاب ساعت آزاد ثبت کنید.',
                     ]);
                 }
 
@@ -97,5 +109,15 @@ class UpdateAppointmentStatusAction
 
             return 'updated';
         });
+
+        if ($result === 'updated') {
+            if ($newStatus === 'confirmed') {
+                $this->confirmationSms->handle($appointment->id);
+            } elseif ($newStatus === 'cancelled') {
+                $this->lifecycleSms->handle($appointment->id, 'cancelled');
+            }
+        }
+
+        return $result;
     }
 }

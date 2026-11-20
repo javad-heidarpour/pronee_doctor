@@ -89,19 +89,34 @@ final class PatientCarePathwayController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
         $data = $request->validate(['verification_note'=>['nullable','string','max:1000']]);
-        $item = PatientCarePathwayStep::query()->whereKey($step)->whereHas('pathway',fn($q)=>$q
-            ->where('doctor_id',$doctor->id)->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->where('status','active'))->firstOrFail();
-        abort_unless($item->status === 'patient_reported', 422, 'این گام هنوز توسط بیمار گزارش نشده است.');
-        $pathway = DB::transaction(function () use ($item, $data) {
-            $item->update(['status'=>'verified','verified_at'=>now(),'verified_by'=>Auth::guard('web')->id(),'verification_note'=>$data['verification_note'] ?? null]);
+        [$item, $pathway] = DB::transaction(function () use ($step, $doctor, $data): array {
+            $item = PatientCarePathwayStep::query()
+                ->whereKey($step)
+                ->whereHas('pathway', fn ($query) => $query
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                    ->where('status', 'active'))
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($item->status === 'patient_reported', 422, 'این گام هنوز توسط بیمار گزارش نشده است.');
+
+            $item->update([
+                'status' => 'verified',
+                'verified_at' => now(),
+                'verified_by' => Auth::guard('web')->id(),
+                'verification_note' => $data['verification_note'] ?? null,
+            ]);
+
             $pathway = $item->pathway()->with('steps')->lockForUpdate()->firstOrFail();
             if (app(PatientCarePathwayProgress::class)->isComplete($pathway->steps)) {
-                $pathway->update(['status'=>'completed','completed_at'=>now()]);
+                $pathway->update(['status' => 'completed', 'completed_at' => now()]);
             }
 
-            return $pathway;
+            return [$item, $pathway];
         });
-        $audit->handle('patient.care_pathway.step_verified',$item,['pathway_id'=>$pathway->id]);
+
+        $audit->handle('patient.care_pathway.step_verified', $item, ['pathway_id' => $pathway->id]);
         return back()->with('success','گام برنامه بررسی و تأیید شد.');
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Portal\Patient;
 
 use App\Models\Appointment;
+use App\Models\Patient;
 use App\Models\PatientEncounter;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +22,26 @@ final class SignPatientEncounterAction
                 throw ValidationException::withMessages(['encounter' => 'این یادداشت قبلاً نهایی شده است.']);
             }
 
-            $appointment = Appointment::query()->whereKey($locked->appointment_id)->lockForUpdate()->firstOrFail();
+            $appointment = Appointment::query()
+                ->whereKey($locked->appointment_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             if ($appointment->status === 'cancelled') {
                 throw ValidationException::withMessages(['encounter' => 'برای نوبت لغوشده امکان نهایی‌سازی ویزیت وجود ندارد.']);
+            }
+
+            if (
+                (int) $appointment->doctor_id !== (int) $locked->doctor_id ||
+                (int) $appointment->patient_id !== (int) $locked->patient_id ||
+                (int) $appointment->clinic_id !== (int) $locked->clinic_id ||
+                !Patient::query()->whereKey($locked->patient_id)
+                    ->where('doctor_id', $locked->doctor_id)
+                    ->exists()
+            ) {
+                throw ValidationException::withMessages([
+                    'encounter' => 'ارتباط نوبت، بیمار و پرونده ویزیت معتبر نیست؛ امکان نهایی‌سازی وجود ندارد.',
+                ]);
             }
 
             if (!$locked->reviewed_allergies || !$locked->reviewed_medications || !$locked->reviewed_vitals) {

@@ -31,6 +31,9 @@ class Appointment extends Model
         'description',
         'surgery_type_id',
         'surgery_date',
+        'discount_code_id',
+        'original_fee_rial',
+        'discount_amount_rial',
     ];
 
     protected $casts = [
@@ -39,6 +42,9 @@ class Appointment extends Model
         'appointment_date' => 'date:Y-m-d',
         'surgery_date' => 'date:Y-m-d',
         'reservation_expires_at' => 'datetime',
+        'discount_code_id' => 'integer',
+        'original_fee_rial' => 'integer',
+        'discount_amount_rial' => 'integer',
     ];
 
     public function doctor(): BelongsTo
@@ -77,7 +83,7 @@ class Appointment extends Model
             'pending' => 'در انتظار',
             'contacted' => 'تماس گرفته شده',
             'confirmed' => 'تأیید شده',
-            'visited' => 'ویزیت‌شده',
+            'visited', 'completed' => 'ویزیت‌شده',
             'cancelled', 'canceled' => 'لغو شده',
             default => 'نامشخص',
         };

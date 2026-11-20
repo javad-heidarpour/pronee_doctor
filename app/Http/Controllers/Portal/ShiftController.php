@@ -163,7 +163,7 @@ class ShiftController extends Controller
         $message = "با موفقیت {$result['generated']} نوبت جدید برای {$data->weeksCount} هفته آینده ایجاد شد.";
 
         if ($result['skipped'] > 0) {
-            $message .= " ({$result['skipped']} نوبت تکراری یا دارای تداخل رد شد)";
+            $message .= " ({$result['skipped']} نوبت تکراری، دارای تداخل یا در روز تعطیل رد شد)";
         }
 
         return back()->with('success', $message);

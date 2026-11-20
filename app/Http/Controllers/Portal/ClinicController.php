@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\Clinic\DeleteClinicAction;
@@ -28,7 +30,7 @@ class ClinicController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
-        $action->handle($doctor, $request->validated());
+        $action->handle($doctor, $request->clinicAttributes());
 
         return back()->with('success', 'مطب با موفقیت اضافه شد.');
     }
@@ -42,7 +44,7 @@ class ClinicController extends Controller
         $this->authorizeDoctorOnly();
         $this->authorizeClinicAccess((int) $clinic->id, $doctor);
 
-        $action->handle($clinic, $request->validated());
+        $action->handle($clinic, $request->clinicAttributes());
 
         return back()->with('success', 'اطلاعات مطب بروزرسانی شد.');
     }
@@ -57,5 +59,4 @@ class ClinicController extends Controller
 
         return back()->with('success', 'مطب حذف شد.');
     }
-
 }

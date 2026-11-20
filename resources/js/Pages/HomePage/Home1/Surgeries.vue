@@ -14,7 +14,7 @@ const props = defineProps({
   },
 });
 
-const bookingUrl = route("booking");
+const bookingUrl = route("booking", { slug: props.doctor.slug });
 
 const doctorName = computed(() => {
   return (
@@ -89,7 +89,8 @@ const pageDescription = computed(() => {
 <template>
   <PublicPageLayout
     :doctor="doctor"
-    title="عمل های جراحی"
+    :title="pageTitle"
+    :subtitle="pageDescription"
     active-item="Surgeries"
   >
     <main dir="rtl" class="min-h-screen  text-slate-800">
@@ -293,12 +294,7 @@ const pageDescription = computed(() => {
                   <div
                     class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 transition duration-300 group-hover:bg-emerald-800 group-hover:text-white"
                   >
-                    <span
-                      v-if="procedure.icon_html"
-                      class="[&_svg]:h-8 [&_svg]:w-8 [&_svg]:block"
-                      v-html="procedure.icon_html"
-                    ></span>
-                    <span v-else class="text-2xl">✚</span>
+                    <span class="text-2xl" aria-hidden="true">✚</span>
                   </div>
                 </div>
 

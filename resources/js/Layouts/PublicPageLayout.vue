@@ -5,7 +5,7 @@ import PublicBottomBooking from "./PublicBottomBooking.vue";
 import teamImg from "../assets/team.png";
 import SiteDrawer from "@/Pages/HomePage/Home1/SiteDrawer.vue";
 
-defineProps({
+const props = defineProps({
   doctor: {
     type: Object,
     required: true,
@@ -40,7 +40,7 @@ const goBack = () => {
   if (window.history.length > 1) {
     window.history.back();
   } else {
-    window.location.href = "/";
+    window.location.href = route("home1", { doctor: props.doctor.slug });
   }
 };
 </script>
@@ -85,7 +85,7 @@ const goBack = () => {
         @click="goBack"
         aria-label="بازگشت به صفحه قبل"
         title="بازگشت"
-        class="fixed rigth-10 top-4 z-[110] flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/75 text-[#14764e] shadow-[0_4px_18px_rgba(20,100,65,0.13)] backdrop-blur-md transition-all duration-300 hover:-translate-x-1 hover:bg-[#14764e] hover:text-white active:scale-90 max-[380px]:rigth-3"
+        class="fixed right-10 top-4 z-[110] flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/75 text-[#14764e] shadow-[0_4px_18px_rgba(20,100,65,0.13)] backdrop-blur-md transition-all duration-300 hover:-translate-x-1 hover:bg-[#14764e] hover:text-white active:scale-90 max-[380px]:right-3"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -113,7 +113,7 @@ const goBack = () => {
       >
         <!-- Doctor Identity -->
         <Link
-          :href="'/'"
+          :href="route('home1', { doctor: doctor.slug })"
           class="relative isolate mx-auto block w-[min(90%,550px)] pt-[27px] text-center max-[767px]:w-[calc(100%-75px)] max-[767px]:pt-5 max-[380px]:w-[calc(100%-65px)]"
         >
           <!-- Doctor Glow -->

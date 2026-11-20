@@ -186,7 +186,7 @@ class PatientController extends Controller
             $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
 
         if ($canViewClinicalRecords) {
-            $visits->loadMissing(['patient.clinicalRecords.relatedRecord', 'patient.clinicalRecords.relatedAllergyRecord', 'patient.archivedClinicalRecords', 'patient.vitalSigns']);
+            $visits->loadMissing(['patient.clinicalRecords.relatedRecord', 'patient.clinicalRecords.relatedAllergyRecord', 'patient.archivedClinicalRecords', 'patient.vitalSigns', 'patient.problems']);
             $audit->handle('patient.clinical_records.viewed', $appointment, [
                 'doctor_id' => $doctor->id,
             ]);
@@ -243,14 +243,6 @@ class PatientController extends Controller
         $patient = $this->authorizePatientClinicalAccess($patient, $doctor);
 
         $record = $action->handle($patient, $request->validated());
-        $audit->handle('patient.clinical_record.created', $record, [
-            'doctor_id' => $doctor->id,
-            'record_kind' => $record->kind,
-            'linked_medication' => $record->related_record_id !== null,
-            'linked_allergy' => $record->related_allergy_record_id !== null,
-            'has_reaction_details' => $record->reaction_severity !== null || $record->reaction_date !== null || $record->action_taken !== null || $record->reaction_outcome !== null,
-        ]);
-
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ثبت شد.');
     }
 
@@ -272,14 +264,6 @@ class PatientController extends Controller
         );
 
         $updatedRecord = $action->handle($patient, $request->validated(), $record);
-        $audit->handle('patient.clinical_record.updated', $updatedRecord, [
-            'doctor_id' => $doctor->id,
-            'record_kind' => $updatedRecord->kind,
-            'linked_medication' => $updatedRecord->related_record_id !== null,
-            'linked_allergy' => $updatedRecord->related_allergy_record_id !== null,
-            'has_reaction_details' => $updatedRecord->reaction_severity !== null || $updatedRecord->reaction_date !== null || $updatedRecord->action_taken !== null || $updatedRecord->reaction_outcome !== null,
-        ]);
-
         return back()->with('success', 'اطلاعات پزشکی بیمار با موفقیت ویرایش شد.');
     }
 
@@ -300,11 +284,6 @@ class PatientController extends Controller
         );
 
         $action->handle($patient, $record);
-
-        $audit->handle('patient.clinical_record.archived', $record, [
-            'doctor_id' => $doctor->id,
-            'changed_fields' => ['archived'],
-        ]);
 
         return back()->with('success', 'سابقه پزشکی به‌صورت امن بایگانی شد.');
     }

@@ -79,7 +79,10 @@ class DoctorAuth
         }
 
         $assignedDoctors = $user->doctors()
-            ->where('doctors.is_active', true);
+            ->where('doctors.is_active', true)
+            ->whereHas('user', fn ($query) => $query
+                ->where('role', 'doctor')
+                ->where('is_active', true));
 
         $doctorId = session('active_doctor_id');
 

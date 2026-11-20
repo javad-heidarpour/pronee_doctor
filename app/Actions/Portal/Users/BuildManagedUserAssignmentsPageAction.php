@@ -34,8 +34,24 @@ class BuildManagedUserAssignmentsPageAction
             'user' => $user->only(['id', 'name', 'family', 'phone', 'role']),
             'doctors' => $doctors->map(function ($doctor) use ($assigned) {
                 $relation = $assigned->get($doctor->id);
-                $permissions = $relation?->pivot?->permissions ?? [];
-                $clinicIds = $relation?->pivot?->clinic_ids ?? [];
+                $managedByOrganization = (bool) ($relation?->pivot?->managed_by_organization ?? false);
+                $permissions = ($managedByOrganization
+                    ? $relation?->pivot?->base_permissions
+                    : $relation?->pivot?->permissions) ?? [];
+                $clinicIds = ($managedByOrganization
+                    ? $relation?->pivot?->base_clinic_ids
+                    : $relation?->pivot?->clinic_ids) ?? [];
+                $effectiveClinicIds = $relation?->pivot?->clinic_ids ?? [];
+
+                if (is_string($effectiveClinicIds)) {
+                    $effectiveClinicIds = json_decode($effectiveClinicIds, true) ?: [];
+                }
+
+                $hasDirectAssignment = $relation !== null && (
+                    ! $managedByOrganization
+                    || $relation->pivot->base_permissions !== null
+                    || $relation->pivot->base_clinic_ids !== null
+                );
 
                 if (is_string($permissions)) {
                     $permissions = json_decode($permissions, true) ?: [];
@@ -45,23 +61,32 @@ class BuildManagedUserAssignmentsPageAction
                     $clinicIds = json_decode($clinicIds, true) ?: [];
                 }
 
+                $directClinicIds = array_map(
+                    'intval',
+                    is_array($clinicIds) ? $clinicIds : []
+                );
+                $organizationClinicIds = $managedByOrganization
+                    ? array_values(array_diff(
+                        array_map('intval', is_array($effectiveClinicIds) ? $effectiveClinicIds : []),
+                        $directClinicIds
+                    ))
+                    : [];
+
                 return [
                     'id' => $doctor->id,
                     'name' => $doctor->name ?: $doctor->user?->name,
                     'family' => $doctor->family ?: $doctor->user?->family,
                     'phone' => $doctor->phone ?: $doctor->user?->phone,
                     'specialty_title' => $doctor->specialty_title,
-                    'assigned' => (bool) $relation,
+                    'assigned' => $hasDirectAssignment,
                     'permissions' => $permissions,
                     'clinics' => $doctor->address->map(fn ($clinic) => [
                         'id' => $clinic->id,
                         'name' => $clinic->name,
                         'is_active' => (bool) $clinic->is_active,
                     ])->values(),
-                    'clinic_ids' => array_map(
-                        'intval',
-                        is_array($clinicIds) ? $clinicIds : []
-                    ),
+                    'clinic_ids' => $directClinicIds,
+                    'organization_clinic_ids' => $organizationClinicIds,
                 ];
             })->values(),
             'permissions' => $this->permissionsAction->handle(),

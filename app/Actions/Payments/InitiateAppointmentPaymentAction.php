@@ -138,10 +138,16 @@ class InitiateAppointmentPaymentAction
         ]);
 
         try {
+            $callbackUrl = trim((string) config('services.sep.callback_url', ''));
+
+            if ($callbackUrl === '') {
+                $callbackUrl = route('payment.callback', [], true);
+            }
+
             $result = $sep->requestToken(
                 (int) $payment->amount_rial,
                 (string) $payment->payment_uuid,
-                'https://doctorvafaei.com/payment/callback',
+                $callbackUrl,
                 $cellNumber
             );
 

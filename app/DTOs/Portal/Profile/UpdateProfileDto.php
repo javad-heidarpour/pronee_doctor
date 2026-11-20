@@ -21,6 +21,8 @@ final readonly class UpdateProfileDto
         public ?int $years_of_experience,
         public ?string $Medical_system_number,
         public ?string $description,
+        public ?string $meta_title,
+        public ?string $meta_description,
         public ?UploadedFile $photo = null,
     ) {
     }
@@ -40,6 +42,8 @@ final readonly class UpdateProfileDto
                 : null,
             Medical_system_number: $request->input('Medical_system_number'),
             description: $request->input('description'),
+            meta_title: $request->input('meta_title'),
+            meta_description: $request->input('meta_description'),
             photo: $request->file('photo'),
         );
     }
@@ -56,6 +60,8 @@ final readonly class UpdateProfileDto
             'years_of_experience' => $this->years_of_experience,
             'Medical_system_number' => $this->Medical_system_number,
             'description' => $this->description,
+            'meta_title' => $this->meta_title,
+            'meta_description' => $this->meta_description,
         ];
     }
 }

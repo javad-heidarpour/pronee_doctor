@@ -182,16 +182,17 @@
                   دلیل مراجعه (اختیاری)
                 </label>
 
-                {{ selectedVisitReason }}
                 <SelectInput
                   v-model="selectedVisitReason"
                   :options="visitReasonOptions"
                   searchPlaceholder="جست‌وجو یا تایپ مقدار جدید..."
                   placeholder="انتخاب دلیل مراجعه"
+                  create-label="افزودن دلیل مراجعه"
                   searchable
                   clearable
-                      @keydown.enter.prevent
-
+                  :allow-create="true"
+                  @create="handleCreateVisitReason"
+                  @keydown.enter.prevent
                 />
 
                 <div v-if="isNewVisitReason" class="mt-3">
@@ -233,6 +234,23 @@
                   class="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="توضیحات تکمیلی..."
                 ></textarea>
+              </div>
+
+              <!-- کد تخفیف -->
+              <div>
+                <label for="discount_code" class="mb-2 block text-sm font-medium text-gray-700">کد تخفیف (اختیاری)</label>
+                <input
+                  id="discount_code"
+                  v-model.trim="bookingForm.discount_code"
+                  type="text"
+                  minlength="3"
+                  maxlength="32"
+                  pattern="[A-Za-z0-9_-]+"
+                  autocomplete="off"
+                  dir="ltr"
+                  class="w-full rounded-xl border border-gray-200 px-4 py-3 text-left uppercase focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="WELCOME10"
+                />
               </div>
 
               <!-- خلاصه -->
@@ -343,6 +361,7 @@ const reasonsError = ref("");
 const successMessage = ref("");
 const lastBookedSlot = ref(null);
 const paymentAppointmentId = ref(null);
+const signedPaymentUrl = ref(null);
 
 const smsSending = ref(false);
 const smsSent = ref(false);
@@ -354,6 +373,7 @@ const bookingForm = ref({
   patient_phone: "",
   patient_national_code: "",
   description: "",
+  discount_code: "",
 });
 
 const normalizedVisitReasons = computed(() =>
@@ -379,6 +399,11 @@ const visitReasonOptions = computed(() => [
 const isNewVisitReason = computed(
   () => String(selectedVisitReason.value ?? "") === NEW_REASON_VALUE
 );
+
+function handleCreateVisitReason(label) {
+  selectedVisitReason.value = NEW_REASON_VALUE;
+  newVisitReason.value = String(label ?? "").trim().slice(0, 150);
+}
 
 const selectedReasonLabel = computed(() => {
   if (isNewVisitReason.value) return newVisitReason.value.trim();
@@ -458,10 +483,12 @@ function resetSmsState() {
   smsSuccess.value = false;
 }
 
-function redirectToPayment(appointmentId) {
-  const paymentUrl = route("payment.pay", {
-    visit_number: appointmentId,
-  });
+function redirectToPayment(appointmentId, paymentUrl = signedPaymentUrl.value) {
+  if (!appointmentId || !paymentUrl) {
+    errorMessage.value = "لینک امن پرداخت از سرور دریافت نشده است. لطفاً صفحه را تازه‌سازی کنید.";
+    isRedirectingToPayment.value = false;
+    return;
+  }
 
   const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
@@ -514,8 +541,7 @@ function submitBooking() {
   const isExistingReason = hasSelectedReason && Boolean(matchedReason);
 
   // فقط در صورتی متن دلیل جدید ارسال می‌شود که کاربر مقداری وارد کرده باشد
-  const newReasonText =
-    hasSelectedReason && !isExistingReason ? String(selectedValue).trim() : "";
+  const newReasonText = isNewVisitReason.value ? newVisitReason.value.trim() : "";
 
   if (!bookingForm.value.patient_name.trim()) {
     errorMessage.value = "نام و نام خانوادگی بیمار را وارد کنید.";
@@ -538,9 +564,6 @@ function submitBooking() {
   }
 
   const slotId = props.selectedSlot.id;
-  const selectedDate = props.currentDateData?.date;
-  const selectedTime = props.selectedSlot.start_time;
-
   const payload = {
     time_slot_id: slotId,
     patient_name: bookingForm.value.patient_name.trim(),
@@ -552,10 +575,9 @@ function submitBooking() {
     new_visit_reason: newReasonText || null,
 
     description: bookingForm.value.description.trim() || null,
+    discount_code: bookingForm.value.discount_code.trim().toUpperCase() || null,
   };
 
-  console.log("Booking payload:", payload);
-  // return;
   isSubmitting.value = true;
 
   router.post(route("appointments.book"), payload, {
@@ -571,6 +593,11 @@ function submitBooking() {
       if (errors?.visit_reason_id || errors?.new_visit_reason) {
         reasonsError.value = errors.visit_reason_id || errors.new_visit_reason;
       }
+
+      if (errors?.time_slot_id) {
+        showBookingForm.value = false;
+        emit("slot-cleared", errorMessage.value);
+      }
     },
 
     onSuccess(page) {
@@ -585,9 +612,11 @@ function submitBooking() {
         return;
       }
 
-      // صفحه اصلی سایت: انتقال به پرداخت
+      signedPaymentUrl.value = flash.payment_url ?? null;
+
+      // صفحه اصلی سایت: انتقال به پرداخت با لینک امضاشده سمت سرور
       if (props.redirectToPayment) {
-        redirectToPayment(appointmentId);
+        redirectToPayment(appointmentId, signedPaymentUrl.value);
         return;
       }
 
@@ -618,7 +647,7 @@ function continueToPayment() {
     errorMessage.value = "شناسه نوبت برای ادامه پرداخت در دسترس نیست.";
     return;
   }
-  redirectToPayment(paymentAppointmentId.value);
+  redirectToPayment(paymentAppointmentId.value, signedPaymentUrl.value);
 }
 
 async function sendAppointmentSms() {

@@ -6,6 +6,7 @@ use App\Actions\Portal\Clinic\EnsureDoctorOwnsActiveClinicAction;
 use App\DTOs\Portal\Scheduling\GenerateTimeSlotsData;
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,18 @@ class GenerateTimeSlotsAction
                 return;
             }
 
+            $holidayKeys = DoctorHoliday::query()
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $activeClinicIds)
+                ->whereBetween('holiday_date', [
+                    $baseDate->toDateString(),
+                    $baseDate->copy()->addWeeks($data->weeksCount)->toDateString(),
+                ])
+                ->get(['clinic_id', 'holiday_date'])
+                ->mapWithKeys(fn (DoctorHoliday $holiday) => [
+                    $holiday->clinic_id . '|' . $holiday->holiday_date->format('Y-m-d') => true,
+                ]);
+
             $hasWorkingHours = true;
 
             for ($week = 0; $week < $data->weeksCount; $week++) {
@@ -80,12 +93,30 @@ class GenerateTimeSlotsAction
                     $start = Carbon::parse($date . ' ' . $workingHour->start_time);
                     $end = Carbon::parse($date . ' ' . $workingHour->end_time);
                     $duration = (int) $workingHour->duration_minutes;
+
+                    if ($duration < 1 || $end->lessThanOrEqualTo($start)) {
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    if ($holidayKeys->has($workingHour->clinic_id . '|' . $date)) {
+                        $skippedCount += (int) floor($start->diffInMinutes($end) / $duration);
+                        continue;
+                    }
+
                     $cursor = $start->copy();
 
                     while ($cursor->copy()->addMinutes($duration)->lte($end)) {
                         $slotEnd = $cursor->copy()->addMinutes($duration);
                         $startValue = $cursor->format('H:i:s');
                         $endValue = $slotEnd->format('H:i:s');
+
+                        // Do not create slots whose start time has already passed today.
+                        if ($cursor->lessThanOrEqualTo(now())) {
+                            $skippedCount++;
+                            $cursor->addMinutes($duration);
+                            continue;
+                        }
 
                         $overlap = TimeSlot::query()
                             ->overlapping((int) $doctor->id, $date, $startValue, $endValue)

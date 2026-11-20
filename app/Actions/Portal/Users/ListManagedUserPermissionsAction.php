@@ -20,6 +20,8 @@ class ListManagedUserPermissionsAction
             'working-hours.manage' => 'مدیریت ساعات کاری',
             'finance.view' => 'مشاهده امور مالی و اقساط',
             'finance.manage' => 'ثبت دریافت، اقساط، وثایق و هزینه‌ها',
+            'marketing.view' => 'مشاهده بازاریابی و گزارش رشد کلینیک',
+            'marketing.manage' => 'مدیریت کمپین‌ها و ارتباطات بازاریابی',
             'services.view' => 'مشاهده خدمات و عملیات کلینیک',
             'services.manage' => 'مدیریت خدمات کلینیک',
             'inventory.view' => 'مشاهده انبار و موجودی',

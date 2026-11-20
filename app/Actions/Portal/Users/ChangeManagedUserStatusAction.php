@@ -8,6 +8,7 @@ use App\Models\Doctor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ChangeManagedUserStatusAction
 {
@@ -38,6 +39,12 @@ class ChangeManagedUserStatusAction
                     ->where('user_id', $lockedUser->id)
                     ->lockForUpdate()
                     ->first();
+
+                if ($isActive && !$doctorProfile) {
+                    throw ValidationException::withMessages([
+                        'is_active' => 'برای فعال‌سازی حساب پزشک، پرونده حرفه‌ای معتبر لازم است.',
+                    ]);
+                }
 
                 if ($doctorProfile) {
                     $doctorProfile->is_active = $isActive;

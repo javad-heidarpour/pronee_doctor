@@ -39,8 +39,11 @@ class ClinicAccountingService
     ): ClinicJournalEntry {
         return DB::transaction(function () use ($organizationId, $clinicId, $doctorId, $userId, $paymentId, $planId, $amount, $description, $occurredAt): ClinicJournalEntry {
             $key = 'patient-payment:' . $paymentId;
-            $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
-            if ($existing) return $existing->load('lines.account');
+            $existing = $this->existingEntryOrFail(
+                $key, 'patient_installment_payment', $paymentId,
+                $organizationId, $clinicId, $doctorId, $amount
+            );
+            if ($existing !== null) return $existing;
 
             $remaining = $amount;
             $receivableApplied = 0;
@@ -76,6 +79,78 @@ class ClinicAccountingService
             [['code' => '1000', 'debit' => $amount, 'credit' => 0], ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
     }
 
+    public function reverseAppointmentPayment(
+        ?int $organizationId,
+        int $clinicId,
+        int $doctorId,
+        int $userId,
+        int $paymentId,
+        int $refundId,
+        int $amount,
+        string $description,
+        string $occurredAt
+    ): ?ClinicJournalEntry {
+        if ($amount < 1) {
+            throw ValidationException::withMessages(['finance' => 'مبلغ برگشت وجه معتبر نیست.']);
+        }
+
+        $original = ClinicJournalEntry::query()
+            ->where('idempotency_key', 'appointment-payment:' . $paymentId)
+            ->first();
+
+        // Some legacy/older online payments predate automatic ledger posting.
+        // Never invent an original journal entry merely to make a refund appear balanced.
+        if ($original === null) {
+            return null;
+        }
+
+        $original->load('lines');
+        $originalAmount = (int) $original->lines->sum('debit');
+        if ($originalAmount !== $amount) {
+            throw ValidationException::withMessages(['finance' => 'مبلغ برگشت با سند دریافت اولیه تطبیق ندارد.']);
+        }
+
+        return $this->post(
+            $organizationId,
+            $clinicId,
+            $doctorId,
+            $userId,
+            'appointment_payment_refund',
+            $refundId,
+            $description,
+            $occurredAt,
+            'appointment-payment-refund:' . $refundId,
+            [
+                ['code' => '4000', 'debit' => $amount, 'credit' => 0],
+                ['code' => '1000', 'debit' => 0, 'credit' => $amount],
+            ]
+        );
+    }
+
+    public function recordCashReceipt(
+        ?int $organizationId, int $clinicId, int $doctorId, int $userId,
+        int $transactionId, int $amount, string $description, string $occurredAt
+    ): ClinicJournalEntry {
+        if ($amount < 1) throw ValidationException::withMessages(['finance' => 'مبلغ دریافت صندوق معتبر نیست.']);
+        return $this->post($organizationId, $clinicId, $doctorId, $userId,
+            'clinic_cash_transaction', $transactionId, $description, $occurredAt,
+            'clinic-cash-transaction:' . $transactionId,
+            [['code' => '1000', 'debit' => $amount, 'credit' => 0],
+             ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
+    }
+
+    public function recordCashDisbursement(
+        ?int $organizationId, int $clinicId, int $doctorId, int $userId,
+        int $transactionId, int $amount, string $description, string $occurredAt
+    ): ClinicJournalEntry {
+        if ($amount < 1) throw ValidationException::withMessages(['finance' => 'مبلغ پرداخت صندوق معتبر نیست.']);
+        return $this->post($organizationId, $clinicId, $doctorId, $userId,
+            'clinic_cash_transaction', $transactionId, $description, $occurredAt,
+            'clinic-cash-transaction:' . $transactionId,
+            [['code' => '5000', 'debit' => $amount, 'credit' => 0],
+             ['code' => '1000', 'debit' => 0, 'credit' => $amount]]);
+    }
+
     public function recordExpense(
         ?int $organizationId, int $clinicId, int $doctorId, int $userId,
         int $expenseId, int $amount, string $description, string $occurredAt
@@ -93,8 +168,11 @@ class ClinicAccountingService
     ): ClinicJournalEntry {
         return DB::transaction(function () use ($organizationId, $clinicId, $doctorId, $userId, $treatmentItemId, $planId, $amount, $description, $occurredAt): ClinicJournalEntry {
             $key = 'treatment-revenue:' . $treatmentItemId;
-            $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
-            if ($existing) return $existing->load('lines.account');
+            $existing = $this->existingEntryOrFail(
+                $key, 'patient_treatment_item', $treatmentItemId,
+                $organizationId, $clinicId, $doctorId, $amount
+            );
+            if ($existing !== null) return $existing;
 
             $item = PatientTreatmentItem::query()->whereKey($treatmentItemId)
                 ->where('treatment_plan_id', $planId)->lockForUpdate()->firstOrFail();
@@ -144,6 +222,41 @@ class ClinicAccountingService
         return $this->post($organizationId, $clinicId, $doctorId, $userId,
             'clinic_inventory_movement', $movementId, $description, $occurredAt,
             'inventory-movement:' . $movementId, $lines);
+    }
+
+    /**
+     * Return a previous source entry only when its identity and total value match.
+     * Source-specific methods must not bypass the stricter idempotency checks in post().
+     */
+    private function existingEntryOrFail(
+        string $key,
+        string $sourceType,
+        int $sourceId,
+        ?int $organizationId,
+        ?int $clinicId,
+        ?int $doctorId,
+        int $amount
+    ): ?ClinicJournalEntry {
+        $existing = ClinicJournalEntry::query()->where('idempotency_key', $key)->first();
+        if ($existing === null) return null;
+
+        $existing->load('lines.account');
+        $debit = (int) $existing->lines->sum('debit');
+        $credit = (int) $existing->lines->sum('credit');
+
+        abort_unless(
+            $existing->source_type === $sourceType
+            && (int) $existing->source_id === $sourceId
+            && (int) ($existing->organization_id ?? 0) === (int) ($organizationId ?? 0)
+            && (int) ($existing->clinic_id ?? 0) === (int) ($clinicId ?? 0)
+            && (int) ($existing->doctor_id ?? 0) === (int) ($doctorId ?? 0)
+            && $debit === $amount
+            && $credit === $amount,
+            409,
+            'کلید تکرار سند حسابداری قبلاً با مشخصات یا مبلغ متفاوت ثبت شده است.'
+        );
+
+        return $existing;
     }
 
     public function post(

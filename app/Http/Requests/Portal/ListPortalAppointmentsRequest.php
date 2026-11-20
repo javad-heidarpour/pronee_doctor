@@ -17,7 +17,7 @@ class ListPortalAppointmentsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['nullable', 'in:pending,confirmed,cancelled,visited,paid'],
+            'status' => ['nullable', 'in:pending,confirmed,cancelled,visited,completed'],
             'payment_status' => ['nullable', 'in:pending,paid,cancelled,failed,refunded'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onUnmounted } from "vue";
 
-defineProps({
+const props = defineProps({
   doctor: {
     type: Object,
     required: true,
@@ -11,13 +11,13 @@ defineProps({
 const drawerOpen = ref(false);
 
 const menuItems = [
-  { title: "خانه", href: "home" },
+  { title: "خانه", href: "home1", currentDoctor: true },
   { title: "دریافت نوبت", href: "booking" },
   { title: "تماس با ما", href: "contact" },
   { title: "ساعت کاری", href: "WorkingHours" },
   { title: "درباره پزشک", href: "About" },
-  { title: "خدمات قابل ارائه در مطب", href: "Surgeries" },
-  { title: "عمل های جراحی", href: "services" },
+  { title: "خدمات قابل ارائه در مطب", href: "services" },
+  { title: "عمل‌های جراحی", href: "Surgeries" },
   { title: "دانستنی‌های قبل و بعد از عمل", href: "tips" },
   { title: "نظرات بیماران", href: "Reviews" },
   { title: "گالری عکس", href: "galleries" },
@@ -113,7 +113,7 @@ onUnmounted(() => {
             <a
               v-for="item in menuItems"
               :key="item.href"
-              :href="route(item.href)"
+              :href="route(item.href, item.currentDoctor ? { doctor: props.doctor.slug } : { slug: props.doctor.slug })"
               @click="closeDrawer"
             >
               <span>{{ item.title }}</span>

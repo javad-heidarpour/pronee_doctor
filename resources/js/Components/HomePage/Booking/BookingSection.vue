@@ -188,6 +188,7 @@
             @click="
               selectedDateIndex = dIndex;
               selectedSlot = null;
+              availabilityMessage = '';
             "
             :class="[
               'flex flex-col items-center min-w-[80px] p-3 m-1 rounded-2xl border-2 transition-all duration-200 snap-center flex-shrink-0',
@@ -476,6 +477,7 @@ const props = defineProps({
 const selectedClinicIndex = ref(null);
 const selectedDateIndex = ref(0);
 const selectedSlot = ref(null);
+const availabilityMessage = ref("");
 
 // آیا مطب انتخاب شده است؟
 const isClinicSelected = ref(false);
@@ -487,6 +489,7 @@ const selectClinic = (index) => {
   selectedClinicIndex.value = index;
   selectedDateIndex.value = 0;
   selectedSlot.value = null;
+  availabilityMessage.value = "";
 
   const clinicData = props.doctor.clinics_with_slots?.[index];
   // پیدا کردن اولین روز دارای نوبت آزاد
@@ -714,16 +717,18 @@ const currentDateData = computed(() => {
 });
 
 // --- HELPER FUNCTIONS ---
+const parseLocalDate = (dateStr) => new Date(`${dateStr}T12:00:00`);
+
 const getPersianDayName = (dateStr) => {
-  return new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(new Date(dateStr));
+  return new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(parseLocalDate(dateStr));
 };
 
 const getPersianDayNumber = (dateStr) => {
-  return new Intl.DateTimeFormat("fa-IR", { day: "numeric" }).format(new Date(dateStr));
+  return new Intl.DateTimeFormat("fa-IR", { day: "numeric" }).format(parseLocalDate(dateStr));
 };
 
 const getPersianMonthName = (dateStr) => {
-  return new Intl.DateTimeFormat("fa-IR", { month: "long" }).format(new Date(dateStr));
+  return new Intl.DateTimeFormat("fa-IR", { month: "long" }).format(parseLocalDate(dateStr));
 };
 
 const formatTime = (timeStr) => {
@@ -733,6 +738,7 @@ const formatTime = (timeStr) => {
 const selectSlot = (slot) => {
   if (slot.status === "available") {
     selectedSlot.value = slot;
+    availabilityMessage.value = "";
   }
 };
 
@@ -740,8 +746,9 @@ const selectSlot = (slot) => {
 const handleBookingSuccess = () => {
 };
 
-const handleSlotCleared = () => {
+const handleSlotCleared = (message = "") => {
   selectedSlot.value = null;
+  availabilityMessage.value = message || "این ساعت دیگر آزاد نیست؛ لطفاً زمان دیگری انتخاب کنید.";
 };
 
 const handleSlotBooked = (slotId) => {

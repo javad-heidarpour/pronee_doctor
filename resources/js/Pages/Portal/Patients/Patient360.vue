@@ -4,7 +4,10 @@
   <header class="rounded-3xl bg-gradient-to-l from-slate-950 via-indigo-950 to-teal-900 p-5 text-white shadow-lg sm:p-7">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div><p class="text-xs font-bold tracking-widest text-teal-200">PRONEEX PATIENT 360</p><h1 class="mt-2 text-2xl font-black sm:text-3xl">نمای یکپارچه پرونده بیمار</h1><p class="mt-2 text-sm text-slate-200">مرور سریع اطلاعات ثبت‌شده در زیرسامانه‌های پرونیکس</p></div>
-      <Link :href="route('portal.patients.directory')" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">بازگشت به فهرست بیماران</Link>
+      <div class="flex flex-wrap gap-2">
+        <Link v-if="canViewClinical" :href="route('portal.patients.insurance.index', patient.id)" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">سوابق بیمه</Link>
+        <Link :href="route('portal.patients.directory')" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">بازگشت به فهرست بیماران</Link>
+      </div>
     </div>
     <div class="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3">
       <div><p class="text-xs text-teal-200">نام بیمار</p><p class="mt-1 text-xl font-black">{{patient.name}}</p></div>
@@ -17,10 +20,53 @@
   <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
     <Metric label="نوبت‌های اخیر" :value="summary.appointments"/><Metric label="ویزیت‌های ثبت‌شده" :value="summary.encounters"/>
     <Metric label="حساسیت‌های فعال" :value="summary.active_allergies"/><Metric label="داروهای ثبت‌شده" :value="summary.active_medications"/>
-    <Metric label="پیگیری‌های باز" :value="summary.open_follow_ups"/><Metric label="مسیرهای مراقبت فعال" :value="summary.active_pathways"/>
+    <Metric label="مشکلات فعال" :value="summary.active_problems"/><Metric label="پیگیری‌های باز" :value="summary.open_follow_ups"/><Metric label="مسیرهای مراقبت فعال" :value="summary.active_pathways"/>
   </section>
 
   <section v-if="!canViewClinical" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">سطح دسترسی این حساب فقط اجازه مشاهده اطلاعات عمومی نوبت‌ها را می‌دهد. برای مشاهده اطلاعات بالینی، مجوز «مشاهده پرونده بالینی» باید توسط مدیر دسترسی فعال شود.</section>
+
+  <section v-if="canViewClinical && clinicalSummary" class="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
+    <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-black text-slate-900">خلاصه ساختاریافته سوابق بیمار</h2><span class="text-[11px] text-slate-500">تولید {{dateTime(clinicalSummary.generated_at)}}</span></div>
+    <div v-if="clinicalSummary.latest_encounter" class="mt-3 rounded-xl bg-white p-3"><strong class="text-sm">آخرین ویزیت ثبت‌شده</strong><p class="mt-1 text-xs text-slate-500">{{dateTime(clinicalSummary.latest_encounter.date)}} · {{statusLabel(clinicalSummary.latest_encounter.status)}}</p><p v-if="clinicalSummary.latest_encounter.diagnosis" class="mt-2 text-sm">تشخیص ثبت‌شده: {{clinicalSummary.latest_encounter.diagnosis}}</p><p v-if="clinicalSummary.latest_encounter.assessment" class="mt-1 text-xs leading-6">ارزیابی: {{clinicalSummary.latest_encounter.assessment}}</p><p v-if="clinicalSummary.latest_encounter.plan" class="mt-1 text-xs leading-6">برنامه ثبت‌شده: {{clinicalSummary.latest_encounter.plan}}</p></div>
+    <div class="mt-3 grid gap-3 md:grid-cols-2">
+      <article class="rounded-xl bg-white p-3"><h3 class="text-sm font-bold">حساسیت‌های ثبت‌شده</h3><ul v-if="clinicalSummary.allergies.length" class="mt-2 space-y-1 text-xs"><li v-for="(item,i) in clinicalSummary.allergies" :key="i">{{item.title}} <span v-if="item.description" class="text-slate-500">· {{item.description}}</span></li></ul><p v-else class="mt-2 text-xs text-slate-500">اطلاعات حساسیت در داده‌های بارگذاری‌شده موجود نیست؛ این به معنی نداشتن حساسیت نیست.</p></article>
+      <article class="rounded-xl bg-white p-3"><h3 class="text-sm font-bold">داروهای فعال ثبت‌شده</h3><ul v-if="clinicalSummary.medications.length" class="mt-2 space-y-1 text-xs"><li v-for="(item,i) in clinicalSummary.medications" :key="i">{{item.title}} · {{item.dosage||'دوز ثبت نشده'}} · {{item.frequency||'تواتر ثبت نشده'}}</li></ul><p v-else class="mt-2 text-xs text-slate-500">فهرست داروی فعال در داده‌های بارگذاری‌شده موجود نیست.</p></article>
+    </div>
+    <p class="mt-3 text-[11px] leading-6 text-slate-500">این خلاصه فقط داده‌های ثبت‌شده و محدود به آخرین رکوردهای بارگذاری‌شده را بازچینش می‌کند؛ نبود داده، طبیعی بودن وضعیت یا نبود بیماری را ثابت نمی‌کند.</p>
+  </section>
+
+  <section v-if="canViewClinical && workflowSuggestions" class="rounded-2xl border border-teal-200 bg-white p-5">
+    <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-black text-slate-900">دستیار گردش کار پزشک</h2><span class="rounded-lg bg-teal-50 px-2 py-1 text-[10px] font-bold text-teal-800">پیشنهادهای قاعده‌محور</span></div>
+    <div v-if="workflowSuggestions.tasks.length" class="mt-3 grid gap-2 md:grid-cols-2"><article v-for="task in workflowSuggestions.tasks" :key="task.key" class="rounded-xl border p-3"><div class="flex items-center justify-between gap-2"><strong class="text-sm">{{task.title}}</strong><span class="text-[10px]" :class="task.priority==='high'?'text-rose-700':'text-slate-500'">{{task.priority==='high'?'اولویت بالاتر':'عادی'}}</span></div><p class="mt-1 text-xs leading-6 text-slate-600">{{task.reason}}</p></article></div>
+    <p v-else class="mt-3 text-sm text-slate-500">بر اساس داده‌های موجود، یادآوری تکمیلی فعالی تولید نشد؛ همچنان اطلاعات را با بیمار تطبیق دهید.</p>
+    <p class="mt-3 text-[11px] leading-6 text-slate-500">{{workflowSuggestions.disclaimer}}</p>
+  </section>
+
+  <section v-if="canViewClinical" class="rounded-2xl border bg-white p-5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 class="font-black text-slate-900">تشخیص‌ها و مشکلات بیمار</h2>
+      <span class="text-xs text-slate-500">{{ fa(problems.length) }} مورد ثبت‌شده</span>
+    </div>
+    <div v-if="problems.length" class="mt-3 grid gap-3 md:grid-cols-2">
+      <article v-for="problem in problems" :key="problem.id" class="rounded-xl border border-slate-100 p-3">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <span class="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">{{ problemCategoryLabel(problem.category) }}</span>
+            <h3 class="mt-2 text-sm font-bold text-slate-800">{{ problem.title }}</h3>
+            <p v-if="problem.code" class="mt-1 text-xs text-slate-500" dir="ltr">{{ problem.code }} · {{ problem.code_system.toUpperCase() }}</p>
+          </div>
+          <span class="rounded-md bg-slate-100 px-2 py-1 text-[10px] text-slate-600">{{ problemStatusLabel(problem.status) }}</span>
+        </div>
+        <p v-if="problem.description" class="mt-2 whitespace-pre-line text-xs leading-6 text-slate-600">{{ problem.description }}</p>
+        <p class="mt-2 text-[11px] text-slate-500">
+          <span v-if="problem.severity">شدت: {{ problemSeverityLabel(problem.severity) }} · </span>
+          <span v-if="problem.onset_date">شروع: {{ problem.onset_date }} · </span>
+          {{ problem.source === 'patient_reported' ? 'اظهار بیمار' : 'ارزیابی پزشک' }}
+        </p>
+      </article>
+    </div>
+    <p v-else class="mt-3 text-sm text-slate-500">تشخیص یا مشکل ساختاریافته‌ای ثبت نشده است.</p>
+  </section>
 
   <section v-if="canViewClinical" class="space-y-3">
     <div class="flex items-center justify-between"><h2 class="text-lg font-black text-slate-900">آخرین علائم حیاتی</h2><span class="text-xs text-slate-500">آخرین مقدار ثبت‌شده از هر نوع</span></div>
@@ -55,15 +101,19 @@ import {Link} from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props=defineProps({
  doctor:{type:Object,required:true},patient:{type:Object,required:true},summary:{type:Object,required:true},
+ clinicalSummary:{type:Object,default:null},workflowSuggestions:{type:Object,default:null},
  canViewClinical:{type:Boolean,default:false},clinicalRecords:{type:Array,default:()=>[]},
  vitals:{type:Array,default:()=>[]},latestVitals:{type:Array,default:()=>[]},encounters:{type:Array,default:()=>[]},
  appointments:{type:Array,default:()=>[]},followUps:{type:Array,default:()=>[]},pathways:{type:Array,default:()=>[]},
- medicationPlans:{type:Array,default:()=>[]},timeline:{type:Array,default:()=>[]},dataMeta:{type:Object,default:()=>({})}
+ medicationPlans:{type:Array,default:()=>[]},problems:{type:Array,default:()=>[]},timeline:{type:Array,default:()=>[]},dataMeta:{type:Object,default:()=>({})}
 })
 const Metric=defineComponent({props:{label:String,value:[String,Number]},setup(p){return()=>h('div',{class:'rounded-2xl border bg-white p-4 shadow-sm'},[h('p',{class:'text-xs text-slate-500'},p.label),h('p',{class:'mt-2 text-2xl font-black text-slate-900'},Number(p.value||0).toLocaleString('fa-IR'))])}})
 const fa=v=>Number(v||0).toLocaleString('fa-IR')
 const dateTime=v=>v?new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(v)):'—'
 const vitalLabel=k=>({systolic:'فشار سیستولیک',diastolic:'فشار دیاستولیک',heart_rate:'ضربان قلب',temperature:'دما',oxygen_saturation:'اشباع اکسیژن',blood_glucose:'قند خون',weight:'وزن',height:'قد'}[k]||k)
+const problemCategoryLabel=v=>({diagnosis:'تشخیص',condition:'بیماری / وضعیت',symptom:'علامت',risk_factor:'عامل خطر'}[v]||'مشکل بالینی')
+const problemStatusLabel=v=>({active:'فعال',resolved:'برطرف‌شده',inactive:'غیرفعال'}[v]||'نامشخص')
+const problemSeverityLabel=v=>({mild:'خفیف',moderate:'متوسط',severe:'شدید',critical:'بحرانی'}[v]||'نامشخص')
 const recordLabel=k=>({allergy:'حساسیت',medication:'دارو',medical_history:'سابقه پزشکی',adverse_reaction:'عارضه دارویی'}[k]||'سابقه')
-const statusLabel=s=>({draft:'پیش‌نویس',signed:'نهایی‌شده',pending:'در انتظار',in_progress:'در حال انجام',completed:'تکمیل‌شده',verified:'تأییدشده',active:'فعال',cancelled:'لغوشده',confirmed:'تأییدشده',visited:'ویزیت‌شده',recorded:'ثبت‌شده',fulfilled:'انجام‌شده',offered:'پیشنهادشده'}[s]||s||'نامشخص')
+const statusLabel=s=>({draft:'پیش‌نویس',signed:'نهایی‌شده',pending:'در انتظار',in_progress:'در حال انجام',completed:'تکمیل‌شده',verified:'تأییدشده',active:'فعال',resolved:'برطرف‌شده',inactive:'غیرفعال',cancelled:'لغوشده',confirmed:'تأییدشده',visited:'ویزیت‌شده',recorded:'ثبت‌شده',fulfilled:'انجام‌شده',offered:'پیشنهادشده'}[s]||s||'نامشخص')
 </script>

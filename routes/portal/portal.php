@@ -9,12 +9,15 @@ use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
 use App\Http\Controllers\Portal\ClinicCashFlowController;
+use App\Http\Controllers\Portal\ClinicCashRegisterController;
 use App\Http\Controllers\Portal\ClinicRevenueOptimizerController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
+use App\Http\Controllers\Portal\ClinicDiscountController;
+use App\Http\Controllers\Portal\ClinicBusinessLeadController;
 use App\Http\Controllers\Portal\MedicalNetworkController;
 use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
@@ -22,8 +25,12 @@ use App\Http\Controllers\Portal\PatientRetentionController;
 use App\Http\Controllers\Portal\ClinicGrowthController;
 use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
+use App\Http\Controllers\Portal\ClinicSharedServiceController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
+use App\Http\Controllers\Portal\StaffPerformanceReviewController;
+use App\Http\Controllers\Portal\StaffResponsibilitiesController;
+use App\Http\Controllers\Portal\StaffCredentialsController;
 use App\Http\Controllers\Portal\StaffManagementController;
 use App\Http\Controllers\Portal\StaffObligationController;
 
@@ -74,6 +81,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
             PaymentReviewController::class,
             'index'
         ])->name('payments.review-queue');
+        Route::get('/payments/refunds', [PaymentReviewController::class, 'refunds'])->name('payments.refunds');
+        Route::post('/payments/{payment}/refund', [PaymentReviewController::class, 'refund'])
+            ->whereNumber('payment')->middleware('throttle:3,1')->name('payments.refund');
 
         Route::post('/payments/{payment}/reconcile', [
             PaymentReviewController::class,
@@ -101,6 +111,20 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
         Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
         Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
+        Route::get('/staff-performance', [StaffPerformanceReviewController::class, 'index'])->name('staff-performance.index');
+        Route::post('/staff-performance', [StaffPerformanceReviewController::class, 'store'])->middleware('throttle:10,1')->name('staff-performance.store');
+        Route::patch('/staff-performance/{review}/publish', [StaffPerformanceReviewController::class, 'publish'])->whereNumber('review')->name('staff-performance.publish');
+        Route::patch('/staff-performance/{review}/acknowledge', [StaffPerformanceReviewController::class, 'acknowledge'])->whereNumber('review')->name('staff-performance.acknowledge');
+        Route::get('/staff-credentials', [StaffCredentialsController::class, 'index'])->name('staff-credentials.index');
+        Route::post('/staff-credentials', [StaffCredentialsController::class, 'store'])->middleware('throttle:10,1')->name('staff-credentials.store');
+        Route::get('/staff-credentials/{credential}/download', [StaffCredentialsController::class, 'download'])->whereNumber('credential')->name('staff-credentials.download');
+        Route::patch('/staff-credentials/{credential}/review', [StaffCredentialsController::class, 'review'])->whereNumber('credential')->name('staff-credentials.review');
+        Route::delete('/staff-credentials/{credential}', [StaffCredentialsController::class, 'archive'])->whereNumber('credential')->name('staff-credentials.archive');
+
+        Route::get('/staff-responsibilities', [StaffResponsibilitiesController::class, 'index'])->name('staff-responsibilities.index');
+        Route::post('/staff-responsibilities', [StaffResponsibilitiesController::class, 'store'])->middleware('throttle:20,1')->name('staff-responsibilities.store');
+        Route::put('/staff-responsibilities/{responsibility}', [StaffResponsibilitiesController::class, 'update'])->whereNumber('responsibility')->middleware('throttle:20,1')->name('staff-responsibilities.update');
+        Route::delete('/staff-responsibilities/{responsibility}', [StaffResponsibilitiesController::class, 'destroy'])->whereNumber('responsibility')->name('staff-responsibilities.destroy');
         Route::get('/staff-management', [StaffManagementController::class, 'index'])->name('staff-management.index');
         Route::post('/staff-management/contracts', [StaffManagementController::class, 'storeContract'])->name('staff-management.contracts.store');
         Route::post('/staff-management/leave-balances', [StaffManagementController::class, 'setLeaveBalance'])->name('staff-management.leave-balances.store');
@@ -132,6 +156,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/patient-access-requests/{accessRequest}/reject', [PatientAccessRequestController::class, 'reject'])->whereNumber('accessRequest')->name('patient-access-requests.reject');
 
         Route::get('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'index'])->name('professional-partnerships.index');
+        Route::get('/shared-services', [ClinicSharedServiceController::class, 'index'])->name('shared-services.index');
+        Route::post('/shared-services', [ClinicSharedServiceController::class, 'store'])->middleware('throttle:10,1')->name('shared-services.store');
+        Route::post('/shared-services/{service}/requests', [ClinicSharedServiceController::class, 'requestService'])->whereNumber('service')->middleware('throttle:10,1')->name('shared-services.requests.store');
+        Route::patch('/shared-services/requests/{serviceRequest}/respond', [ClinicSharedServiceController::class, 'respond'])->whereNumber('serviceRequest')->name('shared-services.requests.respond');
         Route::post('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'store'])->middleware('throttle:10,1')->name('professional-partnerships.store');
         Route::patch('/professional-partnerships/{partnership}/respond', [ClinicProfessionalPartnershipController::class, 'respond'])->whereNumber('partnership')->name('professional-partnerships.respond');
         Route::post('/professional-partnerships/sessions', [ClinicProfessionalPartnershipController::class, 'storeSession'])->middleware('throttle:20,1')->name('professional-partnerships.sessions.store');
@@ -154,6 +182,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/medical-network/referrals/{referral}', [MedicalNetworkController::class, 'updateReferral'])->middleware('throttle:30,1')->name('medical-network.referrals.update');
 
         Route::get('/marketing', [ClinicMarketingController::class, 'index'])->name('marketing.index');
+        Route::get('/marketing/discount-codes', [ClinicDiscountController::class, 'index'])->name('marketing.discounts.index');
+        Route::get('/marketing/leads', [ClinicBusinessLeadController::class, 'index'])->name('marketing.leads.index');
+        Route::post('/marketing/leads', [ClinicBusinessLeadController::class, 'store'])->middleware('throttle:20,1')->name('marketing.leads.store');
+        Route::patch('/marketing/leads/{lead}', [ClinicBusinessLeadController::class, 'update'])->whereNumber('lead')->name('marketing.leads.update');
+        Route::post('/marketing/discount-codes', [ClinicDiscountController::class, 'store'])->middleware('throttle:10,1')->name('marketing.discounts.store');
+        Route::post('/marketing/discount-codes/{code}/toggle', [ClinicDiscountController::class, 'toggle'])->whereNumber('code')->name('marketing.discounts.toggle');
         Route::post('/marketing/campaigns', [ClinicMarketingController::class, 'store'])->name('marketing.store');
         Route::post('/marketing/campaigns/{campaign}/toggle', [ClinicMarketingController::class, 'toggle'])->whereNumber('campaign')->name('marketing.toggle');
 
@@ -189,12 +223,18 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/organizations', [ClinicOrganizationController::class, 'store'])->name('organizations.store');
         Route::post('/organizations/{organization}/doctors', [ClinicOrganizationController::class, 'inviteDoctor'])->whereNumber('organization')->name('organizations.doctors.invite');
         Route::post('/organizations/{organization}/doctors/accept', [ClinicOrganizationController::class, 'acceptDoctor'])->whereNumber('organization')->name('organizations.doctors.accept');
+        Route::delete('/organizations/{organization}/doctors/{doctor}', [ClinicOrganizationController::class, 'removeDoctor'])->whereNumber('organization')->whereNumber('doctor')->name('organizations.doctors.remove');
         Route::post('/organizations/{organization}/clinics', [ClinicOrganizationController::class, 'attachClinic'])->whereNumber('organization')->name('organizations.clinics.attach');
+        Route::delete('/organizations/{organization}/clinics/{clinic}', [ClinicOrganizationController::class, 'detachClinic'])->whereNumber('organization')->whereNumber('clinic')->name('organizations.clinics.detach');
         Route::post('/organizations/{organization}/members', [ClinicOrganizationController::class, 'inviteMember'])->whereNumber('organization')->name('organizations.members.invite');
         Route::delete('/organizations/{organization}/members/{member}', [ClinicOrganizationController::class, 'removeMember'])->whereNumber('organization')->whereNumber('member')->name('organizations.members.remove');
 
         Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
         Route::get('/finance/cash-flow', [ClinicCashFlowController::class, 'index'])->name('finance.cash-flow');
+        Route::get('/finance/cash-register', [ClinicCashRegisterController::class, 'index'])->name('finance.cash-register');
+        Route::post('/finance/cash-register/open', [ClinicCashRegisterController::class, 'open'])->middleware('throttle:10,1')->name('finance.cash-register.open');
+        Route::post('/finance/cash-register/{session}/transactions', [ClinicCashRegisterController::class, 'store'])->whereNumber('session')->middleware('throttle:30,1')->name('finance.cash-register.transactions.store');
+        Route::post('/finance/cash-register/{session}/close', [ClinicCashRegisterController::class, 'close'])->whereNumber('session')->name('finance.cash-register.close');
         Route::get('/revenue-optimizer', [ClinicRevenueOptimizerController::class, 'index'])->name('revenue-optimizer.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
         Route::post('/finance/installments/{installment}/payments', [ClinicFinanceController::class, 'recordPayment'])->whereNumber('installment')->name('finance.installments.payments.store');

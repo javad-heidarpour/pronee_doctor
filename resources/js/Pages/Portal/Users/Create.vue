@@ -6,7 +6,7 @@ import PortalLayout from "@/Layouts/PortalLayout.vue";
 const props = defineProps({
   doctor: {
     type: Object,
-    required: true,
+    default: null,
   },
   roles: {
     type: Array,
@@ -42,7 +42,7 @@ const form = useForm({
   username: "",
   password: "",
   password_confirmation: "",
-  role: "doctor",
+  role: props.roles[0]?.value ?? "secretary",
   is_active: true,
 });
 

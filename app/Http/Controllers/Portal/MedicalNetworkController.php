@@ -73,6 +73,26 @@ final class MedicalNetworkController extends Controller
             ->with(['patient:id,name', 'referringDoctor:id,name,family', 'targetProvider:id,name,provider_type', 'events' => fn ($q) => $q->orderByDesc('created_at')->limit(5)])
             ->latest()->limit(40)->get();
 
+        $canViewReferralClinical = $user->role !== 'secretary';
+        if ($user->role === 'secretary') {
+            $assignment = $user->doctors()->where('doctors.id', $doctor->id)->first();
+            $permissions = $assignment?->pivot?->permissions ?? [];
+            if (is_string($permissions)) $permissions = json_decode($permissions, true) ?: [];
+            $canViewReferralClinical = is_array($permissions) && in_array('patients.clinical.view', $permissions, true);
+        }
+        if (!$canViewReferralClinical) {
+            foreach ([$outgoing, $incoming] as $referrals) {
+                $referrals->each(function (MedicalReferral $referral): void {
+                    $referral->setRelation('patient', null);
+                    $referral->clinical_summary = null;
+                    $referral->patient_message = null;
+                    $referral->reason = 'جزئیات بالینی به دلیل سطح دسترسی نمایش داده نمی‌شود.';
+                    $referral->result_summary = null;
+                    $referral->patient_instructions = null;
+                });
+            }
+        }
+
         return Inertia::render('Portal/MedicalNetwork/Index', [
             'providers' => $providers,
             'networkIntelligence' => $networkIntelligence,
@@ -166,6 +186,8 @@ final class MedicalNetworkController extends Controller
             'source_clinic_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('doctor_id', $doctor->id)->where('is_active', true)],
             'target_provider_id' => ['required', 'integer', Rule::exists('medical_network_providers', 'id')->where('status', 'active')->where('is_verified', true)],
             'service_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation', 'consultation'])],
+            'requested_services' => [Rule::requiredIf(in_array($request->input('service_type'), ['laboratory', 'imaging'], true)), 'nullable', 'array', 'min:1', 'max:30'],
+            'requested_services.*' => ['required', 'string', 'max:180', 'distinct'],
             'priority' => ['required', Rule::in(['normal', 'urgent'])],
             'reason' => ['required', 'string', 'max:240'],
             'clinical_summary' => ['nullable', 'string', 'max:4000'],
@@ -173,11 +195,29 @@ final class MedicalNetworkController extends Controller
             'consent_confirmed' => ['accepted'],
         ]);
 
+        if (isset($data['requested_services'])) {
+            $requestedServices = array_map(
+                static fn (string $service): string => trim($service),
+                $data['requested_services']
+            );
+            $requestedServices = array_values(array_unique(array_filter($requestedServices, static fn (string $service): bool => $service !== '')));
+            abort_if(
+                in_array($data['service_type'], ['laboratory', 'imaging'], true) && $requestedServices === [],
+                422,
+                'حداقل یک مورد تشخیصی باید ثبت شود.'
+            );
+            $data['requested_services'] = $requestedServices;
+        }
+
         abort_unless(in_array((int) $data['source_clinic_id'], $clinicIds, true), 403, 'به مطب مبدأ دسترسی ندارید.');
         Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $data['source_clinic_id']))->firstOrFail();
-        $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->firstOrFail();
-        abort_if($provider->doctor_id === $doctor->id, 422, 'ارجاع به پروفایل خودتان امکان‌پذیر نیست.');
+        $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->where('is_verified', true)->firstOrFail();
+        abort_if(
+            (int) $provider->created_by_user_id === (int) $user->id || (int) $provider->doctor_id === (int) $doctor->id,
+            422,
+            'ارجاع به پروفایل یا مرکز متعلق به خودتان امکان‌پذیر نیست.'
+        );
         $expectedService = in_array($provider->provider_type, ['doctor', 'psychiatrist', 'psychologist', 'counselor', 'social_worker', 'speech_therapist', 'occupational_therapist', 'nutritionist', 'nurse', 'midwife', 'physiotherapist', 'other'], true) ? 'consultation' : $provider->provider_type;
         abort_unless($data['service_type'] === $expectedService, 422, 'نوع خدمت با نوع مرکز مقصد همخوانی ندارد.');
 
@@ -190,6 +230,7 @@ final class MedicalNetworkController extends Controller
                 'source_clinic_id' => $data['source_clinic_id'],
                 'created_by_user_id' => $user->id,
                 'service_type' => $data['service_type'],
+                'requested_services' => $data['requested_services'] ?? null,
                 'priority' => $data['priority'],
                 'status' => 'sent',
                 'reason' => $data['reason'],
@@ -223,7 +264,7 @@ final class MedicalNetworkController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(['accepted', 'scheduled', 'in_progress', 'completed', 'rejected', 'cancelled'])],
             'scheduled_at' => ['nullable', 'date', 'after:now', 'required_if:status,scheduled'],
-            'provider_response' => ['nullable', 'string', 'max:2000'],
+            'provider_response' => ['nullable', 'string', 'max:2000', 'required_if:status,rejected'],
             'result_summary' => ['nullable', 'string', 'max:4000', 'required_if:status,completed'],
             'patient_instructions' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -240,8 +281,14 @@ final class MedicalNetworkController extends Controller
                 $hasClinicAccess = in_array((int) $locked->source_clinic_id, $this->accessibleClinicIds($locked->referringDoctor), true);
                 $senderSecretary = $hasClinicAccess && is_array($permissions) && in_array('appointments.manage', $permissions, true);
             }
-            $isSender = (int) $locked->referringDoctor?->user_id === (int) $user->id || $senderSecretary;
-            $isRecipient = (int) $locked->targetProvider?->created_by_user_id === (int) $user->id;
+            $activeDoctorId = (int) session('active_doctor_id');
+            $isSender = (
+                (int) $locked->referringDoctor?->user_id === (int) $user->id
+                && $activeDoctorId === (int) $locked->referring_doctor_id
+            ) || $senderSecretary;
+            $providerDoctorId = $locked->targetProvider?->doctor_id;
+            $isRecipient = (int) $locked->targetProvider?->created_by_user_id === (int) $user->id
+                && ($providerDoctorId === null || (int) $providerDoctorId === $activeDoctorId);
             abort_unless($isSender || $isRecipient, 403, 'به این ارجاع دسترسی ندارید.');
 
             $from = $locked->status;

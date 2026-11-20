@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class TimeSlot extends Model
 {
     protected $fillable = [
-        'doctor_id', 'clinic_id', 'date', 'start_time', 'end_time', 'status'
+        'doctor_id', 'clinic_id', 'date', 'start_time', 'end_time', 'status', 'cancelled_reason'
     ];
 
     protected $casts = [
@@ -32,10 +32,31 @@ class TimeSlot extends Model
         return $this->hasOne(Appointment::class);
     }
 
+    public function scopePubliclyBookable(Builder $query): Builder
+    {
+        $minimumAt = now()->addHour();
+        $minimumDate = $minimumAt->toDateString();
+        $minimumTime = $minimumAt->format('H:i:s');
+
+        return $query
+            ->where('status', 'available')
+            ->where(function (Builder $builder) use ($minimumDate, $minimumTime): void {
+                $builder
+                    ->where('date', '>', $minimumDate)
+                    ->orWhere(function (Builder $sameDay) use ($minimumDate, $minimumTime): void {
+                        $sameDay
+                            ->where('date', $minimumDate)
+                            ->where('start_time', '>=', $minimumTime);
+                    });
+            })
+            ->whereDoesntHave('appointment', fn (Builder $appointment): Builder => $appointment
+                ->whereIn('status', ['pending', 'confirmed', 'contacted']));
+    }
+
     public function isBooked(): bool
     {
         return $this->status === 'booked' || $this->appointment()
-            ->whereIn('status', ['pending', 'confirmed'])
+            ->whereIn('status', ['pending', 'confirmed', 'contacted'])
             ->exists();
     }
 
@@ -50,7 +71,12 @@ class TimeSlot extends Model
         return $query
             ->where('doctor_id', $doctorId)
             ->whereDate('date', $date)
-            ->where('status', '!=', 'cancelled')
+            ->where(function (Builder $slots): void {
+                $slots
+                    ->where('status', '!=', 'cancelled')
+                    ->orWhereNull('cancelled_reason')
+                    ->orWhere('cancelled_reason', '!=', 'holiday');
+            })
             ->where('start_time', '<', $endTime)
             ->where('end_time', '>', $startTime)
             ->when($ignoreId !== null, function (Builder $builder) use ($ignoreId) {

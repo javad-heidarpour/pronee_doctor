@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Fee;
 use App\Models\TimeSlot;
+use App\Models\DoctorHoliday;
 use App\Models\VisitReason;
 use App\Models\User;
 use Carbon\Carbon;
@@ -62,6 +63,16 @@ class CreatePortalAppointmentAction
                 ]);
             }
 
+            if (DoctorHoliday::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('clinic_id', $timeSlot->clinic_id)
+                ->whereDate('holiday_date', $timeSlot->date->format('Y-m-d'))
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
+                ]);
+            }
+
             // بررسی دسترسی منشی به مطب انتخاب‌شده
             $user = auth('web')->user();
 
@@ -74,12 +85,13 @@ class CreatePortalAppointmentAction
             }
 
             // ساعت باید آزاد باشد و نوبت فعال دیگری نداشته باشد
-            $alreadyBooked = Appointment::query()
+            $activeSlotAppointment = Appointment::query()
                 ->where('time_slot_id', $timeSlot->id)
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->exists();
+                ->whereIn('status', ['pending', 'confirmed', 'contacted'])
+                ->lockForUpdate()
+                ->first();
 
-            if ($alreadyBooked || $timeSlot->status !== 'available') {
+            if ($activeSlotAppointment !== null || $timeSlot->status !== 'available') {
                 throw ValidationException::withMessages([
                     'time_slot_id' =>
                         'این ساعت قبلاً رزرو شده است؛ لطفاً ساعت دیگری انتخاب کنید.',
@@ -98,28 +110,57 @@ class CreatePortalAppointmentAction
                 ]);
             }
 
-            // جلوگیری از داشتن دو نوبت فعال برای یک کد ملی نزد همین پزشک
-            if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
-                $duplicate = Appointment::query()
-                    ->where('doctor_id', $doctor->id)
-                    ->where('patient_national_code', $data->patientNationalCode)
-                    ->whereIn('status', ['pending', 'confirmed'])
-                    ->exists();
+            // National code is the primary identity. For phone-only patients,
+            // use phone as a fallback without merging into a national-code record.
+            $duplicatePatientQuery = Appointment::query()
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('status', ['pending', 'confirmed', 'contacted']);
 
-                if ($duplicate) {
+            if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
+                $duplicatePatientQuery->where(
+                    'patient_national_code',
+                    $data->patientNationalCode
+                );
+            } elseif ($data->patientPhone !== null && $data->patientPhone !== '') {
+                $duplicatePatientQuery
+                    ->whereNull('patient_national_code')
+                    ->where('patient_phone', $data->patientPhone);
+            }
+
+            if (
+                ($data->patientNationalCode !== null && $data->patientNationalCode !== '') ||
+                ($data->patientPhone !== null && $data->patientPhone !== '')
+            ) {
+                if ($duplicatePatientQuery->lockForUpdate()->first() !== null) {
+                    $identityField = $data->patientNationalCode
+                        ? 'patient_national_code'
+                        : 'patient_phone';
+
                     throw ValidationException::withMessages([
-                        'patient_national_code' =>
-                            'این بیمار نزد شما نوبت فعال دارد.',
+                        $identityField => 'این بیمار نزد شما نوبت فعال دارد.',
                     ]);
                 }
             }
 
-            $visitReasonId = $data->visitReasonId;
+            $visitReasonId = null;
+            $description = trim($data->description ?? '');
 
+            if ($newVisitReason === '' && $data->visitReasonId !== null) {
+                $visitReason = VisitReason::query()->find($data->visitReasonId);
+
+                if (!$visitReason) {
+                    throw ValidationException::withMessages([
+                        'visit_reason_id' => 'دلیل مراجعه انتخاب‌شده معتبر نیست.',
+                    ]);
+                }
+
+                $visitReasonId = $visitReason->id;
+            }
+
+            // Free-text reasons are kept on this appointment, not promoted
+            // into the shared reason catalog without review.
             if ($newVisitReason !== '') {
-                $visitReasonId = VisitReason::firstOrCreate([
-                    'title' => $newVisitReason,
-                ])->id;
+                $description = trim($description . "\n" . 'دلیل مراجعه: ' . $newVisitReason);
             }
 
             $fee = Fee::where('created_by', $timeSlot->doctor_id)
@@ -148,7 +189,7 @@ class CreatePortalAppointmentAction
                 'patient_name' => $data->patientName,
                 'patient_phone' => $data->patientPhone,
                 'patient_national_code' => $data->patientNationalCode,
-                'description' => $data->description,
+                'description' => $description !== '' ? $description : null,
 
                 'status' => 'pending',
                 'appointment_date' => $timeSlot->date,

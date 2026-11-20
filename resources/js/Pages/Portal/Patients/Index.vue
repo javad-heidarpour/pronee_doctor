@@ -328,8 +328,12 @@
                     class="max-w-[135px] rounded-lg border-0 px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-300 disabled:cursor-not-allowed"
                   >
                     <option value="pending">در انتظار</option>
+                    <option value="confirmed">تأیید شده</option>
                     <option value="cancelled">لغو شده</option>
-                    <option value="visited">ویزیت شده</option>
+                    <option
+                      v-if="['visited', 'completed'].includes(appointment.status)"
+                      :value="appointment.status"
+                    >ویزیت شده</option>
                   </select>
 
                   <!-- در حال ذخیره -->
@@ -749,9 +753,12 @@
                     class="w-full max-w-[170px] rounded-xl border-0 px-3 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-300 disabled:cursor-not-allowed"
                   >
                     <option value="pending">در انتظار</option>
-
+                    <option value="confirmed">تأیید شده</option>
                     <option value="cancelled">لغو شده</option>
-                    <option v-if="userRole === 'doctor'" value="visited">ویزیت شده</option>
+                    <option
+                      v-if="['visited', 'completed'].includes(appointment.status)"
+                      :value="appointment.status"
+                    >ویزیت شده</option>
                   </select>
                 </div>
 
@@ -1038,8 +1045,10 @@ const paymentStatusOptions = [
 
 const statusOptions = [
   { value: "pending", label: "در انتظار" },
+  { value: "confirmed", label: "تأیید شده" },
   { value: "cancelled", label: "لغو شده" },
   { value: "visited", label: "ویزیت شده" },
+  { value: "completed", label: "ویزیت‌شده (وضعیت قدیمی)" },
 ];
 
 const filters = ref({
@@ -1203,7 +1212,7 @@ const statusStates = ref({});
 
 // وضعیت‌هایی که اجازه تغییر ندارند
 const isStatusLocked = (appointment) => {
-  return appointment.status === "visited" || statusStates.value[appointment.id]?.loading;
+  return ["visited", "completed"].includes(appointment.status) || statusStates.value[appointment.id]?.loading;
 };
 
 // تغییر وضعیت
@@ -1224,7 +1233,7 @@ const updateStatus = (appointment, event) => {
     return;
   }
   // جلوگیری از تغییر نوبت ویزیت‌شده
-  if (currentStatus === "visited") {
+  if (["visited", "completed"].includes(currentStatus)) {
     event.target.value = currentStatus;
 
     statusStates.value[id] = {
@@ -1348,6 +1357,7 @@ const getStatusClasses = (status) => {
     paid: "bg-green-100 text-green-700",
     cancelled: "bg-red-100 text-red-700",
     visited: "bg-purple-100 text-purple-700",
+    completed: "bg-purple-100 text-purple-700",
   };
 
   return classes[status] || "bg-gray-100 text-gray-700";

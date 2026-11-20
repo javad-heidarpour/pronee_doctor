@@ -8,6 +8,7 @@ use App\Models\Doctor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UpdateManagedUserAction
 {
@@ -33,6 +34,17 @@ class UpdateManagedUserAction
                 : $oldIsActive;
 
             if ($oldRole === 'secretary' && $newRole !== 'secretary') {
+                // Revoke both direct doctor assignments and organization
+                // memberships. Leaving an active organization membership behind
+                // could recreate doctor_user grants during a later organization sync.
+                DB::table('clinic_organization_members')
+                    ->where('user_id', $lockedUser->id)
+                    ->where('is_active', true)
+                    ->update([
+                        'is_active' => false,
+                        'updated_at' => now(),
+                    ]);
+
                 $lockedUser->doctors()->detach();
             }
 
@@ -63,6 +75,12 @@ class UpdateManagedUserAction
                 ->where('user_id', $lockedUser->id)
                 ->lockForUpdate()
                 ->first();
+
+            if ($newRole === 'doctor' && !$doctorProfile) {
+                throw ValidationException::withMessages([
+                    'role' => 'برای تبدیل این حساب به پزشک، ابتدا باید پرونده حرفه‌ای پزشک ایجاد شود.',
+                ]);
+            }
 
             if ($doctorProfile) {
                 $doctorProfile->is_active = $newRole === 'doctor' && $newIsActive;

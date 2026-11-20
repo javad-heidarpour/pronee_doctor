@@ -5,6 +5,7 @@ namespace App\Actions\Portal\Shifts;
 use App\Actions\Portal\Clinic\EnsureDoctorOwnsActiveClinicAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,14 @@ class UpdateTimeSlotAction
                 return false;
             }
 
+            if (DoctorHoliday::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('clinic_id', $data->clinicId)
+                ->whereDate('holiday_date', $data->date)
+                ->exists()) {
+                return false;
+            }
+
             $overlap = TimeSlot::query()
                 ->overlapping(
                     (int) $doctor->id,
@@ -50,6 +59,7 @@ class UpdateTimeSlotAction
                 'date' => $data->date,
                 'start_time' => $data->startTime,
                 'end_time' => $data->endTime,
+                'cancelled_reason' => $lockedSlot->status === 'cancelled' ? 'manual' : null,
             ]);
 
             return true;

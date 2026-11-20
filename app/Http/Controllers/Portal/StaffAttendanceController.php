@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use Carbon\Carbon;
 use App\Support\StaffAttendanceCalculator;
+use App\Services\Staff\StaffAttendancePerformanceEvaluator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -166,6 +167,8 @@ final class StaffAttendanceController extends Controller
         $scopeFilter($auditQuery, 'e');
         $auditEvents = $auditQuery->orderByDesc('e.created_at')->limit(100)
             ->get(['e.id','e.attendance_id','e.event_type','e.old_values','e.new_values','e.reason','e.created_at','actor.name as actor_name','actor.family as actor_family','staff.name as staff_name','staff.family as staff_family']);
+        $performanceEvaluations = app(StaffAttendancePerformanceEvaluator::class)->evaluate($attendances, $absenceRows);
+
         $summary = [
             'days_recorded' => $attendances->count(),
             'late_days' => $attendances->where('minutes_late','>',0)->count(),
@@ -186,6 +189,7 @@ final class StaffAttendanceController extends Controller
             'holidays'=>$holidays,
             'absenceRows'=>$absenceRows->values(),
             'summary'=>$summary,
+            'performanceEvaluations'=>$performanceEvaluations,
             'month'=>$month,
             'currentUserId'=>(int)$user->id,
             'canManage'=>$canManage,
@@ -212,20 +216,43 @@ final class StaffAttendanceController extends Controller
         abort_unless($member,404,'کارمند در این مجموعه عضویت فعال ندارد.');
         $assigned = $member->clinic_ids ? json_decode($member->clinic_ids,true) : [];
         abort_unless(in_array((int)$data['clinic_id'],array_map('intval',is_array($assigned)?$assigned:[]),true),403,'کارمند به این شعبه تخصیص ندارد.');
-        $overlap = DB::table('clinic_staff_work_schedules')
-            ->where('organization_id',$organization->id)->where('clinic_id',$data['clinic_id'])
-            ->where('staff_user_id',$data['staff_user_id'])->where('weekday',$data['weekday'])->where('is_active',true)
-            ->whereDate('effective_from','<=',$data['effective_until'] ?? '9999-12-31')
-            ->where(fn($q)=>$q->whereNull('effective_until')->orWhereDate('effective_until','>=',$data['effective_from']))
-            ->exists();
-        abort_if($overlap,422,'برای این کارمند در این روز و بازه اعتبار، برنامه کاری هم‌پوشان وجود دارد.');
-        DB::table('clinic_staff_work_schedules')->insert([
-            'organization_id'=>$organization->id,'clinic_id'=>$data['clinic_id'],'staff_user_id'=>$data['staff_user_id'],
-            'weekday'=>$data['weekday'],'start_time'=>$data['start_time'],'end_time'=>$data['end_time'],
-            'break_minutes'=>$data['break_minutes']??0,'grace_minutes'=>$data['grace_minutes']??10,
-            'effective_from'=>$data['effective_from'],'effective_until'=>$data['effective_until']??null,
-            'is_active'=>true,'created_by'=>Auth::guard('web')->id(),'created_at'=>now(),'updated_at'=>now(),
-        ]);
+        $user = Auth::guard('web')->user();
+        DB::transaction(function () use ($organization, $data, $user): void {
+            // Serialize schedule writes per employee so parallel requests cannot create overlapping shifts.
+            DB::table('users')->where('id', $data['staff_user_id'])->lockForUpdate()->first();
+
+            $overlap = DB::table('clinic_staff_work_schedules')
+                ->where('organization_id', $organization->id)
+                ->where('staff_user_id', $data['staff_user_id'])
+                ->where('weekday', $data['weekday'])
+                ->where('is_active', true)
+                ->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time'])
+                ->whereDate('effective_from', '<=', $data['effective_until'] ?? '9999-12-31')
+                ->where(fn ($query) => $query->whereNull('effective_until')
+                    ->orWhereDate('effective_until', '>=', $data['effective_from']))
+                ->exists();
+
+            abort_if($overlap, 422, 'برای این کارمند در این روز و بازه اعتبار، حتی در شعبه دیگر، برنامه کاری هم‌پوشان وجود دارد.');
+
+            DB::table('clinic_staff_work_schedules')->insert([
+                'organization_id' => $organization->id,
+                'clinic_id' => $data['clinic_id'],
+                'staff_user_id' => $data['staff_user_id'],
+                'weekday' => $data['weekday'],
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
+                'break_minutes' => $data['break_minutes'] ?? 0,
+                'grace_minutes' => $data['grace_minutes'] ?? 10,
+                'effective_from' => $data['effective_from'],
+                'effective_until' => $data['effective_until'] ?? null,
+                'is_active' => true,
+                'created_by' => $user->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }, 3);
+
         return back()->with('success','برنامه کاری کارمند ثبت شد.');
     }
 

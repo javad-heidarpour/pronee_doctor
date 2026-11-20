@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Home\BookAppointmentAction;
-use App\Actions\Home\ListActiveDoctorsAction;
+use App\Actions\Home\ListPublicBookableDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
 use App\DTOs\Home\BookAppointmentData;
 use App\Models\Appointment;
@@ -15,7 +15,7 @@ use Inertia\Inertia;
 
 class HomeController extends Controller
 {
-    public function Home(ListActiveDoctorsAction $action)
+    public function Home(ListPublicBookableDoctorsAction $action)
     {
         return Inertia::render('Home', [
             'doctors' => $action->handle(),
@@ -46,7 +46,7 @@ class HomeController extends Controller
 
         return redirect()->to(URL::temporarySignedRoute(
             'visit.show',
-            now()->addMinutes(30),
+            now()->addDays(180),
             ['visit_number' => $appointment->id]
         ));
     }
@@ -64,6 +64,11 @@ class HomeController extends Controller
             'message' => 'نوبت با موفقیت ثبت شد.',
             'appointment_id' => $appointment->id,
             'fee_rial' => $appointment->fee_rial,
+            'payment_url' => URL::temporarySignedRoute(
+                'payment.pay',
+                now()->addMinutes(15),
+                ['visit_number' => $appointment->id]
+            ),
         ]);
     }
 }

@@ -29,6 +29,7 @@ final class ListPortalPatientsActionTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('patient_id')->nullable();
             $table->string('patient_name')->nullable();
             $table->string('patient_phone')->nullable();
             $table->string('patient_national_code')->nullable();
@@ -79,6 +80,33 @@ final class ListPortalPatientsActionTest extends TestCase
         $this->assertSame('آزاده محمدی', $patients->items()[0]->patient_name);
     }
 
+    public function test_phone_only_patient_does_not_inherit_a_visit_from_another_patient_sharing_the_phone(): void
+    {
+        $doctor = $this->doctor();
+
+        $phoneOnlyVisit = $this->appointment($doctor, 10, '2026-11-20', '09:30', [
+            'patient_name' => 'Phone Only Patient',
+            'patient_phone' => '09129999999',
+            'patient_national_code' => null,
+        ]);
+
+        $codedPatientVisit = $this->appointment($doctor, 10, '2026-11-25', '10:30', [
+            'patient_name' => 'National Code Patient',
+            'patient_phone' => '09129999999',
+            'patient_national_code' => '0012345678',
+        ]);
+
+        $patients = app(ListPortalPatientsAction::class)->handle($doctor, [10]);
+
+        $phoneOnlyPatient = collect($patients->items())->firstWhere('patient_key', 'phone:09129999999');
+        $codedPatient = collect($patients->items())->firstWhere('patient_key', 'national:0012345678');
+
+        $this->assertNotNull($phoneOnlyPatient);
+        $this->assertNotNull($codedPatient);
+        $this->assertSame($phoneOnlyVisit->id, (int) $phoneOnlyPatient->latest_appointment_id);
+        $this->assertSame($codedPatientVisit->id, (int) $codedPatient->latest_appointment_id);
+    }
+
     private function doctor(): Doctor
     {
         return Doctor::query()->create([
@@ -105,4 +133,33 @@ final class ListPortalPatientsActionTest extends TestCase
             'appointment_time' => $time,
         ], $overrides));
     }
+    public function test_it_groups_visits_by_stable_patient_id_when_identity_fields_change(): void
+    {
+        $doctor = $this->doctor();
+
+        $this->appointment($doctor, 10, '2026-11-10', '09:30', [
+            'patient_id' => 77,
+            'patient_name' => 'نام قدیمی',
+            'patient_phone' => '09120000000',
+            'patient_national_code' => null,
+        ]);
+        $latestVisit = $this->appointment($doctor, 10, '2026-11-20', '11:30', [
+            'patient_id' => 77,
+            'patient_name' => 'نام به‌روزشده',
+            'patient_phone' => '09129999999',
+            'patient_national_code' => '0012345678',
+        ]);
+
+        $patients = app(ListPortalPatientsAction::class)->handle($doctor, [10]);
+
+        $this->assertSame(1, $patients->total());
+        $patient = $patients->items()[0];
+        $this->assertSame(77, (int) $patient->patient_id);
+        $this->assertSame(2, (int) $patient->appointments_count);
+        $this->assertSame($latestVisit->id, (int) $patient->latest_appointment_id);
+        $this->assertSame('نام به‌روزشده', $patient->patient_name);
+        $this->assertSame('09129999999', $patient->patient_phone);
+        $this->assertSame('0012345678', $patient->patient_national_code);
+    }
+
 }

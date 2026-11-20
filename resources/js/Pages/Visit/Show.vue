@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head, useForm, usePage } from "@inertiajs/vue3";
 
 const page = usePage();
 
@@ -16,8 +16,14 @@ const props = defineProps({
 
 const processing = ref(false);
 const ErrTxt = ref(null);
+const cancelForm = useForm({ patient_phone: "" });
+const cancellationSuccess = computed(() => page.props.flash?.success ?? "");
+const rescheduleForm = useForm({ patient_phone: "", new_time_slot_id: "" });
 
 const paid = computed(() => props.visit?.payment_status === "paid");
+const printReceipt = () => {
+  if (props.visit?.payment_receipt) window.print();
+};
 
 const canPay = computed(() => {
   return (
@@ -58,7 +64,7 @@ const paymentStatus = computed(() => {
     };
   }
 
-  if (props.visit.appointment_status === "visited") {
+  if (["visited", "completed"].includes(props.visit.appointment_status)) {
     return {
       title: "ویزیت انجام شده",
       description: "این نوبت در وضعیت ویزیت انجام‌شده قرار دارد.",
@@ -94,7 +100,10 @@ const formatPrice = (value) => {
 const getPersianFullDate = (dateStr) => {
   if (!dateStr) return "مشخص نشده";
 
-  const date = new Date(dateStr);
+  const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)
+    : new Date(dateStr);
 
   if (Number.isNaN(date.getTime())) {
     return "مشخص نشده";
@@ -107,6 +116,29 @@ const getPersianFullDate = (dateStr) => {
     day: "numeric",
     weekday: "long",
   }).format(date);
+};
+
+const rescheduleAppointment = () => {
+  if (
+    !props.visit?.can_reschedule ||
+    rescheduleForm.processing ||
+    !props.visit?.reschedule_url ||
+    !rescheduleForm.new_time_slot_id
+  ) return;
+
+  rescheduleForm.post(props.visit.reschedule_url, {
+    preserveScroll: true,
+    onSuccess: () => rescheduleForm.reset(),
+  });
+};
+
+const cancelAppointment = () => {
+  if (!props.visit?.can_cancel || cancelForm.processing || !props.visit?.cancel_url) return;
+
+  cancelForm.post(props.visit.cancel_url, {
+    preserveScroll: true,
+    onSuccess: () => cancelForm.reset(),
+  });
 };
 
 const pay = () => {
@@ -233,6 +265,14 @@ const pay = () => {
         </div>
 
         <div class="space-y-7 p-5 sm:p-8">
+          <div
+            v-if="cancellationSuccess"
+            class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800"
+            role="status"
+            aria-live="polite"
+          >
+            {{ cancellationSuccess }}
+          </div>
           <!-- وضعیت پرداخت -->
           <div
             v-if="paymentStatus"
@@ -258,6 +298,26 @@ const pay = () => {
               </p>
             </div>
           </div>
+
+          <!-- وضعیت نوبت -->
+          <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs text-slate-500">وضعیت نوبت</p>
+                <p class="mt-2 font-bold text-slate-900">
+                  {{ visit.appointment_status_label || "در حال بررسی" }}
+                </p>
+              </div>
+              <span
+                class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200"
+              >
+                {{ visit.appointment_status === "completed" ? "تکمیل‌شده" : visit.appointment_status === "visited" ? "ویزیت‌شده" : visit.appointment_status === "confirmed" ? "تأییدشده" : visit.appointment_status === "cancelled" || visit.appointment_status === "canceled" ? "لغوشده" : visit.appointment_status === "contacted" ? "تماس گرفته شده" : "در انتظار" }}
+              </span>
+            </div>
+            <p class="mt-2 text-sm leading-6 text-slate-600">
+              این وضعیت آخرین مرحله ثبت‌شده برای نوبت شماست. برای اطلاعات پرداخت، وضعیت پرداخت را جداگانه بررسی کنید.
+            </p>
+          </section>
 
           <!-- مشخصات پزشک و بیمار -->
           <section>
@@ -340,6 +400,116 @@ const pay = () => {
                 </p>
               </div>
             </div>
+          </section>
+
+          <!-- لغو نوبت توسط بیمار -->
+          <section
+            v-if="visit.can_cancel"
+            class="rounded-2xl border border-rose-100 bg-rose-50/60 p-5"
+          >
+            <h2 class="font-bold text-slate-900">درخواست لغو نوبت</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-600">
+              برای اطمینان از هویت بیمار، شماره موبایلی را که هنگام رزرو ثبت کرده‌اید وارد کنید.
+              نوبت‌های دارای پرداخت موفق از این بخش قابل لغو نیستند.
+            </p>
+            <form class="mt-4 space-y-3" @submit.prevent="cancelAppointment">
+              <label for="cancel_patient_phone" class="block text-sm font-medium text-slate-700">
+                شماره موبایل ثبت‌شده
+              </label>
+              <input
+                id="cancel_patient_phone"
+                v-model="cancelForm.patient_phone"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel"
+                maxlength="11"
+                minlength="11"
+                pattern="09[0-9]{9}"
+                dir="ltr"
+                required
+                class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                placeholder="09123456789"
+              />
+              <p v-if="cancelForm.errors.patient_phone" class="text-sm text-rose-700" role="alert">
+                {{ cancelForm.errors.patient_phone }}
+              </p>
+              <button
+                type="submit"
+                :disabled="cancelForm.processing || cancelForm.patient_phone.length !== 11"
+                class="flex w-full items-center justify-center rounded-xl bg-rose-600 px-4 py-3 font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {{ cancelForm.processing ? "در حال لغو نوبت..." : "تأیید و لغو نوبت" }}
+              </button>
+            </form>
+          </section>
+
+          <!-- جابه‌جایی نوبت -->
+          <section
+            v-if="visit.can_reschedule"
+            class="rounded-2xl border border-blue-100 bg-blue-50/50 p-5"
+          >
+            <h2 class="font-bold text-slate-900">تغییر زمان نوبت</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-600">
+              می‌توانید ساعت دیگری را برای همین پزشک و همین شعبه انتخاب کنید.
+              وضعیت پرداخت و مبلغ پرداخت‌شده برای نوبت حفظ می‌شود.
+            </p>
+
+            <div v-if="visit.available_slots?.length" class="mt-4">
+              <form class="space-y-3" @submit.prevent="rescheduleAppointment">
+                <label for="new_time_slot_id" class="block text-sm font-medium text-slate-700">
+                  زمان جدید مراجعه
+                </label>
+                <select
+                  id="new_time_slot_id"
+                  v-model="rescheduleForm.new_time_slot_id"
+                  required
+                  class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-right focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="" disabled>انتخاب تاریخ و ساعت جدید</option>
+                  <option
+                    v-for="slot in visit.available_slots"
+                    :key="slot.id"
+                    :value="String(slot.id)"
+                  >
+                    {{ getPersianFullDate(slot.date) }} — ساعت {{ slot.start_time }}
+                  </option>
+                </select>
+                <p v-if="rescheduleForm.errors.new_time_slot_id" class="text-sm text-rose-700" role="alert">
+                  {{ rescheduleForm.errors.new_time_slot_id }}
+                </p>
+
+                <label for="reschedule_patient_phone" class="block text-sm font-medium text-slate-700">
+                  شماره موبایل ثبت‌شده
+                </label>
+                <input
+                  id="reschedule_patient_phone"
+                  v-model="rescheduleForm.patient_phone"
+                  type="tel"
+                  inputmode="numeric"
+                  autocomplete="tel"
+                  maxlength="11"
+                  minlength="11"
+                  pattern="09[0-9]{9}"
+                  dir="ltr"
+                  required
+                  class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="09123456789"
+                />
+                <p v-if="rescheduleForm.errors.patient_phone" class="text-sm text-rose-700" role="alert">
+                  {{ rescheduleForm.errors.patient_phone }}
+                </p>
+                <button
+                  type="submit"
+                  :disabled="rescheduleForm.processing || rescheduleForm.patient_phone.length !== 11 || !rescheduleForm.new_time_slot_id"
+                  class="flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {{ rescheduleForm.processing ? "در حال تغییر زمان..." : "تأیید زمان جدید" }}
+                </button>
+              </form>
+            </div>
+            <p v-else class="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
+              در حال حاضر ساعت آزاد دیگری برای این شعبه وجود ندارد.
+            </p>
           </section>
 
           <!-- مبلغ و پرداخت -->
@@ -425,6 +595,58 @@ const pay = () => {
               <p v-if="canPay" class="text-center text-xs leading-6 text-slate-500">
                 با انتخاب دکمه پرداخت، به درگاه بانکی منتقل خواهید شد.
               </p>
+            </div>
+          </section>
+
+          <!-- رسید قابل چاپ؛ فقط پس از تأیید قطعی پرداخت نمایش داده می‌شود -->
+          <section
+            v-if="visit.payment_receipt"
+            class="receipt-print overflow-hidden rounded-2xl border border-emerald-200 bg-white"
+            aria-label="رسید پرداخت"
+          >
+            <div class="flex items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+              <div>
+                <p class="text-xs font-medium text-emerald-700">پرونیکس</p>
+                <h2 class="mt-1 text-lg font-extrabold text-slate-900">رسید پرداخت نوبت</h2>
+              </div>
+              <span class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">پرداخت تأییدشده</span>
+            </div>
+
+            <div class="grid gap-4 p-5 sm:grid-cols-2">
+              <div>
+                <p class="text-xs text-slate-500">شماره رسید</p>
+                <p class="mt-1 font-bold text-slate-900" dir="ltr">{{ visit.payment_receipt.receipt_number }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">شماره نوبت</p>
+                <p class="mt-1 font-bold text-slate-900">{{ visit.number }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">مبلغ پرداخت‌شده</p>
+                <p class="mt-1 font-bold text-slate-900">{{ formatPrice(visit.payment_receipt.amount_rial) }} تومان</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">درگاه پرداخت</p>
+                <p class="mt-1 font-bold text-slate-900">{{ visit.payment_receipt.gateway }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">شناسه پیگیری بانکی</p>
+                <p class="mt-1 font-bold text-slate-900" dir="ltr">{{ visit.payment_receipt.reference || "ثبت نشده" }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">زمان پرداخت</p>
+                <p class="mt-1 font-bold text-slate-900" dir="ltr">{{ visit.payment_receipt.paid_at || "ثبت نشده" }}</p>
+              </div>
+            </div>
+
+            <div class="no-print border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                @click="printReceipt"
+                class="w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white transition hover:bg-emerald-800"
+              >
+                چاپ رسید / ذخیره به‌صورت PDF
+              </button>
             </div>
           </section>
 
@@ -519,3 +741,19 @@ const pay = () => {
     </footer>
   </main>
 </template>
+
+<style>
+@media print {
+  @page { margin: 14mm; }
+  body * { visibility: hidden !important; }
+  .receipt-print, .receipt-print * { visibility: visible !important; }
+  .receipt-print {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .receipt-print .no-print { display: none !important; }
+}
+</style>

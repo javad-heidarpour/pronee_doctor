@@ -84,9 +84,12 @@ const appointmentStatusLabel = (status) => ({
             تا زمان استعلام معتبر از درگاه، وضعیت پرداخت را دستی «موفق» نکنید.
           </p>
         </div>
-        <span class="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-          {{ payments.total ?? 0 }} مورد نیازمند بررسی
-        </span>
+        <div class="flex flex-wrap items-center gap-2">
+          <Link :href="route('portal.payments.refunds')" class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700">مدیریت برگشت وجه</Link>
+          <span class="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+            {{ payments.total ?? 0 }} مورد نیازمند بررسی
+          </span>
+        </div>
       </header>
 
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

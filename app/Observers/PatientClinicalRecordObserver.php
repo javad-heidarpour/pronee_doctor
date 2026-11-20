@@ -18,6 +18,12 @@ final class PatientClinicalRecordObserver
         'start_date',
         'end_date',
         'is_active',
+        'related_record_id',
+        'related_allergy_record_id',
+        'reaction_severity',
+        'reaction_date',
+        'action_taken',
+        'reaction_outcome',
     ];
 
     public function created(PatientClinicalRecord $record): void
@@ -56,9 +62,9 @@ final class PatientClinicalRecordObserver
     public function deleted(PatientClinicalRecord $record): void
     {
         app(RecordSecurityAuditEventAction::class)->handle(
-            'patient.clinical_record.deleted',
+            'patient.clinical_record.archived',
             $record,
-            ['doctor_id' => $record->doctor_id]
+            ['doctor_id' => $record->doctor_id, 'changed_fields' => ['archived']]
         );
     }
 }

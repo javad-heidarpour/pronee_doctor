@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { Head } from "@inertiajs/vue3";
+import { Head, Link } from "@inertiajs/vue3";
 
 import teamImg from "../../../assets/team.png";
 import plantImg from "../../../assets/plant.jpg";
@@ -22,6 +22,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  related_doctors: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const doctorFullName = computed(() =>
@@ -40,6 +44,17 @@ const pageDescription = computed(() =>
   (props.doctor.description || `دریافت نوبت آنلاین از ${doctorFullName.value} در پرونیکس.`).slice(0, 160)
 );
 
+function formatPersianDate(date) {
+  if (!date) return "";
+
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(year, month - 1, day, 12));
+}
+
 const reviewStatsFallback = {
   average: 0,
   count: 0,
@@ -49,6 +64,13 @@ const reviewStatsFallback = {
 
 <template>
   <div class="page" dir="rtl">
+    <div
+      v-if="doctor.is_preview"
+      role="status"
+      class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-900"
+    >
+      پیش‌نمایش خصوصی صفحه پزشک؛ این صفحه برای عموم منتشر نشده است.
+    </div>
     <section class="hero">
       <!-- Background -->
       <div
@@ -130,14 +152,70 @@ const reviewStatsFallback = {
         <meta property="og:type" content="profile" />
         <meta property="og:title" :content="pageTitle" />
         <meta property="og:description" :content="pageDescription" />
+        <meta v-if="doctor.canonical_url && !doctor.is_preview" property="og:url" :content="doctor.canonical_url" />
+        <meta v-if="doctor.is_preview" name="robots" content="noindex,nofollow" />
+        <meta v-if="doctor.photo_url" property="og:image" :content="doctor.photo_url" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <link v-if="doctor.canonical_url && !doctor.is_preview" rel="canonical" :href="doctor.canonical_url" />
       </Head>
 
       <section class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         <div id="about-doctor">
           <AboutDoctor :doctor="doctor" />
         </div>
-        <div v-if="doctor.working_hours?.length">
+        <div v-if="doctor.working_hours?.clinics?.length || doctor.working_hours?.holidays?.length">
           <WorkingHoursPanel :working_hours="doctor.working_hours" />
+        </div>
+      </section>
+
+      <section
+        v-if="doctor.honor_badges?.length"
+        class="rounded-3xl border border-amber-100 bg-white p-5 shadow-sm sm:p-6"
+        aria-labelledby="doctor-honors-title"
+      >
+        <div class="mb-4">
+          <span class="text-xs font-bold text-amber-700">اعتبار حرفه‌ای</span>
+          <h2 id="doctor-honors-title" class="mt-1 text-lg font-black text-slate-900">سوابق و افتخارات حرفه‌ای</h2>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <div
+            v-for="badge in doctor.honor_badges"
+            :key="badge.id"
+            class="inline-flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-sm font-bold text-amber-900"
+          >
+            <span aria-hidden="true">{{ badge.icon || "✦" }}</span>
+            <span>{{ badge.title }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        v-if="doctor.services?.length"
+        id="doctor-services"
+        class="scroll-mt-24 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6"
+      >
+        <div class="mb-5">
+          <span class="text-xs font-bold text-emerald-700">خدمات مطب</span>
+          <h2 class="mt-1 text-xl font-black text-slate-900">خدمات پزشکی قابل ارائه</h2>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <article
+            v-for="service in doctor.services"
+            :key="service.id"
+            class="rounded-2xl border border-slate-100 bg-slate-50 p-4"
+          >
+            <span class="text-xs font-bold text-emerald-700">{{ service.category || "خدمات پزشکی" }}</span>
+            <h3 class="mt-2 font-extrabold text-slate-800">{{ service.title }}</h3>
+            <p v-if="service.short_description" class="mt-2 text-sm leading-7 text-slate-600">
+              {{ service.short_description }}
+            </p>
+            <a
+              href="#booking-section"
+              class="mt-3 inline-flex text-xs font-bold text-emerald-700 hover:text-emerald-900"
+            >
+              دریافت نوبت
+            </a>
+          </article>
         </div>
       </section>
 
@@ -165,6 +243,50 @@ const reviewStatsFallback = {
           <p class="mx-auto mt-2 max-w-lg text-sm leading-7 text-slate-500">
             برای اطلاع از زمان‌های مراجعه، از راه‌های ارتباطی پزشک استفاده کنید یا در روزهای آینده دوباره بررسی کنید.
           </p>
+        </div>
+
+        <div
+          v-if="related_doctors.length"
+          class="mt-6 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6"
+        >
+          <div class="mb-5">
+            <span class="text-xs font-bold text-emerald-700">گزینه‌های جایگزین</span>
+            <h3 class="mt-1 text-lg font-black text-slate-900">پزشکان مرتبط دارای نوبت آزاد</h3>
+            <p class="mt-2 text-xs leading-6 text-slate-500">
+              این گزینه‌ها بر اساس تخصص یا شهر برای دسترسی آسان‌تر نمایش داده شده‌اند و توصیه یا تشخیص پزشکی نیستند.
+            </p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <article
+              v-for="alternative in related_doctors"
+              :key="alternative.id"
+              class="rounded-2xl border border-slate-100 bg-slate-50 p-4"
+            >
+              <h4 class="font-black text-slate-900">
+                {{ alternative.caption || [alternative.name, alternative.family].filter(Boolean).join(" ") }}
+              </h4>
+              <p class="mt-1 text-xs text-slate-500">{{ alternative.specialty_title || "پزشک" }}</p>
+              <span class="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                پیشنهاد بر اساس {{ alternative.match_reason }}
+              </span>
+              <p v-if="alternative.next_available" class="mt-3 text-sm font-bold text-slate-800">
+                نزدیک‌ترین نوبت: {{ formatPersianDate(alternative.next_available.date) }}
+                · {{ alternative.next_available.start_time }}
+              </p>
+              <p v-if="alternative.next_clinic" class="mt-1 text-xs text-slate-500">
+                {{ alternative.next_clinic.name }}
+                <span v-if="alternative.next_clinic.city_name"> · {{ alternative.next_clinic.city_name }}</span>
+              </p>
+              <Link
+                :href="route('home1', { doctor: alternative.slug })"
+                class="mt-4 inline-flex items-center gap-2 text-xs font-black text-emerald-700 hover:text-emerald-900"
+              >
+                مشاهده نوبت‌ها
+                <span aria-hidden="true">←</span>
+              </Link>
+            </article>
+          </div>
         </div>
       </section>
 

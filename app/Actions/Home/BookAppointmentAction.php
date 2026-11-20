@@ -7,9 +7,13 @@ namespace App\Actions\Home;
 use App\DTOs\Home\BookAppointmentData;
 use App\Actions\Portal\Patient\ResolveOrCreatePatientAction;
 use App\Models\Appointment;
+use App\Models\ClinicDiscountCode;
+use App\Models\ClinicDiscountRedemption;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\Fee;
 use App\Models\TimeSlot;
+use App\Models\VisitReason;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -81,12 +85,25 @@ final class BookAppointmentAction
                     ]);
                 }
 
-                $isAlreadyBooked = Appointment::query()
-                    ->where('time_slot_id', $timeSlot->id)
-                    ->whereIn('status', ['pending', 'confirmed'])
-                    ->exists();
+                if (DoctorHoliday::query()
+                    ->where('doctor_id', $doctor->id)
+                    ->where('clinic_id', $clinic->id)
+                    ->whereDate('holiday_date', $timeSlot->date->format('Y-m-d'))
+                    ->exists()) {
+                    throw ValidationException::withMessages([
+                        'time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
+                    ]);
+                }
 
-                if ($isAlreadyBooked) {
+                // Use a locking/current read so a transaction that waited for
+                // the doctor lock cannot rely on an older REPEATABLE READ snapshot.
+                $activeAppointment = Appointment::query()
+                    ->where('time_slot_id', $timeSlot->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'contacted'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($activeAppointment !== null) {
                     throw ValidationException::withMessages([
                         'time_slot_id' =>
                             'متأسفانه این ساعت لحظاتی پیش رزرو شد. لطفاً ساعت دیگری انتخاب کنید.',
@@ -110,30 +127,60 @@ final class BookAppointmentAction
                     $timeSlot->date->format('Y-m-d') . ' ' . $timeSlot->start_time
                 );
 
-                if ($appointmentDateTime->lessThanOrEqualTo(now())) {
+                if ($appointmentDateTime->lessThan(now()->addHour())) {
                     throw ValidationException::withMessages([
                         'time_slot_id' =>
-                            'زمان این نوبت گذشته است. لطفاً ساعت دیگری انتخاب کنید.',
+                            'برای ثبت نوبت باید حداقل یک ساعت تا زمان مراجعه باقی مانده باشد. لطفاً زمان دیگری انتخاب کنید.',
                     ]);
                 }
 
-                if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
-                    $existingAppointment = Appointment::query()
-                        ->where('patient_national_code', $data->patientNationalCode)
-                        ->where('doctor_id', $doctor->id)
-                        ->whereIn('status', ['pending', 'confirmed'])
-                        ->exists();
+                $identityField = null;
+                $duplicatePatientQuery = Appointment::query()
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'contacted']);
 
-                    if ($existingAppointment) {
+                if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
+                    $identityField = 'patient_national_code';
+                    $duplicatePatientQuery->where(
+                        'patient_national_code',
+                        $data->patientNationalCode
+                    );
+                } elseif ($data->patientPhone !== '') {
+                    $identityField = 'patient_phone';
+                    $duplicatePatientQuery
+                        ->whereNull('patient_national_code')
+                        ->where('patient_phone', $data->patientPhone);
+                }
+
+                if ($identityField !== null) {
+                    $existingAppointment = $duplicatePatientQuery
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existingAppointment !== null) {
                         throw ValidationException::withMessages([
-                            'patient_national_code' =>
-                                'شما قبلاً برای این پزشک نوبت فعال دارید.',
+                            $identityField => $identityField === 'patient_national_code'
+                                ? 'شما قبلاً برای این پزشک نوبت فعال دارید.'
+                                : 'با این شماره همراه قبلاً برای این پزشک نوبت فعال ثبت شده است.',
                         ]);
                     }
                 }
 
                 $description = trim($data->description ?? '');
                 $newVisitReason = trim($data->newVisitReason ?? '');
+                $visitReasonId = null;
+
+                if ($newVisitReason === '' && $data->visitReasonId !== null) {
+                    $visitReason = VisitReason::query()->find($data->visitReasonId);
+
+                    if (!$visitReason) {
+                        throw ValidationException::withMessages([
+                            'visit_reason_id' => 'دلیل مراجعه انتخاب‌شده معتبر نیست.',
+                        ]);
+                    }
+
+                    $visitReasonId = $visitReason->id;
+                }
 
                 // A free-text reason belongs to this visit only; it must not
                 // create an unmoderated global lookup record.
@@ -154,13 +201,69 @@ final class BookAppointmentAction
                     $data->patientNationalCode
                 );
 
-                $appointment = Appointment::query()->create([
+                $baseFee = (int) ($fee?->fee_rial ?? 5000000);
+                $discountCode = null;
+                $discountAmount = 0;
+
+                if ($data->discountCode !== null) {
+                    $discountCode = ClinicDiscountCode::query()
+                        ->where('doctor_id', $doctor->id)
+                        ->where('code', strtoupper(trim($data->discountCode)))
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (
+                        !$discountCode
+                        || $discountCode->status !== 'active'
+                        || ($discountCode->clinic_id !== null && (int) $discountCode->clinic_id !== (int) $clinic->id)
+                        || ($discountCode->starts_at !== null && $discountCode->starts_at->isFuture())
+                        || ($discountCode->ends_at !== null && $discountCode->ends_at->isPast())
+                        || $baseFee < (int) $discountCode->minimum_amount_rial
+                    ) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'کد تخفیف معتبر نیست، منقضی شده یا شرایط استفاده را ندارد.',
+                        ]);
+                    }
+
+                    if ($discountCode->usage_limit !== null
+                        && $discountCode->redemptions()->count() >= (int) $discountCode->usage_limit) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'ظرفیت استفاده از این کد تخفیف تکمیل شده است.',
+                        ]);
+                    }
+
+                    if (!$patient) {
+                        throw ValidationException::withMessages(['discount_code' => 'برای استفاده از کد تخفیف، پرونده بیمار باید ایجاد یا شناسایی شود.']);
+                    }
+
+                    if ($discountCode->redemptions()->where('patient_id', $patient->id)->count() >= (int) $discountCode->per_patient_limit) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'سقف استفاده این بیمار از کد تخفیف تکمیل شده است.',
+                        ]);
+                    }
+
+                    $discountAmount = $discountCode->discount_type === 'percent'
+                        ? intdiv($baseFee * (int) $discountCode->discount_value, 100)
+                        : min($baseFee, (int) $discountCode->discount_value);
+
+                    if ($discountCode->maximum_discount_rial !== null) {
+                        $discountAmount = min($discountAmount, (int) $discountCode->maximum_discount_rial);
+                    }
+                    $discountAmount = min($baseFee, max(0, $discountAmount));
+                    if ($discountAmount < 1 || $discountAmount >= $baseFee) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'مبلغ نهایی رزرو پس از تخفیف باید بیشتر از صفر باشد.',
+                        ]);
+                    }
+                }
+
+                $appointmentAttributes = [
                     'doctor_id' => $doctor->id,
                     'patient_id' => $patient?->id,
                     'clinic_id' => $clinic->id,
                     'time_slot_id' => $timeSlot->id,
                     'user_id' => auth('web')->id(),
-                    'fee_rial' => (int) ($fee?->fee_rial ?? 5000000),
+                    'fee_rial' => $baseFee - $discountAmount,
                     'patient_name' => $data->patientName,
                     'patient_phone' => $data->patientPhone,
                     'patient_national_code' => $data->patientNationalCode,
@@ -169,13 +272,34 @@ final class BookAppointmentAction
                     'appointment_date' => $timeSlot->date,
                     'appointment_time' => $timeSlot->start_time,
                     'reservation_expires_at' => now()->addMinutes(10),
-                    'visit_reason_id' => $data->visitReasonId,
-                ]);
+                    'visit_reason_id' => $visitReasonId,
+                ];
+
+                if ($discountCode !== null) {
+                    $appointmentAttributes['discount_code_id'] = $discountCode->id;
+                    $appointmentAttributes['original_fee_rial'] = $baseFee;
+                    $appointmentAttributes['discount_amount_rial'] = $discountAmount;
+                }
+
+                $appointment = Appointment::query()->create($appointmentAttributes);
+
+                if ($discountCode !== null) {
+                    ClinicDiscountRedemption::query()->create([
+                        'discount_code_id' => $discountCode->id,
+                        'appointment_id' => $appointment->id,
+                        'patient_id' => $patient?->id,
+                        'doctor_id' => $doctor->id,
+                        'original_amount_rial' => $baseFee,
+                        'discount_amount_rial' => $discountAmount,
+                        'final_amount_rial' => $baseFee - $discountAmount,
+                        'applied_at' => now(),
+                    ]);
+                }
 
                 $timeSlot->update(['status' => 'booked']);
 
                 return $appointment;
-            });
+            }, 3);
 
             // The SMS authorization is written only after the database
             // transaction commits successfully.
