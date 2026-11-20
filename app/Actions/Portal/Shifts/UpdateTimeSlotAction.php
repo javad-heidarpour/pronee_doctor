@@ -59,6 +59,7 @@ class UpdateTimeSlotAction
                 'date' => $data->date,
                 'start_time' => $data->startTime,
                 'end_time' => $data->endTime,
+                'cancelled_reason' => $lockedSlot->status === 'cancelled' ? 'manual' : null,
             ]);
 
             return true;
