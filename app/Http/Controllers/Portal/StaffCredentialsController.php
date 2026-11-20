@@ -362,29 +362,47 @@ final class StaffCredentialsController extends Controller
 
     private function assertOrganizationStaff(ClinicOrganization $organization, int $staffUserId, int $clinicId): void
     {
-        $isActiveMember = DB::table('clinic_organization_members')
+        $member = DB::table('clinic_organization_members')
             ->where('organization_id', $organization->id)
             ->where('user_id', $staffUserId)
             ->where('is_active', true)
-            ->exists();
+            ->first();
 
-        $isActiveDoctor = DB::table('clinic_organization_doctors')
+        if ($member) {
+            $assigned = is_array($member->clinic_ids)
+                ? $member->clinic_ids
+                : (json_decode((string) $member->clinic_ids, true) ?: []);
+
+            abort_unless(
+                in_array($clinicId, array_map('intval', is_array($assigned) ? $assigned : []), true),
+                422,
+                'کارمند به شعبه انتخاب‌شده تخصیص داده نشده است.'
+            );
+
+            return;
+        }
+
+        $doctorMember = DB::table('clinic_organization_doctors')
             ->join('doctors', 'doctors.id', '=', 'clinic_organization_doctors.doctor_id')
             ->where('clinic_organization_doctors.organization_id', $organization->id)
             ->where('clinic_organization_doctors.status', 'active')
             ->where('doctors.user_id', $staffUserId)
-            ->exists();
+            ->select('doctors.id')
+            ->first();
 
-        abort_unless($isActiveMember || $isActiveDoctor, 422, 'فرد انتخاب‌شده عضو فعال سازمان نیست.');
+        abort_unless($doctorMember, 422, 'فرد انتخاب‌شده عضو فعال سازمان نیست.');
 
         abort_unless(
             DB::table('clinic_organization_clinics')
-                ->where('organization_id', $organization->id)
-                ->where('clinic_id', $clinicId)
-                ->where('status', 'active')
+                ->join('addresses', 'addresses.id', '=', 'clinic_organization_clinics.clinic_id')
+                ->where('clinic_organization_clinics.organization_id', $organization->id)
+                ->where('clinic_organization_clinics.clinic_id', $clinicId)
+                ->where('clinic_organization_clinics.status', 'active')
+                ->where('addresses.doctor_id', $doctorMember->id)
+                ->where('addresses.is_active', true)
                 ->exists(),
             422,
-            'شعبه انتخاب‌شده عضو فعال سازمان نیست.'
+            'پزشک انتخاب‌شده به شعبه انتخاب‌شده تخصیص ندارد.'
         );
     }
 
