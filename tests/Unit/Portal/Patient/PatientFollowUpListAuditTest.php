@@ -29,6 +29,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->string('role')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamp('deleted_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
