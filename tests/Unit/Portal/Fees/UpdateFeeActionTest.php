@@ -16,7 +16,7 @@ final class UpdateFeeActionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Schema::create('doctors', function (Blueprint $table): void { $table->id(); $table->timestamps(); });
+        Schema::create('doctors', function (Blueprint $table): void { $table->id(); $table->softDeletes(); $table->timestamps(); });
         Schema::create('fees', function (Blueprint $table): void {
             $table->id(); $table->string('title'); $table->unsignedBigInteger('fee_rial');
             $table->boolean('is_active')->default(true); $table->unsignedBigInteger('created_by');
