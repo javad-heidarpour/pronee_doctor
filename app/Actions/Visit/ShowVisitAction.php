@@ -54,6 +54,10 @@ class ShowVisitAction
             && (bool) $clinic?->is_active
             && Carbon::parse($appointment->appointment_date->format('Y-m-d') . ' ' . $appointment->appointment_time)->isFuture();
 
+        $minimumRescheduleAt = now()->addHour();
+        $minimumRescheduleDate = $minimumRescheduleAt->toDateString();
+        $minimumRescheduleTime = $minimumRescheduleAt->format('H:i:s');
+
         $availableSlots = $canReschedule
             ? TimeSlot::query()
                 ->where('doctor_id', $appointment->doctor_id)
@@ -67,11 +71,11 @@ class ShowVisitAction
                         ->whereColumn('doctor_holidays.clinic_id', 'time_slots.clinic_id')
                         ->whereColumn('doctor_holidays.holiday_date', 'time_slots.date');
                 })
-                ->where(function ($query): void {
-                    $query->whereDate('date', '>', today()->toDateString())
-                        ->orWhere(function ($sameDay): void {
-                            $sameDay->whereDate('date', today()->toDateString())
-                                ->where('start_time', '>', now()->format('H:i:s'));
+                ->where(function ($query) use ($minimumRescheduleDate, $minimumRescheduleTime): void {
+                    $query->whereDate('date', '>', $minimumRescheduleDate)
+                        ->orWhere(function ($sameDay) use ($minimumRescheduleDate, $minimumRescheduleTime): void {
+                            $sameDay->whereDate('date', $minimumRescheduleDate)
+                                ->where('start_time', '>=', $minimumRescheduleTime);
                         });
                 })
                 ->orderBy('date')
