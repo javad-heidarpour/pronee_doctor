@@ -92,12 +92,15 @@ final class BookAppointmentAction
                     ]);
                 }
 
-                $isAlreadyBooked = Appointment::query()
+                // Use a locking/current read so a transaction that waited for
+                // the doctor lock cannot rely on an older REPEATABLE READ snapshot.
+                $activeAppointment = Appointment::query()
                     ->where('time_slot_id', $timeSlot->id)
                     ->whereIn('status', ['pending', 'confirmed', 'contacted'])
-                    ->exists();
+                    ->lockForUpdate()
+                    ->first();
 
-                if ($isAlreadyBooked) {
+                if ($activeAppointment !== null) {
                     throw ValidationException::withMessages([
                         'time_slot_id' =>
                             'متأسفانه این ساعت لحظاتی پیش رزرو شد. لطفاً ساعت دیگری انتخاب کنید.',
@@ -133,9 +136,10 @@ final class BookAppointmentAction
                         ->where('patient_national_code', $data->patientNationalCode)
                         ->where('doctor_id', $doctor->id)
                         ->whereIn('status', ['pending', 'confirmed', 'contacted'])
-                        ->exists();
+                        ->lockForUpdate()
+                        ->first();
 
-                    if ($existingAppointment) {
+                    if ($existingAppointment !== null) {
                         throw ValidationException::withMessages([
                             'patient_national_code' =>
                                 'شما قبلاً برای این پزشک نوبت فعال دارید.',
@@ -186,7 +190,7 @@ final class BookAppointmentAction
                 $timeSlot->update(['status' => 'booked']);
 
                 return $appointment;
-            });
+            }, 3);
 
             // The SMS authorization is written only after the database
             // transaction commits successfully.
