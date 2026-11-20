@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class TimeSlot extends Model
 {
     protected $fillable = [
-        'doctor_id', 'clinic_id', 'date', 'start_time', 'end_time', 'status'
+        'doctor_id', 'clinic_id', 'date', 'start_time', 'end_time', 'status', 'cancelled_reason'
     ];
 
     protected $casts = [
@@ -71,7 +71,12 @@ class TimeSlot extends Model
         return $query
             ->where('doctor_id', $doctorId)
             ->whereDate('date', $date)
-            ->where('status', '!=', 'cancelled')
+            ->where(function (Builder $slots): void {
+                $slots
+                    ->where('status', '!=', 'cancelled')
+                    ->orWhereNull('cancelled_reason')
+                    ->orWhere('cancelled_reason', '!=', 'holiday');
+            })
             ->where('start_time', '<', $endTime)
             ->where('end_time', '>', $startTime)
             ->when($ignoreId !== null, function (Builder $builder) use ($ignoreId) {
