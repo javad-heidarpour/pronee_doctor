@@ -7,6 +7,8 @@ namespace App\Actions\Home;
 use App\DTOs\Home\BookAppointmentData;
 use App\Actions\Portal\Patient\ResolveOrCreatePatientAction;
 use App\Models\Appointment;
+use App\Models\ClinicDiscountCode;
+use App\Models\ClinicDiscountRedemption;
 use App\Models\Doctor;
 use App\Models\DoctorHoliday;
 use App\Models\Fee;
@@ -199,13 +201,65 @@ final class BookAppointmentAction
                     $data->patientNationalCode
                 );
 
-                $appointment = Appointment::query()->create([
+                $baseFee = (int) ($fee?->fee_rial ?? 5000000);
+                $discountCode = null;
+                $discountAmount = 0;
+
+                if ($data->discountCode !== null) {
+                    $discountCode = ClinicDiscountCode::query()
+                        ->where('doctor_id', $doctor->id)
+                        ->where('code', strtoupper(trim($data->discountCode)))
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (
+                        !$discountCode
+                        || $discountCode->status !== 'active'
+                        || ($discountCode->clinic_id !== null && (int) $discountCode->clinic_id !== (int) $clinic->id)
+                        || ($discountCode->starts_at !== null && $discountCode->starts_at->isFuture())
+                        || ($discountCode->ends_at !== null && $discountCode->ends_at->isPast())
+                        || $baseFee < (int) $discountCode->minimum_amount_rial
+                    ) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'کد تخفیف معتبر نیست، منقضی شده یا شرایط استفاده را ندارد.',
+                        ]);
+                    }
+
+                    if ($discountCode->usage_limit !== null
+                        && $discountCode->redemptions()->count() >= (int) $discountCode->usage_limit) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'ظرفیت استفاده از این کد تخفیف تکمیل شده است.',
+                        ]);
+                    }
+
+                    if ($patient && $discountCode->redemptions()->where('patient_id', $patient->id)->count() >= (int) $discountCode->per_patient_limit) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'سقف استفاده این بیمار از کد تخفیف تکمیل شده است.',
+                        ]);
+                    }
+
+                    $discountAmount = $discountCode->discount_type === 'percent'
+                        ? (int) floor($baseFee * ((int) $discountCode->discount_value / 100))
+                        : min($baseFee, (int) $discountCode->discount_value);
+
+                    if ($discountCode->maximum_discount_rial !== null) {
+                        $discountAmount = min($discountAmount, (int) $discountCode->maximum_discount_rial);
+                    }
+                    $discountAmount = min($baseFee, max(0, $discountAmount));
+                    if ($discountAmount < 1 || $discountAmount >= $baseFee) {
+                        throw ValidationException::withMessages([
+                            'discount_code' => 'مبلغ نهایی رزرو پس از تخفیف باید بیشتر از صفر باشد.',
+                        ]);
+                    }
+                }
+
+                $appointmentAttributes = [
                     'doctor_id' => $doctor->id,
                     'patient_id' => $patient?->id,
                     'clinic_id' => $clinic->id,
                     'time_slot_id' => $timeSlot->id,
                     'user_id' => auth('web')->id(),
-                    'fee_rial' => (int) ($fee?->fee_rial ?? 5000000),
+                    'fee_rial' => $baseFee - $discountAmount,
                     'patient_name' => $data->patientName,
                     'patient_phone' => $data->patientPhone,
                     'patient_national_code' => $data->patientNationalCode,
@@ -215,7 +269,28 @@ final class BookAppointmentAction
                     'appointment_time' => $timeSlot->start_time,
                     'reservation_expires_at' => now()->addMinutes(10),
                     'visit_reason_id' => $visitReasonId,
-                ]);
+                ];
+
+                if ($discountCode !== null) {
+                    $appointmentAttributes['discount_code_id'] = $discountCode->id;
+                    $appointmentAttributes['original_fee_rial'] = $baseFee;
+                    $appointmentAttributes['discount_amount_rial'] = $discountAmount;
+                }
+
+                $appointment = Appointment::query()->create($appointmentAttributes);
+
+                if ($discountCode !== null) {
+                    ClinicDiscountRedemption::query()->create([
+                        'discount_code_id' => $discountCode->id,
+                        'appointment_id' => $appointment->id,
+                        'patient_id' => $patient?->id,
+                        'doctor_id' => $doctor->id,
+                        'original_amount_rial' => $baseFee,
+                        'discount_amount_rial' => $discountAmount,
+                        'final_amount_rial' => $baseFee - $discountAmount,
+                        'applied_at' => now(),
+                    ]);
+                }
 
                 $timeSlot->update(['status' => 'booked']);
 
