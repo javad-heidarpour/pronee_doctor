@@ -55,8 +55,8 @@ final class PatientInsuranceController extends Controller
             'patient' => ['id' => $patient->id, 'name' => $patient->name],
             'verifications' => $verifications,
             'payers' => [
-                ['code' => 'social_security', 'name' => 'تأمین اجتماعی'],
-                ['code' => 'health_insurance', 'name' => 'بیمه سلامت'],
+                ['code' => 'tamin', 'name' => 'تأمین اجتماعی'],
+                ['code' => 'salamat', 'name' => 'بیمه سلامت'],
                 ['code' => 'armed_forces', 'name' => 'نیروهای مسلح'],
                 ['code' => 'other', 'name' => 'سایر'],
             ],
@@ -80,7 +80,7 @@ final class PatientInsuranceController extends Controller
 
         $data = $request->validate([
             'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')->where('doctor_id', $doctor->id)->where('patient_id', $patient->id)],
-            'payer_code' => ['required', 'string', 'max:40'],
+            'payer_code' => ['required', Rule::in(['tamin', 'salamat', 'armed_forces', 'other'])],
             'payer_name' => ['required', 'string', 'max:120'],
             'policy_number' => ['nullable', 'string', 'max:120'],
             'member_number' => ['nullable', 'string', 'max:120'],
