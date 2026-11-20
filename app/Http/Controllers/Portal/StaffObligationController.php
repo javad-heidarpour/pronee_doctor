@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Services\Finance\ClinicAccountingService;
-use Carbon\Carbon;
+use App\Support\StaffObligationInstallmentSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -50,26 +50,23 @@ final class StaffObligationController extends Controller
         if (is_string($clinicIds)) $clinicIds = json_decode($clinicIds, true) ?: [];
         abort_unless(in_array($clinicId, array_map('intval',(array)$clinicIds), true), 403, 'کارمند به این شعبه تخصیص ندارد.');
 
-        $principal = (int)$data['principal_amount'];
-        $count = (int)$data['installment_count'];
-        $base = intdiv($principal, $count);
-        $remainder = $principal % $count;
+        $principal = (int) $data['principal_amount'];
+        $count = (int) $data['installment_count'];
+        $schedule = StaffObligationInstallmentSchedule::build($principal, $count, $data['first_due_date']);
         $id = DB::table('clinic_staff_obligations')->insertGetId([
             'organization_id'=>$organization->id, 'clinic_id'=>$clinicId,
             'staff_user_id'=>$member->id, 'created_by'=>$user->id,
             'kind'=>$data['kind'], 'title'=>$data['title'],
-            'principal_amount'=>$principal, 'installment_amount'=>$base + ($remainder > 0 ? 1 : 0),
+            'principal_amount'=>$principal, 'installment_amount'=>(int) ceil($principal / $count),
             'installment_count'=>$count, 'repaid_amount'=>0, 'outstanding_amount'=>$principal,
             'first_due_date'=>$data['first_due_date'],
             'planned_disbursement_date'=>$data['planned_disbursement_date'] ?? today()->toDateString(), 'status'=>'draft',
             'notes'=>$data['notes'] ?? null, 'created_at'=>now(), 'updated_at'=>now(),
         ]);
-        $firstDue = Carbon::parse($data['first_due_date'])->startOfDay();
-        for ($i=1; $i<=$count; $i++) {
-            $amount = $base + ($i <= $remainder ? 1 : 0);
+        foreach ($schedule as $installment) {
             DB::table('clinic_staff_obligation_installments')->insert([
-                'obligation_id'=>$id, 'sequence'=>$i, 'due_date'=>$firstDue->copy()->addMonths($i-1)->toDateString(),
-                'amount'=>$amount, 'paid_amount'=>0, 'status'=>'pending', 'created_at'=>now(), 'updated_at'=>now(),
+                'obligation_id'=>$id, ...$installment,
+                'paid_amount'=>0, 'status'=>'pending', 'created_at'=>now(), 'updated_at'=>now(),
             ]);
         }
         return back()->with('success','درخواست مساعده/وام و برنامه اقساط به‌صورت پیش‌نویس ثبت شد.');
