@@ -87,7 +87,7 @@ final class ClinicGrowthEngine
             ->selectSub(DB::table('clinic_marketing_events')->selectRaw('COUNT(*)')
                 ->whereColumn('campaign_id', 'c.id')->where('event_type', 'click')->whereBetween('occurred_at', [$periodStart, $periodEnd]), 'clicks')
             ->selectSub(DB::table('clinic_marketing_events')->selectRaw('COUNT(*)')
-                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'booking')->whereBetween('occurred_at', [$from, $to]), 'bookings')
+                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'booking')->whereBetween('occurred_at', [$periodStart, $periodEnd]), 'bookings')
             ->orderByDesc('c.created_at')->limit(8)->get()
             ->map(function ($campaign) {
                 $campaign->clicks = (int) $campaign->clicks;
