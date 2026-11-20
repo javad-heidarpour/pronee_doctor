@@ -246,14 +246,18 @@ final class PublicVisitStatusTrackingTest extends TestCase
                 'patient_phone' => '۰۹۱۲۰۰۰۰۰۰۰',
                 'new_time_slot_id' => $newSlotId,
             ])
-            ->assertRedirect('/');
+            ->assertRedirect('/')
+            ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('appointments', [
             'id' => $appointmentId,
             'time_slot_id' => $newSlotId,
             'appointment_date' => $newDate,
-            'appointment_time' => '11:00:00',
         ]);
+        $storedAppointmentTime = (string) DB::table('appointments')
+            ->where('id', $appointmentId)
+            ->value('appointment_time');
+        $this->assertSame('11:00', substr($storedAppointmentTime, 0, 5));
         $this->assertDatabaseHas('time_slots', [
             'id' => $oldSlotId,
             'status' => 'available',
