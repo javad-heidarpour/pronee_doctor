@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo; // ✅ این خط باید وجود داشته باشد
@@ -44,6 +45,14 @@ class Address extends Model
     {
         return $this->hasMany(TimeSlot::class, 'clinic_id');
     }
+    public function latestPubliclyBookableTimeSlot(): HasOne
+    {
+        return $this->hasOne(TimeSlot::class, 'clinic_id')
+            ->publiclyBookable()
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at');
+    }
+
     public function workingHours(): HasMany
 {
     return $this->hasMany(DoctorWorkingHour::class, 'clinic_id');
