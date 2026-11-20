@@ -12,6 +12,7 @@ use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -250,8 +251,7 @@ final class CreatePortalAppointmentActionTest extends TestCase
             'patient_phone' => '09120000000',
             'patient_national_code' => '0012345678',
         ]));
-
-        \Illuminate\Support\Facades\DB::table('appointments')
+        DB::table('appointments')
             ->where('id', $first->id)
             ->update(['status' => 'visited']);
 
