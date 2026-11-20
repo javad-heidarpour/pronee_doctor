@@ -83,9 +83,9 @@ final class ClinicGrowthEngine
             ->where(fn ($q) => $q->whereNull('c.clinic_id')->orWhereIn('c.clinic_id', $scope))
             ->select('c.id', 'c.name', 'c.channel', 'c.status', 'c.budget_rial')
             ->selectSub(DB::table('clinic_marketing_events')->selectRaw('COUNT(*)')
-                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'click'), 'clicks')
+                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'click')->whereBetween('occurred_at', [$from, $to]), 'clicks')
             ->selectSub(DB::table('clinic_marketing_events')->selectRaw('COUNT(*)')
-                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'booking'), 'bookings')
+                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'booking')->whereBetween('occurred_at', [$from, $to]), 'bookings')
             ->orderByDesc('c.created_at')->limit(8)->get()
             ->map(function ($campaign) {
                 $campaign->clicks = (int) $campaign->clicks;
