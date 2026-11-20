@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\Address;
 use App\Models\ClinicInventoryItem;
 use App\Models\ClinicInventoryMovement;
@@ -29,7 +30,7 @@ class ClinicOperationsController extends Controller
 {
     use HasActiveDoctor;
 
-    public function index()
+    public function index(RecordSecurityAuditEventAction $audit)
     {
         $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
@@ -51,6 +52,11 @@ class ClinicOperationsController extends Controller
         $canViewInventory = $isPrivileged || $this->secretaryHas($doctor, 'inventory.view') || $this->secretaryHas($doctor, 'inventory.manage');
         $canManageFinance = $isPrivileged && $ownedOrganizationIds->isNotEmpty();
 
+        $audit->handle('clinic.operations.viewed', null, [
+            'doctor_id' => $doctor->id,
+            'clinic_count' => count($clinicIds),
+        ]);
+
         return Inertia::render('Portal/Operations/Index', [
             'doctor' => $doctor,
             'clinics' => Address::query()->whereIn('id', $clinicIds)->get(['id', 'name', 'organization_id']),
@@ -60,8 +66,10 @@ class ClinicOperationsController extends Controller
             'settlements' => DoctorSettlement::query()->whereIn('organization_id', $ownedOrganizationIds)->with('doctor:id,name,family')->latest()->limit(20)->get(),
             'payrolls' => ClinicStaffPayroll::query()->whereIn('organization_id', $ownedOrganizationIds)->with('staff:id,name,family')->latest()->limit(20)->get(),
             'services' => $canViewServices ? ClinicService::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->orderBy('name')->get() : collect(),
-            'plans' => PatientTreatmentPlan::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
-                ->with(['patient:id,name,phone', 'items'])->latest()->limit(30)->get(),
+            'plans' => $canViewClinical
+                ? PatientTreatmentPlan::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds)
+                    ->with(['patient:id,name,phone', 'items'])->latest()->limit(30)->get()
+                : collect(),
             'inventory' => $canViewInventory ? ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->with('clinic:id,name')->orderBy('name')->get() : collect(),
             'lowStockCount' => $canViewInventory ? ClinicInventoryItem::query()->whereIn('clinic_id', $clinicIds)->where('is_active', true)->lowStock()->count() : 0,
             'dentalChart' => $canViewClinical ? PatientDentalChartEntry::query()->where('doctor_id', $doctor->id)->latest('recorded_at')->limit(60)->with('patient:id,name')->get() : collect(),
