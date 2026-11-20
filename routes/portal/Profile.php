@@ -6,6 +6,7 @@ Route::prefix('profile')->name('profile.')
     ->controller(ProfileController::class)
     ->group(function () {
 
+        Route::get('/preview', 'preview')->name('preview');
         Route::get('/', 'edit')->name('edit');
         Route::put('/', 'update')->name('update');
         Route::put('/password', 'updatePassword')->name('password');
