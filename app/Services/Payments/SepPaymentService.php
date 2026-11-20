@@ -166,7 +166,7 @@ class SepPaymentService
             ->connectTimeout(10)
             ->timeout(30)
             ->post(
-                'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTranscation',
+                (string) config('services.sep.verify_url', 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction'),
                 [
                     'TerminalNumber' => $terminalId,
                     'RefNum' => $refNum,
@@ -217,6 +217,67 @@ class SepPaymentService
                 ? ($detail['AffectiveAmount'] ?? null)
                 : null,
         ]);
+
+        return $result;
+    }
+
+    /**
+     * Reverse a previously verified SEP transaction.
+     *
+     * This method deliberately performs one request only. A transport timeout
+     * leaves the remote outcome uncertain and must be reconciled before retry.
+     */
+    public function reverseTransaction(string $refNum): array
+    {
+        $terminalId = trim((string) config('services.sep.terminal_id', ''));
+
+        if ($terminalId === '' || trim($refNum) === '') {
+            throw new RuntimeException('اطلاعات برگشت تراکنش ناقص است.');
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->asJson()
+                ->connectTimeout(10)
+                ->timeout(30)
+                ->post(
+                    (string) config('services.sep.reverse_url', 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction'),
+                    [
+                        'TerminalNumber' => $terminalId,
+                        'RefNum' => $refNum,
+                    ]
+                );
+        } catch (\\Illuminate\\Http\\Client\\ConnectionException $exception) {
+            Log::error('SEP reverse transport outcome is uncertain', [
+                'ref_num_fingerprint' => hash('sha256', $refNum),
+            ]);
+
+            throw new RuntimeException(
+                'نتیجه درخواست برگشت وجه از سامان‌کیش نامشخص است؛ پیش از تلاش مجدد باید تراکنش استعلام شود.',
+                0,
+                $exception
+            );
+        }
+
+        if (!$response->successful()) {
+            Log::error('SEP reverse HTTP error', [
+                'http_status' => $response->status(),
+                'ref_num_fingerprint' => hash('sha256', $refNum),
+            ]);
+
+            throw new RuntimeException('ارتباط با سرویس برگشت تراکنش سامان‌کیش ناموفق بود.');
+        }
+
+        $result = $response->json();
+
+        if (!is_array($result) || !array_key_exists('ResultCode', $result)) {
+            Log::error('SEP invalid reverse response', [
+                'ref_num_fingerprint' => hash('sha256', $refNum),
+                'response_type' => get_debug_type($result),
+            ]);
+
+            throw new RuntimeException('پاسخ برگشت تراکنش سامان‌کیش معتبر نیست.');
+        }
 
         return $result;
     }
