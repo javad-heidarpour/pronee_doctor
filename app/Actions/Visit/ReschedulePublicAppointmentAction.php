@@ -6,6 +6,7 @@ namespace App\Actions\Visit;
 
 use App\Models\Appointment;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +109,16 @@ final class ReschedulePublicAppointmentAction
             ) {
                 throw ValidationException::withMessages([
                     'new_time_slot_id' => 'ساعت انتخاب‌شده دیگر آزاد نیست یا متعلق به شعبه فعلی شما نیست.',
+                ]);
+            }
+
+            if (DoctorHoliday::query()
+                ->where('doctor_id', $appointment->doctor_id)
+                ->where('clinic_id', $appointment->clinic_id)
+                ->whereDate('holiday_date', $newSlot->date->format('Y-m-d'))
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
                 ]);
             }
 
