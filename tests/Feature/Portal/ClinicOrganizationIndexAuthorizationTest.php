@@ -56,6 +56,19 @@ final class ClinicOrganizationIndexAuthorizationTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('doctor_user', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('user_id');
+            $table->text('permissions')->nullable();
+            $table->text('clinic_ids')->nullable();
+            $table->text('base_permissions')->nullable();
+            $table->text('base_clinic_ids')->nullable();
+            $table->boolean('managed_by_organization')->default(false);
+            $table->timestamps();
+            $table->unique(['doctor_id', 'user_id']);
+        });
+
         Schema::create('clinic_organizations', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('owner_user_id');
