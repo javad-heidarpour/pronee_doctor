@@ -7,6 +7,7 @@ namespace App\Actions\Portal\Users;
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class SyncOrganizationSecretaryDoctorAccessAction
 {
@@ -22,6 +23,7 @@ final class SyncOrganizationSecretaryDoctorAccessAction
         DB::transaction(function () use ($member, $doctor): void {
             User::query()->whereKey($member->id)->lockForUpdate()->firstOrFail();
             Doctor::query()->whereKey($doctor->id)->lockForUpdate()->firstOrFail();
+            $clinicCountBefore = $this->assignedClinicCount($member->id);
 
             $assignments = DB::table('clinic_organization_doctors as organization_doctors')
                 ->join(
@@ -172,7 +174,25 @@ final class SyncOrganizationSecretaryDoctorAccessAction
                     'created_at' => now(),
                 ]);
             }
+
+            $clinicCountAfter = $this->assignedClinicCount($member->id);
+
+            if ($clinicCountAfter > 2 && $clinicCountAfter > $clinicCountBefore) {
+                throw ValidationException::withMessages([
+                    'clinic_ids' => 'هر منشی در مجموع سازمان‌ها و پزشکان حداکثر می‌تواند به دو مطب فعال دسترسی داشته باشد.',
+                ]);
+            }
         });
+    }
+
+    private function assignedClinicCount(int $userId): int
+    {
+        return DB::table('doctor_user')
+            ->where('user_id', $userId)
+            ->pluck('clinic_ids')
+            ->flatMap(fn ($value) => array_map('intval', $this->decodeArray($value)))
+            ->unique()
+            ->count();
     }
 
     private function decodeArray(mixed $value): array
