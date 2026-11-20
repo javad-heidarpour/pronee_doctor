@@ -27,6 +27,12 @@ final class UpdateAppointmentStatusActionTest extends TestCase
             $table->timestamps();
         });
 
+        // Lifecycle SMS resolves the clinic relation; keep the minimal relation table in this isolated test schema.
+        Schema::create('addresses', function (Blueprint $table): void {
+            $table->id();
+            $table->softDeletes();
+        });
+
         Schema::create('time_slots', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
