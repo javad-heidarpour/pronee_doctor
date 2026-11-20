@@ -9,7 +9,6 @@ use App\Models\Appointment;
 use App\Models\SmsLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
-use Morilog\Jalali\Jalalian;
 use Throwable;
 
 final class SendAppointmentLifecycleSmsAction
@@ -59,7 +58,8 @@ final class SendAppointmentLifecycleSmsAction
         }
 
         $template = trim((string) config($templates[$event]['template'], ''));
-        $mobile = trim((string) $appointment->patient_phone);
+        $sms = $this->inputsBuilder->handle($appointment);
+        $mobile = $sms['mobile'];
 
         if ($template === '' || !config('services.ghasedak.api_key') || !preg_match('/^09\d{9}$/', $mobile)) {
             return 'skipped';
@@ -89,28 +89,10 @@ final class SendAppointmentLifecycleSmsAction
         }
 
         try {
-            $clinic = $appointment->clinic;
-            $clinicAddress = trim(implode('، ', array_filter([
-                $clinic?->city?->name,
-                $clinic?->full_address,
-            ])));
-
-            if ($clinicAddress === '') {
-                $clinicAddress = $clinic?->name ?: 'اطلاعات مطب در دسترس نیست';
-            }
-
-            $patientName = trim((string) $appointment->patient_name) ?: 'مراجع گرامی';
-            $date = Jalalian::fromDateTime($appointment->appointment_date)->format('j F Y');
-            $time = substr((string) $appointment->appointment_time, 0, 5);
-
             $this->gateway->sendTemplate(
                 $mobile,
                 $template,
-                [
-                    ['param' => 'param1', 'value' => $patientName],
-                    ['param' => 'param2', 'value' => $date . ' ساعت ' . $time],
-                    ['param' => 'param3', 'value' => $clinicAddress],
-                ],
+                $sms['inputs'],
                 $event . '-visit-' . $appointment->id . '-' . $updatedAt
             );
 
