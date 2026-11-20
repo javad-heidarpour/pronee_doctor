@@ -291,7 +291,8 @@ final class MedicalNetworkReferralTest extends TestCase
             'consent_at' => now(),
         ]);
 
-        // The same account owns another doctor profile, but it is not the referral's sender profile.
+        // The same account owns both profiles, but the active profile is not the referral's sender profile.
+        DB::table('doctors')->where('id', 22)->update(['user_id' => 99]);
         $this->authenticateDoctor(99, 22);
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
