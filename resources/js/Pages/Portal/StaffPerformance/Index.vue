@@ -80,7 +80,7 @@ const date = value => value ? new Date(value + 'T00:00:00').toLocaleDateString('
             <label class="text-sm">کارمند
               <select v-model="form.staff_user_id" required class="mt-1 w-full rounded-xl border-slate-300 text-sm">
                 <option value="">انتخاب کارمند</option>
-                <option v-for="item in staffOptions" :key="item.id" :value="item.id">{{item.label}}</option>
+                <option v-for="item in staffOptions.filter(s=>String(s.organization_id)===String(form.organization_id))" :key="item.id" :value="item.id">{{item.label}}</option>
               </select>
             </label>
             <div class="grid grid-cols-2 gap-2">
