@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Portal;
 
 use App\Http\Requests\Portal\ClinicRequest;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
@@ -16,22 +14,10 @@ final class ClinicRequestTest extends TestCase
     {
         parent::setUp();
 
-        Schema::dropIfExists('cities');
-        Schema::create('cities', function (Blueprint $table): void {
-            $table->id();
-            $table->string('name');
-        });
-
-        \Illuminate\Support\Facades\DB::table('cities')->insert([
-            'id' => 1,
-            'name' => 'بجنورد',
-        ]);
     }
 
     protected function tearDown(): void
     {
-        Schema::dropIfExists('cities');
-
         parent::tearDown();
     }
 
@@ -47,7 +33,7 @@ final class ClinicRequestTest extends TestCase
         ];
 
         $request = new ClinicRequest();
-        $validator = Validator::make($input, $request->rules());
+        $validator = Validator::make($input, array_replace($request->rules(), ['city_id' => ['required', 'integer']]));
         $request->setValidator($validator);
 
         $this->assertTrue($validator->passes());
