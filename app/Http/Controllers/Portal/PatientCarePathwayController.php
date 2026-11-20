@@ -90,12 +90,14 @@ final class PatientCarePathwayController extends Controller
         $item = PatientCarePathwayStep::query()->whereKey($step)->whereHas('pathway',fn($q)=>$q
             ->where('doctor_id',$doctor->id)->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->where('status','active'))->firstOrFail();
         abort_unless($item->status === 'patient_reported', 422, 'این گام هنوز توسط بیمار گزارش نشده است.');
-        DB::transaction(function () use ($item, $data) {
+        $pathway = DB::transaction(function () use ($item, $data) {
             $item->update(['status'=>'verified','verified_at'=>now(),'verified_by'=>Auth::guard('web')->id(),'verification_note'=>$data['verification_note'] ?? null]);
             $pathway = $item->pathway()->with('steps')->lockForUpdate()->firstOrFail();
             if (app(PatientCarePathwayProgress::class)->isComplete($pathway->steps)) {
                 $pathway->update(['status'=>'completed','completed_at'=>now()]);
             }
+
+            return $pathway;
         });
         $audit->handle('patient.care_pathway.step_verified',$item,['pathway_id'=>$pathway->id]);
         return back()->with('success','گام برنامه بررسی و تأیید شد.');
