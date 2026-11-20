@@ -69,6 +69,32 @@ final class PatientConsent extends Model
         );
     }
 
+    public function hasValidSignature(): bool
+    {
+        if (
+            $this->status !== self::STATUS_SIGNED
+            || !$this->signed_by_user_id
+            || !$this->signer_name
+            || !$this->signed_at
+            || !$this->signature_sha256
+        ) {
+            return false;
+        }
+
+        $payload = implode('|', [
+            $this->id,
+            $this->patient_id,
+            $this->signed_by_user_id,
+            $this->content_sha256,
+            $this->signer_name,
+            $this->signed_at->toIso8601String(),
+        ]);
+
+        $expected = hash_hmac('sha256', $payload, (string) config('app.key'));
+
+        return hash_equals((string) $this->signature_sha256, $expected);
+    }
+
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }
     public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
     public function clinic(): BelongsTo { return $this->belongsTo(Address::class, 'clinic_id'); }
