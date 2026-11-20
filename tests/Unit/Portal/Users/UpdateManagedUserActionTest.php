@@ -8,6 +8,7 @@ use App\Actions\Portal\Users\UpdateManagedUserAction;
 use App\Actions\Portal\Users\RestoreOrDeleteManagedUserAction;
 use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
 use App\Actions\Portal\Users\CreateManagedUserAction;
+use App\Actions\Portal\Users\BuildManagedUsersIndexPageAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
 use App\Models\Doctor;
@@ -371,7 +372,7 @@ final class UpdateManagedUserActionTest extends TestCase
         $doctorUser = User::query()->findOrFail(1);
         $doctorProfile = Doctor::query()->findOrFail(10);
 
-        $page = app(\\App\\Actions\\Portal\\Users\\BuildManagedUsersIndexPageAction::class)
+        $page = app(BuildManagedUsersIndexPageAction::class)
             ->handle($doctorUser, $doctorProfile);
 
         $this->assertSame([2], $page['users']->pluck('id')->all());
@@ -388,7 +389,7 @@ final class UpdateManagedUserActionTest extends TestCase
 
         $admin = User::query()->findOrFail(1);
 
-        $page = app(\\App\\Actions\\Portal\\Users\\BuildManagedUsersIndexPageAction::class)
+        $page = app(BuildManagedUsersIndexPageAction::class)
             ->handle($admin, null);
 
         $this->assertEqualsCanonicalizing([1, 2, 3], $page['users']->pluck('id')->all());
