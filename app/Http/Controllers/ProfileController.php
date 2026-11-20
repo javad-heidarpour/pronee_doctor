@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Actions\\Portal\\DoctorProfile\\ChangeDoctorPasswordAction;
-use App\\Actions\\Portal\\Profile\\DeleteProfileAction;
-use App\\Actions\\Portal\\Profile\\UpdateProfileAction;
-use App\\Http\\Requests\\Profile\\DeleteProfileRequest;
-use App\\Http\\Requests\\Profile\\UpdateProfilePasswordRequest;
-use App\\Http\\Requests\\Profile\\UpdateProfileRequest;
-use App\\Models\\User;
-use Illuminate\\Contracts\\Auth\\MustVerifyEmail;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Http\\Request;
-use Inertia\\Inertia;
-use Inertia\\Response;
+use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
+use App\Actions\Portal\Profile\DeleteProfileAction;
+use App\Actions\Portal\Profile\UpdateProfileAction;
+use App\Http\Requests\Profile\DeleteProfileRequest;
+use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
+use App\Http\Requests\Profile\UpdateProfileRequest;
+use App\Models\User;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 final class ProfileController extends Controller
 {
