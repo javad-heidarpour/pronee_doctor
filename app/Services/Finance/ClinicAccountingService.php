@@ -79,6 +79,54 @@ class ClinicAccountingService
             [['code' => '1000', 'debit' => $amount, 'credit' => 0], ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
     }
 
+    public function reverseAppointmentPayment(
+        ?int $organizationId,
+        int $clinicId,
+        int $doctorId,
+        int $userId,
+        int $paymentId,
+        int $refundId,
+        int $amount,
+        string $description,
+        string $occurredAt
+    ): ?ClinicJournalEntry {
+        if ($amount < 1) {
+            throw ValidationException::withMessages(['finance' => 'مبلغ برگشت وجه معتبر نیست.']);
+        }
+
+        $original = ClinicJournalEntry::query()
+            ->where('idempotency_key', 'appointment-payment:' . $paymentId)
+            ->first();
+
+        // Some legacy/older online payments predate automatic ledger posting.
+        // Never invent an original journal entry merely to make a refund appear balanced.
+        if ($original === null) {
+            return null;
+        }
+
+        $original->load('lines');
+        $originalAmount = (int) $original->lines->sum('debit');
+        if ($originalAmount !== $amount) {
+            throw ValidationException::withMessages(['finance' => 'مبلغ برگشت با سند دریافت اولیه تطبیق ندارد.']);
+        }
+
+        return $this->post(
+            $organizationId,
+            $clinicId,
+            $doctorId,
+            $userId,
+            'appointment_payment_refund',
+            $refundId,
+            $description,
+            $occurredAt,
+            'appointment-payment-refund:' . $refundId,
+            [
+                ['code' => '4000', 'debit' => $amount, 'credit' => 0],
+                ['code' => '1000', 'debit' => 0, 'credit' => $amount],
+            ]
+        );
+    }
+
     public function recordExpense(
         ?int $organizationId, int $clinicId, int $doctorId, int $userId,
         int $expenseId, int $amount, string $description, string $occurredAt
