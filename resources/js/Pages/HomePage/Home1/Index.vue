@@ -130,14 +130,39 @@ const reviewStatsFallback = {
         <meta property="og:type" content="profile" />
         <meta property="og:title" :content="pageTitle" />
         <meta property="og:description" :content="pageDescription" />
+        <meta v-if="doctor.canonical_url" property="og:url" :content="doctor.canonical_url" />
+        <meta v-if="doctor.photo_url" property="og:image" :content="doctor.photo_url" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <link v-if="doctor.canonical_url" rel="canonical" :href="doctor.canonical_url" />
       </Head>
 
       <section class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         <div id="about-doctor">
           <AboutDoctor :doctor="doctor" />
         </div>
-        <div v-if="doctor.working_hours?.length">
+        <div v-if="doctor.working_hours?.clinics?.length || doctor.working_hours?.holidays?.length">
           <WorkingHoursPanel :working_hours="doctor.working_hours" />
+        </div>
+      </section>
+
+      <section
+        v-if="doctor.honor_badges?.length"
+        class="rounded-3xl border border-amber-100 bg-white p-5 shadow-sm sm:p-6"
+        aria-labelledby="doctor-honors-title"
+      >
+        <div class="mb-4">
+          <span class="text-xs font-bold text-amber-700">اعتبار حرفه‌ای</span>
+          <h2 id="doctor-honors-title" class="mt-1 text-lg font-black text-slate-900">سوابق و افتخارات حرفه‌ای</h2>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <div
+            v-for="badge in doctor.honor_badges"
+            :key="badge.id"
+            class="inline-flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-sm font-bold text-amber-900"
+          >
+            <span aria-hidden="true">{{ badge.icon || "✦" }}</span>
+            <span>{{ badge.title }}</span>
+          </div>
         </div>
       </section>
 
