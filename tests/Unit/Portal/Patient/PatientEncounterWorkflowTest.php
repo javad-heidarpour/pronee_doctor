@@ -32,6 +32,7 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->string('name')->nullable();
             $table->string('family')->nullable();
             $table->timestamp('deleted_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
