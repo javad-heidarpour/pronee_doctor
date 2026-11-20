@@ -73,7 +73,10 @@ final class CreateDoctorHolidayAction
                 ->whereDate('date', $date)
                 ->whereIn('status', ['available', 'booked'])
                 ->lockForUpdate()
-                ->update(['status' => 'cancelled']);
+                ->update([
+                    'status' => 'cancelled',
+                    'cancelled_reason' => 'holiday',
+                ]);
 
             return $holiday;
         });
