@@ -20,26 +20,27 @@ final class MigrationForeignKeyNameTest extends TestCase
         );
     }
 
-    public function test_professional_session_confirmation_foreign_keys_use_explicit_mysql_safe_names(): void
+    public function test_professional_session_foreign_keys_use_short_names_and_resume_helpers(): void
     {
         $migration = $this->migration('2026_11_19_020000_add_professional_dues_and_dual_settlement.php');
 
         $foreignKeys = [
-            'payer_confirmed_by_user_id' => 'cps_payer_confirmed_user_fk',
-            'receiver_confirmed_by_user_id' => 'cps_receiver_confirmed_user_fk',
+            "ensureSessionUserForeignKey('payer_confirmed_by_user_id', 'cps_payer_confirmed_user_fk')",
+            "ensureSessionUserForeignKey('receiver_confirmed_by_user_id', 'cps_receiver_confirmed_user_fk')",
         ];
 
-        foreach ($foreignKeys as $column => $name) {
-            $this->assertLessThanOrEqual(64, strlen($name));
-            $this->assertStringContainsString(
-                "foreign('{$column}', '{$name}')",
-                $migration
-            );
-            $this->assertStringContainsString(
-                "dropForeign('{$name}')",
-                $migration
-            );
+        foreach ($foreignKeys as $definition) {
+            $this->assertStringContainsString($definition, $migration);
         }
+
+        $this->assertLessThanOrEqual(64, strlen('cps_payer_confirmed_user_fk'));
+        $this->assertLessThanOrEqual(64, strlen('cps_receiver_confirmed_user_fk'));
+        $this->assertStringContainsString('addSessionColumnIfMissing', $migration);
+        $this->assertStringContainsString('dropSessionForeignKeyForColumn', $migration);
+        $this->assertStringNotContainsString(
+            'clinic_professional_sessions_receiver_confirmed_by_user_id_foreign',
+            $migration
+        );
     }
 
     private function migration(string $filename): string
