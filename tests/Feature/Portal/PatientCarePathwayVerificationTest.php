@@ -301,7 +301,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
 
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
-            ->once()
+            ->twice()
             ->with(
                 'patient.care_pathway.step_verified',
                 Mockery::type(PatientCarePathwayStep::class),
