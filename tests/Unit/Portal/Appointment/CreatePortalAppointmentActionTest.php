@@ -151,10 +151,37 @@ final class CreatePortalAppointmentActionTest extends TestCase
             'doctor_id' => $doctor->id,
             'national_code' => '0012345678',
         ]);
-        $this->assertDatabaseHas('visit_reasons', [
-            'id' => $appointment->visit_reason_id,
+        $this->assertNull($appointment->visit_reason_id);
+        $this->assertStringContainsString('دلیل مراجعه: Initial consultation', $appointment->description);
+        $this->assertDatabaseMissing('visit_reasons', [
             'title' => 'Initial consultation',
         ]);
+    }
+
+    public function test_it_persists_a_selected_existing_visit_reason(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        $reasonId = DB::table('visit_reasons')->insertGetId([
+            'title' => 'ویزیت دوره‌ای',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $appointment = app(CreatePortalAppointmentAction::class)->handle(
+            $doctor,
+            CreatePortalAppointmentData::fromValidated([
+                'time_slot_id' => $slot->id,
+                'patient_name' => 'Test Patient',
+                'patient_phone' => '09120000000',
+                'visit_reason_id' => $reasonId,
+                'description' => 'شرح تکمیلی',
+            ])
+        );
+
+        $this->assertSame($reasonId, $appointment->visit_reason_id);
+        $this->assertSame('شرح تکمیلی', $appointment->description);
     }
 
     public function test_it_rejects_booking_on_a_clinic_holiday(): void
