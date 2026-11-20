@@ -44,6 +44,7 @@ final class CreatePatientFollowUpActionTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('clinic_id');
             $table->unsignedBigInteger('patient_id');
+            $table->string('status')->default('proposed');
             $table->boolean('follow_up_sms_enabled')->default(false);
             $table->boolean('follow_up_sms_consent_confirmed')->default(false);
             $table->timestamp('follow_up_sms_consent_revoked_at')->nullable();
