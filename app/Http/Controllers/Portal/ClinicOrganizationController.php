@@ -134,37 +134,61 @@ class ClinicOrganizationController extends Controller
     public function inviteDoctor(Request $request, ClinicOrganization $organization)
     {
         $this->authorizeOwner($organization);
+
         $data = $request->validate([
             'doctor_id' => ['required', 'integer', 'exists:doctors,id'],
             'revenue_share_basis_points' => ['required', 'integer', 'min:0', 'max:10000'],
             'role' => ['required', Rule::in(['practitioner', 'clinical_lead', 'manager'])],
         ]);
-        $doctor = Doctor::query()->whereKey($data['doctor_id'])->where('is_active', true)->whereHas('user', fn ($q) => $q->where('is_active', true))->firstOrFail();
-        abort_if(
-            (int) $doctor->user_id === (int) $organization->owner_user_id,
-            422,
-            'پزشک مالک از قبل عضو مالک مجموعه است.'
-        );
 
-        $existingMembership = $organization->doctors()->whereKey($doctor->id)->first();
-        abort_if(
-            $existingMembership && $existingMembership->pivot->status !== 'inactive',
-            409,
-            'این پزشک قبلاً به مجموعه اضافه شده است.'
-        );
+        DB::transaction(function () use ($organization, $data): void {
+            // Serialize invitations within one organization to prevent two
+            // concurrent requests from creating conflicting memberships.
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $membershipData = [
-            'role' => $data['role'],
-            'status' => 'pending',
-            'revenue_share_basis_points' => $data['revenue_share_basis_points'],
-            'joined_at' => null,
-        ];
+            $doctor = Doctor::query()
+                ->whereKey($data['doctor_id'])
+                ->where('is_active', true)
+                ->whereHas('user', fn ($query) => $query
+                    ->where('role', 'doctor')
+                    ->where('is_active', true))
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($existingMembership) {
-            $organization->doctors()->updateExistingPivot($doctor->id, $membershipData);
-        } else {
-            $organization->doctors()->attach($doctor->id, $membershipData);
-        }
+            abort_if(
+                (int) $doctor->user_id === (int) $organization->owner_user_id,
+                422,
+                'پزشک مالک از قبل عضو مالک مجموعه است.'
+            );
+
+            $existingMembership = $organization->doctors()
+                ->whereKey($doctor->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_if(
+                $existingMembership && $existingMembership->pivot->status !== 'inactive',
+                409,
+                'این پزشک قبلاً به مجموعه اضافه شده است.'
+            );
+
+            $membershipData = [
+                'role' => $data['role'],
+                'status' => 'pending',
+                'revenue_share_basis_points' => $data['revenue_share_basis_points'],
+                'joined_at' => null,
+            ];
+
+            if ($existingMembership) {
+                $organization->doctors()->updateExistingPivot($doctor->id, $membershipData);
+            } else {
+                $organization->doctors()->attach($doctor->id, $membershipData);
+            }
+        });
+
         return back()->with('success', 'دعوت پزشک ثبت شد؛ پزشک باید عضویت را تأیید کند.');
     }
 
