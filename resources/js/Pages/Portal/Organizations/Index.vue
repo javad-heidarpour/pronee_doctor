@@ -38,13 +38,13 @@ const removeMember = (organization, member) => { if (window.confirm('دسترس�
         <div v-if="!isAdmin" class="grid gap-3 border-t pt-4 md:grid-cols-2">
           <form @submit.prevent="inviteDoctor(organization, $event)" class="space-y-2 rounded-xl bg-slate-50 p-3">
             <h3 class="text-sm font-bold">دعوت پزشک</h3>
-            <select name="doctor_id" required class="w-full rounded-lg border-slate-300 text-sm"><option value="">انتخاب پزشک</option><option v-for="doctor in doctors.filter(d => !organization.doctors.some(member => member.id === d.id))" :key="doctor.id" :value="doctor.id">{{ doctor.name }} {{ doctor.family }} — {{ doctor.specialty_title || 'پزشک' }}</option></select>
+            <select name="doctor_id" required class="w-full rounded-lg border-slate-300 text-sm"><option value="">انتخاب پزشک</option><option v-for="doctor in doctors.filter(d => !organization.doctors.some(member => member.id === d.id && member.pivot.status !== 'inactive'))" :key="doctor.id" :value="doctor.id">{{ doctor.name }} {{ doctor.family }} — {{ doctor.specialty_title || 'پزشک' }}</option></select>
             <div class="grid grid-cols-2 gap-2"><select name="role" class="rounded-lg border-slate-300 text-sm"><option value="practitioner">پزشک همکار</option><option value="clinical_lead">مسئول بالینی</option><option value="manager">مدیر</option></select><input name="share" type="number" min="0" max="100" value="70" class="rounded-lg border-slate-300 text-sm" placeholder="سهم پزشک ٪" /></div>
             <button class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white">ارسال دعوت</button>
           </form>
           <form @submit.prevent="attachClinic(organization, $event)" class="space-y-2 rounded-xl bg-slate-50 p-3">
             <h3 class="text-sm font-bold">اتصال شعبه پزشک عضو</h3>
-            <select name="clinic_id" required class="w-full rounded-lg border-slate-300 text-sm"><option value="">انتخاب شعبه پزشک فعال مجموعه</option><option v-for="clinic in clinics.filter(c => organization.doctors.some(member => member.id === c.doctor_id && member.pivot.status === 'active') && !organization.clinics.some(branch => branch.id === c.id))" :key="clinic.id" :value="clinic.id">{{ clinic.name }} — {{ clinic.full_address || 'نشانی ثبت نشده' }}</option></select>
+            <select name="clinic_id" required class="w-full rounded-lg border-slate-300 text-sm"><option value="">انتخاب شعبه پزشک فعال مجموعه</option><option v-for="clinic in clinics.filter(c => organization.doctors.some(member => member.id === c.doctor_id && member.pivot.status === 'active') && !organization.clinics.some(branch => branch.id === c.id && branch.pivot.status === 'active'))" :key="clinic.id" :value="clinic.id">{{ clinic.name }} — {{ clinic.full_address || 'نشانی ثبت نشده' }}</option></select>
             <input name="branch_code" placeholder="کد شعبه (اختیاری)" class="w-full rounded-lg border-slate-300 text-sm" />
             <button class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">اتصال شعبه</button>
           </form>
