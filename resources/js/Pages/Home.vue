@@ -107,7 +107,7 @@
 
               <span class="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/90 px-2.5 py-1.5 text-[10px] font-bold text-emerald-800 shadow-sm backdrop-blur">
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                پزشک فعال
+                نوبت آزاد
               </span>
             </div>
 
@@ -118,6 +118,24 @@
               <p class="mt-1.5 min-h-6 truncate text-sm text-slate-500">
                 {{ doctor.specialty_title || "پزشک عضو پرونیکس" }}
               </p>
+
+              <div
+                v-if="doctor.next_available && doctor.next_clinic"
+                class="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3"
+              >
+                <p class="text-[11px] font-bold text-emerald-800">نزدیک‌ترین نوبت آزاد</p>
+                <p class="mt-1 text-sm font-black text-slate-900">
+                  {{ formatPersianDate(doctor.next_available.date) }}
+                  · ساعت {{ doctor.next_available.start_time }}
+                </p>
+                <p class="mt-1 truncate text-xs text-slate-600">
+                  {{ doctor.next_clinic.name }}
+                  <span v-if="doctor.next_clinic.city_name"> · {{ doctor.next_clinic.city_name }}</span>
+                </p>
+                <p v-if="doctor.clinics?.length > 1" class="mt-1 text-[11px] text-slate-500">
+                  دارای نوبت در {{ doctor.clinics.length }} شعبه
+                </p>
+              </div>
 
               <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
                 <span class="text-xs font-bold text-emerald-700">مشاهده صفحه پزشک</span>
@@ -151,8 +169,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
             </svg>
           </div>
-          <h3 class="mt-4 text-base font-black text-slate-800">هنوز پزشکی در فهرست ثبت نشده است</h3>
-          <p class="mt-2 text-sm text-slate-500">به‌زودی پزشکان بیشتری به خانواده پرونیکس اضافه خواهند شد.</p>
+          <h3 class="mt-4 text-base font-black text-slate-800">در حال حاضر نوبت آزادی برای رزرو ثبت نشده است</h3>
+          <p class="mt-2 text-sm text-slate-500">لطفاً کمی بعد دوباره بررسی کنید؛ فقط زمان‌های آزاد و قابل رزرو نمایش داده می‌شوند.</p>
         </div>
       </section>
     </main>
@@ -207,5 +225,18 @@ function doctorInitials(doctor) {
   const first = doctor.name?.trim()?.charAt(0) || "";
   const last = doctor.family?.trim()?.charAt(0) || "";
   return first + last || "پ";
+}
+
+function formatPersianDate(date) {
+  if (!date) return "";
+
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(year, month - 1, day, 12);
+
+  return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(value);
 }
 </script>
