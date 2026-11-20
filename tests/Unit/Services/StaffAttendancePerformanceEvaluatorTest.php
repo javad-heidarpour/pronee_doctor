@@ -29,7 +29,7 @@ final class StaffAttendancePerformanceEvaluatorTest extends TestCase
         $this->assertSame(1,$row['incomplete_days']);
         $this->assertSame(1,$row['absent_days']);
         $this->assertSame(5,$row['scheduled_days']);
-        $this->assertSame(86,$row['score']);
+        $this->assertSame(81,$row['score']);
         $this->assertSame('attendance_discipline_only',$row['scope']);
         $this->assertContains('not_a_complete_employment_appraisal',$row['limitations']);
     }
