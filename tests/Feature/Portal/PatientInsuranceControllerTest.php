@@ -132,7 +132,7 @@ final class PatientInsuranceControllerTest extends TestCase
 
         $response = app(PatientInsuranceController::class)->index($this->patient);
         $this->assertInstanceOf(Response::class, $response);
-        $item = $response->toResponse(request())->getData(true)['page']['props']['verifications']['data'][0];
+        $item = $response->toResponse(\\Illuminate\\Http\\Request::create('/', 'GET', [], [], [], ['HTTP_X_INERTIA' => 'true']))->getData(true)['page']['props']['verifications']['data'][0];
         $this->assertArrayHasKey('policy_number_masked', $item);
         $this->assertArrayNotHasKey('policy_number', $item);
         $this->assertArrayNotHasKey('member_number', $item);
