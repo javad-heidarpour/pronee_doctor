@@ -164,7 +164,9 @@ class ClinicOperationsController extends Controller
 
             if (!empty($data['appointment_id'])) {
                 $appointment = $row->plan->doctor->appointments()->whereKey($data['appointment_id'])
-                    ->where('clinic_id', $row->plan->clinic_id)->firstOrFail();
+                    ->where('clinic_id', $row->plan->clinic_id)
+                    ->where('patient_id', $row->plan->patient_id)
+                    ->firstOrFail();
                 $row->appointment_id = $appointment->id;
             }
             $row->stage = $data['stage'];
