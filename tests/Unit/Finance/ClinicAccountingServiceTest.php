@@ -189,6 +189,83 @@ final class ClinicAccountingServiceTest extends TestCase
         $this->assertSame(100, (int) $entry->lines()->sum('credit'));
     }
 
+    public function test_appointment_payment_is_posted_once_and_balanced(): void
+    {
+        $accounting = app(ClinicAccountingService::class);
+
+        $first = $accounting->recordAppointmentPayment(
+            9, 3, 12, 5, 501, 750000, 'رزرو نوبت', now()->toDateTimeString()
+        );
+        $second = $accounting->recordAppointmentPayment(
+            9, 3, 12, 5, 501, 750000, 'تکرار callback', now()->toDateTimeString()
+        );
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'appointment-payment:501')->count());
+        $this->assertSame(750000, (int) $first->lines()->sum('debit'));
+        $this->assertSame(750000, (int) $first->lines()->sum('credit'));
+    }
+
+    public function test_appointment_payment_rejects_zero_or_negative_amounts(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        app(ClinicAccountingService::class)->recordAppointmentPayment(
+            9, 3, 12, 5, 502, 0, 'مبلغ نامعتبر', now()->toDateTimeString()
+        );
+    }
+
+    public function test_expense_is_posted_once_and_financial_source_is_immutable(): void
+    {
+        $accounting = app(ClinicAccountingService::class);
+        $entry = $accounting->recordExpense(
+            9, 3, 12, 5, 601, 125000, 'اجاره مطب', now()->toDateTimeString()
+        );
+        $duplicate = $accounting->recordExpense(
+            9, 3, 12, 5, 601, 125000, 'ثبت مجدد', now()->toDateTimeString()
+        );
+
+        $this->assertSame($entry->id, $duplicate->id);
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'clinic-expense:601')->count());
+
+        try {
+            $entry->update(['description' => 'تغییر غیرمجاز']);
+            $this->fail('Posted journal entries must be immutable.');
+        } catch (ValidationException) {
+            $this->assertSame('اجاره مطب', $entry->fresh()->description);
+        }
+
+        try {
+            $entry->delete();
+            $this->fail('Posted journal entries must not be deleted.');
+        } catch (ValidationException) {
+            $this->assertDatabaseHas('clinic_journal_entries', ['id' => $entry->id]);
+        }
+    }
+
+    public function test_journal_rejects_unknown_accounts_and_negative_values(): void
+    {
+        $accounting = app(ClinicAccountingService::class);
+
+        try {
+            $accounting->post(9, 3, 12, 5, 'test', 3, 'حساب ناشناخته', now()->toDateTimeString(),
+                'unknown-account-key', [
+                    ['code' => '9999', 'debit' => 10, 'credit' => 0],
+                    ['code' => '1000', 'debit' => 0, 'credit' => 10],
+                ]);
+            $this->fail('Unknown account codes must be rejected.');
+        } catch (ValidationException) {
+            $this->assertDatabaseMissing('clinic_journal_entries', ['idempotency_key' => 'unknown-account-key']);
+        }
+
+        $this->expectException(ValidationException::class);
+        $accounting->post(9, 3, 12, 5, 'test', 4, 'مبلغ منفی', now()->toDateTimeString(),
+            'negative-amount-key', [
+                ['code' => '1000', 'debit' => -10, 'credit' => 0],
+                ['code' => '4000', 'debit' => 0, 'credit' => -10],
+            ]);
+    }
+
     public function test_journal_rejects_unbalanced_entries(): void
     {
         $this->expectException(ValidationException::class);
