@@ -6,6 +6,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({ payments: { type: Object, default: () => ({ data: [], links: [], total: 0 }) } })
 const forms = reactive({})
 const busy = reactive({})
+const ensureForm = id => { if (!forms[id]) forms[id] = { reason: '' }; return forms[id] }
 const statusLabel = value => ({ paid: 'پرداخت‌شده', refunded: 'برگشت‌خورده', processing: 'در حال پردازش', reversed: 'برگشت تأییدشده', rejected: 'ردشده', unknown: 'نامشخص' }[value] || value || '—')
 const money = value => new Intl.NumberFormat('fa-IR').format(Number(value || 0)) + ' ریال'
 const dateTime = value => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
@@ -47,7 +48,7 @@ const submit = payment => {
         </div>
         <form v-else @submit.prevent="submit(payment)" class="mt-4 space-y-2 border-t pt-4">
           <label class="block text-xs font-bold text-slate-600">دلیل برگشت وجه
-            <textarea v-model="(forms[payment.id] ||= { reason: '' }).reason" minlength="8" maxlength="1000" required rows="2" class="mt-2 w-full rounded-xl border-slate-300 text-sm" placeholder="علت مستند برگشت وجه را وارد کنید"></textarea>
+            <textarea v-model="ensureForm(payment.id).reason" minlength="8" maxlength="1000" required rows="2" class="mt-2 w-full rounded-xl border-slate-300 text-sm" placeholder="علت مستند برگشت وجه را وارد کنید"></textarea>
           </label>
           <button type="submit" :disabled="busy[payment.id] || String(forms[payment.id]?.reason || '').trim().length < 8" class="rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{{ busy[payment.id] ? 'در حال ارسال...' : 'ارسال درخواست برگشت کامل وجه' }}</button>
         </form>
