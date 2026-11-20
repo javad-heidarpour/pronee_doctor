@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Portal\\Clinic\\DeleteClinicAction;
-use App\\Actions\\Portal\\Clinic\\ListClinicsAction;
-use App\\Actions\\Portal\\Clinic\\StoreClinicAction;
-use App\\Actions\\Portal\\Clinic\\UpdateClinicAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Http\\Requests\\Portal\\ClinicRequest;
-use App\\Models\\Address;
-use Inertia\\Inertia;
+use App\Actions\Portal\Clinic\DeleteClinicAction;
+use App\Actions\Portal\Clinic\ListClinicsAction;
+use App\Actions\Portal\Clinic\StoreClinicAction;
+use App\Actions\Portal\Clinic\UpdateClinicAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Http\Requests\Portal\ClinicRequest;
+use App\Models\Address;
+use Inertia\Inertia;
 
 class ClinicController extends Controller
 {
