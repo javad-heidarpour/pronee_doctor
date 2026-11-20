@@ -39,6 +39,7 @@ const submit = () => form.post(route('portal.marketing.store'), { onSuccess: () 
         <p class="text-xs font-bold tracking-wider text-teal-200">PRONEEX · GROWTH NETWORK</p>
         <h1 class="mt-2 text-2xl font-black">مرکز رشد و بازاریابی سلامت</h1>
         <p class="mt-2 max-w-3xl text-sm leading-7 text-white/80">برای هر کانال تبلیغاتی یک لینک اختصاصی بسازید، عملکرد آن را بسنجید و بفهمید کدام مسیر واقعاً به نوبت منتهی می‌شود؛ بدون فروش اطلاعات بیمار یا تبلیغ درمان غیرضروری.</p>
+        <Link :href="route('portal.marketing.discounts.index')" class="mt-4 inline-flex rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">مدیریت کدهای تخفیف</Link>
       </header>
 
       <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
