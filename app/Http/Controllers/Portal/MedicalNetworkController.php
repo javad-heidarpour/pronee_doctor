@@ -175,6 +175,20 @@ final class MedicalNetworkController extends Controller
             'consent_confirmed' => ['accepted'],
         ]);
 
+        if (isset($data['requested_services'])) {
+            $requestedServices = array_map(
+                static fn (string $service): string => trim($service),
+                $data['requested_services']
+            );
+            $requestedServices = array_values(array_unique(array_filter($requestedServices, static fn (string $service): bool => $service !== '')));
+            abort_if(
+                in_array($data['service_type'], ['laboratory', 'imaging'], true) && $requestedServices === [],
+                422,
+                'حداقل یک مورد تشخیصی باید ثبت شود.'
+            );
+            $data['requested_services'] = $requestedServices;
+        }
+
         abort_unless(in_array((int) $data['source_clinic_id'], $clinicIds, true), 403, 'به مطب مبدأ دسترسی ندارید.');
         Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $data['source_clinic_id']))->firstOrFail();
