@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Link, useForm } from '@inertiajs/vue3'
+import { Link, router, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
@@ -35,8 +35,9 @@ function submit() {
 function archive(document) {
   if (!window.confirm('این سند بایگانی شود؟ فایل اصلی حذف نخواهد شد.')) return
 
-  form.transform(() => ({})).patch(
+  router.patch(
     route('portal.patients.documents.archive', [props.patient.id, document.id]),
+    {},
     { preserveScroll: true }
   )
 }
