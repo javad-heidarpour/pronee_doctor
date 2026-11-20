@@ -104,6 +104,12 @@ final class PatientConsentSigningTest extends TestCase
         $signed = PatientConsent::query()->findOrFail($consentId);
         $this->assertSame(64, strlen((string) $signed->signature_sha256));
         $this->assertTrue($signed->hasValidSignature());
+
+        DB::table('patient_consents')->where('id', $consentId)->update([
+            'signer_name' => 'دستکاری‌شده',
+        ]);
+        $tampered = PatientConsent::query()->findOrFail($consentId);
+        $this->assertFalse($tampered->hasValidSignature());
         $this->assertNotNull($signed->signed_at);
 
         try {
