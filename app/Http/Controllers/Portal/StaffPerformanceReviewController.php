@@ -79,7 +79,7 @@ final class StaffPerformanceReviewController extends Controller
                 ->join('users as u','u.id','=','d.user_id')->where('od.organization_id',$scope['organization_id'])
                 ->where('od.status','active')->select('u.id','u.name','u.family')->get()->each(fn ($u) => $u->organization_id = $scope['organization_id']);
             return $members->concat($doctors);
-        })->unique('id')->map(fn ($u) => ['id'=>(int)$u->id,'label'=>trim(($u->name??'').' '.($u->family??'')),'organization_id'=>(int)$u->organization_id])->values();
+        })->unique(fn ($u) => $u->organization_id.'|'.$u->id)->map(fn ($u) => ['id'=>(int)$u->id,'label'=>trim(($u->name??'').' '.($u->family??'')),'organization_id'=>(int)$u->organization_id])->values();
 
         return Inertia::render('Portal/StaffPerformance/Index', [
             'doctor'=>$doctor,'organizations'=>$organizations,'staffOptions'=>$staffOptions,
