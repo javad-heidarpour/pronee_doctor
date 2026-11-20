@@ -550,6 +550,51 @@ final class StaffLifecycleTest extends TestCase
         ]));
     }
 
+    public function test_staff_shift_overlap_is_rejected_even_when_the_second_shift_is_at_another_clinic(): void
+    {
+        [$owner, $doctorId, $organizationId, $clinicId] = $this->ownedOrganization();
+        $otherClinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $doctorId, 'organization_id' => $organizationId, 'name' => 'Second clinic',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('clinic_organization_clinics')->insert([
+            'organization_id' => $organizationId, 'clinic_id' => $otherClinicId,
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $staff = $this->user('secretary');
+        DB::table('clinic_organization_members')->insert([
+            'organization_id' => $organizationId,
+            'user_id' => $staff->id,
+            'role' => 'receptionist',
+            'permissions' => json_encode(['staff.attendance.view']),
+            'clinic_ids' => json_encode([$clinicId, $otherClinicId]),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+        session(['active_doctor_id' => $doctorId]);
+
+        $controller = app(StaffAttendanceController::class);
+        $firstShift = [
+            'organization_id' => $organizationId,
+            'clinic_id' => $clinicId,
+            'staff_user_id' => $staff->id,
+            'weekday' => 1,
+            'start_time' => '08:00',
+            'end_time' => '12:00',
+            'effective_from' => '2026-11-20',
+        ];
+        $controller->storeSchedule(Request::create('/portal/staff-attendance/schedules', 'POST', $firstShift));
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $controller->storeSchedule(Request::create('/portal/staff-attendance/schedules', 'POST', array_merge($firstShift, [
+            'clinic_id' => $otherClinicId,
+            'start_time' => '10:00',
+            'end_time' => '14:00',
+        ])));
+    }
+
     private function ownedOrganization(): array
     {
         $owner = $this->user('doctor');
