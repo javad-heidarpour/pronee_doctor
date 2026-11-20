@@ -113,7 +113,7 @@ const goBack = () => {
       >
         <!-- Doctor Identity -->
         <Link
-          :href="'/'"
+          :href="route('home1', { doctor: doctor.slug })"
           class="relative isolate mx-auto block w-[min(90%,550px)] pt-[27px] text-center max-[767px]:w-[calc(100%-75px)] max-[767px]:pt-5 max-[380px]:w-[calc(100%-65px)]"
         >
           <!-- Doctor Glow -->
