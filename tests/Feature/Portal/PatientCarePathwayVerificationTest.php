@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Portal;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
-use App\Http\Controllers\Portal\PatientCarePathwayController;\nuse App\Http\Controllers\PatientHealthController;
+use App\Http\Controllers\Portal\PatientCarePathwayController;
+use App\Http\Controllers\PatientHealthController;
 use App\Models\User;
 use App\Models\Patient;
 use App\Models\Appointment;
 use App\Models\PatientCarePathway;
-use App\Models\PatientCarePathwayStep;\nuse App\Models\PatientAccountAccess;
+use App\Models\PatientCarePathwayStep;
+use App\Models\PatientAccountAccess;
 use App\Services\PatientCarePathwayProgress;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -118,7 +120,8 @@ final class PatientCarePathwayVerificationTest extends TestCase
 
     protected function tearDown(): void
     {
-        Schema::dropIfExists('patient_care_pathway_steps');\n        Schema::dropIfExists('patient_account_accesses');
+        Schema::dropIfExists('patient_care_pathway_steps');
+        Schema::dropIfExists('patient_account_accesses');
         Schema::dropIfExists('patient_care_pathways');
         Schema::dropIfExists('appointments');
         Schema::dropIfExists('patients');
