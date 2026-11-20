@@ -12,6 +12,11 @@ Route::prefix('visit')->name('visit.')->controller(VisitController::class)->grou
         ->middleware('signed')
         ->name('show');
 
+    Route::post('/{visit_number}/cancel', 'cancel')
+        ->whereNumber('visit_number')
+        ->middleware(['signed', 'throttle:5,1'])
+        ->name('cancel');
+
 });
 
 Route::prefix('payment')->name('payment.')->controller(AppointmentPaymentController::class)->group(function () {
