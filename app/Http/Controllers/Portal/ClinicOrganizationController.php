@@ -203,6 +203,86 @@ class ClinicOrganizationController extends Controller
         return back()->with('success', 'شعبه به مجموعه متصل شد.');
     }
 
+    public function detachClinic(ClinicOrganization $organization, int $clinic)
+    {
+        $this->authorizeOwner($organization);
+
+        DB::transaction(function () use ($organization, $clinic): void {
+            $branch = $organization->clinics()
+                ->wherePivot('status', 'active')
+                ->whereKey($clinic)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $organization->clinics()->updateExistingPivot($branch->id, [
+                'status' => 'inactive',
+                'is_primary' => false,
+            ]);
+
+            Address::query()
+                ->whereKey($branch->id)
+                ->where('organization_id', $organization->id)
+                ->update(['organization_id' => null]);
+
+            $this->removeClinicIdsFromOrganizationMembers($organization, [$branch->id]);
+            $this->syncOrganizationSecretaryAccess($organization);
+        });
+
+        return back()->with('success', 'اتصال شعبه به مجموعه قطع شد؛ سوابق شعبه حذف نشده‌اند.');
+    }
+
+    public function removeDoctor(ClinicOrganization $organization, int $doctor)
+    {
+        $this->authorizeOwner($organization);
+
+        DB::transaction(function () use ($organization, $doctor): void {
+            $membership = $organization->doctors()
+                ->whereKey($doctor)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_if(
+                $membership->pivot->role === 'owner',
+                422,
+                'پزشک مالک مجموعه را نمی‌توان از عضویت مالک خارج کرد.'
+            );
+
+            $clinicIds = $organization->clinics()
+                ->wherePivot('status', 'active')
+                ->where('addresses.doctor_id', $membership->id)
+                ->pluck('addresses.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $organization->doctors()->updateExistingPivot($membership->id, [
+                'status' => 'inactive',
+            ]);
+
+            if ($clinicIds !== []) {
+                DB::table('clinic_organization_clinics')
+                    ->where('organization_id', $organization->id)
+                    ->whereIn('clinic_id', $clinicIds)
+                    ->update([
+                        'status' => 'inactive',
+                        'updated_at' => now(),
+                    ]);
+
+                Address::query()
+                    ->whereIn('id', $clinicIds)
+                    ->where('organization_id', $organization->id)
+                    ->update(['organization_id' => null]);
+
+                $this->removeClinicIdsFromOrganizationMembers($organization, $clinicIds);
+            }
+
+            // Preserve direct and other-organization grants; remove only this
+            // organization's contribution for the removed doctor.
+            $this->syncOrganizationSecretaryAccess($organization, $membership);
+        });
+
+        return back()->with('success', 'پزشک از مجموعه خارج شد؛ سوابق و شعبه‌های فیزیکی حذف نشده‌اند.');
+    }
+
     public function inviteMember(Request $request, ClinicOrganization $organization)
     {
         $this->authorizeOwner($organization);
@@ -294,6 +374,46 @@ class ClinicOrganizationController extends Controller
                 app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($member, $doctor);
             }
         }
+    }
+
+    private function removeClinicIdsFromOrganizationMembers(
+        ClinicOrganization $organization,
+        array $clinicIds
+    ): void {
+        $clinicIds = array_map('intval', $clinicIds);
+
+        foreach (DB::table('clinic_organization_members')
+            ->where('organization_id', $organization->id)
+            ->get(['user_id', 'clinic_ids']) as $member) {
+            $currentIds = array_map(
+                'intval',
+                $this->decodeJsonArray($member->clinic_ids)
+            );
+            $remainingIds = array_values(array_diff($currentIds, $clinicIds));
+
+            DB::table('clinic_organization_members')
+                ->where('organization_id', $organization->id)
+                ->where('user_id', $member->user_id)
+                ->update([
+                    'clinic_ids' => json_encode($remainingIds),
+                    'updated_at' => now(),
+                ]);
+        }
+    }
+
+    private function decodeJsonArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value) || $value === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function authorizeOwner(ClinicOrganization $organization): void
