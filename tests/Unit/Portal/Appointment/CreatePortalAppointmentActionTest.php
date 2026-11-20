@@ -285,7 +285,7 @@ final class CreatePortalAppointmentActionTest extends TestCase
             'patient_national_code' => null,
         ]));
 
-        \\Illuminate\\Support\\Facades\\DB::table('appointments')
+        DB::table('appointments')
             ->where('id', $firstAppointment->id)
             ->update(['status' => 'contacted']);
 
