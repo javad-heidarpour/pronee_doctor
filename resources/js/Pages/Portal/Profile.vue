@@ -60,7 +60,7 @@
             <div class="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
               <img
                 v-if="previewImage || doctor.photo"
-                :src="previewImage || doctor.photo"
+                :src="previewImage || doctor.photo_url"
                 alt="تصویر پروفایل پزشک"
                 class="w-20 h-20 rounded-full object-cover border-2 border-teal-200"
               />
