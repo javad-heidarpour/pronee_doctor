@@ -101,6 +101,20 @@ final class StaffResponsibilitiesController extends Controller
                 return $row;
             });
 
+        $history = DB::table('clinic_staff_responsibility_events as e')
+            ->leftJoin('users as actor', 'actor.id', '=', 'e.actor_user_id')
+            ->whereIn('e.responsibility_id', $rows->pluck('id'))
+            ->orderByDesc('e.created_at')
+            ->get([
+                'e.responsibility_id', 'e.event_type', 'e.old_values', 'e.new_values',
+                'e.reason', 'e.created_at', 'actor.name as actor_name', 'actor.family as actor_family',
+            ])
+            ->groupBy('responsibility_id');
+
+        $rows->each(function ($row) use ($history): void {
+            $row->history = $history->get($row->id, collect())->values();
+        });
+
         $members = collect();
         $clinics = [];
         foreach ($scopes as $scope) {
