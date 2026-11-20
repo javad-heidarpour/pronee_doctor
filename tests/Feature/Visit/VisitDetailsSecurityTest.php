@@ -23,6 +23,14 @@ class VisitDetailsSecurityTest extends TestCase
         $this->post('/visit/123/cancel', ['patient_phone' => '09120000000'])->assertForbidden();
     }
 
+    public function test_public_rescheduling_rejects_unsigned_requests(): void
+    {
+        $this->post('/visit/123/reschedule', [
+            'patient_phone' => '09120000000',
+            'new_time_slot_id' => 456,
+        ])->assertForbidden();
+    }
+
     public function test_temporary_signed_payment_url_is_valid_for_post(): void
     {
         $url = URL::temporarySignedRoute(
@@ -53,6 +61,19 @@ class VisitDetailsSecurityTest extends TestCase
     {
         $url = URL::temporarySignedRoute(
             'visit.cancel',
+            now()->addMinutes(5),
+            ['visit_number' => 123]
+        );
+
+        $request = Request::create($url, 'POST');
+
+        $this->assertTrue(URL::hasValidSignature($request));
+    }
+
+    public function test_temporary_signed_rescheduling_url_is_valid_for_post(): void
+    {
+        $url = URL::temporarySignedRoute(
+            'visit.reschedule',
             now()->addMinutes(5),
             ['visit_number' => 123]
         );
