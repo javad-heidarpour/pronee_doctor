@@ -101,6 +101,7 @@ final class PatientConsentController extends Controller
             if (!PatientAccountAccess::query()->active()
                 ->where('patient_id', $patientModel->id)
                 ->where('access_type', 'owner')
+                ->whereHas('user', fn ($query) => $query->where('role', 'user')->where('is_active', true))
                 ->exists()) {
                 abort(422, 'برای امضای الکترونیکی ابتدا باید حساب مالک بیمار فعال باشد.');
             }
