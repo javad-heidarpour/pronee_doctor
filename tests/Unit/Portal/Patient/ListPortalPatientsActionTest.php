@@ -98,8 +98,8 @@ final class ListPortalPatientsActionTest extends TestCase
 
         $patients = app(ListPortalPatientsAction::class)->handle($doctor, [10]);
 
-        $phoneOnlyPatient = collect($patients->items())->firstWhere('patient_key', '09129999999');
-        $codedPatient = collect($patients->items())->firstWhere('patient_key', '0012345678');
+        $phoneOnlyPatient = collect($patients->items())->firstWhere('patient_key', 'phone:09129999999');
+        $codedPatient = collect($patients->items())->firstWhere('patient_key', 'national:0012345678');
 
         $this->assertNotNull($phoneOnlyPatient);
         $this->assertNotNull($codedPatient);
