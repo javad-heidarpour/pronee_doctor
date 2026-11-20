@@ -74,6 +74,17 @@ const togglePermission = (doctor, permission, checked) => {
     }
 };
 
+const toggleClinic = (doctor, clinicId, checked) => {
+    if (checked) {
+        if (!doctor.clinic_ids.includes(clinicId)) {
+            doctor.clinic_ids.push(clinicId);
+        }
+        return;
+    }
+
+    doctor.clinic_ids = doctor.clinic_ids.filter((id) => id !== clinicId);
+};
+
 const hasPermission = (doctor, permission) =>
     doctor.permissions.includes(permission);
 
@@ -227,13 +238,7 @@ const save = () => {
                                         type="checkbox"
                                         :checked="doctorItem.clinic_ids.includes(clinic.id) || doctorItem.organization_clinic_ids.includes(clinic.id)"
                                         :disabled="!clinic.is_active || doctorItem.organization_clinic_ids.includes(clinic.id) || (!doctorItem.clinic_ids.includes(clinic.id) && selectedClinicCount >= 2)"
-                                        @change="(event) => {
-                                            if (event.target.checked) {
-                                                doctorItem.clinic_ids.push(clinic.id);
-                                            } else {
-                                                doctorItem.clinic_ids = doctorItem.clinic_ids.filter(id => id !== clinic.id);
-                                            }
-                                        }"
+                                        @change="toggleClinic(doctorItem, clinic.id, $event.target.checked)"
                                         class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                     />
                                     <span class="text-sm font-medium text-slate-700">
