@@ -58,6 +58,7 @@ final class PatientConsentSigningController extends Controller
                 ->firstOrFail();
 
             abort_unless($model->status === PatientConsent::STATUS_PENDING, 409, 'این رضایت‌نامه قبلاً امضا یا تعیین تکلیف شده است.');
+            abort_unless($model->hasValidContentHash(), 409, 'محتوای رضایت‌نامه پس از ثبت تغییر کرده است؛ امضا متوقف شد.');
             abort_unless($model->hasValidContentHash(), 409, 'متن رضایت‌نامه پس از ثبت تغییر کرده است؛ امضا متوقف شد.');
 
             $patientName = (string) $model->patient()->value('name');
