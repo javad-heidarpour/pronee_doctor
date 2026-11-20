@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\ConnectionException;
 use RuntimeException;
 use Illuminate\Support\Facades\Log;
 
@@ -247,7 +248,7 @@ class SepPaymentService
                         'RefNum' => $refNum,
                     ]
                 );
-        } catch (\\Illuminate\\Http\\Client\\ConnectionException $exception) {
+        } catch (ConnectionException $exception) {
             Log::error('SEP reverse transport outcome is uncertain', [
                 'ref_num_fingerprint' => hash('sha256', $refNum),
             ]);
