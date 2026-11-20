@@ -32,15 +32,7 @@ final class BackfillPatientsFromAppointmentsAction
                 foreach ($appointments as $appointment) {
                     $stats['processed']++;
 
-                    $phone = trim((string) $appointment->patient_phone);
-                    $nationalCode = trim((string) $appointment->patient_national_code);
-
-                    if ($phone === '' && $nationalCode === '') {
-                        $stats['skipped']++;
-                        continue;
-                    }
-
-                    DB::transaction(function () use ($appointment, &$stats, $phone, $nationalCode): void {
+                    DB::transaction(function () use ($appointment, &$stats): void {
                         // Keep the same lock order as booking: doctor, then appointment.
                         $doctor = Doctor::query()
                             ->whereKey($appointment->doctor_id)
@@ -58,6 +50,16 @@ final class BackfillPatientsFromAppointmentsAction
                             ->first();
 
                         if (!$lockedAppointment || $lockedAppointment->patient_id !== null) {
+                            $stats['skipped']++;
+                            return;
+                        }
+
+                        // Read identifiers only after locking the current appointment;
+                        // the chunked model may contain stale identity values.
+                        $phone = trim((string) $lockedAppointment->patient_phone);
+                        $nationalCode = trim((string) $lockedAppointment->patient_national_code);
+
+                        if ($phone === '' && $nationalCode === '') {
                             $stats['skipped']++;
                             return;
                         }
