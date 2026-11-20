@@ -54,6 +54,9 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->unsignedBigInteger('user_id');
             $table->json('permissions')->nullable();
             $table->json('clinic_ids')->nullable();
+            $table->json('base_permissions')->nullable();
+            $table->json('base_clinic_ids')->nullable();
+            $table->boolean('managed_by_organization')->default(false);
             $table->timestamps();
         });
 
