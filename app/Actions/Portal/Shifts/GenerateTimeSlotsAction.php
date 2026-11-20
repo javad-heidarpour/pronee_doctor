@@ -90,21 +90,33 @@ class GenerateTimeSlotsAction
                     }
 
                     $date = $targetDate->format('Y-m-d');
+                    $start = Carbon::parse($date . ' ' . $workingHour->start_time);
+                    $end = Carbon::parse($date . ' ' . $workingHour->end_time);
+                    $duration = (int) $workingHour->duration_minutes;
 
-                    if ($holidayKeys->has($workingHour->clinic_id . '|' . $date)) {
+                    if ($duration < 1 || $end->lessThanOrEqualTo($start)) {
                         $skippedCount++;
                         continue;
                     }
 
-                    $start = Carbon::parse($date . ' ' . $workingHour->start_time);
-                    $end = Carbon::parse($date . ' ' . $workingHour->end_time);
-                    $duration = (int) $workingHour->duration_minutes;
+                    if ($holidayKeys->has($workingHour->clinic_id . '|' . $date)) {
+                        $skippedCount += (int) floor($start->diffInMinutes($end) / $duration);
+                        continue;
+                    }
+
                     $cursor = $start->copy();
 
                     while ($cursor->copy()->addMinutes($duration)->lte($end)) {
                         $slotEnd = $cursor->copy()->addMinutes($duration);
                         $startValue = $cursor->format('H:i:s');
                         $endValue = $slotEnd->format('H:i:s');
+
+                        // Do not create slots whose start time has already passed today.
+                        if ($cursor->lessThanOrEqualTo(now())) {
+                            $skippedCount++;
+                            $cursor->addMinutes($duration);
+                            continue;
+                        }
 
                         $overlap = TimeSlot::query()
                             ->overlapping((int) $doctor->id, $date, $startValue, $endValue)
