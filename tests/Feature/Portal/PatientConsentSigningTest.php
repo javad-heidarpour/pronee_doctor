@@ -167,6 +167,36 @@ final class PatientConsentSigningTest extends TestCase
         ]);
     }
 
+    public function test_signing_rejects_consent_text_that_no_longer_matches_its_recorded_hash(): void
+    {
+        [$userId, , $consentId] = $this->seedConsent();
+        $this->authenticatePatient($userId);
+
+        DB::table('patient_consents')->where('id', $consentId)->update([
+            'consent_text' => 'متن تغییر داده شده پس از ثبت درخواست رضایت‌نامه.',
+        ]);
+
+        try {
+            app(PatientConsentSigningController::class)->sign(
+                Request::create('/my-health/consents/'.$consentId.'/sign', 'POST', [
+                    'signer_name' => 'مریم رضایی',
+                    'accept' => 'yes',
+                ]),
+                $consentId,
+                app(RecordSecurityAuditEventAction::class)
+            );
+            $this->fail('A changed consent body must not be signed against the original content hash.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('patient_consents', [
+            'id' => $consentId,
+            'status' => 'pending',
+            'signed_by_user_id' => null,
+        ]);
+    }
+
     private function seedConsent(): array
     {
         $userId = DB::table('users')->insertGetId([
