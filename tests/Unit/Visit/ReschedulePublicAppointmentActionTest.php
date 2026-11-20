@@ -65,6 +65,7 @@ final class ReschedulePublicAppointmentActionTest extends TestCase
             $table->string('status');
             $table->date('appointment_date');
             $table->time('appointment_time');
+            $table->timestamp('reservation_expires_at')->nullable();
             $table->timestamps();
         });
 
@@ -180,6 +181,27 @@ final class ReschedulePublicAppointmentActionTest extends TestCase
         );
 
         $this->assertSame($oldSlot->id, $appointment->fresh()->time_slot_id);
+    }
+
+    public function test_expired_pending_reservation_cannot_be_rescheduled(): void
+    {
+        [$appointment, $oldSlot, $newSlot] = $this->appointmentWithNewSlot();
+        $appointment->update([
+            'status' => 'pending',
+            'reservation_expires_at' => now()->subMinute(),
+        ]);
+
+        $this->assertValidationFailure(
+            fn () => app(ReschedulePublicAppointmentAction::class)->handle(
+                $appointment->id,
+                '09120000000',
+                $newSlot->id
+            ),
+            'new_time_slot_id'
+        );
+
+        $this->assertSame($oldSlot->id, $appointment->fresh()->time_slot_id);
+        $this->assertSame('available', $newSlot->fresh()->status);
     }
 
     public function test_visited_appointment_cannot_be_rescheduled(): void
