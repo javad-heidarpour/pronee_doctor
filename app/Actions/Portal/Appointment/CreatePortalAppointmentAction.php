@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Fee;
 use App\Models\TimeSlot;
+use App\Models\DoctorHoliday;
 use App\Models\VisitReason;
 use App\Models\User;
 use Carbon\Carbon;
@@ -59,6 +60,16 @@ class CreatePortalAppointmentAction
             ) {
                 throw ValidationException::withMessages([
                     'time_slot_id' => 'این ساعت برای مطب شما معتبر نیست.',
+                ]);
+            }
+
+            if (DoctorHoliday::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('clinic_id', $timeSlot->clinic_id)
+                ->whereDate('holiday_date', $timeSlot->date->format('Y-m-d'))
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
                 ]);
             }
 
