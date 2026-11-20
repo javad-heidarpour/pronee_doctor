@@ -50,13 +50,13 @@ class TimeSlot extends Model
                     });
             })
             ->whereDoesntHave('appointment', fn (Builder $appointment): Builder => $appointment
-                ->whereIn('status', ['pending', 'confirmed']));
+                ->whereIn('status', ['pending', 'confirmed', 'contacted']));
     }
 
     public function isBooked(): bool
     {
         return $this->status === 'booked' || $this->appointment()
-            ->whereIn('status', ['pending', 'confirmed'])
+            ->whereIn('status', ['pending', 'confirmed', 'contacted'])
             ->exists();
     }
 
