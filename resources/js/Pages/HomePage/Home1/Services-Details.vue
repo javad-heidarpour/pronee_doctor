@@ -181,13 +181,7 @@ const pageDescription =
               <div
                 class="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-700 group-hover:bg-emerald-100 transition"
               >
-                <span
-                  v-if="service.icon_html"
-                  class="flex items-center justify-center [&_svg]:w-8 [&_svg]:h-8 [&_svg]:block [&_svg]:fill-current"
-                  v-html="service.icon_html"
-                ></span>
-
-                <span v-else class="text-3xl"> ✚ </span>
+                <span class="text-3xl" aria-hidden="true">✚</span>
               </div>
               <span
                 class="text-4xl font-black text-emerald-200/70 group-hover:text-emerald-600 transition-colors duration-300"
