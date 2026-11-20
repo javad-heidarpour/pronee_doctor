@@ -28,7 +28,7 @@ final class ClinicBusinessLeadControllerTest extends TestCase
     {
         parent::setUp();
         Schema::create('users',function(Blueprint $t):void{$t->id();$t->string('name');$t->string('email')->unique();$t->string('role');$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
-        Schema::create('doctors',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('user_id');$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
+        Schema::create('doctors',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('user_id');$t->string('slug')->nullable();$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
         Schema::create('addresses',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('doctor_id');$t->string('name');$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
         Schema::create('appointments',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('doctor_id');$t->unsignedBigInteger('clinic_id');$t->string('patient_phone');$t->timestamps();});
         Schema::create('clinic_marketing_campaigns',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('doctor_id');$t->string('name');$t->string('code');$t->timestamps();});
