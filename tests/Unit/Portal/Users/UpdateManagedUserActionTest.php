@@ -132,6 +132,31 @@ final class UpdateManagedUserActionTest extends TestCase
         ]);
     }
 
+    public function test_doctor_account_without_profile_cannot_be_activated(): void
+    {
+        DB::table('users')->insert([
+            'id' => 15,
+            'name' => 'Doctor Without Profile',
+            'role' => 'doctor',
+            'is_active' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = User::query()->findOrFail(15);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        try {
+            app(ChangeManagedUserStatusAction::class)->handle($user, true, $audit);
+            $this->fail('A doctor account without a professional profile must remain inactive.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('is_active', $exception->errors());
+        }
+
+        $this->assertFalse((bool) $user->fresh()->is_active);
+    }
+
     public function test_deleting_and_restoring_a_doctor_account_keeps_its_public_profile_inactive(): void
     {
         DB::table('users')->insert([
