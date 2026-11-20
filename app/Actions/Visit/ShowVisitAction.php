@@ -49,6 +49,8 @@ class ShowVisitAction
             : ($payment?->status ?? 'unpaid');
 
         $canReschedule = in_array($appointment->status, ['pending', 'confirmed', 'contacted'], true)
+            && (bool) $doctor?->is_active
+            && (bool) $clinic?->is_active
             && Carbon::parse($appointment->appointment_date->format('Y-m-d') . ' ' . $appointment->appointment_time)->isFuture();
 
         $availableSlots = $canReschedule
@@ -56,6 +58,7 @@ class ShowVisitAction
                 ->where('doctor_id', $appointment->doctor_id)
                 ->where('clinic_id', $appointment->clinic_id)
                 ->where('status', 'available')
+                ->whereDoesntHave('appointment', fn ($query) => $query->whereIn('status', ['pending', 'confirmed', 'contacted']))
                 ->where(function ($query): void {
                     $query->whereDate('date', '>', today()->toDateString())
                         ->orWhere(function ($sameDay): void {
