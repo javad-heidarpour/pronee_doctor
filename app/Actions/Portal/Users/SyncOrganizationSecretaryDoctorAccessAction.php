@@ -31,12 +31,20 @@ final class SyncOrganizationSecretaryDoctorAccessAction
                     'organization_doctors.organization_id'
                 )
                 ->join('users as organization_users', 'organization_users.id', '=', 'organization_members.user_id')
+                ->join('doctors as active_doctor_profiles', 'active_doctor_profiles.id', '=', 'organization_doctors.doctor_id')
+                ->join('users as active_doctor_users', 'active_doctor_users.id', '=', 'active_doctor_profiles.user_id')
                 ->where('organization_doctors.doctor_id', $doctor->id)
                 ->where('organization_members.user_id', $member->id)
                 ->where('organization_doctors.status', 'active')
                 ->where('organization_members.is_active', true)
+                ->where('organization_users.role', 'secretary')
                 ->where('organization_users.is_active', true)
                 ->whereNull('organization_users.deleted_at')
+                ->where('active_doctor_profiles.is_active', true)
+                ->whereNull('active_doctor_profiles.deleted_at')
+                ->where('active_doctor_users.role', 'doctor')
+                ->where('active_doctor_users.is_active', true)
+                ->whereNull('active_doctor_users.deleted_at')
                 ->get([
                     'organization_doctors.organization_id',
                     'organization_members.permissions',
