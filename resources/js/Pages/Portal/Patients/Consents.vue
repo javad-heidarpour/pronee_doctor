@@ -1,5 +1,5 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
