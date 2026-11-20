@@ -19,7 +19,6 @@ class VisitReason extends Model
 
     public function appointments(): HasMany
     {
-        return $this->hasMany(Appointment::class, 'visit_reason_id')
-            ->where('appointments.doctor_id', $this->doctor_id);
+        return $this->hasMany(Appointment::class, 'visit_reason_id');
     }
 }
