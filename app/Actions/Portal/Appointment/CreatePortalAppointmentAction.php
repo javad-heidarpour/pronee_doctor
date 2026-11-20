@@ -120,9 +120,12 @@ class CreatePortalAppointmentAction
                 ($data->patientPhone !== null && $data->patientPhone !== '')
             ) {
                 if ($duplicatePatientQuery->exists()) {
+                    $identityField = $data->patientNationalCode
+                        ? 'patient_national_code'
+                        : 'patient_phone';
+
                     throw ValidationException::withMessages([
-                        $data->patientNationalCode ? 'patient_national_code' : 'patient_phone'
-                            => 'این بیمار نزد شما نوبت فعال دارد.',
+                        $identityField => 'این بیمار نزد شما نوبت فعال دارد.',
                     ]);
                 }
             }
