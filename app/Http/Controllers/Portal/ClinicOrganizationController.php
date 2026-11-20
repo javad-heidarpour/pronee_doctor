@@ -295,6 +295,10 @@ class ClinicOrganizationController extends Controller
 
             $doctorIds = $organization->doctors()
                 ->wherePivot('status', 'active')
+                ->where('doctors.is_active', true)
+                ->whereHas('user', fn ($query) => $query
+                    ->where('role', 'doctor')
+                    ->where('is_active', true))
                 ->pluck('doctors.id');
 
             $clinic = Address::query()
