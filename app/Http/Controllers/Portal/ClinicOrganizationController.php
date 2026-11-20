@@ -23,16 +23,23 @@ class ClinicOrganizationController extends Controller
     public function index()
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'doctor', 403);
+        abort_unless($user && in_array($user->role, ['doctor', 'admin'], true), 403);
 
-        $organizations = ClinicOrganization::query()
-            ->where(function ($q) use ($user): void {
+        $organizationsQuery = ClinicOrganization::query();
+
+        // Administrators have read-only oversight of all organizations.
+        // Doctors remain restricted to organizations they own or belong to.
+        if ($user->role !== 'admin') {
+            $organizationsQuery->where(function ($q) use ($user): void {
                 $q->where('owner_user_id', $user->id)
                     ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->where('clinic_organization_members.is_active', true))
                     ->orWhereHas('doctors', fn ($d) => $d
                         ->where('doctors.user_id', $user->id)
                         ->whereIn('clinic_organization_doctors.status', ['pending', 'active']));
-            })
+            });
+        }
+
+        $organizations = $organizationsQuery
             ->with(['doctors', 'clinics', 'members'])
             ->withCount([
                 'doctors as doctors_count' => fn ($query) => $query->where('clinic_organization_doctors.status', 'active'),
