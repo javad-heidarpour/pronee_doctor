@@ -131,18 +131,34 @@ final class BookAppointmentAction
                     ]);
                 }
 
+                $identityField = null;
+                $duplicatePatientQuery = Appointment::query()
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'contacted']);
+
                 if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
-                    $existingAppointment = Appointment::query()
-                        ->where('patient_national_code', $data->patientNationalCode)
-                        ->where('doctor_id', $doctor->id)
-                        ->whereIn('status', ['pending', 'confirmed', 'contacted'])
+                    $identityField = 'patient_national_code';
+                    $duplicatePatientQuery->where(
+                        'patient_national_code',
+                        $data->patientNationalCode
+                    );
+                } elseif ($data->patientPhone !== '') {
+                    $identityField = 'patient_phone';
+                    $duplicatePatientQuery
+                        ->whereNull('patient_national_code')
+                        ->where('patient_phone', $data->patientPhone);
+                }
+
+                if ($identityField !== null) {
+                    $existingAppointment = $duplicatePatientQuery
                         ->lockForUpdate()
                         ->first();
 
                     if ($existingAppointment !== null) {
                         throw ValidationException::withMessages([
-                            'patient_national_code' =>
-                                'شما قبلاً برای این پزشک نوبت فعال دارید.',
+                            $identityField => $identityField === 'patient_national_code'
+                                ? 'شما قبلاً برای این پزشک نوبت فعال دارید.'
+                                : 'با این شماره همراه قبلاً برای این پزشک نوبت فعال ثبت شده است.',
                         ]);
                     }
                 }
