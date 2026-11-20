@@ -3,6 +3,7 @@
 namespace App\Actions\Portal\Users;
 
 use App\Models\User;
+use App\Models\Doctor;
 
 class BuildManagedUserEditPageAction
 {
@@ -11,10 +12,11 @@ class BuildManagedUserEditPageAction
     ) {
     }
 
-    public function handle(User $user, User $authUser): array
+    public function handle(User $user, User $authUser, ?Doctor $activeDoctor): array
     {
         return [
             'user' => $user,
+            'doctor' => $activeDoctor ?? $authUser->doctorProfile,
             'roles' => $this->rolesAction->handle($authUser),
         ];
     }
