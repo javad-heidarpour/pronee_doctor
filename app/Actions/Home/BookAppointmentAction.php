@@ -8,6 +8,7 @@ use App\DTOs\Home\BookAppointmentData;
 use App\Actions\Portal\Patient\ResolveOrCreatePatientAction;
 use App\Models\Appointment;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\Fee;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
@@ -63,6 +64,16 @@ final class BookAppointmentAction
                 if (!$clinic) {
                     throw ValidationException::withMessages([
                         'time_slot_id' => 'این زمان برای رزرو عمومی در دسترس نیست.',
+                    ]);
+                }
+
+                if (DoctorHoliday::query()
+                    ->where('doctor_id', $doctor->id)
+                    ->where('clinic_id', $clinic->id)
+                    ->whereDate('holiday_date', $slotSnapshot->date ?? now()->toDateString())
+                    ->exists()) {
+                    throw ValidationException::withMessages([
+                        'time_slot_id' => 'این مطب در تاریخ انتخاب‌شده تعطیل است؛ لطفاً زمان دیگری انتخاب کنید.',
                     ]);
                 }
 
