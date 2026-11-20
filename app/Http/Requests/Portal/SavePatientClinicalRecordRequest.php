@@ -59,7 +59,8 @@ final class SavePatientClinicalRecordRequest extends FormRequest
                     ->where('patient_id', $this->route('patient')?->id)
                     ->where('doctor_id', $this->route('patient')?->doctor_id)
                     ->where('kind', PatientClinicalRecord::KIND_ALLERGY)
-                    ->where('is_active', true),
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at'),
             ],
             'related_record_id' => [
                 'nullable',
@@ -69,7 +70,8 @@ final class SavePatientClinicalRecordRequest extends FormRequest
                     ->where('patient_id', $this->route('patient')?->id)
                     ->where('doctor_id', $this->route('patient')?->doctor_id)
                     ->where('kind', PatientClinicalRecord::KIND_MEDICATION)
-                    ->where('is_active', true),
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at'),
             ],
         ];
     }
