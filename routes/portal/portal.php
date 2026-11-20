@@ -25,6 +25,7 @@ use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
 use App\Http\Controllers\Portal\StaffResponsibilitiesController;
+use App\Http\Controllers\Portal\StaffCredentialsController;
 use App\Http\Controllers\Portal\StaffManagementController;
 use App\Http\Controllers\Portal\StaffObligationController;
 
@@ -102,6 +103,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
         Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
         Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
+        Route::get('/staff-credentials', [StaffCredentialsController::class, 'index'])->name('staff-credentials.index');
+        Route::post('/staff-credentials', [StaffCredentialsController::class, 'store'])->middleware('throttle:10,1')->name('staff-credentials.store');
+        Route::get('/staff-credentials/{credential}/download', [StaffCredentialsController::class, 'download'])->whereNumber('credential')->name('staff-credentials.download');
+        Route::patch('/staff-credentials/{credential}/review', [StaffCredentialsController::class, 'review'])->whereNumber('credential')->name('staff-credentials.review');
+        Route::delete('/staff-credentials/{credential}', [StaffCredentialsController::class, 'archive'])->whereNumber('credential')->name('staff-credentials.archive');
+
         Route::get('/staff-responsibilities', [StaffResponsibilitiesController::class, 'index'])->name('staff-responsibilities.index');
         Route::post('/staff-responsibilities', [StaffResponsibilitiesController::class, 'store'])->middleware('throttle:20,1')->name('staff-responsibilities.store');
         Route::put('/staff-responsibilities/{responsibility}', [StaffResponsibilitiesController::class, 'update'])->whereNumber('responsibility')->middleware('throttle:20,1')->name('staff-responsibilities.update');
