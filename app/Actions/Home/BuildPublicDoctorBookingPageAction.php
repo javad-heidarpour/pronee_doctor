@@ -16,8 +16,10 @@ final class BuildPublicDoctorBookingPageAction
             ->orderBy('title')
             ->get();
 
-        $clinicsWithSlots = $doctor->address
+        $clinicsWithSlots = $doctor->address()
             ->where('is_active', true)
+            ->with('city:id,name')
+            ->get()
             ->map(function ($clinic) use ($doctor) {
                 $slots = $doctor->timeSlots()
                     ->publiclyBookable()
