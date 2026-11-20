@@ -11,7 +11,7 @@ defineProps({
 const drawerOpen = ref(false);
 
 const menuItems = [
-  { title: "خانه", href: "home" },
+  { title: "خانه", href: "home1", currentDoctor: true },
   { title: "دریافت نوبت", href: "booking" },
   { title: "تماس با ما", href: "contact" },
   { title: "ساعت کاری", href: "WorkingHours" },
@@ -113,7 +113,7 @@ onUnmounted(() => {
             <a
               v-for="item in menuItems"
               :key="item.href"
-              :href="route(item.href)"
+              :href="item.currentDoctor ? route(item.href, { doctor: doctor.slug }) : route(item.href)"
               @click="closeDrawer"
             >
               <span>{{ item.title }}</span>
