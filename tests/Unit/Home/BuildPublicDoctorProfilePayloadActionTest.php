@@ -15,6 +15,37 @@ use Tests\TestCase;
 
 final class BuildPublicDoctorProfilePayloadActionTest extends TestCase
 {
+    public function test_public_doctor_model_hides_internal_account_and_lifecycle_fields(): void
+    {
+        $doctor = new Doctor();
+        $doctor->setRawAttributes([
+            'id' => 8,
+            'user_id' => 20,
+            'email' => 'private@example.test',
+            'phone' => '09120000000',
+            'Medical_system_number' => 123456,
+            'registration_status' => 'approved',
+            'site_expires_at' => '2030-01-01 00:00:00',
+            'approved_by' => 2,
+        ], true);
+
+        $serialized = $doctor->hidePrivatePublicFields()->toArray();
+
+        foreach ([
+            'user_id',
+            'email',
+            'phone',
+            'Medical_system_number',
+            'registration_status',
+            'site_expires_at',
+            'approved_by',
+        ] as $privateField) {
+            $this->assertArrayNotHasKey($privateField, $serialized);
+        }
+
+        $this->assertSame(8, $serialized['id']);
+    }
+
     public function test_public_payload_contains_profile_content_without_private_account_fields(): void
     {
         $doctor = new Doctor();
