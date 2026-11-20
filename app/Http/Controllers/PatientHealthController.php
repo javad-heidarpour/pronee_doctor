@@ -172,13 +172,35 @@ final class PatientHealthController extends Controller
     public function reportCarePathwayStep(Request $request, int $pathway, int $step, RecordSecurityAuditEventAction $audit)
     {
         $user = $this->authenticatedPatient();
-        $activePathway = PatientCarePathway::query()->whereKey($pathway)->where('status', 'active')->firstOrFail();
-        PatientAccountAccess::query()->active()->where('user_id', $user->id)
-            ->where('access_type', 'owner')->where('patient_id', $activePathway->patient_id)->firstOrFail();
-        $item = PatientCarePathwayStep::query()->whereKey($step)->where('pathway_id', $activePathway->id)->firstOrFail();
-        abort_unless($item->status === 'pending', 422, 'این گام در وضعیت قابل گزارش نیست.');
-        $item->update(['status' => 'patient_reported', 'patient_reported_at' => now()]);
+
+        [$item] = DB::transaction(function () use ($user, $pathway, $step): array {
+            $activePathway = PatientCarePathway::query()
+                ->whereKey($pathway)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            PatientAccountAccess::query()->active()
+                ->where('user_id', $user->id)
+                ->where('access_type', 'owner')
+                ->where('patient_id', $activePathway->patient_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $item = PatientCarePathwayStep::query()
+                ->whereKey($step)
+                ->where('pathway_id', $activePathway->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($item->status === 'pending', 422, 'این گام در وضعیت قابل گزارش نیست.');
+            $item->update(['status' => 'patient_reported', 'patient_reported_at' => now()]);
+
+            return [$item];
+        });
+
         $audit->handle('patient.care_pathway.step_reported', $item, ['pathway_id' => $pathway]);
+
         return back()->with('success', 'انجام این گام برای بررسی به مرکز درمانی گزارش شد.');
     }
 
