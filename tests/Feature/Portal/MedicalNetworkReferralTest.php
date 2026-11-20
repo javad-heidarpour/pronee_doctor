@@ -439,6 +439,64 @@ final class MedicalNetworkReferralTest extends TestCase
         $this->assertSame(1, $providerModel = MedicalNetworkProvider::query()->findOrFail($provider)->completed_referrals_count);
     }
 
+    public function test_provider_profile_requires_admin_verification_before_network_listing(): void
+    {
+        $this->authenticateDoctor(99);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')->once()->with('medical_network.provider_submitted', Mockery::type(MedicalNetworkProvider::class), [
+            'doctor_id' => 11,
+            'changed_fields' => ['provider_submitted'],
+        ]);
+
+        app(MedicalNetworkController::class)->storeProvider(Request::create('/portal/medical-network/providers','POST',[
+            'provider_type'=>'laboratory',
+            'name'=>'New Diagnostic Lab',
+            'city'=>'Bojnourd',
+            'license_number'=>'LAB-2026-001',
+            'specialties'=>['hematology'],
+            'services'=>['CBC','Biochemistry'],
+            'description'=>'Licensed diagnostic laboratory.',
+        ]),$audit);
+
+        $provider = MedicalNetworkProvider::query()->where('name','New Diagnostic Lab')->firstOrFail();
+        $this->assertSame('pending',$provider->status);
+        $this->assertFalse($provider->is_verified);
+
+        $admin = User::query()->create(['id'=>501,'name'=>'Admin','role'=>'admin','is_active'=>true]);
+        Auth::guard('web')->setUser($admin);
+        $audit2 = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit2->shouldReceive('handle')->once();
+        app(MedicalNetworkController::class)->approveProvider($provider,$audit2);
+
+        $this->assertDatabaseHas('medical_network_providers',[
+            'id'=>$provider->id,'status'=>'active','is_verified'=>true,
+        ]);
+    }
+
+    public function test_verified_provider_search_filters_by_name_and_hides_unverified_profiles(): void
+    {
+        [$doctorId] = $this->seedReferralContext();
+        DB::table('medical_network_providers')->insert([
+            'created_by_user_id'=>300,'provider_type'=>'imaging','name'=>'Visible Imaging Center',
+            'slug'=>'visible-imaging','city'=>'Bojnourd','status'=>'active','is_verified'=>true,
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        DB::table('medical_network_providers')->insert([
+            'created_by_user_id'=>301,'provider_type'=>'imaging','name'=>'Hidden Imaging Center',
+            'slug'=>'hidden-imaging','city'=>'Bojnourd','status'=>'pending','is_verified'=>false,
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        $response = app(MedicalNetworkController::class)->index(
+            Request::create('/portal/medical-network','GET',['search'=>'Visible Imaging']),
+            app(\App\Services\ReferralNetworkIntelligence::class),
+            app(\App\Services\ReferralCollaborationOpportunityFinder::class)
+        );
+
+        $this->assertInstanceOf(\Inertia\Response::class,$response);
+        $names = collect($response->getProps()['providers']['data'])->pluck('name')->all();
+        $this->assertSame(['Visible Imaging Center'],$names);
+    }
+
     private function seedReferralContext(): array
     {
         DB::table('doctors')->insert([
