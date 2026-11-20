@@ -68,8 +68,12 @@ final class SepPaymentServiceTest extends TestCase
     {
         Http::fake();
 
-        $this->expectException(RuntimeException::class);
-        app(SepPaymentService::class)->reverseTransaction('');
+        try {
+            app(SepPaymentService::class)->reverseTransaction('');
+            $this->fail('An empty reference must be rejected before contacting SEP.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('ناقص', $exception->getMessage());
+        }
 
         Http::assertNothingSent();
     }
