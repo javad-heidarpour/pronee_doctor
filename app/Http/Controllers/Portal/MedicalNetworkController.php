@@ -166,7 +166,7 @@ final class MedicalNetworkController extends Controller
             'source_clinic_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('doctor_id', $doctor->id)->where('is_active', true)],
             'target_provider_id' => ['required', 'integer', Rule::exists('medical_network_providers', 'id')->where('status', 'active')->where('is_verified', true)],
             'service_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation', 'consultation'])],
-            'requested_services' => ['nullable', 'required_if:service_type,laboratory,imaging', 'array', 'min:1', 'max:30'],
+            'requested_services' => [Rule::requiredIf(in_array($request->input('service_type'), ['laboratory', 'imaging'], true)), 'nullable', 'array', 'min:1', 'max:30'],
             'requested_services.*' => ['required', 'string', 'max:180', 'distinct'],
             'priority' => ['required', Rule::in(['normal', 'urgent'])],
             'reason' => ['required', 'string', 'max:240'],
