@@ -28,8 +28,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->string('family')->nullable();
             $table->string('role')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->timestamp('deleted_at')->nullable();
-            $table->softDeletes();
+                        $table->softDeletes();
             $table->timestamps();
         });
 
@@ -46,6 +45,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name');
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
