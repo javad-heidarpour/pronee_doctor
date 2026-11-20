@@ -494,7 +494,7 @@ final class MedicalNetworkReferralTest extends TestCase
         );
 
         $this->assertInstanceOf(\Inertia\Response::class,$response);
-        $names = collect($response->getProps()['providers']['data'])->pluck('name')->all();
+        $names = collect($response->toResponse(request())->getData(true)['page']['props']['providers']['data'])->pluck('name')->all();
         $this->assertSame(['Visible Imaging Center'],$names);
     }
 
