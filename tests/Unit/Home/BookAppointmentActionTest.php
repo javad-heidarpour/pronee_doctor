@@ -127,6 +127,12 @@ final class BookAppointmentActionTest extends TestCase
         $clinic = $this->clinic($doctor);
         $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
 
+        $visitReasonId = DB::table('visit_reasons')->insertGetId([
+            'title' => 'مشاوره عمومی',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('fees')->insert([
             'title' => 'Consultation',
             'fee_rial' => 7000000,
@@ -143,6 +149,7 @@ final class BookAppointmentActionTest extends TestCase
                 'patient_phone' => '09120000000',
                 'patient_national_code' => '0012345678',
                 'description' => 'Consultation',
+                'visit_reason_id' => $visitReasonId,
             ])
         );
 
@@ -162,7 +169,30 @@ final class BookAppointmentActionTest extends TestCase
             'clinic_id' => $clinic->id,
             'time_slot_id' => $slot->id,
             'patient_national_code' => '0012345678',
+            'visit_reason_id' => $visitReasonId,
         ]);
+    }
+
+    public function test_it_keeps_a_custom_visit_reason_in_the_appointment_without_creating_a_global_reason(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+
+        $appointment = app(BookAppointmentAction::class)->handle(
+            BookAppointmentData::fromValidated([
+                'time_slot_id' => $slot->id,
+                'patient_name' => 'Test Patient',
+                'patient_phone' => '09120000000',
+                'new_visit_reason' => 'پیگیری درمان',
+                'description' => 'توضیحات بیمار',
+            ])
+        );
+
+        $this->assertNull($appointment->visit_reason_id);
+        $this->assertStringContainsString('توضیحات بیمار', $appointment->description);
+        $this->assertStringContainsString('دلیل مراجعه: پیگیری درمان', $appointment->description);
+        $this->assertDatabaseMissing('visit_reasons', ['title' => 'پیگیری درمان']);
     }
 
     public function test_it_rejects_a_second_active_appointment_for_the_same_patient_and_doctor(): void
