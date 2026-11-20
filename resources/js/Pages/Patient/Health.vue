@@ -78,6 +78,24 @@ const statusLabel = value => ({ pending: 'در انتظار', confirmed: 'تأی
             <span class="rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">{{ accessType === 'owner' ? 'دسترسی صاحب پرونده' : 'دسترسی مراقب' }}</span>
           </div>
         </section>
+        <section v-if="accessType === 'owner' && consents?.length" class="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="font-black text-slate-900">رضایت‌نامه‌های درمانی</h2>
+              <p class="mt-1 text-xs text-slate-500">متن و وضعیت رضایت‌نامه‌هایی که مرکز درمانی برای شما ثبت کرده است.</p>
+            </div>
+            <span class="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">{{ consents.length.toLocaleString('fa-IR') }} مورد</span>
+          </div>
+          <div class="mt-3 divide-y divide-slate-100">
+            <article v-for="consent in consents" :key="consent.id" class="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div class="min-w-0">
+                <p class="font-bold text-slate-800">{{ consent.title }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ consent.doctor?.name }} {{ consent.doctor?.family }} · {{ consent.clinic?.name }} · {{ dateLabel(consent.created_at) }}</p>
+              </div>
+              <Link :href="route('patient.health.consents.show', consent.id)" class="rounded-lg px-3 py-2 text-xs font-bold" :class="consent.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'">{{ consent.status === 'signed' ? 'مشاهده امضاشده' : 'مطالعه و امضا' }}</Link>
+            </article>
+          </div>
+        </section>
         <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div class="rounded-2xl border bg-white p-4"><p class="text-xs text-slate-500">مراجعات ثبت‌شده</p><p class="mt-2 text-2xl font-black">{{ patient.appointments?.length || 0 }}</p></div>
           <div class="rounded-2xl border bg-white p-4"><p class="text-xs text-slate-500">سوابق پزشکی فعال</p><p class="mt-2 text-2xl font-black">{{ patient.clinical_records?.length || 0 }}</p></div>
