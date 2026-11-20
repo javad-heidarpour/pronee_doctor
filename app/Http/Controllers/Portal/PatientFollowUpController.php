@@ -149,7 +149,7 @@ class PatientFollowUpController extends Controller
             'outcome' => ['nullable', Rule::in(['reached', 'no_answer', 'rescheduled', 'referred', 'needs_visit', 'other'])],
             'result_notes' => ['nullable', 'string', 'max:3000'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-            'due_at' => ['nullable', 'date', 'after_or_equal:now'],
+            'due_at' => ['sometimes', 'required', 'date', 'after_or_equal:now'],
         ]);
 
         DB::transaction(function () use ($task, $doctor, $data, $audit): void {
