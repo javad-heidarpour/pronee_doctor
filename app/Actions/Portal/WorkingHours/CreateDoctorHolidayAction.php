@@ -33,6 +33,18 @@ final class CreateDoctorHolidayAction
                 ]);
             }
 
+            $alreadyExists = DoctorHoliday::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('clinic_id', (int) $data['clinic_id'])
+                ->whereDate('holiday_date', $date)
+                ->exists();
+
+            if ($alreadyExists) {
+                throw ValidationException::withMessages([
+                    'holiday_date' => 'برای این مطب در تاریخ انتخاب‌شده قبلاً تعطیلی ثبت شده است.',
+                ]);
+            }
+
             $activeAppointmentExists = Appointment::query()
                 ->where('doctor_id', $doctor->id)
                 ->where('clinic_id', (int) $data['clinic_id'])
@@ -60,7 +72,7 @@ final class CreateDoctorHolidayAction
                 ->where('doctor_id', $doctor->id)
                 ->where('clinic_id', (int) $data['clinic_id'])
                 ->whereDate('date', $date)
-                ->where('status', 'available')
+                ->whereIn('status', ['available', 'booked'])
                 ->lockForUpdate()
                 ->update(['status' => 'cancelled']);
 
