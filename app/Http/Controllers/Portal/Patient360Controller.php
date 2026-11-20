@@ -15,6 +15,7 @@ use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientMedicationPlan;
 use App\Models\PatientVitalSign;
+use App\Models\PatientProblem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +60,7 @@ final class Patient360Controller extends Controller
         $followUps = collect();
         $pathways = collect();
         $medicationPlans = collect();
+        $problems = collect();
 
         if ($canViewClinical) {
             $encounters = PatientEncounter::query()
@@ -73,6 +75,15 @@ final class Patient360Controller extends Controller
                 ->where('patient_id', $patient->id)
                 ->where('is_active', true)
                 ->orderByDesc('updated_at')->limit(50)->get();
+
+            $problems = PatientProblem::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('patient_id', $patient->id)
+                ->orderByRaw("CASE WHEN status = 'active' THEN 0 WHEN status = 'resolved' THEN 1 ELSE 2 END")
+                ->orderByDesc('onset_date')
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get();
 
             $vitals = PatientVitalSign::query()
                 ->where('doctor_id', $doctor->id)
@@ -107,6 +118,9 @@ final class Patient360Controller extends Controller
             }
             foreach ($clinicalRecords as $item) {
                 $timeline->push($this->timelineItem($item->kind, $item->updated_at, $this->recordLabel($item->kind), $item->title, $item->is_active ? 'active' : 'inactive', $item->id));
+            }
+            foreach ($problems as $item) {
+                $timeline->push($this->timelineItem('problem', $item->created_at, 'تشخیص / مشکل: '.$item->title, $item->description, $item->status, $item->id));
             }
             foreach ($vitals as $item) {
                 $timeline->push($this->timelineItem('vital', $item->measured_at, 'اندازه‌گیری '.$item->measurement_type, $item->value.' '.$item->unit, 'recorded', $item->id));
@@ -170,6 +184,10 @@ final class Patient360Controller extends Controller
                     ->where('patient_id', $patient->id)->where('kind', PatientClinicalRecord::KIND_MEDICATION)
                     ->where('is_active', true)->count()
                 : 0,
+            'active_problems' => $canViewClinical
+                ? PatientProblem::query()->where('doctor_id', $doctor->id)
+                    ->where('patient_id', $patient->id)->where('status', PatientProblem::STATUS_ACTIVE)->count()
+                : 0,
             'open_follow_ups' => $canViewClinical
                 ? PatientFollowUpTask::query()->where('doctor_id', $doctor->id)
                     ->where('patient_id', $patient->id)
@@ -204,6 +222,12 @@ final class Patient360Controller extends Controller
                 'id'=>$item->id,'kind'=>$item->kind,'title'=>$item->title,'description'=>$item->description,
                 'dosage'=>$item->dosage,'frequency'=>$item->frequency,'start_date'=>$item->start_date?->format('Y-m-d'),
                 'end_date'=>$item->end_date?->format('Y-m-d'),'is_active'=>$item->is_active,
+            ])->values(),
+            'problems' => $problems->map(fn ($item) => [
+                'id'=>$item->id,'category'=>$item->category,'title'=>$item->title,'code'=>$item->code,
+                'code_system'=>$item->code_system,'description'=>$item->description,'status'=>$item->status,
+                'severity'=>$item->severity,'onset_date'=>$item->onset_date?->format('Y-m-d'),
+                'resolved_on'=>$item->resolved_on?->format('Y-m-d'),'source'=>$item->source,
             ])->values(),
             'vitals' => $vitals->map(fn ($item) => [
                 'id'=>$item->id,'type'=>$item->measurement_type,'value'=>$item->value,'unit'=>$item->unit,
