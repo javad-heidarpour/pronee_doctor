@@ -17,9 +17,10 @@ final class SavePatientProblemAction
         Patient $patient,
         User $actor,
         array $data,
-        ?PatientProblem $problem = null
+        ?PatientProblem $problem = null,
+        ?array $accessibleClinicIds = null
     ): PatientProblem {
-        return DB::transaction(function () use ($patient, $actor, $data, $problem): PatientProblem {
+        return DB::transaction(function () use ($patient, $actor, $data, $problem, $accessibleClinicIds): PatientProblem {
             $lockedPatient = Patient::query()
                 ->whereKey($patient->id)
                 ->where('doctor_id', $patient->doctor_id)
@@ -28,13 +29,17 @@ final class SavePatientProblemAction
 
             $encounterId = $data['encounter_id'] ?? null;
             if ($encounterId !== null) {
-                $encounter = PatientEncounter::query()
+                $encounterQuery = PatientEncounter::query()
                     ->whereKey($encounterId)
                     ->where('doctor_id', $lockedPatient->doctor_id)
                     ->where('patient_id', $lockedPatient->id)
-                    ->where('status', PatientEncounter::STATUS_SIGNED)
-                    ->lockForUpdate()
-                    ->first();
+                    ->where('status', PatientEncounter::STATUS_SIGNED);
+
+                if ($accessibleClinicIds !== null) {
+                    $encounterQuery->whereIn('clinic_id', $accessibleClinicIds);
+                }
+
+                $encounter = $encounterQuery->lockForUpdate()->first();
 
                 if (!$encounter) {
                     throw ValidationException::withMessages([
