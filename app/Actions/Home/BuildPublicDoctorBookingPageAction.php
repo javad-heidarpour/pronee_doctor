@@ -45,7 +45,15 @@ class BuildPublicDoctorBookingPageAction
                     ->get();
 
                 return [
-                    'clinic' => $clinic,
+                    'clinic' => [
+                        'id' => $clinic->id,
+                        'name' => $clinic->name,
+                        'full_address' => $clinic->full_address,
+                        'city' => $clinic->city?->name,
+                        'phone' => $clinic->phone,
+                        'Latitude' => $clinic->Latitude,
+                        'Longitude' => $clinic->Longitude,
+                    ],
                     'dates' => $slots
                         ->groupBy('date')
                         ->map(function ($daySlots) {
