@@ -61,6 +61,14 @@ final class PatientConsent extends Model
         });
     }
 
+    public function hasValidContentHash(): bool
+    {
+        return hash_equals(
+            (string) $this->content_sha256,
+            hash('sha256', (string) $this->consent_text)
+        );
+    }
+
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }
     public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
     public function clinic(): BelongsTo { return $this->belongsTo(Address::class, 'clinic_id'); }
