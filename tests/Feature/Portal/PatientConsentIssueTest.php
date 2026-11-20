@@ -190,9 +190,16 @@ final class PatientConsentIssueTest extends TestCase
         ]);
 
         if ($owner) {
+            $patientUserId = DB::table('users')->insertGetId([
+                'name' => 'Patient account',
+                'role' => 'user',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
             DB::table('patient_account_accesses')->insert([
                 'patient_id' => $patientId,
-                'user_id' => $userId + 100,
+                'user_id' => $patientUserId,
                 'access_type' => 'owner',
                 'created_at' => now(),
                 'updated_at' => now(),
