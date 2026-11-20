@@ -49,6 +49,13 @@ const reviewStatsFallback = {
 
 <template>
   <div class="page" dir="rtl">
+    <div
+      v-if="doctor.is_preview"
+      role="status"
+      class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-900"
+    >
+      پیش‌نمایش خصوصی صفحه پزشک؛ این صفحه برای عموم منتشر نشده است.
+    </div>
     <section class="hero">
       <!-- Background -->
       <div
@@ -130,10 +137,11 @@ const reviewStatsFallback = {
         <meta property="og:type" content="profile" />
         <meta property="og:title" :content="pageTitle" />
         <meta property="og:description" :content="pageDescription" />
-        <meta v-if="doctor.canonical_url" property="og:url" :content="doctor.canonical_url" />
+        <meta v-if="doctor.canonical_url && !doctor.is_preview" property="og:url" :content="doctor.canonical_url" />
+        <meta v-if="doctor.is_preview" name="robots" content="noindex,nofollow" />
         <meta v-if="doctor.photo_url" property="og:image" :content="doctor.photo_url" />
         <meta name="twitter:card" content="summary_large_image" />
-        <link v-if="doctor.canonical_url" rel="canonical" :href="doctor.canonical_url" />
+        <link v-if="doctor.canonical_url && !doctor.is_preview" rel="canonical" :href="doctor.canonical_url" />
       </Head>
 
       <section class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
