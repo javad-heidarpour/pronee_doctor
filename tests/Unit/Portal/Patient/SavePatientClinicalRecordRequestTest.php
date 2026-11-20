@@ -51,6 +51,38 @@ final class SavePatientClinicalRecordRequestTest extends TestCase
         $this->assertTrue($validator->errors()->has('end_date'));
     }
 
+    public function test_it_accepts_structured_adverse_reaction_details(): void
+    {
+        $validator = Validator::make([
+            'kind' => 'adverse_reaction',
+            'title' => 'گزارش سرگیجه پس از مصرف دارو',
+            'description' => 'شرح گزارش‌شده توسط بیمار',
+            'reaction_severity' => 'moderate',
+            'reaction_date' => now()->toDateString(),
+            'action_taken' => 'مصرف متوقف و به پزشک اطلاع داده شد',
+            'reaction_outcome' => 'ongoing',
+            'is_active' => true,
+        ], (new SavePatientClinicalRecordRequest())->rules());
+
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->all()));
+    }
+
+    public function test_it_rejects_invalid_reaction_severity_outcome_and_future_dates(): void
+    {
+        $validator = Validator::make([
+            'kind' => 'adverse_reaction',
+            'title' => 'واکنش گزارش‌شده',
+            'reaction_severity' => 'extreme',
+            'reaction_date' => now()->addDay()->toDateString(),
+            'reaction_outcome' => 'not-known',
+        ], (new SavePatientClinicalRecordRequest())->rules());
+
+        $this->assertTrue($validator->fails());
+        $this->assertTrue($validator->errors()->has('reaction_severity'));
+        $this->assertTrue($validator->errors()->has('reaction_date'));
+        $this->assertTrue($validator->errors()->has('reaction_outcome'));
+    }
+
     public function test_reaction_only_fields_are_excluded_for_an_allergy_record(): void
     {
         $validator = Validator::make([
