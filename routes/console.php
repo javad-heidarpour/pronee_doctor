@@ -9,6 +9,11 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 
+// Keep a rolling four-week booking horizon; generation is idempotent.
+Schedule::command('appointments:generate --weeks=4')
+    ->dailyAt('00:10')
+    ->withoutOverlapping();
+
 Schedule::command('appointments:expire-pending')
     ->everyMinute()
     ->withoutOverlapping();
