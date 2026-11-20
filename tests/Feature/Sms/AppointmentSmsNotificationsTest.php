@@ -48,12 +48,36 @@ final class AppointmentSmsNotificationsTest extends TestCase
         $this->assertSame(200, $first->getStatusCode());
         $this->assertTrue($first->getData(true)['success']);
         $this->assertSame(429, $second->getStatusCode());
+
+        Cache::forget('appointment-confirmation-sms:' . $appointment->id);
+        $third = app(SendAppointmentConfirmationSmsAction::class)->handle($appointment->id);
+        $this->assertSame(429, $third->getStatusCode());
+
         $this->assertDatabaseHas('sms_logs', [
             'appointment_id' => $appointment->id,
             'type' => 'appointment_confirmation',
             'status' => 'sent',
         ]);
         $this->assertDatabaseCount('sms_logs', 1);
+    }
+
+
+    public function test_confirmation_sms_is_rejected_until_the_appointment_is_confirmed(): void
+    {
+        config([
+            'services.ghasedak.api_key' => 'test-api-key',
+            'services.ghasedak.appointment_confirmation_template' => 'AppointmentConfirmationSMS',
+        ]);
+
+        $appointment = $this->appointment('pending');
+        $gateway = Mockery::mock(SmsGateway::class);
+        $gateway->shouldNotReceive('sendTemplate');
+        $this->app->instance(SmsGateway::class, $gateway);
+
+        $response = app(SendAppointmentConfirmationSmsAction::class)->handle($appointment->id);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertDatabaseCount('sms_logs', 0);
     }
 
     public function test_day_before_reminder_is_sent_once_per_appointment(): void
