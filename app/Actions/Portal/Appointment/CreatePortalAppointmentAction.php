@@ -85,12 +85,13 @@ class CreatePortalAppointmentAction
             }
 
             // ساعت باید آزاد باشد و نوبت فعال دیگری نداشته باشد
-            $alreadyBooked = Appointment::query()
+            $activeSlotAppointment = Appointment::query()
                 ->where('time_slot_id', $timeSlot->id)
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->exists();
+                ->whereIn('status', ['pending', 'confirmed', 'contacted'])
+                ->lockForUpdate()
+                ->first();
 
-            if ($alreadyBooked || $timeSlot->status !== 'available') {
+            if ($activeSlotAppointment !== null || $timeSlot->status !== 'available') {
                 throw ValidationException::withMessages([
                     'time_slot_id' =>
                         'این ساعت قبلاً رزرو شده است؛ لطفاً ساعت دیگری انتخاب کنید.',
@@ -113,7 +114,7 @@ class CreatePortalAppointmentAction
             // use phone as a fallback without merging into a national-code record.
             $duplicatePatientQuery = Appointment::query()
                 ->where('doctor_id', $doctor->id)
-                ->whereIn('status', ['pending', 'confirmed']);
+                ->whereIn('status', ['pending', 'confirmed', 'contacted']);
 
             if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
                 $duplicatePatientQuery->where(
@@ -130,7 +131,7 @@ class CreatePortalAppointmentAction
                 ($data->patientNationalCode !== null && $data->patientNationalCode !== '') ||
                 ($data->patientPhone !== null && $data->patientPhone !== '')
             ) {
-                if ($duplicatePatientQuery->exists()) {
+                if ($duplicatePatientQuery->lockForUpdate()->first() !== null) {
                     $identityField = $data->patientNationalCode
                         ? 'patient_national_code'
                         : 'patient_phone';
