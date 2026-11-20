@@ -222,6 +222,35 @@ final class BookAppointmentActionTest extends TestCase
         $this->assertSame('booked', $slot->fresh()->status);
     }
 
+    public function test_it_rejects_a_second_active_appointment_for_a_phone_only_patient(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $firstSlot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        $secondSlot = $this->slot($doctor, $clinic, '2026-11-19', '09:00');
+        $action = app(BookAppointmentAction::class);
+
+        $action->handle(BookAppointmentData::fromValidated([
+            'time_slot_id' => $firstSlot->id,
+            'patient_name' => 'Phone Only Patient',
+            'patient_phone' => '09125555555',
+        ]));
+
+        try {
+            $action->handle(BookAppointmentData::fromValidated([
+                'time_slot_id' => $secondSlot->id,
+                'patient_name' => 'Phone Only Patient',
+                'patient_phone' => '09125555555',
+            ]));
+
+            $this->fail('A second active appointment for the same phone-only patient must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('patient_phone', $exception->errors());
+        }
+
+        $this->assertDatabaseCount('appointments', 1);
+    }
+
     public function test_it_rejects_booking_on_a_clinic_holiday(): void
     {
         $doctor = $this->doctor();
