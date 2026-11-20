@@ -15,6 +15,8 @@ use App\Models\PatientEncounter;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientMedicationPlan;
 use App\Models\PatientVitalSign;
+use App\Services\Patient\PatientClinicalSummaryBuilder;
+use App\Services\Patient\PhysicianWorkflowAssistant;
 use App\Models\PatientProblem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -25,7 +27,12 @@ final class Patient360Controller extends Controller
 {
     use HasActiveDoctor;
 
-    public function show(Patient $patient, RecordSecurityAuditEventAction $audit)
+    public function show(
+        Patient $patient,
+        RecordSecurityAuditEventAction $audit,
+        PatientClinicalSummaryBuilder $summaryBuilder,
+        PhysicianWorkflowAssistant $workflowAssistant
+    )
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
@@ -201,6 +208,21 @@ final class Patient360Controller extends Controller
                 : 0,
         ];
 
+        $clinicalSummary = null;
+        $workflowSuggestions = null;
+        if ($canViewClinical) {
+            $clinicalSummary = $summaryBuilder->build(
+                (string) $patient->name,
+                $encounters,
+                $problems,
+                $clinicalRecords,
+                $vitals,
+                $followUps,
+                $pathways
+            );
+            $workflowSuggestions = $workflowAssistant->suggest($clinicalSummary);
+        }
+
         $audit->handle('patient.360.viewed', $patient, [
             'doctor_id' => $doctor->id,
             'clinical_data_included' => $canViewClinical,
@@ -218,6 +240,8 @@ final class Patient360Controller extends Controller
             ],
             'canViewClinical' => $canViewClinical,
             'summary' => $summary,
+            'clinicalSummary' => $clinicalSummary,
+            'workflowSuggestions' => $workflowSuggestions,
             'clinicalRecords' => $clinicalRecords->map(fn ($item) => [
                 'id'=>$item->id,'kind'=>$item->kind,'title'=>$item->title,'description'=>$item->description,
                 'dosage'=>$item->dosage,'frequency'=>$item->frequency,'start_date'=>$item->start_date?->format('Y-m-d'),
