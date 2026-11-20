@@ -49,7 +49,7 @@ class BuildPublicDoctorBookingPageAction
                         'id' => $clinic->id,
                         'name' => $clinic->name,
                         'full_address' => $clinic->full_address,
-                        'city' => $clinic->city?->name,
+                        'city' => $clinic->city?->only(['id', 'name']),
                         'phone' => $clinic->phone,
                         'Latitude' => $clinic->Latitude,
                         'Longitude' => $clinic->Longitude,
