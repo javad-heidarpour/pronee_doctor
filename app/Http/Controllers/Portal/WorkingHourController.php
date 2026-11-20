@@ -7,13 +7,17 @@ use App\Actions\Portal\WorkingHours\DeleteWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ListWorkingHoursAction;
 use App\Actions\Portal\WorkingHours\SaveWorkingHourAction;
 use App\Actions\Portal\WorkingHours\ToggleWorkingHourAction;
+use App\Actions\Portal\WorkingHours\CreateDoctorHolidayAction;
+use App\Actions\Portal\WorkingHours\DeleteDoctorHolidayAction;
 use App\DTOs\Portal\Scheduling\WorkingHourData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\SaveWorkingHourRequest;
 use App\Http\Requests\Portal\ListWorkingHoursRequest;
+use App\Http\Requests\Portal\StoreDoctorHolidayRequest;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Controllers\Portal\Concerns\AuthorizesPortalSchedules;
 use App\Models\DoctorWorkingHour;
+use App\Models\DoctorHoliday;
 use Inertia\Inertia;
 
 class WorkingHourController extends Controller
@@ -115,6 +119,41 @@ class WorkingHourController extends Controller
         }
 
         return back()->with('success', __('working_hours.status_changed'));
+    }
+
+    public function storeHoliday(
+        StoreDoctorHolidayRequest $request,
+        CreateDoctorHolidayAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
+
+        $data = $request->validated();
+        $this->authorizeClinic($doctor, (int) $data['clinic_id']);
+
+        $action->handle($doctor, $data, auth('web')->id());
+
+        return back()->with(
+            'success',
+            'تعطیلی ثبت شد. ساعت‌های آزاد آن روز بسته شدند؛ پس از حذف تعطیلی، برای بازسازی ساعت‌ها تولید نوبت را اجرا کنید.'
+        );
+    }
+
+    public function destroyHoliday(
+        DoctorHoliday $holiday,
+        DeleteDoctorHolidayAction $action
+    ) {
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('working-hours.manage', $doctor);
+
+        abort_unless((int) $holiday->doctor_id === (int) $doctor->id, 403);
+        $this->authorizeClinic($doctor, (int) $holiday->clinic_id);
+        $action->handle($doctor, $holiday);
+
+        return back()->with(
+            'success',
+            'تعطیلی حذف شد. برای ایجاد ساعت‌های آزاد آن تاریخ، تولید نوبت را اجرا کنید.'
+        );
     }
 
     /**
