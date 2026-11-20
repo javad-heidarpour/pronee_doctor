@@ -1,26 +1,31 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Home;
 
 use App\Models\Doctor;
 
-class FindPublicDoctorBySlugAction
+final class FindPublicDoctorBySlugAction
 {
     public function handle(string $slug): Doctor
     {
-        return Doctor::query()
+        $doctor = Doctor::query()
             ->with([
                 'city',
-                'reviews',
                 'specialty',
-                'user',
-                'address',
+                'address' => fn ($query) => $query->where('is_active', true),
                 'address.city',
-                'timeSlots',
+                'socials' => fn ($query) => $query
+                    ->where('is_visible', true)
+                    ->whereHas('platform', fn ($platform) => $platform->where('is_active', true)),
                 'socials.platform',
+                'honorBadges',
             ])
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
+
+        return $doctor->hidePrivatePublicFields();
     }
 }
