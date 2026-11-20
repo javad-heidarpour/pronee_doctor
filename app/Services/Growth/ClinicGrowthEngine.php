@@ -16,6 +16,8 @@ final class ClinicGrowthEngine
     public function analyze(int $doctorId, array $clinicIds, string $from, string $to, ?int $clinicId = null): array
     {
         $scope = $clinicId !== null ? [$clinicId] : $clinicIds;
+        $periodStart = Carbon::parse($from)->startOfDay();
+        $periodEnd = Carbon::parse($to)->endOfDay();
         if ($scope === []) {
             return $this->emptyReport($from, $to);
         }
@@ -83,7 +85,7 @@ final class ClinicGrowthEngine
             ->where(fn ($q) => $q->whereNull('c.clinic_id')->orWhereIn('c.clinic_id', $scope))
             ->select('c.id', 'c.name', 'c.channel', 'c.status', 'c.budget_rial')
             ->selectSub(DB::table('clinic_marketing_events')->selectRaw('COUNT(*)')
-                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'click')->whereBetween('occurred_at', [$from, $to]), 'clicks')
+                ->whereColumn('campaign_id', 'c.id')->where('event_type', 'click')->whereBetween('occurred_at', [$periodStart, $periodEnd]), 'clicks')
             ->selectSub(DB::table('clinic_marketing_events')->selectRaw('COUNT(*)')
                 ->whereColumn('campaign_id', 'c.id')->where('event_type', 'booking')->whereBetween('occurred_at', [$from, $to]), 'bookings')
             ->orderByDesc('c.created_at')->limit(8)->get()
@@ -101,7 +103,7 @@ final class ClinicGrowthEngine
             ->join('clinic_marketing_campaigns as c', 'c.id', '=', 'e.campaign_id')
             ->where('c.doctor_id', $doctorId)
             ->where(fn ($q) => $q->whereNull('c.clinic_id')->orWhereIn('c.clinic_id', $scope))
-            ->whereBetween('e.occurred_at', [$from, $to])
+            ->whereBetween('e.occurred_at', [$periodStart, $periodEnd])
             ->selectRaw("SUM(CASE WHEN e.event_type = 'click' THEN 1 ELSE 0 END) as clicks")
             ->selectRaw("SUM(CASE WHEN e.event_type = 'booking' THEN 1 ELSE 0 END) as bookings")
             ->first();
