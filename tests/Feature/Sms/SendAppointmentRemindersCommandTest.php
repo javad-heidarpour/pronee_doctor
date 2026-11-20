@@ -25,8 +25,9 @@ final class SendAppointmentRemindersCommandTest extends TestCase
             'services.ghasedak.appointment_reminder_template' => 'AppointmentReminderSMS',
         ]);
 
-        $confirmedTomorrow = $this->appointment('confirmed', now()->addDay()->toDateString());
-        $this->appointment('pending', now()->addDay()->toDateString());
+        $tomorrow = now()->addDay()->toDateString();
+        $confirmedTomorrow = $this->appointment('confirmed', $tomorrow);
+        $this->appointment('pending', $tomorrow);
         $this->appointment('confirmed', now()->addDays(2)->toDateString());
 
         $gateway = Mockery::mock(SmsGateway::class);
@@ -36,7 +37,7 @@ final class SendAppointmentRemindersCommandTest extends TestCase
                 '09120000000',
                 'AppointmentReminderSMS',
                 Mockery::on(fn (array $inputs): bool => count($inputs) === 3),
-                'reminder-' . $confirmedTomorrow
+                'reminder-' . $confirmedTomorrow . '-' . $tomorrow . '-1000'
             )
             ->andReturn(['success' => true]);
         $this->app->instance(SmsGateway::class, $gateway);
