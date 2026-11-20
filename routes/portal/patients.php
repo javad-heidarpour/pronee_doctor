@@ -11,6 +11,7 @@ use App\Http\Controllers\Portal\PatientCarePathwayController;
 use App\Http\Controllers\Portal\Patient360Controller;
 use App\Http\Controllers\Portal\HealthInteropController;
 use App\Http\Controllers\Portal\PatientProblemController;
+use App\Http\Controllers\Portal\PatientDocumentController;
 
 
 Route::get('/health-interop', [HealthInteropController::class, 'index'])->name('health-interop.index');
