@@ -118,6 +118,118 @@ final class PublicVisitStatusTrackingTest extends TestCase
                 ->missing('visit.patient_phone'));
     }
 
+    public function test_patient_can_cancel_with_a_signed_link_and_persian_phone_digits(): void
+    {
+        [$appointmentId, $slotId] = $this->createAppointmentForCancellation('09120000000');
+
+        $url = URL::temporarySignedRoute(
+            'visit.cancel',
+            now()->addMinutes(15),
+            ['visit_number' => $appointmentId]
+        );
+
+        $this->from('/')
+            ->post($url, ['patient_phone' => '۰۹۱۲۰۰۰۰۰۰۰'])
+            ->assertRedirect('/');
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointmentId,
+            'status' => 'cancelled',
+        ]);
+        $this->assertDatabaseHas('time_slots', [
+            'id' => $slotId,
+            'status' => 'available',
+        ]);
+    }
+
+    public function test_patient_cannot_cancel_when_the_phone_does_not_match(): void
+    {
+        [$appointmentId, $slotId] = $this->createAppointmentForCancellation('09120000000');
+
+        $url = URL::temporarySignedRoute(
+            'visit.cancel',
+            now()->addMinutes(15),
+            ['visit_number' => $appointmentId]
+        );
+
+        $this->from('/')
+            ->post($url, ['patient_phone' => '09121111111'])
+            ->assertRedirect('/')
+            ->assertSessionHasErrors('patient_phone');
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointmentId,
+            'status' => 'pending',
+        ]);
+        $this->assertDatabaseHas('time_slots', [
+            'id' => $slotId,
+            'status' => 'booked',
+        ]);
+    }
+
+    private function createAppointmentForCancellation(string $patientPhone): array
+    {
+        $now = now();
+
+        $userId = DB::table('users')->insertGetId([
+            'name' => 'پزشک آزمایشی',
+            'email' => 'cancel-doctor-' . uniqid() . '@example.test',
+            'password' => 'not-used',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $doctorId = DB::table('doctors')->insertGetId([
+            'user_id' => $userId,
+            'name' => 'نمونه',
+            'family' => 'پزشکی',
+            'slug' => 'sample-cancel-doctor-' . uniqid(),
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $clinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $doctorId,
+            'name' => 'مطب مرکزی',
+            'full_address' => 'نشانی آزمایشی',
+            'phone' => '05100000000',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $date = $now->copy()->addDay()->toDateString();
+
+        $slotId = DB::table('time_slots')->insertGetId([
+            'doctor_id' => $doctorId,
+            'clinic_id' => $clinicId,
+            'date' => $date,
+            'start_time' => '10:00:00',
+            'end_time' => '10:30:00',
+            'status' => 'booked',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $appointmentId = DB::table('appointments')->insertGetId([
+            'doctor_id' => $doctorId,
+            'clinic_id' => $clinicId,
+            'time_slot_id' => $slotId,
+            'patient_name' => 'بیمار آزمایشی',
+            'patient_phone' => $patientPhone,
+            'status' => 'pending',
+            'appointment_date' => $date,
+            'appointment_time' => '10:00:00',
+            'fee_rial' => 7000000,
+            'reservation_expires_at' => $now->copy()->addMinutes(10),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return [$appointmentId, $slotId];
+    }
+
     private function createVisitTrackingSchema(): void
     {
         Schema::create('users', function (Blueprint $table): void {
