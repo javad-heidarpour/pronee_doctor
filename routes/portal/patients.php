@@ -62,8 +62,8 @@ Route::prefix('patients')->name('patients.')->group(function () {
     Route::get('/{patient}/360', [Patient360Controller::class, 'show'])->whereNumber('patient')->name('360');
     Route::get('/{patient}/documents', [PatientDocumentController::class, 'index'])->whereNumber('patient')->name('documents.index');
     Route::post('/{patient}/documents', [PatientDocumentController::class, 'store'])->whereNumber('patient')->middleware('throttle:20,1')->name('documents.store');
-    Route::get('/documents/{document}/download', [PatientDocumentController::class, 'download'])->whereNumber('document')->middleware('throttle:30,1')->name('documents.download');
-    Route::patch('/documents/{document}/archive', [PatientDocumentController::class, 'archive'])->whereNumber('document')->name('documents.archive');
+    Route::get('/{patient}/documents/{document}/download', [PatientDocumentController::class, 'download'])->whereNumber('patient')->whereNumber('document')->middleware('throttle:30,1')->name('documents.download');
+    Route::patch('/{patient}/documents/{document}/archive', [PatientDocumentController::class, 'archive'])->whereNumber('patient')->whereNumber('document')->name('documents.archive');
     Route::get('/directory/record/{appointment}', [PatientController::class, 'record'])
         ->whereNumber('appointment')
         ->name('directory.record');
