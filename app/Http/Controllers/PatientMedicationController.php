@@ -21,7 +21,7 @@ final class PatientMedicationController extends Controller
     private function owner(): array
     {
         $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        abort_unless($user && $user->role === 'user' && $user->is_active, 403);
         $access = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)->where('access_type', 'owner')->firstOrFail();
         return [$user, $access];

@@ -130,6 +130,72 @@ final class PatientHealthAccessTest extends AuthTestCase
         ]);
     }
 
+    public function test_inactive_patient_account_cannot_use_an_existing_authenticated_session(): void
+    {
+        [$user] = $this->createScenario(['view_summary', 'view_records']);
+        $user->forceFill(['is_active' => false])->save();
+
+        $this->actingAs($user, 'web')
+            ->get(route('patient.health.index'))
+            ->assertForbidden();
+
+        $this->actingAs($user, 'web')
+            ->post(route('patient.health.medications.store'), [])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('security_audit_logs', [
+            'event' => 'patient.portal.health.viewed',
+        ]);
+    }
+
+    public function test_inactive_account_cannot_be_granted_caregiver_access(): void
+    {
+        $owner = User::query()->create([
+            'name' => 'Owner',
+            'family' => 'Test',
+            'email' => 'owner@example.test',
+            'username' => 'owner-test',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $inactiveCaregiver = User::query()->create([
+            'name' => 'Inactive',
+            'family' => 'Caregiver',
+            'email' => 'inactive-caregiver@example.test',
+            'username' => 'inactive-caregiver',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => false,
+        ]);
+        $doctor = Doctor::query()->create([
+            'name' => 'Doctor',
+            'family' => 'Test',
+            'slug' => 'doctor-owner-test',
+        ]);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Patient',
+        ]);
+        PatientAccountAccess::query()->create([
+            'patient_id' => $patient->id,
+            'user_id' => $owner->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+
+        $this->actingAs($owner, 'web')
+            ->post(route('patient.health.caregivers.store'), [
+                'email' => $inactiveCaregiver->email,
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseMissing('patient_account_accesses', [
+            'patient_id' => $patient->id,
+            'user_id' => $inactiveCaregiver->id,
+        ]);
+    }
+
     public function test_caregiver_receives_only_appointments_and_followups_explicitly_granted(): void
     {
         [$user, $access] = $this->createScenario([

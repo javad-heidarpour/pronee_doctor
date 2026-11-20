@@ -74,6 +74,7 @@ final class PatientAccessRequestController extends Controller
             $patientUser = User::query()
                 ->whereKey($lockedRequest->user_id)
                 ->where('role', 'user')
+                ->where('is_active', true)
                 ->firstOrFail();
 
             $reviewerId = Auth::guard('web')->id();

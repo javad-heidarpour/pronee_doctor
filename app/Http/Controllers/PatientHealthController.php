@@ -27,8 +27,7 @@ final class PatientHealthController extends Controller
 {
     public function index(RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
 
         $accesses = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)
@@ -172,8 +171,7 @@ final class PatientHealthController extends Controller
 
     public function reportCarePathwayStep(Request $request, int $pathway, int $step, RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
         $activePathway = PatientCarePathway::query()->whereKey($pathway)->where('status', 'active')->firstOrFail();
         PatientAccountAccess::query()->active()->where('user_id', $user->id)
             ->where('access_type', 'owner')->where('patient_id', $activePathway->patient_id)->firstOrFail();
@@ -186,8 +184,7 @@ final class PatientHealthController extends Controller
 
     public function storeObservation(Request $request, RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
 
         $ownerAccess = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)
@@ -226,8 +223,7 @@ final class PatientHealthController extends Controller
 
     public function destroyObservation(int $observation, RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
 
         $ownerAccess = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)
@@ -248,8 +244,7 @@ final class PatientHealthController extends Controller
 
     public function requestAccess(Request $request, RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
 
         $data = $request->validate([
             'national_code' => ['required', 'string', 'regex:/^[0-9۰-۹]{10}$/'],
@@ -295,14 +290,13 @@ final class PatientHealthController extends Controller
 
     public function grantCaregiver(Request $request, RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
         $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
 
         $ownerAccess = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)->where('access_type', 'owner')->firstOrFail();
 
-        $caregiver = User::query()->where('email', $data['email'])->where('role', 'user')->first();
+        $caregiver = User::query()->where('email', $data['email'])->where('role', 'user')->where('is_active', true)->first();
         abort_unless($caregiver && (int) $caregiver->id !== (int) $user->id, 422, 'حساب مراقب یافت نشد یا معتبر نیست.');
 
         $caregiverAccess = PatientAccountAccess::query()->updateOrCreate(
@@ -323,8 +317,7 @@ final class PatientHealthController extends Controller
 
     public function revokeCaregiver(PatientAccountAccess $access, RecordSecurityAuditEventAction $audit)
     {
-        $user = Auth::guard('web')->user();
-        abort_unless($user && $user->role === 'user', 403);
+        $user = $this->authenticatedPatient();
 
         $owner = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)->where('access_type', 'owner')
@@ -336,4 +329,16 @@ final class PatientHealthController extends Controller
 
         return back()->with('success', 'دسترسی مراقب لغو شد.');
     }
+    private function authenticatedPatient(): User
+    {
+        $user = Auth::guard('web')->user();
+
+        abort_unless(
+            $user instanceof User && $user->role === 'user' && $user->is_active,
+            403
+        );
+
+        return $user;
+    }
+
 }
