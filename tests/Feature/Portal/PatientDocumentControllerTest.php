@@ -29,6 +29,7 @@ final class PatientDocumentControllerTest extends TestCase
             $table->string('family')->nullable();
             $table->string('role');
             $table->boolean('is_active')->default(true);
+            $table->timestamp('deleted_at')->nullable();
             $table->timestamps();
         });
 
