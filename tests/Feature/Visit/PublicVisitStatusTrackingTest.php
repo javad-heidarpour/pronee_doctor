@@ -167,6 +167,103 @@ final class PublicVisitStatusTrackingTest extends TestCase
         ]);
     }
 
+    public function test_reschedule_slots_shown_to_patient_respect_one_hour_cutoff(): void
+    {
+        [$appointmentId] = $this->createAppointmentForCancellation('09120000000');
+        $appointment = DB::table('appointments')->where('id', $appointmentId)->first();
+
+        $tooSoon = now()->addMinutes(30);
+        $validTime = now()->addHours(2);
+
+        DB::table('time_slots')->insert([
+            [
+                'doctor_id' => $appointment->doctor_id,
+                'clinic_id' => $appointment->clinic_id,
+                'date' => $tooSoon->toDateString(),
+                'start_time' => $tooSoon->format('H:i:s'),
+                'end_time' => $tooSoon->copy()->addMinutes(30)->format('H:i:s'),
+                'status' => 'available',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'doctor_id' => $appointment->doctor_id,
+                'clinic_id' => $appointment->clinic_id,
+                'date' => $validTime->toDateString(),
+                'start_time' => $validTime->format('H:i:s'),
+                'end_time' => $validTime->copy()->addMinutes(30)->format('H:i:s'),
+                'status' => 'available',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $validSlotId = (int) DB::table('time_slots')
+            ->where('doctor_id', $appointment->doctor_id)
+            ->where('clinic_id', $appointment->clinic_id)
+            ->where('date', $validTime->toDateString())
+            ->where('start_time', $validTime->format('H:i:s'))
+            ->value('id');
+
+        $url = URL::temporarySignedRoute(
+            'visit.show',
+            now()->addMinutes(15),
+            ['visit_number' => $appointmentId]
+        );
+
+        $this->get($url)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('visit.available_slots.0.id', $validSlotId)
+                ->missing('visit.available_slots.1'));
+    }
+
+    public function test_patient_can_reschedule_with_a_signed_link_and_persian_phone_digits(): void
+    {
+        [$appointmentId, $oldSlotId] = $this->createAppointmentForCancellation('09120000000');
+        $appointment = DB::table('appointments')->where('id', $appointmentId)->first();
+        $newDate = now()->copy()->addDays(2)->toDateString();
+
+        $newSlotId = DB::table('time_slots')->insertGetId([
+            'doctor_id' => $appointment->doctor_id,
+            'clinic_id' => $appointment->clinic_id,
+            'date' => $newDate,
+            'start_time' => '11:00:00',
+            'end_time' => '11:30:00',
+            'status' => 'available',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $url = URL::temporarySignedRoute(
+            'visit.reschedule',
+            now()->addMinutes(15),
+            ['visit_number' => $appointmentId]
+        );
+
+        $this->from('/')
+            ->post($url, [
+                'patient_phone' => '۰۹۱۲۰۰۰۰۰۰۰',
+                'new_time_slot_id' => $newSlotId,
+            ])
+            ->assertRedirect('/');
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointmentId,
+            'time_slot_id' => $newSlotId,
+            'appointment_date' => $newDate,
+            'appointment_time' => '11:00:00',
+        ]);
+        $this->assertDatabaseHas('time_slots', [
+            'id' => $oldSlotId,
+            'status' => 'available',
+        ]);
+        $this->assertDatabaseHas('time_slots', [
+            'id' => $newSlotId,
+            'status' => 'booked',
+        ]);
+    }
+
     private function createAppointmentForCancellation(string $patientPhone): array
     {
         $now = now();
