@@ -24,6 +24,7 @@ use App\Http\Controllers\Portal\PatientRetentionController;
 use App\Http\Controllers\Portal\ClinicGrowthController;
 use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
+use App\Http\Controllers\Portal\ClinicSharedServiceController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
 use App\Http\Controllers\Portal\StaffResponsibilitiesController;
@@ -149,6 +150,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/patient-access-requests/{accessRequest}/reject', [PatientAccessRequestController::class, 'reject'])->whereNumber('accessRequest')->name('patient-access-requests.reject');
 
         Route::get('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'index'])->name('professional-partnerships.index');
+        Route::get('/shared-services', [ClinicSharedServiceController::class, 'index'])->name('shared-services.index');
+        Route::post('/shared-services', [ClinicSharedServiceController::class, 'store'])->middleware('throttle:10,1')->name('shared-services.store');
+        Route::post('/shared-services/{service}/requests', [ClinicSharedServiceController::class, 'requestService'])->whereNumber('service')->middleware('throttle:10,1')->name('shared-services.requests.store');
+        Route::patch('/shared-services/requests/{serviceRequest}/respond', [ClinicSharedServiceController::class, 'respond'])->whereNumber('serviceRequest')->name('shared-services.requests.respond');
         Route::post('/professional-partnerships', [ClinicProfessionalPartnershipController::class, 'store'])->middleware('throttle:10,1')->name('professional-partnerships.store');
         Route::patch('/professional-partnerships/{partnership}/respond', [ClinicProfessionalPartnershipController::class, 'respond'])->whereNumber('partnership')->name('professional-partnerships.respond');
         Route::post('/professional-partnerships/sessions', [ClinicProfessionalPartnershipController::class, 'storeSession'])->middleware('throttle:20,1')->name('professional-partnerships.sessions.store');
