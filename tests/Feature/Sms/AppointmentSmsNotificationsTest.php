@@ -79,7 +79,7 @@ final class AppointmentSmsNotificationsTest extends TestCase
                 $attempt++;
 
                 if ($attempt === 1) {
-                    throw new \\RuntimeException('Temporary provider failure');
+                    throw new \RuntimeException('Temporary provider failure');
                 }
 
                 return ['success' => true];
