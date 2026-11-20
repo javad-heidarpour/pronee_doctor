@@ -24,6 +24,7 @@ final class MedicalNetworkReferralTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
