@@ -25,9 +25,10 @@ final class PatientProblemController extends Controller
     ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $patient = $this->scopedPatient($patient, $doctor);
+        $clinicIds = $this->accessibleClinicIds($doctor);
+        $patient = $this->scopedPatient($patient, $doctor, $clinicIds);
 
-        $problem = $action->handle($patient, Auth::guard('web')->user(), $request->validated());
+        $problem = $action->handle($patient, Auth::guard('web')->user(), $request->validated(), null, $clinicIds);
 
         $audit->handle('patient.problem.created', $problem, [
             'doctor_id' => $doctor->id,
@@ -46,7 +47,8 @@ final class PatientProblemController extends Controller
     ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $patient = $this->scopedPatient($patient, $doctor);
+        $clinicIds = $this->accessibleClinicIds($doctor);
+        $patient = $this->scopedPatient($patient, $doctor, $clinicIds);
 
         abort_unless(
             (int) $problem->patient_id === (int) $patient->id &&
@@ -54,7 +56,7 @@ final class PatientProblemController extends Controller
             404
         );
 
-        $updated = $action->handle($patient, Auth::guard('web')->user(), $request->validated(), $problem);
+        $updated = $action->handle($patient, Auth::guard('web')->user(), $request->validated(), $problem, $clinicIds);
 
         $audit->handle('patient.problem.updated', $updated, [
             'doctor_id' => $doctor->id,
@@ -64,9 +66,8 @@ final class PatientProblemController extends Controller
         return back()->with('success', 'تشخیص یا مشکل بیمار به‌روزرسانی شد.');
     }
 
-    private function scopedPatient(Patient $patient, $doctor): Patient
+    private function scopedPatient(Patient $patient, $doctor, array $clinicIds): Patient
     {
-        $clinicIds = $this->accessibleClinicIds($doctor);
         abort_if($clinicIds === [], 403, 'هیچ مطب مجازی برای این حساب در دسترس نیست.');
 
         return Patient::query()
