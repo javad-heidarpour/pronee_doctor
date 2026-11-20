@@ -9,6 +9,62 @@
       <StatCard label="مطب‌ها" :value="clinics.length" icon="🏥" color="purple" />
     </div>
 
+    <!-- تعطیلی‌های مطب -->
+    <section class="mb-6 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm sm:p-6">
+      <div class="mb-4">
+        <h2 class="font-bold text-gray-900">تعطیلی‌های مطب</h2>
+        <p class="mt-1 text-sm text-gray-500">
+          با ثبت تعطیلی، ساعت‌های آزاد آن روز بسته می‌شوند. اگر نوبت فعالی وجود داشته باشد، ابتدا باید تعیین‌تکلیف شود.
+        </p>
+      </div>
+
+      <form @submit.prevent="submitHoliday" class="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-700">مطب</label>
+          <select v-model="holidayForm.clinic_id" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5">
+            <option value="" disabled>انتخاب مطب</option>
+            <option v-for="clinic in clinics" :key="clinic.id" :value="clinic.id">
+              {{ clinic.name }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-700">تاریخ تعطیلی</label>
+          <input v-model="holidayForm.holiday_date" type="date" :min="todayLocalDate()" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5" />
+          <p v-if="page.props.errors?.holiday_date" class="mt-1 text-xs text-red-600">{{ page.props.errors.holiday_date }}</p>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-700">عنوان تعطیلی</label>
+          <input v-model.trim="holidayForm.title" maxlength="160" required placeholder="مثلاً تعطیلی رسمی" class="w-full rounded-xl border border-gray-200 px-3 py-2.5" />
+          <p v-if="page.props.errors?.title" class="mt-1 text-xs text-red-600">{{ page.props.errors.title }}</p>
+        </div>
+        <div class="flex items-end">
+          <button type="submit" :disabled="holidayProcessing || !holidayForm.clinic_id || !holidayForm.title.trim()" class="w-full rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white disabled:opacity-50">
+            {{ holidayProcessing ? "در حال ثبت..." : "ثبت تعطیلی" }}
+          </button>
+        </div>
+        <div class="md:col-span-4">
+          <label class="mb-2 block text-sm font-medium text-gray-700">توضیحات (اختیاری)</label>
+          <input v-model.trim="holidayForm.note" maxlength="1000" placeholder="توضیح تکمیلی" class="w-full rounded-xl border border-gray-200 px-3 py-2.5" />
+          <p v-if="page.props.errors?.clinic_id" class="mt-1 text-xs text-red-600">{{ page.props.errors.clinic_id }}</p>
+        </div>
+      </form>
+
+      <div v-if="holidays.length" class="mt-5 space-y-2">
+        <div v-for="holiday in holidays" :key="holiday.id" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-3">
+          <div>
+            <p class="text-sm font-bold text-gray-800">{{ holiday.title }}</p>
+            <p class="mt-1 text-xs text-gray-500">{{ holiday.clinic?.name }} · {{ formatHolidayDate(holiday.holiday_date) }}</p>
+            <p v-if="holiday.note" class="mt-1 text-xs text-gray-600">{{ holiday.note }}</p>
+          </div>
+          <button type="button" @click="deleteHoliday(holiday.id)" class="rounded-lg px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50">
+            حذف تعطیلی
+          </button>
+        </div>
+      </div>
+      <p v-else class="mt-4 text-sm text-gray-500">تعطیلی آینده‌ای ثبت نشده است.</p>
+    </section>
+
     <!-- فیلترها و جستجو -->
     <div class="min-w-0 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm mb-6 sm:p-6">
       <form @submit.prevent="applyFilters" class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -448,6 +504,7 @@ const props = defineProps({
   clinics: Array,
   workingHours: Object,
   filters: Object,
+  holidays: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -475,6 +532,22 @@ const deleteDialogOpen = ref(false);
 const hourToDelete = ref(null);
 const editingHour = ref(null);
 const processing = ref(false);
+const holidayProcessing = ref(false);
+
+const todayLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const holidayForm = ref({
+  clinic_id: props.clinics?.[0]?.id || "",
+  holiday_date: todayLocalDate(),
+  title: "",
+  note: "",
+});
 
 const form = ref({
   clinic_id: "",
@@ -576,6 +649,46 @@ const confirmDeleteHour = () => {
     preserveScroll: true,
     onSuccess: () => { deleteDialogOpen.value = false; hourToDelete.value = null; },
   });
+};
+
+const submitHoliday = () => {
+  if (holidayProcessing.value) return;
+  holidayProcessing.value = true;
+
+  router.post(route("portal.working-hours.holidays.store"), holidayForm.value, {
+    preserveScroll: true,
+    onFinish: () => { holidayProcessing.value = false; },
+    onSuccess: () => {
+      holidayForm.value = {
+        clinic_id: props.clinics?.[0]?.id || "",
+        holiday_date: todayLocalDate(),
+        title: "",
+        note: "",
+      };
+    },
+  });
+};
+
+const deleteHoliday = (holidayId) => {
+  router.delete(route("portal.working-hours.holidays.destroy", holidayId), {
+    preserveScroll: true,
+  });
+};
+
+const formatHolidayDate = (value) => {
+  const match = String(value ?? "").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return String(value ?? "");
+
+  return new Intl.DateTimeFormat("fa-IR", {
+    calendar: "persian",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
 };
 
 // اعمال فیلتر
