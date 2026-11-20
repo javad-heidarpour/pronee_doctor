@@ -4,6 +4,7 @@ namespace App\Actions\Visit;
 
 use App\Models\Appointment;
 use App\Models\AppointmentPayment;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\URL;
 
 class ShowVisitAction
@@ -53,6 +54,14 @@ class ShowVisitAction
                 now()->addMinutes(30),
                 ['visit_number' => $appointment->id]
             ),
+            'cancel_url' => URL::temporarySignedRoute(
+                'visit.cancel',
+                now()->addDays(180),
+                ['visit_number' => $appointment->id]
+            ),
+            'can_cancel' => in_array($appointment->status, ['pending', 'confirmed', 'contacted'], true)
+                && !$hasPaidPayment
+                && Carbon::parse($appointment->appointment_date->format('Y-m-d') . ' ' . $appointment->appointment_time)->isFuture(),
             'patient_name' => $appointment->patient_name,
             'doctor_name' => $doctorName !== '' ? 'دکتر ' . $doctorName : 'پزشک',
             'clinic_name' => $clinic?->name ?? 'مطب پزشک',
