@@ -28,6 +28,7 @@ use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 use App\Http\Controllers\Portal\ClinicSharedServiceController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
+use App\Http\Controllers\Portal\StaffPerformanceReviewController;
 use App\Http\Controllers\Portal\StaffResponsibilitiesController;
 use App\Http\Controllers\Portal\StaffCredentialsController;
 use App\Http\Controllers\Portal\StaffManagementController;
@@ -110,6 +111,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
         Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
         Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
+        Route::get('/staff-performance', [StaffPerformanceReviewController::class, 'index'])->name('staff-performance.index');
+        Route::post('/staff-performance', [StaffPerformanceReviewController::class, 'store'])->middleware('throttle:10,1')->name('staff-performance.store');
+        Route::patch('/staff-performance/{review}/publish', [StaffPerformanceReviewController::class, 'publish'])->whereNumber('review')->name('staff-performance.publish');
+        Route::patch('/staff-performance/{review}/acknowledge', [StaffPerformanceReviewController::class, 'acknowledge'])->whereNumber('review')->name('staff-performance.acknowledge');
         Route::get('/staff-credentials', [StaffCredentialsController::class, 'index'])->name('staff-credentials.index');
         Route::post('/staff-credentials', [StaffCredentialsController::class, 'store'])->middleware('throttle:10,1')->name('staff-credentials.store');
         Route::get('/staff-credentials/{credential}/download', [StaffCredentialsController::class, 'download'])->whereNumber('credential')->name('staff-credentials.download');
