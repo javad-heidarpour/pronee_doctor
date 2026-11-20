@@ -94,5 +94,5 @@ const problemCategoryLabel=v=>({diagnosis:'تشخیص',condition:'بیماری /
 const problemStatusLabel=v=>({active:'فعال',resolved:'برطرف‌شده',inactive:'غیرفعال'}[v]||'نامشخص')
 const problemSeverityLabel=v=>({mild:'خفیف',moderate:'متوسط',severe:'شدید',critical:'بحرانی'}[v]||'نامشخص')
 const recordLabel=k=>({allergy:'حساسیت',medication:'دارو',medical_history:'سابقه پزشکی',adverse_reaction:'عارضه دارویی'}[k]||'سابقه')
-const statusLabel=s=>({draft:'پیش‌نویس',signed:'نهایی‌شده',pending:'در انتظار',in_progress:'در حال انجام',completed:'تکمیل‌شده',verified:'تأییدشده',active:'فعال',cancelled:'لغوشده',confirmed:'تأییدشده',visited:'ویزیت‌شده',recorded:'ثبت‌شده',fulfilled:'انجام‌شده',offered:'پیشنهادشده'}[s]||s||'نامشخص')
+const statusLabel=s=>({draft:'پیش‌نویس',signed:'نهایی‌شده',pending:'در انتظار',in_progress:'در حال انجام',completed:'تکمیل‌شده',verified:'تأییدشده',active:'فعال',resolved:'برطرف‌شده',inactive:'غیرفعال',cancelled:'لغوشده',confirmed:'تأییدشده',visited:'ویزیت‌شده',recorded:'ثبت‌شده',fulfilled:'انجام‌شده',offered:'پیشنهادشده'}[s]||s||'نامشخص')
 </script>
