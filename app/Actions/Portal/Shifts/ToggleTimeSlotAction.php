@@ -3,6 +3,7 @@
 namespace App\Actions\Portal\Shifts;
 
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
 
@@ -27,6 +28,14 @@ class ToggleTimeSlotAction
                 : 'available';
 
             if ($newStatus === 'available') {
+                if (DoctorHoliday::query()
+                    ->where('doctor_id', $lockedSlot->doctor_id)
+                    ->where('clinic_id', $lockedSlot->clinic_id)
+                    ->whereDate('holiday_date', $lockedSlot->date->format('Y-m-d'))
+                    ->exists()) {
+                    return null;
+                }
+
                 $overlap = TimeSlot::query()
                     ->overlapping(
                         (int) $lockedSlot->doctor_id,
