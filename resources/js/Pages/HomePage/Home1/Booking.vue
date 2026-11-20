@@ -304,6 +304,15 @@
               </div>
             </div>
 
+            <div
+              v-if="availabilityMessage"
+              class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800"
+              role="status"
+              aria-live="polite"
+            >
+              {{ availabilityMessage }}
+            </div>
+
             <!-- Booking Action -->
             <div class="booking-action">
               <BookingSectionActionButton
@@ -448,6 +457,7 @@ const clinics = computed(() =>
 const selectedClinicIndex = ref(null);
 const selectedDateIndex = ref(0);
 const selectedSlot = ref(null);
+const availabilityMessage = ref("");
 
 const isClinicSelected = computed(() => selectedClinicIndex.value !== null);
 
@@ -505,6 +515,7 @@ function selectDate(index) {
 function selectSlot(slot) {
   if (slot.status === "available") {
     selectedSlot.value = slot;
+    availabilityMessage.value = "";
   }
 }
 
@@ -635,8 +646,9 @@ function handleBookingSuccess() {
   selectedSlot.value = null;
 }
 
-function handleSlotCleared() {
+function handleSlotCleared(message = "") {
   selectedSlot.value = null;
+  availabilityMessage.value = message || "این ساعت دیگر آزاد نیست؛ لطفاً زمان دیگری انتخاب کنید.";
 }
 
 function handleSlotBooked(slotId) {
