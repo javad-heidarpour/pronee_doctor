@@ -94,7 +94,7 @@ final class BookAppointmentAction
 
                 $isAlreadyBooked = Appointment::query()
                     ->where('time_slot_id', $timeSlot->id)
-                    ->whereIn('status', ['pending', 'confirmed'])
+                    ->whereIn('status', ['pending', 'confirmed', 'contacted'])
                     ->exists();
 
                 if ($isAlreadyBooked) {
@@ -121,10 +121,10 @@ final class BookAppointmentAction
                     $timeSlot->date->format('Y-m-d') . ' ' . $timeSlot->start_time
                 );
 
-                if ($appointmentDateTime->lessThanOrEqualTo(now())) {
+                if ($appointmentDateTime->lessThan(now()->addHour())) {
                     throw ValidationException::withMessages([
                         'time_slot_id' =>
-                            'زمان این نوبت گذشته است. لطفاً ساعت دیگری انتخاب کنید.',
+                            'برای ثبت نوبت باید حداقل یک ساعت تا زمان مراجعه باقی مانده باشد. لطفاً زمان دیگری انتخاب کنید.',
                     ]);
                 }
 
