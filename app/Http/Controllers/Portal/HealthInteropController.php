@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\Appointment;
 use App\Models\HealthExchangeMessage;
 use App\Models\Patient;
@@ -26,9 +27,13 @@ final class HealthInteropController extends Controller
         return $doctor;
     }
 
-    public function index()
+    public function index(RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->doctor();
+
+        // The dashboard contains patient insurance and exchange status; audit access without payload data.
+        $audit->handle('health_interop.dashboard.viewed', null, ['doctor_id' => $doctor->id]);
+
         return Inertia::render('Portal/HealthInterop/Index', [
             // پیام خام خطا و جزئیات پاسخ بیمه ممکن است شامل URL داخلی، شناسه یا داده حساس باشد؛
             // در پنل فقط وضعیت و شناسه پیگیری نمایش داده می‌شود و متن خطا در سرور می‌ماند.
