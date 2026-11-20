@@ -14,6 +14,7 @@ final class ShowDoctorProfileAction
         private readonly BuildPublicWorkingHoursAction $workingHoursAction,
         private readonly BuildPublicDoctorBookingPageAction $bookingAction,
         private readonly BuildPublicDoctorGalleryPageAction $galleryAction,
+        private readonly ListPublicMedicalServicesAction $servicesAction,
     ) {
     }
 
@@ -42,6 +43,15 @@ final class ShowDoctorProfileAction
         $workingHours = $this->workingHoursAction->handle($doctor);
         $bookingPage = $this->bookingAction->handle($doctor);
         $galleryPage = $this->galleryAction->handle($doctor);
+        $services = $this->servicesAction->handle()
+            ->map(fn ($service) => $service->only([
+                'id',
+                'title',
+                'category',
+                'short_description',
+            ]))
+            ->values()
+            ->all();
 
         $doctorData = $this->profilePayloadAction->handle($doctor);
 
@@ -56,6 +66,7 @@ final class ShowDoctorProfileAction
                 'reviews_stats' => $reviewsPage['reviewsStats'],
                 'gallery_images' => $galleryPage['galleryImages'],
                 'gallery_categories' => $galleryPage['galleryCategories'],
+                'services' => $services,
             ]),
         ]);
     }
