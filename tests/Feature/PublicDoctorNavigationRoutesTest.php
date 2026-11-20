@@ -14,6 +14,7 @@ final class PublicDoctorNavigationRoutesTest extends TestCase
 
         $this->assertSame('/sample-doctor', route('home1', ['doctor' => $slug], false));
         $this->assertSame('/sample-doctor/booking', route('booking', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/booking/123', route('booking', ['slug' => $slug, 'clinic' => 123], false));
         $this->assertSame('/sample-doctor/services', route('services', ['slug' => $slug], false));
         $this->assertSame('/sample-doctor/surgeries', route('Surgeries', ['slug' => $slug], false));
         $this->assertSame('/sample-doctor/contact', route('contact', ['slug' => $slug], false));
