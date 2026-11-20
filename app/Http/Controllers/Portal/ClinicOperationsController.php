@@ -448,12 +448,20 @@ class ClinicOperationsController extends Controller
         $gross = (int) $items->sum('price');
         abort_if($gross < 1, 422, 'در بازه انتخاب‌شده خدمت انجام‌شده‌ای برای تسویه وجود ندارد.');
         $doctorShare = (int) $items->sum(fn ($item) => (int) round($item->price * (($item->doctor_share_basis_points ?? $share) / 10000)));
-        DoctorSettlement::firstOrCreate([
-            'organization_id' => $organization->id, 'doctor_id' => $targetDoctor->id,
-            'period_start' => $data['period_start'], 'period_end' => $data['period_end'],
-        ], [
-            'gross_amount' => $gross, 'clinic_share_amount' => $gross - $doctorShare,
-            'adjustment_amount' => 0, 'net_amount' => $doctorShare, 'status' => 'draft',
+        // insertOrIgnore relies on the database unique key for organization/doctor/period.
+        // It avoids duplicate drafts under concurrent requests and is consistent across MySQL/SQLite date handling.
+        DB::table('doctor_settlements')->insertOrIgnore([
+            'organization_id' => $organization->id,
+            'doctor_id' => $targetDoctor->id,
+            'period_start' => $data['period_start'],
+            'period_end' => $data['period_end'],
+            'gross_amount' => $gross,
+            'clinic_share_amount' => $gross - $doctorShare,
+            'adjustment_amount' => 0,
+            'net_amount' => $doctorShare,
+            'status' => 'draft',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         return back()->with('success', 'پیش‌نویس تسویه پزشک ساخته شد.');
     }
