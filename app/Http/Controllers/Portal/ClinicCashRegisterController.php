@@ -125,7 +125,9 @@ final class ClinicCashRegisterController extends Controller
                 abort_unless(
                     (int) $existing->session_id === (int) $locked->id
                     && (int) $existing->amount_rial === (int) $data['amount_rial']
-                    && $existing->direction === $data['direction'],
+                    && $existing->direction === $data['direction']
+                    && $existing->category === $data['category']
+                    && hash_equals((string) $existing->description, trim($data['description'])),
                     409,
                     'کلید تکرار با تراکنش قبلی و اطلاعات متفاوت استفاده شده است.'
                 );
