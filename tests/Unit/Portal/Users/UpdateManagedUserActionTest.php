@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Doctor;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Illuminate\Validation\ValidationException;
@@ -221,6 +222,8 @@ final class UpdateManagedUserActionTest extends TestCase
 
         $this->assertSame('secretary', $user->role);
         $this->assertTrue($user->is_active);
+        $this->assertTrue(Hash::check('Password123!', $user->password));
+        $this->assertNotSame('Password123!', $user->password);
         $this->assertDatabaseHas('doctor_user', [
             'doctor_id' => 23,
             'user_id' => $user->id,
@@ -341,4 +344,59 @@ final class UpdateManagedUserActionTest extends TestCase
             'user_id' => 10,
         ]);
     }
+
+    public function test_doctor_user_list_contains_only_secretaries_assigned_to_active_doctor(): void
+    {
+        DB::table('users')->insert([
+            ['id' => 1, 'name' => 'Doctor', 'role' => 'doctor', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'name' => 'Assigned Secretary', 'role' => 'secretary', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'name' => 'Other Secretary', 'role' => 'secretary', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'name' => 'Admin', 'role' => 'admin', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        DB::table('doctors')->insert([
+            ['id' => 10, 'user_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 11, 'user_id' => 99, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        DB::table('doctor_user')->insert([
+            'doctor_id' => 10,
+            'user_id' => 2,
+            'permissions' => json_encode(['appointments.view']),
+            'clinic_ids' => json_encode([]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $doctorUser = User::query()->findOrFail(1);
+        $doctorProfile = Doctor::query()->findOrFail(10);
+
+        $page = app(\\App\\Actions\\Portal\\Users\\BuildManagedUsersIndexPageAction::class)
+            ->handle($doctorUser, $doctorProfile);
+
+        $this->assertSame([2], $page['users']->pluck('id')->all());
+        $this->assertSame(['secretary'], array_column($page['roles'], 'value'));
+    }
+
+    public function test_admin_user_list_includes_all_roles_and_soft_deleted_accounts(): void
+    {
+        DB::table('users')->insert([
+            ['id' => 1, 'name' => 'Admin', 'role' => 'admin', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'name' => 'Patient', 'role' => 'user', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'name' => 'Deleted Secretary', 'role' => 'secretary', 'is_active' => false, 'deleted_at' => now(), 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $admin = User::query()->findOrFail(1);
+
+        $page = app(\\App\\Actions\\Portal\\Users\\BuildManagedUsersIndexPageAction::class)
+            ->handle($admin, null);
+
+        $this->assertEqualsCanonicalizing([1, 2, 3], $page['users']->pluck('id')->all());
+        $this->assertEqualsCanonicalizing(
+            ['doctor', 'secretary', 'admin', 'user'],
+            array_column($page['roles'], 'value')
+        );
+        $this->assertTrue($page['users']->firstWhere('id', 3)->trashed());
+    }
+
 }
