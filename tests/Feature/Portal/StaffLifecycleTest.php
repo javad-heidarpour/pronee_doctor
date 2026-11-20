@@ -6,6 +6,7 @@ namespace Tests\Feature\Portal;
 
 use App\Http\Controllers\Portal\StaffAttendanceController;
 use App\Http\Controllers\Portal\StaffManagementController;
+use App\Http\Controllers\Portal\StaffResponsibilitiesController;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -536,7 +537,7 @@ final class StaffLifecycleTest extends TestCase
         Auth::guard('web')->setUser($owner);
         session(['active_doctor_id' => $doctorId]);
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         app(StaffResponsibilitiesController::class)->store(Request::create('/portal/staff-responsibilities', 'POST', [
             'organization_id' => $organizationId,
             'clinic_id' => $otherClinicId,
