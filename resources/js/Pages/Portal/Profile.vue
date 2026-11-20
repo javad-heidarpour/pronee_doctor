@@ -10,7 +10,7 @@
           <h3 class="text-lg font-bold text-gray-900">اطلاعات شخصی</h3>
           <a
             v-if="doctor.slug"
-            :href="route('home1', { doctor: doctor.slug })"
+            :href="route('portal.profile.preview')"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-800 transition hover:bg-teal-100"
