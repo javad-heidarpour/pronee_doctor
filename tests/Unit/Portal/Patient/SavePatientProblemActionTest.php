@@ -99,6 +99,12 @@ final class SavePatientProblemActionTest extends TestCase
         $patient = $this->makePatient(12);
         $actor = $this->makeActor(22);
         $action = app(SavePatientProblemAction::class);
+        $encounter = PatientEncounter::query()->create([
+            'doctor_id' => 12,
+            'patient_id' => $patient->id,
+            'clinic_id' => 120,
+            'status' => PatientEncounter::STATUS_SIGNED,
+        ]);
 
         $problem = $action->handle($patient, $actor, [
             'category' => 'symptom',
@@ -106,6 +112,7 @@ final class SavePatientProblemActionTest extends TestCase
             'code_system' => 'local',
             'status' => 'active',
             'source' => 'patient_reported',
+            'encounter_id' => $encounter->id,
         ]);
 
         $resolved = $action->handle($patient, $actor, [
@@ -118,6 +125,7 @@ final class SavePatientProblemActionTest extends TestCase
 
         $this->assertSame('resolved', $resolved->status);
         $this->assertSame(now()->toDateString(), $resolved->resolved_on->format('Y-m-d'));
+        $this->assertSame($encounter->id, $resolved->encounter_id);
 
         $reopened = $action->handle($patient, $actor, [
             'category' => 'symptom',
@@ -129,6 +137,7 @@ final class SavePatientProblemActionTest extends TestCase
 
         $this->assertSame('active', $reopened->status);
         $this->assertNull($reopened->resolved_on);
+        $this->assertSame($encounter->id, $reopened->encounter_id);
         $this->assertSame(22, $reopened->updated_by);
     }
 
