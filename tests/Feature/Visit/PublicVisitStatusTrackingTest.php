@@ -17,6 +17,7 @@ final class PublicVisitStatusTrackingTest extends TestCase
     {
         parent::setUp();
 
+        $this->withoutVite();
         $this->createVisitTrackingSchema();
     }
 
