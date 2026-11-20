@@ -96,7 +96,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'doctor_user',
             'user_id',
             'doctor_id'
-        )->withPivot('permissions', 'clinic_ids')->withTimestamps();
+        )->withPivot(['permissions', 'clinic_ids', 'base_permissions', 'base_clinic_ids', 'managed_by_organization'])->withTimestamps();
     }
 
     public function clinicOrganizations()
