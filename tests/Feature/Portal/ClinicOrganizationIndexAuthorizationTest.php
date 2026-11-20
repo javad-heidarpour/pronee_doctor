@@ -124,10 +124,11 @@ final class ClinicOrganizationIndexAuthorizationTest extends TestCase
         Auth::guard('web')->setUser($admin);
 
         $response = app(ClinicOrganizationController::class)->index();
-        $organizationIds = collect($response->getProps()['organizations'])->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $page = $response->toResponse(Request::create('/portal/organizations', 'GET', [], [], [], ['HTTP_X_INERTIA' => 'true']))->getData(true);
+        $organizationIds = collect($page['props']['organizations'])->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $this->assertEqualsCanonicalizing([$firstOrganization, $secondOrganization], $organizationIds);
-        $this->assertTrue($response->getProps()['isAdmin']);
+        $this->assertTrue($page['props']['isAdmin']);
     }
 
     public function test_doctor_can_only_view_organizations_they_own_or_belong_to(): void
@@ -160,10 +161,11 @@ final class ClinicOrganizationIndexAuthorizationTest extends TestCase
         Auth::guard('web')->setUser($doctor);
 
         $response = app(ClinicOrganizationController::class)->index();
-        $organizationIds = collect($response->getProps()['organizations'])->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $page = $response->toResponse(Request::create('/portal/organizations', 'GET', [], [], [], ['HTTP_X_INERTIA' => 'true']))->getData(true);
+        $organizationIds = collect($page['props']['organizations'])->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $this->assertSame([$accessibleOrganization], $organizationIds);
-        $this->assertFalse($response->getProps()['isAdmin']);
+        $this->assertFalse($page['props']['isAdmin']);
     }
 
     public function test_admin_cannot_mutate_an_organization_from_the_read_only_overview(): void
