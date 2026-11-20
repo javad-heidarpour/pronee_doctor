@@ -41,6 +41,12 @@ class BuildManagedUserAssignmentsPageAction
                 $clinicIds = $managedByOrganization
                     ? $relation?->pivot?->base_clinic_ids
                     : $relation?->pivot?->clinic_ids;
+                $effectiveClinicIds = $relation?->pivot?->clinic_ids ?? [];
+
+                if (is_string($effectiveClinicIds)) {
+                    $effectiveClinicIds = json_decode($effectiveClinicIds, true) ?: [];
+                }
+
                 $hasDirectAssignment = $relation !== null && (
                     ! $managedByOrganization
                     || $relation->pivot->base_permissions !== null
@@ -55,6 +61,17 @@ class BuildManagedUserAssignmentsPageAction
                     $clinicIds = json_decode($clinicIds, true) ?: [];
                 }
 
+                $directClinicIds = array_map(
+                    'intval',
+                    is_array($clinicIds) ? $clinicIds : []
+                );
+                $organizationClinicIds = $managedByOrganization
+                    ? array_values(array_diff(
+                        array_map('intval', is_array($effectiveClinicIds) ? $effectiveClinicIds : []),
+                        $directClinicIds
+                    ))
+                    : [];
+
                 return [
                     'id' => $doctor->id,
                     'name' => $doctor->name ?: $doctor->user?->name,
@@ -68,10 +85,8 @@ class BuildManagedUserAssignmentsPageAction
                         'name' => $clinic->name,
                         'is_active' => (bool) $clinic->is_active,
                     ])->values(),
-                    'clinic_ids' => array_map(
-                        'intval',
-                        is_array($clinicIds) ? $clinicIds : []
-                    ),
+                    'clinic_ids' => $directClinicIds,
+                    'organization_clinic_ids' => $organizationClinicIds,
                 ];
             })->values(),
             'permissions' => $this->permissionsAction->handle(),
