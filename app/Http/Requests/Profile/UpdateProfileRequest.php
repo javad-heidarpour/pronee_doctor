@@ -37,7 +37,9 @@ class UpdateProfileRequest extends FormRequest
             'specialty_title' => ['required', 'string', 'max:255'],
             'years_of_experience' => ['required', 'integer', 'min:0'],
             'Medical_system_number' => ['required', 'string', 'max:50'],
-            'description' => ['nullable', 'string'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'meta_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:320'],
             'photo' => ['nullable', 'image', 'max:2048'],
         ];
     }
