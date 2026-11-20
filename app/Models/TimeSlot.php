@@ -34,17 +34,18 @@ class TimeSlot extends Model
 
     public function scopePubliclyBookable(Builder $query): Builder
     {
-        $today = now()->toDateString();
-        $minimumTime = now()->addHour()->format('H:i:s');
+        $minimumAt = now()->addHour();
+        $minimumDate = $minimumAt->toDateString();
+        $minimumTime = $minimumAt->format('H:i:s');
 
         return $query
             ->where('status', 'available')
-            ->where(function (Builder $builder) use ($today, $minimumTime): void {
+            ->where(function (Builder $builder) use ($minimumDate, $minimumTime): void {
                 $builder
-                    ->where('date', '>', $today)
-                    ->orWhere(function (Builder $sameDay) use ($today, $minimumTime): void {
+                    ->where('date', '>', $minimumDate)
+                    ->orWhere(function (Builder $sameDay) use ($minimumDate, $minimumTime): void {
                         $sameDay
-                            ->where('date', $today)
+                            ->where('date', $minimumDate)
                             ->where('start_time', '>=', $minimumTime);
                     });
             })
