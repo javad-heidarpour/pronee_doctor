@@ -102,6 +102,13 @@ final class StaffCredentialsTest extends TestCase
             'slug' => 'owner-credentials', 'is_active' => true,
         ]);
         DB::table('doctor_user')->insert(['doctor_id' => $this->doctor->id, 'user_id' => $this->owner->id]);
+        DB::table('doctor_user')->insert([
+            'doctor_id' => $this->doctor->id, 'user_id' => $this->staff->id,
+            'permissions' => json_encode(['staff.credentials.view']),
+            'clinic_ids' => json_encode([$this->clinicId]),
+            'managed_by_organization' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $this->organization = ClinicOrganization::query()->create([
             'owner_user_id' => $this->owner->id, 'name' => 'Credentials Organization',
             'slug' => 'credentials-org', 'timezone' => 'Asia/Tehran', 'status' => 'active',
