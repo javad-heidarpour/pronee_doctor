@@ -15,7 +15,7 @@ final class UpdateDoctorHonorBadgesTest extends TestCase
 
     public function test_doctor_honor_badges_are_replaced_with_the_submitted_public_list(): void
     {
-        $doctor = Doctor::factory()->create();
+        $doctor = Doctor::factory()->create(['family' => 'آزمایشی']);
 
         $doctor->honorBadges()->create([
             'title' => 'سابقه قدیمی',
