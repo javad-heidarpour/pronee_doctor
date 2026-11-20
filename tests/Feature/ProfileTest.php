@@ -32,6 +32,7 @@ class ProfileTest extends AuthTestCase
         Schema::create('doctors', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('user_id');
+            $table->string('slug')->nullable();
             $table->string('photo')->nullable();
             $table->timestamps();
             $table->softDeletes();
