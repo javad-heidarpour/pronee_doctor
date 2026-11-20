@@ -7,6 +7,7 @@ namespace App\Actions\Sms;
 use App\Contracts\Sms\SmsGateway;
 use App\Models\Appointment;
 use App\Models\SmsLog;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -45,10 +46,10 @@ final class SendAppointmentConfirmationSmsAction
             ], 404);
         }
 
-        if ($appointment->status === 'cancelled') {
+        if ($appointment->status !== 'confirmed') {
             return response()->json([
                 'success' => false,
-                'message' => 'برای نوبت لغوشده امکان ارسال پیامک تأیید وجود ندارد.',
+                'message' => 'ارسال پیامک تأیید فقط برای نوبت تأییدشده امکان‌پذیر است.',
             ], 422);
         }
 
@@ -60,6 +61,17 @@ final class SendAppointmentConfirmationSmsAction
                 'success' => false,
                 'message' => 'شماره موبایل بیمار معتبر نیست.',
             ], 422);
+        }
+
+        $updatedAt = $appointment->updated_at?->format('YmdHis') ?? now()->format('YmdHis');
+        $deduplicationKey = 'appointment-confirmation:' . $appointment->id . ':' . $updatedAt;
+
+        if (SmsLog::query()->where('deduplication_key', $deduplicationKey)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'پیامک تأیید این نوبت قبلاً ثبت شده است.',
+                'visit_number' => $visitNumber,
+            ], 429);
         }
 
         $cacheKey = 'appointment-confirmation-sms:' . $visitNumber;
@@ -80,8 +92,23 @@ final class SendAppointmentConfirmationSmsAction
                 'type' => 'appointment_confirmation',
                 'status' => 'pending',
                 'provider' => 'ghasedak',
+                'deduplication_key' => $deduplicationKey,
             ]);
+        } catch (QueryException $exception) {
+            Cache::forget($cacheKey);
 
+            if (SmsLog::query()->where('deduplication_key', $deduplicationKey)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'پیامک تأیید این نوبت قبلاً ثبت شده است.',
+                    'visit_number' => $visitNumber,
+                ], 429);
+            }
+
+            throw $exception;
+        }
+
+        try {
             $this->gateway->sendTemplate(
                 $mobile,
                 $template,
