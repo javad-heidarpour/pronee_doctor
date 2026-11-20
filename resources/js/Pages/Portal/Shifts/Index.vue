@@ -250,7 +250,7 @@
               </td>
             </tr>
             <tr v-if="slots.data.length === 0">
-              <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+              <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                 <svg
                   class="w-16 h-16 text-gray-300 mx-auto mb-4"
                   fill="none"
@@ -360,7 +360,7 @@
                 <label class="block text-sm font-bold text-gray-700 mb-2">مطب</label>
 
                 <SelectInput
-                  v-model="filters.clinic_id"
+                  v-model="form.clinic_id"
                   :options="
                     clinics.map((c) => ({
                       value: c.id,
@@ -488,13 +488,26 @@ const form = ref({
 // فرمت زمان به فارسی
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
-  return timeStr.replace(/\d/g, (d) => "۰۱۲۴۵۶۷۸"[d]);
+  return timeStr.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
 };
 
 // تبدیل تاریخ به شمسی
+const parseLocalDate = (dateStr) => {
+  const [year, month, day] = String(dateStr).slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const todayLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const toPersianDate = (dateStr) => {
   if (!dateStr) return "-";
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return new Intl.DateTimeFormat("fa-IR", {
     year: "numeric",
     month: "long",
@@ -505,7 +518,7 @@ const toPersianDate = (dateStr) => {
 // نام روز هفته به فارسی
 const getPersianDayName = (dateStr) => {
   if (!dateStr) return "";
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(date);
 };
 
@@ -534,7 +547,7 @@ const openModal = () => {
   editingSlot.value = null;
   form.value = {
     clinic_id: props.clinics[0]?.id || "",
-    date: new Date().toISOString().split("T")[0],
+    date: todayLocalDate(),
     start_time: "09:00",
     end_time: "10:00",
   };
