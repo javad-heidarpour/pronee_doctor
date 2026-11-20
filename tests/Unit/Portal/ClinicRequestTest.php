@@ -10,17 +10,6 @@ use Tests\TestCase;
 
 final class ClinicRequestTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-    }
-
     public function test_coordinates_are_mapped_to_existing_address_columns(): void
     {
         $input = [
@@ -57,7 +46,7 @@ final class ClinicRequestTest extends TestCase
         ];
 
         $request = new ClinicRequest();
-        $validator = Validator::make($input, $request->rules());
+        $validator = Validator::make($input, array_replace($request->rules(), ['city_id' => ['required', 'integer']]));
 
         $this->assertFalse($validator->passes());
         $this->assertArrayHasKey('lat', $validator->errors()->messages());
