@@ -130,18 +130,21 @@ class Home1Controller extends Controller
         string $slug,
         BuildPublicDoctorBookingPageAction $action,
         FindPublicDoctorBySlugAction $doctorAction,
-        $clinic = null
+        ?int $clinic = null
     ) {
         $doctor = $this->findDoctor($slug, $doctorAction);
         $bookingPage = $action->handle($doctor);
         $clinicsWithSlots = $bookingPage['clinicsWithSlots'];
+        $selectedClinicId = $clinic !== null && $clinicsWithSlots->contains(
+            fn (array $item): bool => (int) ($item['clinic']['id'] ?? 0) === $clinic
+        ) ? $clinic : null;
 
         $doctor->setAttribute('clinics_with_slots', $clinicsWithSlots);
 
         return Inertia::render('HomePage/Home1/Booking', [
             'doctor' => $doctor,
             'clinicsWithSlots' => $clinicsWithSlots,
-            'selectedClinic' => $clinic,
+            'clinicId' => $selectedClinicId,
             'visitReasons' => $bookingPage['visitReasons'],
         ]);
     }
