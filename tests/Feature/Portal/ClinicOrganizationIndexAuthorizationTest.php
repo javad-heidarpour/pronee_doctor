@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Portal;
 
 use App\Http\Controllers\Portal\ClinicOrganizationController;
+use App\Models\ClinicOrganization;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
