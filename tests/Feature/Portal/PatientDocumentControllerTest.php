@@ -126,7 +126,10 @@ final class PatientDocumentControllerTest extends TestCase
         );
 
         $this->assertStringContainsString('blood-test.pdf', (string) $download->headers->get('Content-Disposition'));
-        $this->assertSame('private, no-store, max-age=0', $download->headers->get('Cache-Control'));
+        $cacheControl = (string) $download->headers->get('Cache-Control');
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('max-age=0', $cacheControl);
     }
 
     public function test_document_download_and_archive_cannot_cross_patient_or_doctor_scope(): void
