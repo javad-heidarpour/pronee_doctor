@@ -36,7 +36,7 @@ final class ClinicSharedServiceControllerTest extends TestCase
             $table->string('role'); $table->boolean('is_active')->default(true); $table->timestamps(); $table->softDeletes();
         });
         Schema::create('doctors', function (Blueprint $table): void {
-            $table->id(); $table->unsignedBigInteger('user_id'); $table->boolean('is_active')->default(true);
+            $table->id(); $table->unsignedBigInteger('user_id'); $table->string('slug')->nullable(); $table->boolean('is_active')->default(true);
             $table->timestamps(); $table->softDeletes();
         });
         Schema::create('addresses', function (Blueprint $table): void {
