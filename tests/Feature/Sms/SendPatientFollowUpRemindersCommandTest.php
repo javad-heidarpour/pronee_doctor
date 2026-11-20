@@ -104,7 +104,10 @@ final class SendPatientFollowUpRemindersCommandTest extends TestCase
 
     private function doctorClinicAndPatient(): array
     {
-        $doctor = Doctor::factory()->create();
+        $doctor = Doctor::factory()->create([
+            'family' => 'آزمایشی',
+            'slug' => 'follow-up-reminder-test',
+        ]);
 
         $clinicId = DB::table('addresses')->insertGetId([
             'doctor_id' => $doctor->id,
