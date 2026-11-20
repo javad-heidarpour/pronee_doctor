@@ -165,7 +165,7 @@ final class MedicalNetworkController extends Controller
             'patient_id' => ['required', 'integer', Rule::exists('patients', 'id')->where('doctor_id', $doctor->id)],
             'source_clinic_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('doctor_id', $doctor->id)->where('is_active', true)],
             'target_provider_id' => ['required', 'integer', Rule::exists('medical_network_providers', 'id')->where('status', 'active')->where('is_verified', true)],
-            'service_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation', 'consultation'])],
+            'service_type' => ['required', Rule::in(['laboratory', 'imaging', 'rehabilitation', 'consultation'])],\n            'requested_services' => ['nullable', 'required_if:service_type,laboratory,imaging', 'array', 'min:1', 'max:30'],\n            'requested_services.*' => ['required', 'string', 'max:180', 'distinct'],
             'priority' => ['required', Rule::in(['normal', 'urgent'])],
             'reason' => ['required', 'string', 'max:240'],
             'clinical_summary' => ['nullable', 'string', 'max:4000'],
@@ -176,7 +176,7 @@ final class MedicalNetworkController extends Controller
         abort_unless(in_array((int) $data['source_clinic_id'], $clinicIds, true), 403, 'به مطب مبدأ دسترسی ندارید.');
         Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $data['source_clinic_id']))->firstOrFail();
-        $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->firstOrFail();
+        $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->where('is_verified', true)->firstOrFail();
         abort_if($provider->doctor_id === $doctor->id, 422, 'ارجاع به پروفایل خودتان امکان‌پذیر نیست.');
         $expectedService = in_array($provider->provider_type, ['doctor', 'psychiatrist', 'psychologist', 'counselor', 'social_worker', 'speech_therapist', 'occupational_therapist', 'nutritionist', 'nurse', 'midwife', 'physiotherapist', 'other'], true) ? 'consultation' : $provider->provider_type;
         abort_unless($data['service_type'] === $expectedService, 422, 'نوع خدمت با نوع مرکز مقصد همخوانی ندارد.');
