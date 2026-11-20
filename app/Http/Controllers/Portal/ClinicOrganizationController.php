@@ -399,9 +399,13 @@ class ClinicOrganizationController extends Controller
                 'پزشک مالک مجموعه را نمی‌توان از عضویت مالک خارج کرد.'
             );
 
-            $clinicIds = $organization->clinics()
-                ->wherePivot('status', 'active')
+            // Query the pivot directly so soft-deleted physical clinics are
+            // also detached and do not retain a stale organization_id on restore.
+            $clinicIds = DB::table('clinic_organization_clinics as organization_clinics')
+                ->join('addresses', 'addresses.id', '=', 'organization_clinics.clinic_id')
+                ->where('organization_clinics.organization_id', $organization->id)
                 ->where('addresses.doctor_id', $doctorProfile->id)
+                ->where('addresses.organization_id', $organization->id)
                 ->pluck('addresses.id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
