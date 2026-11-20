@@ -30,8 +30,8 @@ final class Patient360Controller extends Controller
     public function show(
         Patient $patient,
         RecordSecurityAuditEventAction $audit,
-        PatientClinicalSummaryBuilder $summaryBuilder,
-        PhysicianWorkflowAssistant $workflowAssistant
+        ?PatientClinicalSummaryBuilder $summaryBuilder = null,
+        ?PhysicianWorkflowAssistant $workflowAssistant = null
     )
     {
         $doctor = $this->currentDoctor();
@@ -208,6 +208,8 @@ final class Patient360Controller extends Controller
                 : 0,
         ];
 
+        $summaryBuilder ??= app(PatientClinicalSummaryBuilder::class);
+        $workflowAssistant ??= app(PhysicianWorkflowAssistant::class);
         $clinicalSummary = null;
         $workflowSuggestions = null;
         if ($canViewClinical) {
