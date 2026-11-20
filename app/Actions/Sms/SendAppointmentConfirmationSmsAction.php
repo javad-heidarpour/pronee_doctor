@@ -66,7 +66,11 @@ final class SendAppointmentConfirmationSmsAction
         $updatedAt = $appointment->updated_at?->format('YmdHis') ?? now()->format('YmdHis');
         $deduplicationKey = 'appointment-confirmation:' . $appointment->id . ':' . $updatedAt;
 
-        if (SmsLog::query()->where('deduplication_key', $deduplicationKey)->exists()) {
+        $existingLog = SmsLog::query()
+            ->where('deduplication_key', $deduplicationKey)
+            ->first();
+
+        if ($existingLog && $existingLog->status !== 'failed') {
             return response()->json([
                 'success' => false,
                 'message' => 'پیامک تأیید این نوبت قبلاً ثبت شده است.',
@@ -87,17 +91,30 @@ final class SendAppointmentConfirmationSmsAction
         $smsLog = null;
 
         try {
-            $smsLog = SmsLog::create([
-                'appointment_id' => $appointment->id,
-                'type' => 'appointment_confirmation',
-                'status' => 'pending',
-                'provider' => 'ghasedak',
-                'deduplication_key' => $deduplicationKey,
-            ]);
+            if ($existingLog) {
+                $smsLog = $existingLog;
+                $smsLog->update([
+                    'status' => 'pending',
+                    'error_message' => null,
+                    'sent_at' => null,
+                ]);
+            } else {
+                $smsLog = SmsLog::create([
+                    'appointment_id' => $appointment->id,
+                    'type' => 'appointment_confirmation',
+                    'status' => 'pending',
+                    'provider' => 'ghasedak',
+                    'deduplication_key' => $deduplicationKey,
+                ]);
+            }
         } catch (QueryException $exception) {
             Cache::forget($cacheKey);
 
-            if (SmsLog::query()->where('deduplication_key', $deduplicationKey)->exists()) {
+            $existingLog = SmsLog::query()
+                ->where('deduplication_key', $deduplicationKey)
+                ->first();
+
+            if ($existingLog && $existingLog->status !== 'failed') {
                 return response()->json([
                     'success' => false,
                     'message' => 'پیامک تأیید این نوبت قبلاً ثبت شده است.',
