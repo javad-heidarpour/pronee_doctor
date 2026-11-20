@@ -35,9 +35,9 @@ class ClinicOrganizationController extends Controller
             })
             ->with(['doctors', 'clinics', 'members'])
             ->withCount([
-                'doctors as doctors_count' => fn ($query) => $query->wherePivot('status', 'active'),
-                'clinics as clinics_count' => fn ($query) => $query->wherePivot('status', 'active'),
-                'members as members_count' => fn ($query) => $query->wherePivot('is_active', true),
+                'doctors as doctors_count' => fn ($query) => $query->where('clinic_organization_doctors.status', 'active'),
+                'clinics as clinics_count' => fn ($query) => $query->where('clinic_organization_clinics.status', 'active'),
+                'members as members_count' => fn ($query) => $query->where('clinic_organization_members.is_active', true),
             ])
             ->latest()->get();
 
