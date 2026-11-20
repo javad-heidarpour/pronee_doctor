@@ -6,6 +6,7 @@ namespace App\Actions\Portal\Patient;
 
 use App\Models\Patient;
 use App\Models\PatientVitalSign;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -51,11 +52,22 @@ final class RecordPatientVitalSignAction
             }
 
             [$minimum, $maximum] = self::RANGES[$type];
-            $value = (float) $data['value'];
+            if (!is_numeric($data['value'])) {
+                throw ValidationException::withMessages([
+                    'value' => 'مقدار اندازه‌گیری باید عددی باشد.',
+                ]);
+            }
 
+            $value = (float) $data['value'];
             if ($value < $minimum || $value > $maximum) {
                 throw ValidationException::withMessages([
                     'value' => "مقدار باید بین {$minimum} و {$maximum} باشد.",
+                ]);
+            }
+
+            if (Carbon::parse($data['measured_at'])->greaterThan(now())) {
+                throw ValidationException::withMessages([
+                    'measured_at' => 'زمان اندازه‌گیری نمی‌تواند در آینده باشد.',
                 ]);
             }
 
