@@ -127,6 +127,30 @@ class ClinicAccountingService
         );
     }
 
+    public function recordCashReceipt(
+        ?int $organizationId, int $clinicId, int $doctorId, int $userId,
+        int $transactionId, int $amount, string $description, string $occurredAt
+    ): ClinicJournalEntry {
+        if ($amount < 1) throw ValidationException::withMessages(['finance' => 'مبلغ دریافت صندوق معتبر نیست.']);
+        return $this->post($organizationId, $clinicId, $doctorId, $userId,
+            'clinic_cash_transaction', $transactionId, $description, $occurredAt,
+            'clinic-cash-transaction:' . $transactionId,
+            [['code' => '1000', 'debit' => $amount, 'credit' => 0],
+             ['code' => '4000', 'debit' => 0, 'credit' => $amount]]);
+    }
+
+    public function recordCashDisbursement(
+        ?int $organizationId, int $clinicId, int $doctorId, int $userId,
+        int $transactionId, int $amount, string $description, string $occurredAt
+    ): ClinicJournalEntry {
+        if ($amount < 1) throw ValidationException::withMessages(['finance' => 'مبلغ پرداخت صندوق معتبر نیست.']);
+        return $this->post($organizationId, $clinicId, $doctorId, $userId,
+            'clinic_cash_transaction', $transactionId, $description, $occurredAt,
+            'clinic-cash-transaction:' . $transactionId,
+            [['code' => '5000', 'debit' => $amount, 'credit' => 0],
+             ['code' => '1000', 'debit' => 0, 'credit' => $amount]]);
+    }
+
     public function recordExpense(
         ?int $organizationId, int $clinicId, int $doctorId, int $userId,
         int $expenseId, int $amount, string $description, string $occurredAt
