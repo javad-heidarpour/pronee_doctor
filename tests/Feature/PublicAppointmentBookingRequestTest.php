@@ -11,6 +11,12 @@ final class PublicAppointmentBookingRequestTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_legacy_appointment_success_endpoint_rejects_unsigned_numeric_ids(): void
+    {
+        $this->get(route('appointments.success', ['id' => 1]))
+            ->assertForbidden();
+    }
+
     public function test_persian_phone_digits_are_normalized_before_validation(): void
     {
         $response = $this->from('/')->post(route('appointments.book'), [
