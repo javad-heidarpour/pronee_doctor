@@ -39,14 +39,7 @@ CREATE TABLE clinic_staff_performance_reviews (
     UNIQUE KEY cspr_unique_period
         (organization_id, clinic_id, staff_user_id, period_start, period_end),
     KEY cspr_org_status_period_idx (organization_id, status, period_end),
-    KEY cspr_staff_ack_idx (staff_user_id, status, acknowledged_at),
-    CONSTRAINT cspr_period_order_chk CHECK (period_end >= period_start),
-    CONSTRAINT cspr_reliability_score_chk CHECK (reliability_score BETWEEN 1 AND 5),
-    CONSTRAINT cspr_task_score_chk CHECK (task_completion_score BETWEEN 1 AND 5),
-    CONSTRAINT cspr_teamwork_score_chk CHECK (teamwork_score BETWEEN 1 AND 5),
-    CONSTRAINT cspr_communication_score_chk CHECK (communication_score BETWEEN 1 AND 5),
-    CONSTRAINT cspr_learning_score_chk CHECK (learning_score BETWEEN 1 AND 5),
-    CONSTRAINT cspr_status_chk CHECK (status IN ('draft', 'published'))
+    KEY cspr_staff_ack_idx (staff_user_id, status, acknowledged_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Post-deployment verification:
