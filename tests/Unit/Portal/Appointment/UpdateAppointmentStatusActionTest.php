@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Appointment;
+namespace Tests\Unit\Portal\Appointment;
 
-use App\\Actions\\Portal\\Appointment\\UpdateAppointmentStatusAction;
-use App\\Models\\Appointment;
-use App\\Models\\Doctor;
-use App\\Models\\TimeSlot;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
-use Illuminate\\Validation\\ValidationException;
-use Tests\\TestCase;
+use App\Actions\Portal\Appointment\UpdateAppointmentStatusAction;
+use App\Models\Appointment;
+use App\Models\Doctor;
+use App\Models\TimeSlot;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
+use Tests\TestCase;
 
 final class UpdateAppointmentStatusActionTest extends TestCase
 {
