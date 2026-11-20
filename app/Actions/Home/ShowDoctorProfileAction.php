@@ -55,7 +55,7 @@ final class ShowDoctorProfileAction
             ->all();
 
         $doctorData = $this->profilePayloadAction->handle($doctor);
-        $relatedDoctors = $bookingPage['clinicsWithSlots']->isEmpty()
+        $relatedDoctors = !$isPreview && $bookingPage['clinicsWithSlots']->isEmpty()
             ? $this->bookableDoctorsAction->handle($doctor, 3)
             : collect();
 
