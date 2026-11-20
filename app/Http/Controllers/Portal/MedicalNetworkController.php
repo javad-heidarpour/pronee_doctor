@@ -240,7 +240,7 @@ final class MedicalNetworkController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(['accepted', 'scheduled', 'in_progress', 'completed', 'rejected', 'cancelled'])],
             'scheduled_at' => ['nullable', 'date', 'after:now', 'required_if:status,scheduled'],
-            'provider_response' => ['nullable', 'string', 'max:2000'],
+            'provider_response' => ['nullable', 'string', 'max:2000', 'required_if:status,rejected'],
             'result_summary' => ['nullable', 'string', 'max:4000', 'required_if:status,completed'],
             'patient_instructions' => ['nullable', 'string', 'max:2000'],
         ]);
