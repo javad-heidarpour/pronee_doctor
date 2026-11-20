@@ -63,6 +63,7 @@ class ShowVisitAction
                 ? substr($appointment->appointment_time, 0, 5)
                 : null,
             'appointment_status' => $appointment->status,
+            'appointment_status_label' => $appointment->status_badge,
             'fee_rial' => $appointment->fee_rial,
             'payment_status' => $paymentStatus,
         ];
