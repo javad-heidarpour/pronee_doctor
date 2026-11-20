@@ -243,7 +243,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
                 $audit
             );
             $this->fail('A patient must not report the same step more than once.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\HttpException $exception) {
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
             $this->assertSame(422, $exception->getStatusCode());
             $this->assertSame('patient_reported', $step->fresh()->status);
         }
