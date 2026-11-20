@@ -89,9 +89,14 @@ class Home1Controller extends Controller
 
     public function contact(
         string $slug,
-        FindPublicDoctorBySlugAction $doctorAction
+        FindPublicDoctorBySlugAction $doctorAction,
+        BuildPublicDoctorBookingPageAction $bookingAction
     ) {
         $doctor = $this->findDoctor($slug, $doctorAction);
+        $doctor->setAttribute(
+            'clinics_with_slots',
+            $bookingAction->handle($doctor)['clinicsWithSlots']
+        );
 
         return Inertia::render('HomePage/Home1/contact', [
             'doctor' => $doctor,
