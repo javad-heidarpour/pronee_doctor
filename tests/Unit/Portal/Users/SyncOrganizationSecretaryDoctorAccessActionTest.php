@@ -170,6 +170,30 @@ final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
         ]);
     }
 
+    public function test_inactive_doctor_profile_or_owner_account_does_not_grant_access(): void
+    {
+        foreach (['profile', 'owner'] as $inactiveTarget) {
+            $secretary = $this->secretary();
+            $doctor = $this->doctor();
+            $clinic = $this->clinic($doctor, 505);
+
+            $this->organizationGrant(505, $doctor, $secretary, $clinic, ['appointments.view']);
+
+            if ($inactiveTarget === 'profile') {
+                $doctor->forceFill(['is_active' => false])->save();
+            } else {
+                $doctor->user()->firstOrFail()->forceFill(['is_active' => false])->save();
+            }
+
+            app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+            $this->assertDatabaseMissing('doctor_user', [
+                'doctor_id' => $doctor->id,
+                'user_id' => $secretary->id,
+            ]);
+        }
+    }
+
     public function test_inactive_or_detached_clinics_do_not_grant_organization_permissions(): void
     {
         $secretary = $this->secretary();
