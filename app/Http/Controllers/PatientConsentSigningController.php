@@ -26,6 +26,8 @@ final class PatientConsentSigningController extends Controller
             ->with(['patient:id,name', 'doctor:id,name,family,specialty_title', 'clinic:id,name'])
             ->firstOrFail();
 
+        abort_unless($model->hasValidContentHash(), 409, 'یکپارچگی متن رضایت‌نامه تأیید نشد؛ امضا متوقف شد.');
+
         $audit->handle('patient.consent.viewed', $model);
 
         return Inertia::render('Patient/Consent', [
@@ -56,20 +58,22 @@ final class PatientConsentSigningController extends Controller
                 ->firstOrFail();
 
             abort_unless($model->status === PatientConsent::STATUS_PENDING, 409, 'این رضایت‌نامه قبلاً امضا یا تعیین تکلیف شده است.');
+            abort_unless($model->hasValidContentHash(), 409, 'متن رضایت‌نامه پس از ثبت تغییر کرده است؛ امضا متوقف شد.');
 
             $patientName = (string) $model->patient()->value('name');
             $signerName = trim(preg_replace('/\s+/u', ' ', $data['signer_name']) ?? $data['signer_name']);
             abort_unless($this->normalizeName($signerName) === $this->normalizeName($patientName), 422, 'نام امضاکننده باید با نام ثبت‌شده بیمار مطابقت داشته باشد.');
 
             $signedAt = now();
-            $signatureHash = hash('sha256', implode('|', [
+            $signaturePayload = implode('|', [
                 $model->id,
                 $model->patient_id,
                 $user->id,
                 $model->content_sha256,
                 $signerName,
                 $signedAt->toIso8601String(),
-            ]));
+            ]);
+            $signatureHash = hash_hmac('sha256', $signaturePayload, (string) config('app.key'));
 
             $model->update([
                 'status' => PatientConsent::STATUS_SIGNED,
