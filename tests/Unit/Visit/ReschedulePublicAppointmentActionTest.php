@@ -7,6 +7,7 @@ namespace Tests\Unit\Visit;
 use App\Actions\Visit\ReschedulePublicAppointmentAction;
 use App\Models\Appointment;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -219,7 +220,7 @@ final class ReschedulePublicAppointmentActionTest extends TestCase
     public function test_rescheduling_rejects_a_holiday_date(): void
     {
         [$appointment, $oldSlot, $newSlot] = $this->appointmentWithNewSlot();
-        \\App\\Models\\DoctorHoliday::query()->create([
+        DoctorHoliday::query()->create([
             'doctor_id' => $appointment->doctor_id,
             'clinic_id' => $appointment->clinic_id,
             'holiday_date' => '2026-11-27',
