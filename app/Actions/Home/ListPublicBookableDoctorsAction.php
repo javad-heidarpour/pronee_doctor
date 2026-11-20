@@ -49,6 +49,18 @@ final class ListPublicBookableDoctorsAction
                                 ->orderBy('date')
                                 ->orderBy('start_time')
                                 ->limit(1),
+                            'latestPubliclyBookableTimeSlot' => fn ($slotQuery) => $slotQuery
+                                ->select([
+                                    'id',
+                                    'doctor_id',
+                                    'clinic_id',
+                                    'date',
+                                    'start_time',
+                                    'end_time',
+                                    'status',
+                                    'created_at',
+                                    'updated_at',
+                                ]),
                         ]);
                 },
             ])
@@ -96,6 +108,7 @@ final class ListPublicBookableDoctorsAction
             $clinics = $doctor->address
                 ->map(function ($clinic): array {
                     $slot = $clinic->timeSlots->first();
+                    $latestSlot = $clinic->latestPubliclyBookableTimeSlot;
 
                     return [
                         'id' => $clinic->id,
@@ -106,6 +119,11 @@ final class ListPublicBookableDoctorsAction
                             'date' => $slot->date->format('Y-m-d'),
                             'start_time' => substr($slot->start_time, 0, 5),
                         ] : null,
+                        'latest_available' => $latestSlot ? [
+                            'date' => $latestSlot->date->format('Y-m-d'),
+                            'start_time' => substr($latestSlot->start_time, 0, 5),
+                            'available_at' => ($latestSlot->updated_at ?? $latestSlot->created_at)?->toIso8601String(),
+                        ] : null,
                     ];
                 })
                 ->filter(fn (array $clinic): bool => $clinic['next_available'] !== null)
@@ -113,6 +131,10 @@ final class ListPublicBookableDoctorsAction
                 ->values();
 
             $nextClinic = $clinics->first();
+            $latestClinic = $clinics
+                ->filter(fn (array $clinic): bool => $clinic['latest_available'] !== null)
+                ->sortByDesc(fn (array $clinic): string => $clinic['latest_available']['available_at'] ?? '')
+                ->first();
 
             return [
                 'id' => $doctor->id,
@@ -129,6 +151,13 @@ final class ListPublicBookableDoctorsAction
                     'name' => $nextClinic['name'],
                     'full_address' => $nextClinic['full_address'],
                     'city_name' => $nextClinic['city_name'],
+                ] : null,
+                'latest_available' => $latestClinic['latest_available'] ?? null,
+                'latest_clinic' => $latestClinic ? [
+                    'id' => $latestClinic['id'],
+                    'name' => $latestClinic['name'],
+                    'full_address' => $latestClinic['full_address'],
+                    'city_name' => $latestClinic['city_name'],
                 ] : null,
                 'match_reason' => $relatedTo === null
                     ? null
