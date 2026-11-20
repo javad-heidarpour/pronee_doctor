@@ -105,6 +105,16 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patient_treatment_plans', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('patient_id');
+            $table->string('title');
+            $table->string('status')->default('proposed');
+            $table->timestamps();
+        });
+
         Schema::create('patient_follow_up_templates', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -123,6 +133,7 @@ final class PatientFollowUpListAuditTest extends TestCase
     {
         foreach ([
             'patient_follow_up_templates',
+            'patient_treatment_plans',
             'patient_follow_up_tasks',
             'appointments',
             'patients',
