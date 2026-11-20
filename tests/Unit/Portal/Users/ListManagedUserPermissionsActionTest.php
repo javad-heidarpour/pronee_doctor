@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Users;
+namespace Tests\Unit\Portal\Users;
 
-use App\\Actions\\Portal\\Users\\ListManagedUserPermissionsAction;
-use App\\Http\\Middleware\\DoctorAuth;
+use App\Actions\Portal\Users\ListManagedUserPermissionsAction;
+use App\Http\Middleware\DoctorAuth;
 use ReflectionMethod;
-use Tests\\TestCase;
+use Tests\TestCase;
 
 final class ListManagedUserPermissionsActionTest extends TestCase
 {
