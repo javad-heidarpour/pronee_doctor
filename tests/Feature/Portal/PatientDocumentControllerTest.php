@@ -7,6 +7,7 @@ namespace Tests\Feature\Portal;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientDocumentController;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -14,7 +15,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 final class PatientDocumentControllerTest extends TestCase
@@ -151,8 +151,8 @@ final class PatientDocumentControllerTest extends TestCase
                 app(RecordSecurityAuditEventAction::class)
             );
             $this->fail('A document must not be downloadable through another patient route.');
-        } catch (HttpException $exception) {
-            $this->assertSame(404, $exception->getStatusCode());
+        } catch (ModelNotFoundException $exception) {
+            $this->assertInstanceOf(ModelNotFoundException::class, $exception);
         }
 
         try {
@@ -162,8 +162,8 @@ final class PatientDocumentControllerTest extends TestCase
                 app(RecordSecurityAuditEventAction::class)
             );
             $this->fail('A document must not be archived through another patient route.');
-        } catch (HttpException $exception) {
-            $this->assertSame(404, $exception->getStatusCode());
+        } catch (ModelNotFoundException $exception) {
+            $this->assertInstanceOf(ModelNotFoundException::class, $exception);
         }
 
         $this->assertDatabaseHas('patient_documents', [
