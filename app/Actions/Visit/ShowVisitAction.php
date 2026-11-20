@@ -60,6 +60,13 @@ class ShowVisitAction
                 ->where('clinic_id', $appointment->clinic_id)
                 ->where('status', 'available')
                 ->whereDoesntHave('appointment', fn ($query) => $query->whereIn('status', ['pending', 'confirmed', 'contacted']))
+                ->whereNotExists(function ($query): void {
+                    $query->selectRaw('1')
+                        ->from('doctor_holidays')
+                        ->whereColumn('doctor_holidays.doctor_id', 'time_slots.doctor_id')
+                        ->whereColumn('doctor_holidays.clinic_id', 'time_slots.clinic_id')
+                        ->whereColumn('doctor_holidays.holiday_date', 'time_slots.date');
+                })
                 ->where(function ($query): void {
                     $query->whereDate('date', '>', today()->toDateString())
                         ->orWhere(function ($sameDay): void {
