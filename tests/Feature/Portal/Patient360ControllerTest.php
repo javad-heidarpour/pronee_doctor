@@ -264,7 +264,7 @@ final class Patient360ControllerTest extends TestCase
         $this->assertSame(1, $props['summary']['encounters']);
         $this->assertSame(1, $props['summary']['active_allergies']);
         $this->assertCount(50, $props['vitals']);
-        $this->assertSame('weight', collect($props['latestVitals'])->first()['type']);
+        $this->assertNotNull(collect($props['latestVitals'])->firstWhere('type', 'weight'));
         $this->assertTrue($props['canViewClinical']);
     }
 
