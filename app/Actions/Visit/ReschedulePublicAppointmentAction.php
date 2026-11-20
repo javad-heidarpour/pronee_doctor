@@ -1,0 +1,152 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions\Visit;
+
+use App\Models\Appointment;
+use App\Models\Doctor;
+use App\Models\TimeSlot;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+final class ReschedulePublicAppointmentAction
+{
+    private const ACTIVE_STATUSES = ['pending', 'confirmed', 'contacted'];
+
+    public function handle(int $visitNumber, string $patientPhone, int $newTimeSlotId): string
+    {
+        return DB::transaction(function () use ($visitNumber, $patientPhone, $newTimeSlotId): string {
+            $appointment = Appointment::query()
+                ->whereKey($visitNumber)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!hash_equals((string) $appointment->patient_phone, $patientPhone)) {
+                throw ValidationException::withMessages([
+                    'patient_phone' => 'شماره موبایل با اطلاعات ثبت‌شده برای این نوبت مطابقت ندارد.',
+                ]);
+            }
+
+            if (!in_array($appointment->status, self::ACTIVE_STATUSES, true)) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'وضعیت فعلی نوبت اجازه جابه‌جایی آنلاین را نمی‌دهد.',
+                ]);
+            }
+
+            $currentDateTime = Carbon::parse(
+                $appointment->appointment_date->format('Y-m-d') . ' ' . $appointment->appointment_time
+            );
+
+            if ($currentDateTime->lessThanOrEqualTo(now())) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'زمان مراجعه فعلی گذشته است و امکان جابه‌جایی آنلاین وجود ندارد.',
+                ]);
+            }
+
+            if ((int) $appointment->time_slot_id === $newTimeSlotId) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'این ساعت، زمان فعلی نوبت شماست.',
+                ]);
+            }
+
+            $doctor = Doctor::query()
+                ->whereKey($appointment->doctor_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$doctor || !$doctor->is_active) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'پزشک این نوبت در حال حاضر فعال نیست.',
+                ]);
+            }
+
+            $clinic = $doctor->address()
+                ->whereKey($appointment->clinic_id)
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$clinic) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'شعبه فعلی برای جابه‌جایی نوبت فعال نیست.',
+                ]);
+            }
+
+            $slotIds = collect([$appointment->time_slot_id, $newTimeSlotId])
+                ->filter()
+                ->map(static fn ($id): int => (int) $id)
+                ->unique()
+                ->sort()
+                ->values();
+
+            $slots = TimeSlot::query()
+                ->whereIn('id', $slotIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $newSlot = $slots->get($newTimeSlotId);
+
+            if (
+                !$newSlot ||
+                (int) $newSlot->doctor_id !== (int) $appointment->doctor_id ||
+                (int) $newSlot->clinic_id !== (int) $appointment->clinic_id ||
+                $newSlot->status !== 'available'
+            ) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'ساعت انتخاب‌شده دیگر آزاد نیست یا متعلق به شعبه فعلی شما نیست.',
+                ]);
+            }
+
+            $newDateTime = Carbon::parse(
+                $newSlot->date->format('Y-m-d') . ' ' . $newSlot->start_time
+            );
+
+            if ($newDateTime->lessThanOrEqualTo(now())) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'امکان انتخاب ساعت گذشته وجود ندارد.',
+                ]);
+            }
+
+            $slotAlreadyHasActiveAppointment = Appointment::query()
+                ->where('time_slot_id', $newSlot->id)
+                ->whereIn('status', self::ACTIVE_STATUSES)
+                ->exists();
+
+            if ($slotAlreadyHasActiveAppointment) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'این ساعت قبلاً توسط بیمار دیگری رزرو شده است. لطفاً زمان دیگری انتخاب کنید.',
+                ]);
+            }
+
+            $oldSlot = $appointment->time_slot_id
+                ? $slots->get((int) $appointment->time_slot_id)
+                : null;
+
+            $appointment->update([
+                'time_slot_id' => $newSlot->id,
+                'appointment_date' => $newSlot->date,
+                'appointment_time' => $newSlot->start_time,
+            ]);
+
+            $newSlot->update(['status' => 'booked']);
+
+            if ($oldSlot) {
+                $oldSlotHasAnotherActiveAppointment = Appointment::query()
+                    ->where('time_slot_id', $oldSlot->id)
+                    ->where('id', '!=', $appointment->id)
+                    ->whereIn('status', self::ACTIVE_STATUSES)
+                    ->exists();
+
+                if (!$oldSlotHasAnotherActiveAppointment) {
+                    $oldSlot->update(['status' => 'available']);
+                }
+            }
+
+            return 'rescheduled';
+        });
+    }
+}
