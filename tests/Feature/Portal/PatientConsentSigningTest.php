@@ -103,6 +103,7 @@ final class PatientConsentSigningTest extends TestCase
 
         $signed = PatientConsent::query()->findOrFail($consentId);
         $this->assertSame(64, strlen((string) $signed->signature_sha256));
+        $this->assertTrue($signed->hasValidSignature());
         $this->assertNotNull($signed->signed_at);
 
         try {
