@@ -181,7 +181,7 @@ final class PatientDocumentController extends Controller
         return back()->with('success', 'سند پزشکی به‌صورت خصوصی ذخیره شد.');
     }
 
-    public function download(int $document, RecordSecurityAuditEventAction $audit)
+    public function download(int $patient, int $document, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeClinicalDocumentView($doctor);
@@ -189,7 +189,7 @@ final class PatientDocumentController extends Controller
         $clinicIds = $this->accessibleClinicIds($doctor);
         abort_if($clinicIds === [], 403);
 
-        $model = $this->scopedDocument($document, $doctor->id, $clinicIds);
+        $model = $this->scopedDocument($patient, $document, $doctor->id, $clinicIds);
         abort_unless($model->disk === 'local', 404);
         $disk = Storage::disk('local');
         abort_unless($disk->exists($model->path), 404, 'فایل سند در فضای خصوصی موجود نیست.');
@@ -207,7 +207,7 @@ final class PatientDocumentController extends Controller
         ]);
     }
 
-    public function archive(int $document, RecordSecurityAuditEventAction $audit)
+    public function archive(int $patient, int $document, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
@@ -216,7 +216,7 @@ final class PatientDocumentController extends Controller
         abort_if($clinicIds === [], 403);
 
         $model = DB::transaction(function () use ($document, $doctor, $clinicIds): PatientDocument {
-            $model = $this->scopedDocument($document, $doctor->id, $clinicIds, lock: true);
+            $model = $this->scopedDocument($patient, $document, $doctor->id, $clinicIds, lock: true);
             $model->update([
                 'archived_at' => now(),
                 'archived_by_user_id' => Auth::guard('web')->id(),
@@ -244,6 +244,7 @@ final class PatientDocumentController extends Controller
     }
 
     private function scopedDocument(
+        int $patientId,
         int $documentId,
         int $doctorId,
         array $clinicIds,
@@ -251,6 +252,7 @@ final class PatientDocumentController extends Controller
     ): PatientDocument {
         $query = PatientDocument::query()
             ->whereKey($documentId)
+            ->where('patient_id', $patientId)
             ->where('doctor_id', $doctorId)
             ->whereIn('clinic_id', $clinicIds)
             ->whereNull('archived_at');
