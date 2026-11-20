@@ -27,7 +27,9 @@ final class SavePatientProblemAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $encounterId = array_key_exists('encounter_id', $data)\n                ? $data['encounter_id']\n                : $problem?->encounter_id;
+            $encounterId = array_key_exists('encounter_id', $data)
+                ? $data['encounter_id']
+                : $problem?->encounter_id;
             if ($encounterId !== null) {
                 $encounterQuery = PatientEncounter::query()
                     ->whereKey($encounterId)
