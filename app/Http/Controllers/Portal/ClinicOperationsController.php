@@ -181,7 +181,7 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'مرحله درمان ثبت شد.');
     }
 
-    public function updateTreatmentItem(Request $request, int $item, ClinicAccountingService $accounting)
+    public function updateTreatmentItem(Request $request, int $item, ClinicAccountingService $accounting, RecordSecurityAuditEventAction $audit)
     {
         $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
@@ -191,7 +191,7 @@ class ClinicOperationsController extends Controller
             'appointment_id' => ['nullable', 'integer'], 'clinical_notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        DB::transaction(function () use ($doctor, $item, $data, $accounting): void {
+        $updatedItem = DB::transaction(function () use ($doctor, $item, $data, $accounting): PatientTreatmentItem {
             $row = PatientTreatmentItem::query()->whereKey($item)
                 ->whereHas('plan', fn ($q) => $q->where('doctor_id', $doctor->id)->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor)))
                 ->with('plan.patient')->lockForUpdate()->firstOrFail();
@@ -215,7 +215,7 @@ class ClinicOperationsController extends Controller
             }
             $row->save();
 
-            if ($data['stage'] !== 'completed') return;
+            if ($data['stage'] !== 'completed') return $row;
 
             if ((int) $row->price > 0) {
                 $accounting->recordTreatmentRevenue(
@@ -269,7 +269,15 @@ class ClinicOperationsController extends Controller
                     'status' => 'pending',
                 ]);
             }
+
+            return $row->refresh();
         }, 3);
+
+        $audit->handle('patient.treatment_item.updated', $updatedItem, [
+            'doctor_id' => $doctor->id,
+            'treatment_plan_id' => $updatedItem->treatment_plan_id,
+            'changed_fields' => ['stage', 'appointment_id', 'clinical_notes'],
+        ]);
 
         return back()->with('success', 'وضعیت مرحله درمان به‌روزرسانی شد.');
     }
