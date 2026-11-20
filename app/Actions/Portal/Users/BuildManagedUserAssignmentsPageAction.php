@@ -35,12 +35,12 @@ class BuildManagedUserAssignmentsPageAction
             'doctors' => $doctors->map(function ($doctor) use ($assigned) {
                 $relation = $assigned->get($doctor->id);
                 $managedByOrganization = (bool) ($relation?->pivot?->managed_by_organization ?? false);
-                $permissions = $managedByOrganization
+                $permissions = ($managedByOrganization
                     ? $relation?->pivot?->base_permissions
-                    : $relation?->pivot?->permissions;
-                $clinicIds = $managedByOrganization
+                    : $relation?->pivot?->permissions) ?? [];
+                $clinicIds = ($managedByOrganization
                     ? $relation?->pivot?->base_clinic_ids
-                    : $relation?->pivot?->clinic_ids;
+                    : $relation?->pivot?->clinic_ids) ?? [];
                 $effectiveClinicIds = $relation?->pivot?->clinic_ids ?? [];
 
                 if (is_string($effectiveClinicIds)) {
