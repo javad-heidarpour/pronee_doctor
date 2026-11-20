@@ -39,12 +39,24 @@ final class CreatePatientFollowUpActionTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patient_treatment_plans', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('patient_id');
+            $table->boolean('follow_up_sms_enabled')->default(false);
+            $table->boolean('follow_up_sms_consent_confirmed')->default(false);
+            $table->timestamp('follow_up_sms_consent_revoked_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('patient_follow_up_tasks', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('clinic_id')->nullable();
             $table->unsignedBigInteger('patient_id');
             $table->unsignedBigInteger('appointment_id')->nullable();
+            $table->unsignedBigInteger('treatment_plan_id')->nullable();
             $table->unsignedBigInteger('template_id')->nullable();
             $table->unsignedBigInteger('assigned_to')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
@@ -123,6 +135,98 @@ final class CreatePatientFollowUpActionTest extends TestCase
         $this->assertTrue($tasks[1]->sms_consent_confirmed);
         $this->assertSame('تماس اولیه', $tasks[0]->title);
         $this->assertSame('یادآوری آزمایش', $tasks[1]->title);
+    }
+
+    public function test_it_links_a_treatment_follow_up_only_to_the_same_patient_doctor_and_clinic(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 32;
+        $actor = new User();
+        $actor->id = 9;
+        $patient = Patient::query()->create(['doctor_id' => 32, 'name' => 'Treatment Patient']);
+
+        DB::table('appointments')->insert([
+            'doctor_id' => 32,
+            'patient_id' => $patient->id,
+            'clinic_id' => 41,
+            'appointment_date' => today()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $planId = DB::table('patient_treatment_plans')->insertGetId([
+            'doctor_id' => 32,
+            'clinic_id' => 41,
+            'patient_id' => $patient->id,
+            'follow_up_sms_enabled' => true,
+            'follow_up_sms_consent_confirmed' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $tasks = app(CreatePatientFollowUpAction::class)->handle($doctor, $actor, [
+            'patient_id' => $patient->id,
+            'treatment_plan_id' => $planId,
+            'due_at' => now()->addDay()->toDateTimeString(),
+            'priority' => 'normal',
+            'contact_method' => 'call',
+            'steps' => [[
+                'title' => 'پیگیری درمان',
+                'days' => 2,
+                'contact_method' => 'call',
+                'send_sms' => true,
+                'sms_consent_confirmed' => true,
+            ]],
+        ], [41]);
+
+        $this->assertSame($planId, (int) $tasks->first()->treatment_plan_id);
+        $this->assertTrue($tasks->first()->send_sms);
+    }
+
+    public function test_it_disables_follow_up_sms_when_treatment_plan_consent_was_revoked(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 33;
+        $actor = new User();
+        $actor->id = 10;
+        $patient = Patient::query()->create(['doctor_id' => 33, 'name' => 'Consent Patient']);
+
+        DB::table('appointments')->insert([
+            'doctor_id' => 33,
+            'patient_id' => $patient->id,
+            'clinic_id' => 41,
+            'appointment_date' => today()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $planId = DB::table('patient_treatment_plans')->insertGetId([
+            'doctor_id' => 33,
+            'clinic_id' => 41,
+            'patient_id' => $patient->id,
+            'follow_up_sms_enabled' => true,
+            'follow_up_sms_consent_confirmed' => true,
+            'follow_up_sms_consent_revoked_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $tasks = app(CreatePatientFollowUpAction::class)->handle($doctor, $actor, [
+            'patient_id' => $patient->id,
+            'treatment_plan_id' => $planId,
+            'due_at' => now()->addDay()->toDateTimeString(),
+            'priority' => 'normal',
+            'contact_method' => 'call',
+            'steps' => [[
+                'title' => 'پیگیری پس از درمان',
+                'days' => 1,
+                'contact_method' => 'sms',
+                'send_sms' => true,
+                'sms_consent_confirmed' => true,
+            ]],
+        ], [41]);
+
+        $this->assertFalse($tasks->first()->send_sms);
     }
 
     public function test_it_rejects_patients_without_a_visit_in_an_accessible_clinic(): void
