@@ -60,4 +60,12 @@ class Patient extends Model
             ->orderByDesc('deleted_at')
             ->orderByDesc('id');
     }
+
+    public function problems(): HasMany
+    {
+        return $this->hasMany(PatientProblem::class)
+            ->orderByRaw("CASE WHEN status = 'active' THEN 0 WHEN status = 'resolved' THEN 1 ELSE 2 END")
+            ->orderByDesc('onset_date')
+            ->orderByDesc('id');
+    }
 }
