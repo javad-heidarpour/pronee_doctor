@@ -29,15 +29,28 @@ class ClinicOrganizationController extends Controller
             ->where(function ($q) use ($user): void {
                 $q->where('owner_user_id', $user->id)
                     ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id)->where('clinic_organization_members.is_active', true))
-                    ->orWhereHas('doctors', fn ($d) => $d->where('doctors.user_id', $user->id)->where('clinic_organization_doctors.status', 'pending'));
+                    ->orWhereHas('doctors', fn ($d) => $d
+                        ->where('doctors.user_id', $user->id)
+                        ->whereIn('clinic_organization_doctors.status', ['pending', 'active']));
             })
             ->with(['doctors', 'clinics', 'members'])
-            ->withCount(['doctors', 'clinics', 'members'])
+            ->withCount([
+                'doctors as doctors_count' => fn ($query) => $query->wherePivot('status', 'active'),
+                'clinics as clinics_count' => fn ($query) => $query->wherePivot('status', 'active'),
+                'members as members_count' => fn ($query) => $query->wherePivot('is_active', true),
+            ])
             ->latest()->get();
 
-        $availableDoctors = Doctor::query()->where('is_active', true)->orderBy('name')
+        $availableDoctors = Doctor::query()
+            ->where('is_active', true)
+            ->whereHas('user', fn ($query) => $query
+                ->where('role', 'doctor')
+                ->where('is_active', true))
+            ->orderBy('name')
             ->get(['id', 'name', 'family', 'specialty_title']);
-        $ownedDoctorIds = $user->ownedDoctorProfiles()->pluck('doctors.id');
+        $ownedDoctorIds = $user->ownedDoctorProfiles()
+            ->where('is_active', true)
+            ->pluck('doctors.id');
         $organizationDoctorIds = $organizations->flatMap(
             fn ($organization) => $organization->doctors->filter(fn ($member) => $member->pivot->status === 'active')->pluck('id')
         );
@@ -55,7 +68,7 @@ class ClinicOrganizationController extends Controller
             'doctors' => $availableDoctors,
             'clinics' => $clinics,
             'isAdmin' => $user->role === 'admin',
-            'currentDoctorId' => $user->doctorProfile()->value('id'),
+            'currentDoctorId' => $user->doctorProfile()->where('is_active', true)->value('id'),
             'availableStaff' => User::query()->where('role', 'secretary')->where('is_active', true)->orderBy('name')->get(['id','name','family','phone']),
         ]);
     }
@@ -64,7 +77,7 @@ class ClinicOrganizationController extends Controller
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'doctor', 403);
-        $ownedDoctor = $user->ownedDoctorProfiles()->firstOrFail();
+        $ownedDoctor = $user->ownedDoctorProfiles()->where('is_active', true)->firstOrFail();
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:180'],
@@ -139,7 +152,7 @@ class ClinicOrganizationController extends Controller
     {
         $user = Auth::guard('web')->user();
         abort_unless($user?->role === 'doctor', 403);
-        $doctor = $user->doctorProfile()->firstOrFail();
+        $doctor = $user->doctorProfile()->where('is_active', true)->firstOrFail();
         $membership = $organization->doctors()->whereKey($doctor->id)->first();
         abort_unless($membership && $membership->pivot->status === 'pending', 404);
         DB::transaction(function () use ($organization, $doctor): void {
