@@ -27,6 +27,7 @@ final class ClinicBusinessLeadControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         Schema::create('users',function(Blueprint $t):void{$t->id();$t->string('name');$t->string('email')->unique();$t->string('role');$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
         Schema::create('doctors',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('user_id');$t->string('slug')->nullable();$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
         Schema::create('addresses',function(Blueprint $t):void{$t->id();$t->unsignedBigInteger('doctor_id');$t->string('name');$t->boolean('is_active')->default(true);$t->timestamps();$t->softDeletes();});
@@ -100,7 +101,7 @@ final class ClinicBusinessLeadControllerTest extends TestCase
             'created_at'=>now(),'updated_at'=>now(),
         ]);
         $audit=Mockery::mock(RecordSecurityAuditEventAction::class);
-        $this->expectException(HttpException::class);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
         app(ClinicBusinessLeadController::class)->update(Request::create('/','PATCH',[
             'status'=>'converted','converted_appointment_id'=>$foreignAppointment,
         ]),\App\Models\ClinicBusinessLead::query()->findOrFail($leadId),$audit);
