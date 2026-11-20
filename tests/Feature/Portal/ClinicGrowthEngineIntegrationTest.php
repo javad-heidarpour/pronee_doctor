@@ -67,7 +67,8 @@ final class ClinicGrowthEngineIntegrationTest extends TestCase
         $this->assertSame(500000,$report['finance']['paid_revenue_rial']);
         $this->assertSame(1,$report['marketing']['clicks']);
         $this->assertSame(1,$report['marketing']['bookings']);
-        $this->assertArrayNotHasKey('patients',$report['marketing']['campaigns'][0]);
-        $this->assertArrayNotHasKey('patient_name',$report['marketing']['campaigns'][0]);
+        $campaign = (array) $report['marketing']['campaigns'][0];
+        $this->assertArrayNotHasKey('patients',$campaign);
+        $this->assertArrayNotHasKey('patient_name',$campaign);
     }
 }
