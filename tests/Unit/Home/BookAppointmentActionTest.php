@@ -8,6 +8,7 @@ use App\Actions\Home\BookAppointmentAction;
 use App\DTOs\Home\BookAppointmentData;
 use App\Models\Address;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -190,7 +191,7 @@ final class BookAppointmentActionTest extends TestCase
         $doctor = $this->doctor();
         $clinic = $this->clinic($doctor);
         $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
-        \\App\\Models\\DoctorHoliday::query()->create([
+        DoctorHoliday::query()->create([
             'doctor_id' => $doctor->id,
             'clinic_id' => $clinic->id,
             'holiday_date' => '2026-11-18',
