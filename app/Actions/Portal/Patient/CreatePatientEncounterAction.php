@@ -17,15 +17,34 @@ final class CreatePatientEncounterAction
         abort_unless((int) $appointment->doctor_id === (int) $doctor->id, 404);
 
         return DB::transaction(function () use ($doctor, $author, $appointment, $data): PatientEncounter {
-            $patient = $appointment->patient;
-            abort_unless($patient && (int) $patient->doctor_id === (int) $doctor->id, 422, 'پرونده معتبر بیمار برای این نوبت پیدا نشد.');
+            // Lock and re-read the appointment so a concurrent cancellation or
+            // patient reassignment cannot create a note against stale data.
+            $lockedAppointment = Appointment::query()
+                ->whereKey($appointment->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless((int) $lockedAppointment->doctor_id === (int) $doctor->id, 404);
+            if ($lockedAppointment->status === 'cancelled') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'appointment' => 'برای نوبت لغوشده امکان ثبت یادداشت ویزیت وجود ندارد.',
+                ]);
+            }
+
+            $patient = \App\Models\Patient::query()
+                ->whereKey($lockedAppointment->patient_id)
+                ->where('doctor_id', $doctor->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($patient, 422, 'پرونده معتبر بیمار برای این نوبت پیدا نشد.');
 
             $encounter = PatientEncounter::query()->create([
                 'doctor_id' => $doctor->id,
                 'patient_id' => $patient->id,
-                'appointment_id' => $appointment->id,
+                'appointment_id' => $lockedAppointment->id,
                 'amends_encounter_id' => $data['amends_encounter_id'] ?? null,
-                'clinic_id' => $appointment->clinic_id,
+                'clinic_id' => $lockedAppointment->clinic_id,
                 'author_id' => $author->id,
                 'note_type' => $data['note_type'],
                 'status' => PatientEncounter::STATUS_DRAFT,
