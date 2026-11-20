@@ -22,7 +22,7 @@ final class PublicAppointmentBookingRequestTest extends TestCase
         $response = $this->from('/')->post(route('appointments.book'), [
             'time_slot_id' => 999999,
             'patient_name' => 'بیمار آزمایشی',
-            'patient_phone' => '۰۹۱۲۳۴۵۶۷۸۹',
+            'patient_phone' => '+۹۸ ۹۱۲-۳۴۵-۶۷۸۹',
         ]);
 
         $response->assertSessionHasErrors(['time_slot_id']);
