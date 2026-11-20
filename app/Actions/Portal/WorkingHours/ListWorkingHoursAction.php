@@ -4,6 +4,7 @@ namespace App\Actions\Portal\WorkingHours;
 
 use App\Models\Doctor;
 use App\Models\DoctorWorkingHour;
+use App\Models\DoctorHoliday;
 
 class ListWorkingHoursAction
 {
@@ -56,10 +57,20 @@ class ListWorkingHoursAction
             ->paginate(20)
             ->withQueryString();
 
+        $holidays = DoctorHoliday::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $allowedClinicIds ?? $clinics->pluck('id'))
+            ->whereDate('holiday_date', '>=', today()->toDateString())
+            ->with('clinic.city')
+            ->orderBy('holiday_date')
+            ->limit(60)
+            ->get();
+
         return [
             'doctor' => $doctor,
             'clinics' => $clinics,
             'workingHours' => $workingHours,
+            'holidays' => $holidays,
             'filters' => array_intersect_key($filters, array_flip([
                 'clinic_id', 'is_active', 'search', 'sort_by', 'sort_dir',
             ])),
