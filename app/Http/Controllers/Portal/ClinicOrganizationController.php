@@ -6,11 +6,13 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClinicOrganization;
+use App\Models\Address;
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -40,8 +42,11 @@ class ClinicOrganizationController extends Controller
         );
         $clinicDoctorIds = $ownedDoctorIds->merge($organizationDoctorIds)->unique()->values();
 
-        $clinics = \App\Models\Address::query()
-            ->whereIn('doctor_id', $clinicDoctorIds)->where('is_active', true)->orderBy('name')
+        $clinics = Address::query()
+            ->whereIn('doctor_id', $clinicDoctorIds)
+            ->whereNull('organization_id')
+            ->where('is_active', true)
+            ->orderBy('name')
             ->get(['id', 'doctor_id', 'name', 'full_address']);
 
         return Inertia::render('Portal/Organizations/Index', [
@@ -70,8 +75,20 @@ class ClinicOrganizationController extends Controller
             'clinic_ids' => ['nullable', 'array'],
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
-        $clinicIds = \App\Models\Address::query()->where('doctor_id', $ownedDoctor->id)
-            ->whereNull('organization_id')->whereIn('id', $data['clinic_ids'] ?? [])->pluck('id')->all();
+        $requestedClinicIds = array_values(array_unique(array_map('intval', $data['clinic_ids'] ?? [])));
+        $clinicIds = Address::query()
+            ->where('doctor_id', $ownedDoctor->id)
+            ->whereNull('organization_id')
+            ->whereIn('id', $requestedClinicIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (count($clinicIds) !== count($requestedClinicIds)) {
+            throw ValidationException::withMessages([
+                'clinic_ids' => 'یک یا چند شعبه انتخاب‌شده متعلق به شما نیست یا قبلاً به مجموعه دیگری متصل شده است.',
+            ]);
+        }
 
         $organization = DB::transaction(function () use ($user, $ownedDoctor, $data, $clinicIds): ClinicOrganization {
             $organization = ClinicOrganization::create([
@@ -131,11 +148,45 @@ class ClinicOrganizationController extends Controller
     {
         $this->authorizeOwner($organization);
         $data = $request->validate(['clinic_id' => ['required', 'integer', 'exists:addresses,id'], 'branch_code' => ['nullable', 'string', 'max:40']]);
-        $doctorIds = $organization->doctors()->wherePivot('status', 'active')->pluck('doctors.id');
-        $clinic = \App\Models\Address::query()->whereKey($data['clinic_id'])->whereIn('doctor_id', $doctorIds)->firstOrFail();
-        abort_if($clinic->organization_id && (int) $clinic->organization_id !== (int) $organization->id, 409, 'این شعبه قبلاً به مجموعه دیگری متصل شده است.');
-        $organization->clinics()->syncWithoutDetaching([$clinic->id => ['branch_code' => $data['branch_code'] ?? null, 'status' => 'active']]);
-        $clinic->update(['organization_id' => $organization->id]);
+        DB::transaction(function () use ($organization, $data): void {
+            $doctorIds = $organization->doctors()
+                ->wherePivot('status', 'active')
+                ->pluck('doctors.id');
+
+            $clinic = Address::query()
+                ->whereKey($data['clinic_id'])
+                ->whereIn('doctor_id', $doctorIds)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_if(
+                $clinic->organization_id && (int) $clinic->organization_id !== (int) $organization->id,
+                409,
+                'این شعبه قبلاً به مجموعه دیگری متصل شده است.'
+            );
+
+            $alreadyLinkedElsewhere = DB::table('clinic_organization_clinics')
+                ->where('clinic_id', $clinic->id)
+                ->where('status', 'active')
+                ->where('organization_id', '<>', $organization->id)
+                ->exists();
+
+            abort_if(
+                $alreadyLinkedElsewhere,
+                409,
+                'این شعبه در ارتباط فعال با مجموعه درمانی دیگری قرار دارد.'
+            );
+
+            $pivot = [
+                'branch_code' => $data['branch_code'] ?? null,
+                'status' => 'active',
+            ];
+
+            $organization->clinics()->syncWithoutDetaching([$clinic->id => $pivot]);
+            $organization->clinics()->updateExistingPivot($clinic->id, $pivot);
+            $clinic->update(['organization_id' => $organization->id]);
+        });
+
         return back()->with('success', 'شعبه به مجموعه متصل شد.');
     }
 
@@ -158,7 +209,12 @@ class ClinicOrganizationController extends Controller
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
         $member = User::query()->whereKey($data['user_id'])->where('role', 'secretary')->where('is_active', true)->firstOrFail();
-        $clinicIds = $organization->clinics()->whereIn('addresses.id', $data['clinic_ids'])->pluck('addresses.id')->map(fn ($id) => (int) $id)->all();
+        $clinicIds = $organization->clinics()
+            ->wherePivot('status', 'active')
+            ->whereIn('addresses.id', $data['clinic_ids'])
+            ->pluck('addresses.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
         abort_unless(count($clinicIds) === count($data['clinic_ids']), 422, 'یکی از شعب انتخاب‌شده متعلق به این مجموعه نیست.');
 
         DB::transaction(function () use ($organization, $member, $data, $clinicIds): void {
