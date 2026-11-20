@@ -121,6 +121,35 @@ final class PublicBookableDoctorsTest extends TestCase
         $this->assertSame('available', $page['clinicsWithSlots']->first()['dates']->first()['slots']->first()['status']);
     }
 
+    public function test_latest_available_slot_uses_the_most_recent_create_or_release_timestamp(): void
+    {
+        $olderDoctor = $this->createDoctor();
+        $olderSlot = $this->createClinicWithSlot($olderDoctor, 'available');
+        DB::table('time_slots')->where('id', $olderSlot)->update([
+            'created_at' => now()->subDays(4),
+            'updated_at' => now()->subDays(4),
+        ]);
+
+        $recentlyReleasedDoctor = $this->createDoctor();
+        $releasedSlot = $this->createClinicWithSlot($recentlyReleasedDoctor, 'available');
+        $releasedAt = now()->subMinutes(10)->startOfSecond();
+        DB::table('time_slots')->where('id', $releasedSlot)->update([
+            'created_at' => now()->subDays(5),
+            'updated_at' => $releasedAt,
+        ]);
+
+        $doctors = app(ListPublicBookableDoctorsAction::class)->handle();
+        $latestFirst = $doctors
+            ->sortByDesc(fn (array $doctor): string => $doctor['latest_available']['available_at'])
+            ->values();
+
+        $this->assertSame($recentlyReleasedDoctor->id, $latestFirst->first()['id']);
+        $this->assertSame(
+            $releasedAt->toIso8601String(),
+            $latestFirst->first()['latest_available']['available_at']
+        );
+    }
+
     private function createDoctor(array $attributes = []): Doctor
     {
         $unique = Str::lower(Str::random(10));
