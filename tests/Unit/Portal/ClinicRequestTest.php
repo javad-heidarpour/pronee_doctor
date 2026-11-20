@@ -22,10 +22,6 @@ final class ClinicRequestTest extends TestCase
             $table->string('name');
         });
 
-        Schema::table('cities', function (Blueprint $table): void {
-            // The request only needs the city identifier for its exists rule.
-        });
-
         \Illuminate\Support\Facades\DB::table('cities')->insert([
             'id' => 1,
             'name' => 'بجنورد',
