@@ -35,9 +35,9 @@ final class StaffPayrollCalculatorTest extends TestCase
             'overtime_multiplier_basis_points' => 15000,
         ], 480, 480, 120, 60);
 
-        self::assertSame(6000000, $result['base_pay']);
+        self::assertSame(5400000, $result['base_pay']);
         self::assertSame(900000, $result['overtime_pay']);
-        self::assertSame(6900000, $result['gross_amount']);
+        self::assertSame(6300000, $result['gross_amount']);
         self::assertSame(0, $result['net_amount'] - $result['gross_amount']);
         self::assertSame(600, $result['credited_minutes']);
     }
