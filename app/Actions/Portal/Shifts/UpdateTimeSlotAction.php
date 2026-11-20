@@ -5,6 +5,7 @@ namespace App\Actions\Portal\Shifts;
 use App\Actions\Portal\Clinic\EnsureDoctorOwnsActiveClinicAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
 
@@ -27,6 +28,14 @@ class UpdateTimeSlotAction
                 ->first();
 
             if (!$lockedSlot || (int) $lockedSlot->doctor_id !== (int) $doctor->id || $lockedSlot->isBooked()) {
+                return false;
+            }
+
+            if (DoctorHoliday::query()
+                ->where('doctor_id', $doctor->id)
+                ->where('clinic_id', $data->clinicId)
+                ->whereDate('holiday_date', $data->date)
+                ->exists()) {
                 return false;
             }
 
