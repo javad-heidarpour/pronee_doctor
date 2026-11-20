@@ -25,6 +25,8 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
+
 const props = defineProps({
   doctor: {
     type: Object,
@@ -56,4 +58,7 @@ const props = defineProps({
     default: true,
   },
 });
+
+const pageTitle = computed(() => props.title || "خدمات پزشکی");
+const pageDescription = computed(() => props.subtitle || "ارائه خدمات تخصصی پزشکی");
 </script>
