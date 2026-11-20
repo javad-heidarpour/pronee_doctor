@@ -44,6 +44,17 @@ final class ProfileController extends Controller
         ]);
     }
 
+    public function preview(Request $request, ShowDoctorProfileAction $action): Response
+    {
+        $user = $request->user('web');
+        abort_unless($user instanceof User && $user->isDoctor(), 403);
+
+        $doctor = $user->doctorProfile;
+        abort_unless($doctor !== null, 404);
+
+        return $action->preview($doctor);
+    }
+
     public function updatePassword(
         UpdateProfilePasswordRequest $request,
         ChangeDoctorPasswordAction $action
