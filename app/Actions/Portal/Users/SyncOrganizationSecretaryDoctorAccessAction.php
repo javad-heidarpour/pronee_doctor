@@ -187,12 +187,24 @@ final class SyncOrganizationSecretaryDoctorAccessAction
 
     private function assignedClinicCount(int $userId): int
     {
-        return DB::table('doctor_user')
+        $clinicIds = DB::table('doctor_user')
             ->where('user_id', $userId)
             ->pluck('clinic_ids')
             ->flatMap(fn ($value) => array_map('intval', $this->decodeArray($value)))
             ->unique()
-            ->count();
+            ->values()
+            ->all();
+
+        if ($clinicIds === []) {
+            return 0;
+        }
+
+        return DB::table('addresses')
+            ->whereIn('id', $clinicIds)
+            ->where('is_active', true)
+            ->whereNull('deleted_at')
+            ->distinct()
+            ->count('id');
     }
 
     private function decodeArray(mixed $value): array
