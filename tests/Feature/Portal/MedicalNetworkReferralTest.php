@@ -215,6 +215,64 @@ final class MedicalNetworkReferralTest extends TestCase
         }
     }
 
+    public function test_diagnostic_request_rejects_duplicate_and_excessive_service_items(): void
+    {
+        [$doctor, $patient, $provider] = $this->seedReferralContext();
+
+        foreach ([array_fill(0, 31, 'CBC'), ['CBC', 'CBC']] as $items) {
+            try {
+                (new MedicalNetworkController())->storeReferral(
+                    Request::create('/portal/medical-network/referrals', 'POST', [
+                        'patient_id' => $patient,
+                        'source_clinic_id' => 31,
+                        'target_provider_id' => $provider,
+                        'service_type' => 'laboratory',
+                        'requested_services' => $items,
+                        'priority' => 'normal',
+                        'reason' => 'درخواست تشخیصی',
+                        'consent_confirmed' => true,
+                    ]),
+                    Mockery::mock(RecordSecurityAuditEventAction::class)
+                );
+                $this->fail('Duplicate or excessive diagnostic items must be rejected.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('requested_services', $exception->errors());
+            }
+        }
+    }
+
+    public function test_provider_must_explain_a_referral_rejection(): void
+    {
+        [$doctor, $patient, $provider] = $this->seedReferralContext();
+        $referral = MedicalReferral::query()->create([
+            'tracking_code' => 'REF-TEST-002',
+            'patient_id' => $patient,
+            'referring_doctor_id' => $doctor,
+            'target_provider_id' => $provider,
+            'created_by_user_id' => 99,
+            'source_clinic_id' => 31,
+            'service_type' => 'laboratory',
+            'requested_services' => ['CBC'],
+            'priority' => 'normal',
+            'status' => 'sent',
+            'reason' => 'درخواست آزمایش',
+            'consent_at' => now(),
+        ]);
+
+        $this->authenticateDoctor(200);
+
+        $this->expectException(ValidationException::class);
+
+        (new MedicalNetworkController())->updateReferral(
+            Request::create('/portal/medical-network/referrals/'.$referral->id, 'PATCH', [
+                'status' => 'rejected',
+            ]),
+            $referral,
+            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            Mockery::mock(RecordSecurityAuditEventAction::class)
+        );
+    }
+
     public function test_referral_rejects_a_patient_without_an_appointment_at_the_source_clinic(): void
     {
         [$doctor, $patient, $provider] = $this->seedReferralContext();
