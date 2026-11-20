@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Home\BookAppointmentAction;
-use App\Actions\Home\ListActiveDoctorsAction;
+use App\Actions\Home\ListPublicBookableDoctorsAction;
 use App\Actions\Home\ShowDoctorProfileAction;
 use App\DTOs\Home\BookAppointmentData;
 use App\Models\Appointment;
@@ -15,7 +15,7 @@ use Inertia\Inertia;
 
 class HomeController extends Controller
 {
-    public function Home(ListActiveDoctorsAction $action)
+    public function Home(ListPublicBookableDoctorsAction $action)
     {
         return Inertia::render('Home', [
             'doctors' => $action->handle(),
