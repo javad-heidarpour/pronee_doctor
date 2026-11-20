@@ -59,12 +59,16 @@ jobs:
         run: php artisan route:list --except-vendor
 
       # AuthFeature uses a focused in-memory schema for the shared User model.
-      # The remaining integration suite still requires the full production schema.
+      # The full integration suite still requires the complete production schema.
       - name: Run authentication feature tests
         run: php artisan test --testsuite=AuthFeature
 
       - name: Run unit tests
         run: php artisan test --testsuite=Unit
+
+      # These focused Portal tests create their own minimal SQLite schemas.
+      - name: Run isolated portal regression tests
+        run: php artisan test tests/Feature/Portal
 
   frontend:
     name: Frontend validation
