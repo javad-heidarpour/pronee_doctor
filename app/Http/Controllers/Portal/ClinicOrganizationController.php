@@ -249,9 +249,20 @@ class ClinicOrganizationController extends Controller
         $user = Auth::guard('web')->user();
         abort_unless($user?->role === 'doctor', 403);
         $doctor = $user->doctorProfile()->where('is_active', true)->firstOrFail();
-        $membership = $organization->doctors()->whereKey($doctor->id)->first();
-        abort_unless($membership && $membership->pivot->status === 'pending', 404);
+
         DB::transaction(function () use ($organization, $doctor): void {
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $membership = $organization->doctors()
+                ->whereKey($doctor->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($membership && $membership->pivot->status === 'pending', 404);
+
             $organization->doctors()->updateExistingPivot($doctor->id, [
                 'status' => 'active',
                 'joined_at' => today(),
@@ -266,8 +277,17 @@ class ClinicOrganizationController extends Controller
     public function attachClinic(Request $request, ClinicOrganization $organization)
     {
         $this->authorizeOwner($organization);
-        $data = $request->validate(['clinic_id' => ['required', 'integer', 'exists:addresses,id'], 'branch_code' => ['nullable', 'string', 'max:40']]);
+        $data = $request->validate([
+            'clinic_id' => ['required', 'integer', 'exists:addresses,id'],
+            'branch_code' => ['nullable', 'string', 'max:40'],
+        ]);
+
         DB::transaction(function () use ($organization, $data): void {
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $doctorIds = $organization->doctors()
                 ->wherePivot('status', 'active')
                 ->pluck('doctors.id');
@@ -317,6 +337,11 @@ class ClinicOrganizationController extends Controller
         $this->authorizeOwner($organization);
 
         DB::transaction(function () use ($organization, $clinic): void {
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $branch = $organization->clinics()
                 ->wherePivot('status', 'active')
                 ->whereKey($clinic)
@@ -345,6 +370,11 @@ class ClinicOrganizationController extends Controller
         $this->authorizeOwner($organization);
 
         DB::transaction(function () use ($organization, $doctor): void {
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $membership = $organization->doctors()
                 ->whereKey($doctor)
                 ->lockForUpdate()
