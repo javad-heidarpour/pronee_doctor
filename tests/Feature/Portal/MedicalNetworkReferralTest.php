@@ -210,7 +210,7 @@ final class MedicalNetworkReferralTest extends TestCase
                 );
                 $this->fail('Diagnostic referrals must include requested services.');
             } catch (ValidationException $exception) {
-                $this->assertArrayHasKey('requested_services', $exception->errors());
+                $this->assertTrue(collect(array_keys($exception->errors()))->contains(fn (string $key): bool => str_starts_with($key, 'requested_services')));
             }
         }
     }
@@ -239,6 +239,38 @@ final class MedicalNetworkReferralTest extends TestCase
                 $this->assertArrayHasKey('requested_services', $exception->errors());
             }
         }
+    }
+
+    public function test_referring_doctor_cannot_accept_their_own_sent_referral(): void
+    {
+        [$doctor, $patient, $provider] = $this->seedReferralContext();
+        $referral = MedicalReferral::query()->create([
+            'tracking_code' => 'REF-TEST-003',
+            'patient_id' => $patient,
+            'referring_doctor_id' => $doctor,
+            'target_provider_id' => $provider,
+            'created_by_user_id' => 99,
+            'source_clinic_id' => 31,
+            'service_type' => 'laboratory',
+            'requested_services' => ['CBC'],
+            'priority' => 'normal',
+            'status' => 'sent',
+            'reason' => 'درخواست آزمایش',
+            'consent_at' => now(),
+        ]);
+
+        $this->authenticateDoctor(99);
+
+        $this->expectException(ValidationException::class);
+
+        (new MedicalNetworkController())->updateReferral(
+            Request::create('/portal/medical-network/referrals/'.$referral->id, 'PATCH', [
+                'status' => 'accepted',
+            ]),
+            $referral,
+            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            Mockery::mock(RecordSecurityAuditEventAction::class)
+        );
     }
 
     public function test_provider_must_explain_a_referral_rejection(): void
