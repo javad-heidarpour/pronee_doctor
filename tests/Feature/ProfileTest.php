@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\User;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
-use Inertia\\Testing\\AssertableInertia as Assert;
-use Tests\\Feature\\Auth\\AuthTestCase;
+use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Feature\Auth\AuthTestCase;
 
 class ProfileTest extends AuthTestCase
 {
