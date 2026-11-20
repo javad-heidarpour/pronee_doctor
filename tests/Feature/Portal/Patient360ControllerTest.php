@@ -314,7 +314,7 @@ final class Patient360ControllerTest extends TestCase
             Patient::query()->findOrFail($patientId),
             $audit
         );
-        $props = $response->getProps();
+        $props = $this->responseProps($response);
 
         $this->assertFalse($props['canViewClinical']);
         $this->assertCount(1, $props['appointments']);
