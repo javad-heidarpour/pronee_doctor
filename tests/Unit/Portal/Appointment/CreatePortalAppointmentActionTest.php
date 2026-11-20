@@ -278,12 +278,16 @@ final class CreatePortalAppointmentActionTest extends TestCase
         $secondSlot = $this->slot($doctor, $clinic, '2026-11-19', '09:00');
 
         $action = app(CreatePortalAppointmentAction::class);
-        $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
+        $firstAppointment = $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
             'time_slot_id' => $firstSlot->id,
             'patient_name' => 'Phone Only Patient',
             'patient_phone' => '09125555555',
             'patient_national_code' => null,
         ]));
+
+        \\Illuminate\\Support\\Facades\\DB::table('appointments')
+            ->where('id', $firstAppointment->id)
+            ->update(['status' => 'contacted']);
 
         try {
             $action->handle($doctor, CreatePortalAppointmentData::fromValidated([
