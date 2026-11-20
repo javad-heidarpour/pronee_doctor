@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature\\Visit;
+namespace Tests\Feature\Visit;
 
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
-use Illuminate\\Support\\Facades\\URL;
-use Inertia\\Testing\\AssertableInertia as Assert;
-use Tests\\TestCase;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
 
 final class PublicVisitStatusTrackingTest extends TestCase
 {
