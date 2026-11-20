@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Portal;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Models\Doctor;
 use App\Models\PatientTreatmentItem;
@@ -186,7 +187,8 @@ final class TreatmentItemAppointmentOwnershipTest extends TestCase
                     'appointment_id' => 502,
                 ]),
                 $item->id,
-                app(ClinicAccountingService::class)
+                app(ClinicAccountingService::class),
+                \Mockery::mock(RecordSecurityAuditEventAction::class)
             );
 
             $this->fail('An appointment belonging to another patient must be rejected.');
