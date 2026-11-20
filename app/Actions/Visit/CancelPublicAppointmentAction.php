@@ -68,7 +68,7 @@ final class CancelPublicAppointmentAction
                 $anotherActiveAppointmentExists = Appointment::query()
                     ->where('time_slot_id', $slot->id)
                     ->where('id', '!=', $appointment->id)
-                    ->whereIn('status', ['pending', 'confirmed'])
+                    ->whereIn('status', ['pending', 'confirmed', 'contacted'])
                     ->exists();
 
                 if (!$anotherActiveAppointmentExists) {
