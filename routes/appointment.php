@@ -8,5 +8,8 @@ Route::prefix('appointments')->name('appointments.')
     ->controller(HomeController::class)
     ->group(function () {
         Route::post('/book', 'bookAppointment')->middleware('throttle:10,1')->name('book');
-        Route::get('/success/{id}', 'appointmentSuccess')->name('success');
+        Route::get('/success/{id}', 'appointmentSuccess')
+            ->whereNumber('id')
+            ->middleware('signed')
+            ->name('success');
     });
