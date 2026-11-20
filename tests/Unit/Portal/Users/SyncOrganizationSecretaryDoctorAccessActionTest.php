@@ -90,7 +90,6 @@ final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
     {
         $secretary = $this->secretary();
         $doctor = $this->doctor();
-        $baseClinic = $this->clinic($doctor, null);
         $firstClinic = $this->clinic($doctor, 101);
         $secondClinic = $this->clinic($doctor, 202);
 
@@ -101,7 +100,7 @@ final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
             'doctor_id' => $doctor->id,
             'user_id' => $secretary->id,
             'permissions' => json_encode(['finance.view']),
-            'clinic_ids' => json_encode([$baseClinic->id]),
+            'clinic_ids' => json_encode([$firstClinic->id]),
             'managed_by_organization' => false,
             'created_at' => now(),
             'updated_at' => now(),
@@ -112,10 +111,10 @@ final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
         $pivot = DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $secretary->id)->first();
 
         $this->assertSameCanonical(['finance.view', 'appointments.view', 'patients.view'], json_decode($pivot->permissions, true));
-        $this->assertSameCanonical([$baseClinic->id, $firstClinic->id, $secondClinic->id], json_decode($pivot->clinic_ids, true));
+        $this->assertSameCanonical([$firstClinic->id, $secondClinic->id], json_decode($pivot->clinic_ids, true));
         $this->assertTrue((bool) $pivot->managed_by_organization);
         $this->assertSame(['finance.view'], json_decode($pivot->base_permissions, true));
-        $this->assertSame([$baseClinic->id], json_decode($pivot->base_clinic_ids, true));
+        $this->assertSame([$firstClinic->id], json_decode($pivot->base_clinic_ids, true));
     }
 
     public function test_disabling_one_membership_keeps_other_organization_grants(): void
