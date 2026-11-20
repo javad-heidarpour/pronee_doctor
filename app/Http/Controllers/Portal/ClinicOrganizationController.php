@@ -140,6 +140,12 @@ class ClinicOrganizationController extends Controller
             'role' => ['required', Rule::in(['practitioner', 'clinical_lead', 'manager'])],
         ]);
         $doctor = Doctor::query()->whereKey($data['doctor_id'])->where('is_active', true)->whereHas('user', fn ($q) => $q->where('is_active', true))->firstOrFail();
+        abort_if(
+            (int) $doctor->user_id === (int) $organization->owner_user_id,
+            422,
+            'پزشک مالک از قبل عضو مالک مجموعه است.'
+        );
+
         $existingMembership = $organization->doctors()->whereKey($doctor->id)->first();
         abort_if(
             $existingMembership && $existingMembership->pivot->status !== 'inactive',
