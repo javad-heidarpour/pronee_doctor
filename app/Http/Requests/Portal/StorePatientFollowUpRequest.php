@@ -19,6 +19,7 @@ class StorePatientFollowUpRequest extends FormRequest
         return [
             'patient_id' => ['required', 'integer', 'exists:patients,id'],
             'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
+            'treatment_plan_id' => ['nullable', 'integer', 'exists:patient_treatment_plans,id'],
             'template_id' => ['nullable', 'integer', 'exists:patient_follow_up_templates,id'],
             'title' => ['required_without_all:template_id,steps', 'nullable', 'string', 'max:160'],
             'description' => ['nullable', 'string', 'max:3000'],
