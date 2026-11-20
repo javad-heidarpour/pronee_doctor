@@ -74,12 +74,12 @@ final class StaffPerformanceReviewController extends Controller
         $staffOptions = collect($scopes)->filter(fn ($scope) => $scope['can_manage'])->flatMap(function ($scope) {
             $members = DB::table('clinic_organization_members as m')->join('users as u','u.id','=','m.user_id')
                 ->where('m.organization_id',$scope['organization_id'])->where('m.is_active',true)
-                ->select('u.id','u.name','u.family')->get();
+                ->select('u.id','u.name','u.family')->get()->each(fn ($u) => $u->organization_id = $scope['organization_id']);
             $doctors = DB::table('clinic_organization_doctors as od')->join('doctors as d','d.id','=','od.doctor_id')
                 ->join('users as u','u.id','=','d.user_id')->where('od.organization_id',$scope['organization_id'])
-                ->where('od.status','active')->select('u.id','u.name','u.family')->get();
+                ->where('od.status','active')->select('u.id','u.name','u.family')->get()->each(fn ($u) => $u->organization_id = $scope['organization_id']);
             return $members->concat($doctors);
-        })->unique('id')->map(fn ($u) => ['id'=>(int)$u->id,'label'=>trim(($u->name??'').' '.($u->family??''))])->values();
+        })->unique('id')->map(fn ($u) => ['id'=>(int)$u->id,'label'=>trim(($u->name??'').' '.($u->family??'')),'organization_id'=>(int)$u->organization_id])->values();
 
         return Inertia::render('Portal/StaffPerformance/Index', [
             'doctor'=>$doctor,'organizations'=>$organizations,'staffOptions'=>$staffOptions,
