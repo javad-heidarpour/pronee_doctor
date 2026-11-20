@@ -8,9 +8,11 @@ use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
 use App\Actions\Portal\Profile\DeleteProfileAction;
 use App\Actions\Portal\Profile\UpdateProfileAction;
 use App\Actions\Home\ShowDoctorProfileAction;
+use App\Actions\Portal\Profile\UpdateDoctorHonorBadgesAction;
 use App\Http\Requests\Profile\DeleteProfileRequest;
 use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
+use App\Http\Requests\Profile\UpdateDoctorHonorBadgesRequest;
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +37,7 @@ final class ProfileController extends Controller
         abort_unless($doctor !== null, 403);
 
         // The database stores a relative storage path; expose its public URL to Inertia.
+        $doctor->load('honorBadges');
         $doctor->append('photo_url');
 
         return Inertia::render('Portal/Profile', [
@@ -54,6 +57,21 @@ final class ProfileController extends Controller
         abort_unless($doctor !== null, 404);
 
         return $action->preview($doctor);
+    }
+
+    public function updateHonorBadges(
+        UpdateDoctorHonorBadgesRequest $request,
+        UpdateDoctorHonorBadgesAction $action
+    ): RedirectResponse {
+        $user = $request->user('web');
+        abort_unless($user instanceof User && $user->isDoctor(), 403);
+
+        $doctor = $user->doctorProfile;
+        abort_unless($doctor !== null, 404);
+
+        $action->handle($doctor, $request->validated('honor_badges') ?? []);
+
+        return back()->with('success', 'سوابق و افتخارات حرفه‌ای با موفقیت ذخیره شد.');
     }
 
     public function updatePassword(
