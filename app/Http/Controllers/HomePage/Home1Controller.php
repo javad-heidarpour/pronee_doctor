@@ -143,6 +143,7 @@ class Home1Controller extends Controller
         $selectedClinicId = $clinic !== null && $clinicsWithSlots->contains(
             fn (array $item): bool => (int) ($item['clinic']['id'] ?? 0) === $clinic
         ) ? $clinic : null;
+        $requestedClinicUnavailable = $clinic !== null && $selectedClinicId === null;
 
         $doctor->setAttribute('clinics_with_slots', $clinicsWithSlots);
 
@@ -150,6 +151,7 @@ class Home1Controller extends Controller
             'doctor' => $doctor,
             'clinicsWithSlots' => $clinicsWithSlots,
             'clinicId' => $selectedClinicId,
+            'requestedClinicUnavailable' => $requestedClinicUnavailable,
             'visitReasons' => $bookingPage['visitReasons'],
         ]);
     }
