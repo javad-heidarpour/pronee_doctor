@@ -63,6 +63,7 @@ final class DoctorHolidayActionTest extends TestCase
             $table->time('start_time');
             $table->time('end_time');
             $table->string('status');
+            $table->string('cancelled_reason', 24)->nullable();
             $table->timestamps();
         });
 
@@ -95,6 +96,7 @@ final class DoctorHolidayActionTest extends TestCase
 
         $this->assertInstanceOf(DoctorHoliday::class, $holiday);
         $this->assertSame('cancelled', $available->fresh()->status);
+        $this->assertSame('holiday', $available->fresh()->cancelled_reason);
         $this->assertSame('cancelled', $alreadyCancelled->fresh()->status);
         $this->assertDatabaseHas('doctor_holidays', [
             'doctor_id' => $doctor->id,
