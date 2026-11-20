@@ -43,6 +43,18 @@ final class BookAppointmentActionTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('doctor_holidays', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->date('holiday_date');
+            $table->string('title', 160);
+            $table->text('note')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+            $table->unique(['doctor_id', 'clinic_id', 'holiday_date']);
+        });
+
         Schema::create('time_slots', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
