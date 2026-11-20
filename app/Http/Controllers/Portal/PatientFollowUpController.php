@@ -12,6 +12,7 @@ use App\Http\Requests\Portal\StorePatientFollowUpRequest;
 use App\Models\Patient;
 use App\Models\PatientFollowUpTask;
 use App\Models\PatientFollowUpTemplate;
+use App\Models\PatientTreatmentPlan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -81,6 +82,14 @@ class PatientFollowUpController extends Controller
         $templates = PatientFollowUpTemplate::query()
             ->where('doctor_id', $doctor->id)->where('is_active', true)->orderBy('title')->get();
 
+        $treatmentPlans = PatientTreatmentPlan::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('clinic_id', $clinicIds)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get(['id', 'patient_id', 'clinic_id', 'title', 'status']);
+
         $secretaries = $doctor->secretaries()->where('users.is_active', true)
             ->orderBy('users.name')->get(['users.id', 'users.name', 'users.family']);
 
@@ -97,6 +106,7 @@ class PatientFollowUpController extends Controller
             'tasks' => $tasks,
             'patients' => $patients,
             'templates' => $templates,
+            'treatmentPlans' => $treatmentPlans,
             'secretaries' => $secretaries,
             'filters' => array_merge(['status' => '', 'scope' => 'all', 'search' => ''], $filters),
             'stats' => [
