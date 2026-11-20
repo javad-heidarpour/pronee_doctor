@@ -13,6 +13,7 @@ use App\Models\PatientHealthObservation;
 use App\Models\PatientMedicationPlan;
 use App\Models\PatientCarePathway;
 use App\Models\PatientCarePathwayStep;
+use App\Models\PatientConsent;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\PatientEncounterPrescription;
 use App\Models\User;
@@ -142,6 +143,16 @@ final class PatientHealthController extends Controller
                 ->get()
             : collect();
 
+        $consents = $accessType === 'owner'
+            ? PatientConsent::query()
+                ->where('patient_id', $patient->id)
+                ->with('doctor:id,name,family,specialty_title', 'clinic:id,name')
+                ->latest()->limit(30)->get([
+                    'id', 'patient_id', 'doctor_id', 'clinic_id', 'title',
+                    'consent_type', 'status', 'signed_at', 'created_at',
+                ])
+            : collect();
+
         $intelligence = $accessType === 'owner'
             ? app(PatientHealthIntelligence::class)->build($patient, $followUps, $observations)
             : ['summary' => [], 'insights' => [], 'trends' => []];
@@ -161,6 +172,7 @@ final class PatientHealthController extends Controller
             'encounters' => $encounters,
             'followUps' => $followUps,
             'caregivers' => $caregivers,
+            'consents' => $consents,
             'intelligence' => $intelligence,
             'observations' => $observations,
             'medicationPlans' => $medicationPlans,
