@@ -77,7 +77,7 @@ class Appointment extends Model
             'pending' => 'در انتظار',
             'contacted' => 'تماس گرفته شده',
             'confirmed' => 'تأیید شده',
-            'visited' => 'ویزیت‌شده',
+            'visited', 'completed' => 'ویزیت‌شده',
             'cancelled', 'canceled' => 'لغو شده',
             default => 'نامشخص',
         };
