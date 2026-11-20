@@ -39,6 +39,20 @@ class RestoreOrDeleteManagedUserAction
                 return true;
             }
 
+            // حذف حساب منشی باید عضویت‌های سازمانی و تخصیص‌های مستقیم او را
+            // نیز لغو کند؛ بازیابی بعدی فقط حساب غیرفعال را برمی‌گرداند.
+            if ($lockedUser->role === 'secretary') {
+                DB::table('clinic_organization_members')
+                    ->where('user_id', $lockedUser->id)
+                    ->where('is_active', true)
+                    ->update([
+                        'is_active' => false,
+                        'updated_at' => now(),
+                    ]);
+
+                $lockedUser->doctors()->detach();
+            }
+
             // حذف حساب باید کوکی‌های remember و نشست‌های قبلی را نیز بی‌اعتبار کند.
             $lockedUser->setRememberToken(Str::random(60));
             $lockedUser->forceFill(['is_active' => false]);
