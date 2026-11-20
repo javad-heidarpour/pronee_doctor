@@ -29,6 +29,16 @@ final class ReschedulePublicAppointmentAction
                 ]);
             }
 
+            if (
+                $appointment->status === 'pending' &&
+                $appointment->reservation_expires_at &&
+                $appointment->reservation_expires_at->lessThanOrEqualTo(now())
+            ) {
+                throw ValidationException::withMessages([
+                    'new_time_slot_id' => 'مهلت رزرو اولیه به پایان رسیده است؛ لطفاً نوبت جدیدی ثبت کنید.',
+                ]);
+            }
+
             if (!in_array($appointment->status, self::ACTIVE_STATUSES, true)) {
                 throw ValidationException::withMessages([
                     'new_time_slot_id' => 'وضعیت فعلی نوبت اجازه جابه‌جایی آنلاین را نمی‌دهد.',
