@@ -125,7 +125,7 @@ final class AppointmentSmsNotificationsTest extends TestCase
         $this->assertDatabaseCount('sms_logs', 0);
     }
 
-    public function test_day_before_reminder_is_sent_once_per_appointment(): void
+    public function test_day_before_reminder_is_deduplicated_per_appointment_schedule(): void
     {
         config([
             'services.ghasedak.api_key' => 'test-api-key',
@@ -133,16 +133,23 @@ final class AppointmentSmsNotificationsTest extends TestCase
         ]);
 
         $appointment = $this->appointment('confirmed');
+        $references = [];
         $gateway = Mockery::mock(SmsGateway::class);
         $gateway->shouldReceive('sendTemplate')
-            ->once()
-            ->with(
-                '09120000000',
-                'AppointmentReminderSMS',
-                Mockery::on(fn (array $inputs): bool => count($inputs) === 3),
-                'reminder-' . $appointment->id
-            )
-            ->andReturn(['success' => true]);
+            ->twice()
+            ->andReturnUsing(function (
+                string $mobile,
+                string $template,
+                array $inputs,
+                string $reference
+            ) use (&$references): array {
+                $this->assertSame('09120000000', $mobile);
+                $this->assertSame('AppointmentReminderSMS', $template);
+                $this->assertCount(3, $inputs);
+                $references[] = $reference;
+
+                return ['success' => true];
+            });
         $this->app->instance(SmsGateway::class, $gateway);
 
         $action = app(SendAppointmentReminderSmsAction::class);
@@ -150,12 +157,22 @@ final class AppointmentSmsNotificationsTest extends TestCase
         $this->assertSame('sent', $action->handle($appointment));
         $this->assertSame('already_attempted', $action->handle($appointment));
 
+        $appointment->update([
+            'appointment_date' => now()->addDays(2)->toDateString(),
+            'appointment_time' => '11:00:00',
+        ]);
+
+        $this->assertSame('sent', $action->handle($appointment->fresh()));
+        $this->assertSame('already_attempted', $action->handle($appointment->fresh()));
+
+        $this->assertCount(2, $references);
+        $this->assertNotSame($references[0], $references[1]);
         $this->assertDatabaseHas('sms_logs', [
             'appointment_id' => $appointment->id,
             'type' => 'appointment_reminder_day_before',
             'status' => 'sent',
         ]);
-        $this->assertDatabaseCount('sms_logs', 1);
+        $this->assertDatabaseCount('sms_logs', 2);
     }
 
     public function test_reschedule_sms_is_sent_once_for_the_current_appointment_version(): void
