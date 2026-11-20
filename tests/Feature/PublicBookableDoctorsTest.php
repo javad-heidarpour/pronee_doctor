@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Actions\Home\BuildPublicDoctorBookingPageAction;
 use App\Actions\Home\ListPublicBookableDoctorsAction;
 use App\Models\Doctor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -93,6 +94,31 @@ final class PublicBookableDoctorsTest extends TestCase
         $this->assertSame('تخصص مشابه', $alternatives[0]['match_reason']);
         $this->assertSame($sameCity->id, $alternatives[1]['id']);
         $this->assertSame('در همان شهر', $alternatives[1]['match_reason']);
+    }
+
+    public function test_public_booking_page_displays_only_free_slots_from_active_clinics(): void
+    {
+        $doctor = $this->createDoctor();
+        $availableSlot = $this->createClinicWithSlot($doctor, 'available');
+        $clinicId = DB::table('time_slots')->where('id', $availableSlot)->value('clinic_id');
+
+        DB::table('time_slots')->insert([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinicId,
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00:00',
+            'end_time' => '10:30:00',
+            'status' => 'booked',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $page = app(BuildPublicDoctorBookingPageAction::class)->handle($doctor);
+
+        $this->assertCount(1, $page['clinicsWithSlots']);
+        $this->assertCount(1, $page['clinicsWithSlots']->first()['dates']);
+        $this->assertCount(1, $page['clinicsWithSlots']->first()['dates']->first()['slots']);
+        $this->assertSame('available', $page['clinicsWithSlots']->first()['dates']->first()['slots']->first()['status']);
     }
 
     private function createDoctor(array $attributes = []): Doctor
