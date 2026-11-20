@@ -377,6 +377,99 @@ final class BookAppointmentActionTest extends TestCase
         ]));
     }
 
+    public function test_it_applies_a_clinic_scoped_discount_and_persists_a_single_redemption(): void
+    {
+        $this->createDiscountSchema();
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        DB::table('fees')->insert([
+            'title' => 'Consultation', 'fee_rial' => 7000000, 'is_active' => true,
+            'created_by' => $doctor->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $codeId = DB::table('clinic_discount_codes')->insertGetId([
+            'doctor_id' => $doctor->id, 'clinic_id' => $clinic->id, 'created_by_user_id' => 1,
+            'code' => 'WELCOME20', 'name' => 'Welcome offer', 'discount_type' => 'percent',
+            'discount_value' => 20, 'minimum_amount_rial' => 1000000, 'maximum_discount_rial' => 1000000,
+            'usage_limit' => 5, 'per_patient_limit' => 1, 'status' => 'active',
+            'starts_at' => now()->subDay(), 'ends_at' => now()->addDay(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $appointment = app(BookAppointmentAction::class)->handle(BookAppointmentData::fromValidated([
+            'time_slot_id' => $slot->id, 'patient_name' => 'Discount Patient',
+            'patient_phone' => '09125550000', 'discount_code' => 'welcome20',
+        ]));
+
+        $this->assertSame(6000000, (int) $appointment->fee_rial);
+        $this->assertSame(7000000, (int) $appointment->original_fee_rial);
+        $this->assertSame(1000000, (int) $appointment->discount_amount_rial);
+        $this->assertSame($codeId, (int) $appointment->discount_code_id);
+        $this->assertDatabaseHas('clinic_discount_redemptions', [
+            'appointment_id' => $appointment->id, 'discount_code_id' => $codeId,
+            'original_amount_rial' => 7000000, 'discount_amount_rial' => 1000000,
+            'final_amount_rial' => 6000000,
+        ]);
+    }
+
+    public function test_it_rejects_an_expired_or_exhausted_discount_without_booking_the_slot(): void
+    {
+        $this->createDiscountSchema();
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        DB::table('clinic_discount_codes')->insert([
+            'doctor_id' => $doctor->id, 'clinic_id' => $clinic->id, 'created_by_user_id' => 1,
+            'code' => 'LIMITED', 'name' => 'Limited offer', 'discount_type' => 'fixed',
+            'discount_value' => 500000, 'minimum_amount_rial' => 0, 'maximum_discount_rial' => null,
+            'usage_limit' => 1, 'per_patient_limit' => 1, 'status' => 'active',
+            'starts_at' => now()->subDay(), 'ends_at' => now()->addDay(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('clinic_discount_redemptions')->insert([
+            'discount_code_id' => 1, 'appointment_id' => 999, 'patient_id' => null, 'doctor_id' => $doctor->id,
+            'original_amount_rial' => 5000000, 'discount_amount_rial' => 500000,
+            'final_amount_rial' => 4500000, 'applied_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        try {
+            app(BookAppointmentAction::class)->handle(BookAppointmentData::fromValidated([
+                'time_slot_id' => $slot->id, 'patient_name' => 'Another Patient',
+                'patient_phone' => '09125551111', 'discount_code' => 'LIMITED',
+            ]));
+            $this->fail('An exhausted discount code must not be applied.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('discount_code', $exception->errors());
+        }
+
+        $this->assertSame('available', $slot->fresh()->status);
+        $this->assertSame(0, DB::table('appointments')->count());
+    }
+
+    private function createDiscountSchema(): void
+    {
+        Schema::table('appointments', function (Blueprint $table): void {
+            $table->unsignedBigInteger('discount_code_id')->nullable();
+            $table->unsignedBigInteger('original_fee_rial')->nullable();
+            $table->unsignedBigInteger('discount_amount_rial')->default(0);
+        });
+        Schema::create('clinic_discount_codes', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('doctor_id'); $table->unsignedBigInteger('clinic_id')->nullable();
+            $table->unsignedBigInteger('created_by_user_id'); $table->string('code'); $table->string('name');
+            $table->string('discount_type'); $table->unsignedBigInteger('discount_value');
+            $table->unsignedBigInteger('minimum_amount_rial')->default(0); $table->unsignedBigInteger('maximum_discount_rial')->nullable();
+            $table->unsignedInteger('usage_limit')->nullable(); $table->unsignedSmallInteger('per_patient_limit')->default(1);
+            $table->string('status'); $table->timestamp('starts_at')->nullable(); $table->timestamp('ends_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('clinic_discount_redemptions', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('discount_code_id'); $table->unsignedBigInteger('appointment_id')->unique();
+            $table->unsignedBigInteger('patient_id')->nullable(); $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('original_amount_rial'); $table->unsignedBigInteger('discount_amount_rial');
+            $table->unsignedBigInteger('final_amount_rial'); $table->timestamp('applied_at'); $table->timestamps();
+        });
+    }
+
     private function doctor(): Doctor
     {
         return Doctor::query()->create([
