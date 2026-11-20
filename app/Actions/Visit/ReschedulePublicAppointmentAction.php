@@ -132,9 +132,9 @@ final class ReschedulePublicAppointmentAction
                 $newSlot->date->format('Y-m-d') . ' ' . $newSlot->start_time
             );
 
-            if ($newDateTime->lessThanOrEqualTo(now())) {
+            if ($newDateTime->lessThan(now()->addHour())) {
                 throw ValidationException::withMessages([
-                    'new_time_slot_id' => 'امکان انتخاب ساعت گذشته وجود ندارد.',
+                    'new_time_slot_id' => 'برای تغییر نوبت باید حداقل یک ساعت تا زمان مراجعه جدید باقی مانده باشد.',
                 ]);
             }
 
