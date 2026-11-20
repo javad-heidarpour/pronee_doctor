@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Portal\Patient\CreatePatientFollowUpAction;
+use App\Actions\Portal\Patient\EnsureDefaultPatientFollowUpTemplatesAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
@@ -28,6 +29,7 @@ class PatientFollowUpController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
+        app(EnsureDefaultPatientFollowUpTemplatesAction::class)->handle($doctor);
 
         $filters = $request->validate([
             'status' => ['nullable', Rule::in(['pending', 'completed', 'unsuccessful', 'cancelled'])],
