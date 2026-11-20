@@ -38,6 +38,15 @@ class ProfileTest extends AuthTestCase
             $table->softDeletes();
         });
 
+        Schema::create('honor_badges', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('doctor_id');
+            $table->string('title');
+            $table->string('icon')->default('✨');
+            $table->integer('sort_order')->default(0);
+            $table->timestamps();
+        });
+
         // The shared Inertia middleware resolves the portal menu collection
         // on every authenticated portal response, so provide its focused test schema.
         Schema::create('menus', function (Blueprint $table): void {
