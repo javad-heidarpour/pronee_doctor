@@ -58,6 +58,7 @@ final class CreatePatientFollowUpAction
                     ->where('doctor_id', $doctor->id)
                     ->where('patient_id', $patient->id)
                     ->whereIn('clinic_id', $accessibleClinicIds)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
                     ->first();
 
                 if (!$treatmentPlan) {
