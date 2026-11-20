@@ -174,6 +174,120 @@ final class PatientConsentSigningTest extends TestCase
         ]);
     }
 
+    public function test_inactive_patient_account_cannot_sign_a_consent(): void
+    {
+        [$userId, , $consentId] = $this->seedConsent();
+        DB::table('users')->where('id', $userId)->update(['is_active' => false]);
+        $this->authenticatePatient($userId);
+
+        try {
+            app(PatientConsentSigningController::class)->sign(
+                Request::create('/my-health/consents/'.$consentId.'/sign', 'POST', [
+                    'signer_name' => 'مریم رضایی',
+                    'accept' => 'yes',
+                ]),
+                $consentId,
+                app(RecordSecurityAuditEventAction::class)
+            );
+            $this->fail('An inactive patient account must not sign a consent.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('patient_consents', ['id' => $consentId, 'status' => 'pending']);
+    }
+
+    public function test_revoked_owner_access_cannot_sign_a_consent(): void
+    {
+        [$userId, , $consentId] = $this->seedConsent();
+        DB::table('patient_account_accesses')->where('user_id', $userId)->update([
+            'revoked_at' => now(),
+        ]);
+        $this->authenticatePatient($userId);
+
+        try {
+            app(PatientConsentSigningController::class)->sign(
+                Request::create('/my-health/consents/'.$consentId.'/sign', 'POST', [
+                    'signer_name' => 'مریم رضایی',
+                    'accept' => 'yes',
+                ]),
+                $consentId,
+                app(RecordSecurityAuditEventAction::class)
+            );
+            $this->fail('A revoked owner must not sign a consent.');
+        } catch (ModelNotFoundException $exception) {
+            $this->assertInstanceOf(ModelNotFoundException::class, $exception);
+        }
+
+        $this->assertDatabaseHas('patient_consents', ['id' => $consentId, 'status' => 'pending']);
+    }
+
+    public function test_tampered_consent_text_is_rejected_before_signature(): void
+    {
+        [$userId, , $consentId] = $this->seedConsent();
+        DB::table('patient_consents')->where('id', $consentId)->update([
+            'consent_text' => 'متن تغییر داده شده پس از صدور رضایت‌نامه.',
+        ]);
+        $this->authenticatePatient($userId);
+
+        try {
+            app(PatientConsentSigningController::class)->sign(
+                Request::create('/my-health/consents/'.$consentId.'/sign', 'POST', [
+                    'signer_name' => 'مریم رضایی',
+                    'accept' => 'yes',
+                ]),
+                $consentId,
+                app(RecordSecurityAuditEventAction::class)
+            );
+            $this->fail('A consent with a modified text must not be signed.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('patient_consents', ['id' => $consentId, 'status' => 'pending']);
+    }
+
+    public function test_a_consent_cannot_be_signed_twice(): void
+    {
+        [$userId, , $consentId] = $this->seedConsent();
+        $this->authenticatePatient($userId);
+        $controller = app(PatientConsentSigningController::class);
+        $request = Request::create('/my-health/consents/'.$consentId.'/sign', 'POST', [
+            'signer_name' => 'مریم رضایی',
+            'accept' => 'yes',
+        ]);
+
+        $controller->sign($request, $consentId, app(RecordSecurityAuditEventAction::class));
+
+        try {
+            $controller->sign($request, $consentId, app(RecordSecurityAuditEventAction::class));
+            $this->fail('A signed consent must reject duplicate signing.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('patient_consents', [
+            'id' => $consentId,
+            'status' => 'signed',
+            'signed_by_user_id' => $userId,
+        ]);
+    }
+
+    public function test_a_consent_record_cannot_be_deleted(): void
+    {
+        [, , $consentId] = $this->seedConsent();
+        $consent = PatientConsent::query()->findOrFail($consentId);
+
+        try {
+            $consent->delete();
+            $this->fail('Consent history must not be deletable.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('consent', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('patient_consents', ['id' => $consentId]);
+    }
+
     private function seedConsent(): array
     {
         $userId = DB::table('users')->insertGetId([
