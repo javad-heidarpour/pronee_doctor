@@ -186,6 +186,42 @@ final class BookAppointmentActionTest extends TestCase
         $action->handle($data($secondSlot->id));
     }
 
+    public function test_it_rejects_a_second_booking_for_the_same_time_slot(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        $action = app(BookAppointmentAction::class);
+
+        $firstAppointment = $action->handle(BookAppointmentData::fromValidated([
+            'time_slot_id' => $slot->id,
+            'patient_name' => 'First Patient',
+            'patient_phone' => '09120000000',
+            'patient_national_code' => '0012345678',
+        ]));
+
+        try {
+            $action->handle(BookAppointmentData::fromValidated([
+                'time_slot_id' => $slot->id,
+                'patient_name' => 'Second Patient',
+                'patient_phone' => '09121111111',
+                'patient_national_code' => '0098765432',
+            ]));
+
+            $this->fail('A second active appointment for the same time slot must be rejected.');
+        } catch (ValidationException) {
+            // The original reservation must remain intact.
+        }
+
+        $this->assertDatabaseCount('appointments', 1);
+        $this->assertDatabaseHas('appointments', [
+            'id' => $firstAppointment->id,
+            'time_slot_id' => $slot->id,
+            'status' => 'pending',
+        ]);
+        $this->assertSame('booked', $slot->fresh()->status);
+    }
+
     public function test_it_rejects_booking_on_a_clinic_holiday(): void
     {
         $doctor = $this->doctor();
