@@ -14,7 +14,8 @@ use Throwable;
 final class SendAppointmentLifecycleSmsAction
 {
     public function __construct(
-        private readonly SmsGateway $gateway
+        private readonly SmsGateway $gateway,
+        private readonly BuildAppointmentSmsInputsAction $inputsBuilder
     ) {
     }
 
