@@ -79,6 +79,33 @@ final class ListPortalPatientsActionTest extends TestCase
         $this->assertSame('آزاده محمدی', $patients->items()[0]->patient_name);
     }
 
+    public function test_phone_only_patient_does_not_inherit_a_visit_from_another_patient_sharing_the_phone(): void
+    {
+        $doctor = $this->doctor();
+
+        $phoneOnlyVisit = $this->appointment($doctor, 10, '2026-11-20', '09:30', [
+            'patient_name' => 'Phone Only Patient',
+            'patient_phone' => '09129999999',
+            'patient_national_code' => null,
+        ]);
+
+        $codedPatientVisit = $this->appointment($doctor, 10, '2026-11-25', '10:30', [
+            'patient_name' => 'National Code Patient',
+            'patient_phone' => '09129999999',
+            'patient_national_code' => '0012345678',
+        ]);
+
+        $patients = app(ListPortalPatientsAction::class)->handle($doctor, [10]);
+
+        $phoneOnlyPatient = collect($patients->items())->firstWhere('patient_key', '09129999999');
+        $codedPatient = collect($patients->items())->firstWhere('patient_key', '0012345678');
+
+        $this->assertNotNull($phoneOnlyPatient);
+        $this->assertNotNull($codedPatient);
+        $this->assertSame($phoneOnlyVisit->id, (int) $phoneOnlyPatient->latest_appointment_id);
+        $this->assertSame($codedPatientVisit->id, (int) $codedPatient->latest_appointment_id);
+    }
+
     private function doctor(): Doctor
     {
         return Doctor::query()->create([
