@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Portal\Patient;
 
 use App\Models\Appointment;
+use App\Models\Patient;
 use App\Models\PatientEncounter;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
