@@ -32,6 +32,11 @@ class Patient extends Model
         return $this->hasMany(PatientTreatmentPlan::class);
     }
 
+    public function accountAccesses(): HasMany
+    {
+        return $this->hasMany(PatientAccountAccess::class);
+    }
+
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
