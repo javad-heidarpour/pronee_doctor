@@ -12,15 +12,15 @@ final class PublicDoctorNavigationRoutesTest extends TestCase
     {
         $slug = 'sample-doctor';
 
-        $this->assertSame('/sample-doctor'), route('home1', ['doctor' => $slug], false));
-        $this->assertSame('/sample-doctor/booking'), route('booking', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/services'), route('services', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/surgeries'), route('Surgeries', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/contact'), route('contact', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/About'), route('About', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/WorkingHours'), route('WorkingHours', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/tips'), route('tips', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/reviews'), route('Reviews', ['slug' => $slug], false));
-        $this->assertSame('/sample-doctor/galleries'), route('galleries', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor', route('home1', ['doctor' => $slug], false));
+        $this->assertSame('/sample-doctor/booking', route('booking', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/services', route('services', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/surgeries', route('Surgeries', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/contact', route('contact', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/About', route('About', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/WorkingHours', route('WorkingHours', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/tips', route('tips', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/reviews', route('Reviews', ['slug' => $slug], false));
+        $this->assertSame('/sample-doctor/galleries', route('galleries', ['slug' => $slug], false));
     }
 }
