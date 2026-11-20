@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head, useForm, usePage } from "@inertiajs/vue3";
 
 const page = usePage();
 
@@ -16,6 +16,8 @@ const props = defineProps({
 
 const processing = ref(false);
 const ErrTxt = ref(null);
+const cancelForm = useForm({ patient_phone: "" });
+const cancellationSuccess = computed(() => page.props.flash?.success ?? "");
 
 const paid = computed(() => props.visit?.payment_status === "paid");
 
@@ -107,6 +109,15 @@ const getPersianFullDate = (dateStr) => {
     day: "numeric",
     weekday: "long",
   }).format(date);
+};
+
+const cancelAppointment = () => {
+  if (!props.visit?.can_cancel || cancelForm.processing || !props.visit?.cancel_url) return;
+
+  cancelForm.post(props.visit.cancel_url, {
+    preserveScroll: true,
+    onSuccess: () => cancelForm.reset(),
+  });
 };
 
 const pay = () => {
@@ -233,6 +244,14 @@ const pay = () => {
         </div>
 
         <div class="space-y-7 p-5 sm:p-8">
+          <div
+            v-if="cancellationSuccess"
+            class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800"
+            role="status"
+            aria-live="polite"
+          >
+            {{ cancellationSuccess }}
+          </div>
           <!-- وضعیت پرداخت -->
           <div
             v-if="paymentStatus"
@@ -360,6 +379,47 @@ const pay = () => {
                 </p>
               </div>
             </div>
+          </section>
+
+          <!-- لغو نوبت توسط بیمار -->
+          <section
+            v-if="visit.can_cancel"
+            class="rounded-2xl border border-rose-100 bg-rose-50/60 p-5"
+          >
+            <h2 class="font-bold text-slate-900">درخواست لغو نوبت</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-600">
+              برای اطمینان از هویت بیمار، شماره موبایلی را که هنگام رزرو ثبت کرده‌اید وارد کنید.
+              نوبت‌های دارای پرداخت موفق از این بخش قابل لغو نیستند.
+            </p>
+            <form class="mt-4 space-y-3" @submit.prevent="cancelAppointment">
+              <label for="cancel_patient_phone" class="block text-sm font-medium text-slate-700">
+                شماره موبایل ثبت‌شده
+              </label>
+              <input
+                id="cancel_patient_phone"
+                v-model="cancelForm.patient_phone"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel"
+                maxlength="11"
+                minlength="11"
+                pattern="09[0-9]{9}"
+                dir="ltr"
+                required
+                class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                placeholder="09123456789"
+              />
+              <p v-if="cancelForm.errors.patient_phone" class="text-sm text-rose-700" role="alert">
+                {{ cancelForm.errors.patient_phone }}
+              </p>
+              <button
+                type="submit"
+                :disabled="cancelForm.processing || cancelForm.patient_phone.length !== 11"
+                class="flex w-full items-center justify-center rounded-xl bg-rose-600 px-4 py-3 font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {{ cancelForm.processing ? "در حال لغو نوبت..." : "تأیید و لغو نوبت" }}
+              </button>
+            </form>
           </section>
 
           <!-- مبلغ و پرداخت -->
