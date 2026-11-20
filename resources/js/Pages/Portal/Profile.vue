@@ -84,6 +84,66 @@
             </div>
           </section>
 
+          <section class="space-y-4 rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+            <div>
+              <h4 class="font-bold text-slate-800">سوابق و افتخارات قابل انتشار</h4>
+              <p class="mt-1 text-xs leading-6 text-slate-600">مواردی که اینجا ثبت می‌کنید در صفحه عمومی پزشک نمایش داده می‌شوند.</p>
+            </div>
+
+            <div v-if="honorBadges.length" class="space-y-3">
+              <div
+                v-for="(badge, index) in honorBadges"
+                :key="index"
+                class="grid grid-cols-[minmax(0,1fr)_76px_auto] items-center gap-2"
+              >
+                <input
+                  v-model.trim="badge.title"
+                  type="text"
+                  maxlength="255"
+                  :aria-label="`عنوان سابقه ${index + 1}`"
+                  class="min-w-0 rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm"
+                  placeholder="مثلاً عضو انجمن تخصصی"
+                />
+                <input
+                  v-model="badge.icon"
+                  type="text"
+                  maxlength="24"
+                  :aria-label="`نماد سابقه ${index + 1}`"
+                  class="w-full rounded-xl border border-amber-200 bg-white px-2 py-2.5 text-center"
+                  placeholder="🏅"
+                />
+                <button
+                  type="button"
+                  @click="removeHonorBadge(index)"
+                  class="rounded-lg px-2 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                  :aria-label="`حذف سابقه ${index + 1}`"
+                >
+                  حذف
+                </button>
+              </div>
+            </div>
+            <p v-else class="rounded-xl bg-white/70 p-3 text-sm text-slate-500">هنوز سابقه‌ای برای نمایش ثبت نشده است.</p>
+
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                @click="addHonorBadge"
+                class="rounded-xl border border-amber-200 bg-white px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100"
+              >
+                افزودن سابقه
+              </button>
+              <button
+                type="button"
+                @click="submitHonorBadges"
+                :disabled="processingHonorBadges"
+                class="rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {{ processingHonorBadges ? "در حال ذخیره..." : "ذخیره سوابق" }}
+              </button>
+            </div>
+            <p v-if="honorBadgeError" role="alert" class="text-sm text-red-600">{{ honorBadgeError }}</p>
+          </section>
+
           <!-- آپلود عکس -->
           <div>
             <label for="profile-photo" class="block text-sm font-bold text-gray-700 mb-2">عکس پروفایل</label>
@@ -211,6 +271,59 @@ const passwordForm = ref({
   password: "",
   password_confirmation: "",
 });
+
+const honorBadges = ref((props.doctor.honor_badges || []).map((badge) => ({
+  title: badge.title || "",
+  icon: badge.icon || "🏅",
+})));
+const processingHonorBadges = ref(false);
+const honorBadgeError = ref("");
+
+const addHonorBadge = () => {
+  if (honorBadges.value.length >= 20) {
+    honorBadgeError.value = "حداکثر ۲۰ سابقه قابل ثبت است.";
+    return;
+  }
+  honorBadgeError.value = "";
+  honorBadges.value.push({ title: "", icon: "🏅" });
+};
+
+const removeHonorBadge = (index) => {
+  honorBadges.value.splice(index, 1);
+  honorBadgeError.value = "";
+};
+
+const submitHonorBadges = () => {
+  processingHonorBadges.value = true;
+  honorBadgeError.value = "";
+
+  router.post(
+    route("portal.profile.honor-badges.update"),
+    {
+      honor_badges: honorBadges.value.map((badge) => ({
+        title: badge.title,
+        icon: badge.icon,
+      })),
+    },
+    {
+      preserveScroll: true,
+      onSuccess: (page) => {
+        honorBadges.value = (page.props.doctor?.honor_badges || []).map((badge) => ({
+          title: badge.title || "",
+          icon: badge.icon || "🏅",
+        }));
+      },
+      onError: (returnedErrors) => {
+        honorBadgeError.value =
+          Object.values(returnedErrors || {}).find((message) => typeof message === "string") ||
+          "ذخیره سوابق انجام نشد. اطلاعات را بررسی کنید.";
+      },
+      onFinish: () => {
+        processingHonorBadges.value = false;
+      },
+    }
+  );
+};
 
 const previewImage = ref(null);
 const fileError = ref("");
