@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\Appointment;
 use App\Models\HealthExchangeMessage;
@@ -14,22 +15,17 @@ use App\Models\PatientEncounter;
 use App\Services\HealthInterop\HealthExchangeOutbox;
 use App\Services\HealthInterop\IranianNationalCode;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 final class HealthInteropController extends Controller
 {
-    private function doctor()
-    {
-        $doctor = Auth::guard('web')->user()?->doctorProfile;
-        abort_unless($doctor, 403, 'پروفایل پزشک برای این حساب تعریف نشده است.');
-        return $doctor;
-    }
+    use HasActiveDoctor;
 
     public function index(RecordSecurityAuditEventAction $audit)
     {
-        $doctor = $this->doctor();
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
 
         // The dashboard contains patient insurance and exchange status; audit access without payload data.
         $audit->handle('health_interop.dashboard.viewed', null, ['doctor_id' => $doctor->id]);
@@ -47,11 +43,13 @@ final class HealthInteropController extends Controller
         ]);
     }
 
-    public function validateIdentity(Request $request, Patient $patient)
+    public function validateIdentity(Request $request, Patient $patient, RecordSecurityAuditEventAction $audit)
     {
-        $doctor = $this->doctor();
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
         abort_unless((int) $patient->doctor_id === (int) $doctor->id, 404);
         $valid = filled($patient->national_code) && IranianNationalCode::isValid($patient->national_code);
+        $audit->handle('health_interop.patient_identity.checked', $patient, ['doctor_id' => $doctor->id]);
 
         return response()->json([
             'structural_valid' => $valid,
@@ -62,9 +60,10 @@ final class HealthInteropController extends Controller
         ], 200);
     }
 
-    public function verifyInsurance(Request $request, Patient $patient)
+    public function verifyInsurance(Request $request, Patient $patient, RecordSecurityAuditEventAction $audit)
     {
-        $doctor = $this->doctor();
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         abort_unless((int) $patient->doctor_id === (int) $doctor->id, 404);
 
         $data = $request->validate([
@@ -102,6 +101,8 @@ final class HealthInteropController extends Controller
                 : 'اتصال رسمی این بیمه‌گر هنوز پیکربندی نشده است.',
         ]);
 
+        $audit->handle('health_interop.insurance_verification.created', $record, ['doctor_id' => $doctor->id]);
+
         return response()->json([
             'id' => $record->id,
             'status' => $record->status,
@@ -110,21 +111,25 @@ final class HealthInteropController extends Controller
         ], 202);
     }
 
-    public function queueAppointment(Appointment $appointment, HealthExchangeOutbox $outbox)
+    public function queueAppointment(Appointment $appointment, HealthExchangeOutbox $outbox, RecordSecurityAuditEventAction $audit)
     {
-        $doctor = $this->doctor();
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('appointments.manage', $doctor);
         abort_unless((int) $appointment->doctor_id === (int) $doctor->id, 404);
         abort_unless($appointment->patient_id && $appointment->status !== 'cancelled', 422);
         $message = $outbox->enqueueAppointment($appointment);
+        $audit->handle('health_interop.appointment.queued', $appointment, ['doctor_id' => $doctor->id]);
         return back()->with('success', 'رویداد نوبت در صف تبادل قرار گرفت؛ پذیرش مقصد هنوز تأیید نشده است.');
     }
 
-    public function queueEncounter(PatientEncounter $encounter, HealthExchangeOutbox $outbox)
+    public function queueEncounter(PatientEncounter $encounter, HealthExchangeOutbox $outbox, RecordSecurityAuditEventAction $audit)
     {
-        $doctor = $this->doctor();
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         abort_unless((int) $encounter->doctor_id === (int) $doctor->id, 404);
         abort_unless($encounter->status === PatientEncounter::STATUS_SIGNED, 409);
         $outbox->enqueueEncounter($encounter);
+        $audit->handle('health_interop.encounter.queued', $encounter, ['doctor_id' => $doctor->id]);
         return back()->with('success', 'ویزیت و نسخه‌های آن در صف تبادل قرار گرفتند.');
     }
 }

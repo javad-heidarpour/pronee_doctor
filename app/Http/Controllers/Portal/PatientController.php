@@ -33,6 +33,7 @@ use App\Http\Controllers\Portal\Concerns\AuthorizesPortalAppointments;
 
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PatientController extends Controller
@@ -400,16 +401,26 @@ class PatientController extends Controller
     public function updateStatus(
         UpdateAppointmentStatusRequest $request,
         Appointment $appointment,
-        UpdateAppointmentStatusAction $action
+        UpdateAppointmentStatusAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
+        $doctor = $this->currentDoctor();
         $this->authorizeAppointment($appointment);
-        $this->authorizeSecretaryPermission('appointments.manage');
+        $this->authorizeSecretaryPermission('appointments.manage', $doctor);
 
         try {
-            $result = $action->handle(
-                $appointment,
-                $request->validated('status')
-            );
+            $result = DB::transaction(function () use ($action, $appointment, $request, $audit, $doctor): string {
+                $result = $action->handle($appointment, $request->validated('status'));
+
+                if ($result === 'updated') {
+                    $audit->handle('appointment.status.updated', $appointment, [
+                        'doctor_id' => $doctor->id,
+                        'status_changed' => true,
+                    ]);
+                }
+
+                return $result;
+            });
 
             if ($result === 'already_visited') {
                 return back()->with(
@@ -441,15 +452,32 @@ class PatientController extends Controller
     public function updateDescription(
         UpdateAppointmentDescriptionRequest $request,
         Appointment $appointment,
-        UpdateAppointmentDescriptionAction $action
+        UpdateAppointmentDescriptionAction $action,
+        RecordSecurityAuditEventAction $audit
     ) {
+        $doctor = $this->currentDoctor();
         $this->authorizeAppointment($appointment);
         // ثبت جزئیات ویزیت علاوه بر مدیریت اطلاعات بیمار، وضعیت نوبت را نیز به visited تغییر می‌دهد.
-        $this->authorizeSecretaryPermission('appointments.manage');
-        $this->authorizeSecretaryPermission('patients.manage');
+        $this->authorizeSecretaryPermission('appointments.manage', $doctor);
+        $this->authorizeSecretaryPermission('patients.manage', $doctor);
 
-        $data = UpdateAppointmentDescriptionData::fromValidated($request->validated());
-        $updated = $action->handle($appointment, $data);
+        $validated = $request->validated();
+        $data = UpdateAppointmentDescriptionData::fromValidated($validated);
+
+        $updated = DB::transaction(function () use ($action, $appointment, $data, $audit, $doctor, $validated): bool {
+            $updated = $action->handle($appointment, $data);
+
+            if ($updated) {
+                // Never place visit notes, diagnoses, or other PHI in audit metadata.
+                $audit->handle('appointment.visit_details.updated', $appointment, [
+                    'doctor_id' => $doctor->id,
+                    'status_changed' => true,
+                    'changed_fields' => array_keys($validated),
+                ]);
+            }
+
+            return $updated;
+        });
 
         if (!$updated) {
             return back()->with(
