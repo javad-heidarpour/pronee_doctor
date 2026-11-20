@@ -5,7 +5,7 @@ use App\Http\Controllers\HomePage\Home1Controller;
 
 Route::prefix('/{slug}')->controller(Home1Controller::class)->group(function () {
 
-    Route::get('/booking', 'booking')->name('booking');
+    Route::get('/booking/{clinic?}', 'booking')->whereNumber('clinic')->name('booking');
     Route::get('/services', 'services')->name('services');
     Route::get('/surgeries', 'Surgeries')->name('Surgeries');
     Route::get('/contact', 'contact')->name('contact');
