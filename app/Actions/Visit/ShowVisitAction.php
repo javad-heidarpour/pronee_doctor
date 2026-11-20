@@ -49,6 +49,7 @@ class ShowVisitAction
             : ($payment?->status ?? 'unpaid');
 
         $canReschedule = in_array($appointment->status, ['pending', 'confirmed', 'contacted'], true)
+            && ($appointment->status !== 'pending' || !$appointment->reservation_expires_at || $appointment->reservation_expires_at->isFuture())
             && (bool) $doctor?->is_active
             && (bool) $clinic?->is_active
             && Carbon::parse($appointment->appointment_date->format('Y-m-d') . ' ' . $appointment->appointment_time)->isFuture();
