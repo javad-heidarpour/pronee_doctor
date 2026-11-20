@@ -4,7 +4,10 @@
   <header class="rounded-3xl bg-gradient-to-l from-slate-950 via-indigo-950 to-teal-900 p-5 text-white shadow-lg sm:p-7">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div><p class="text-xs font-bold tracking-widest text-teal-200">PRONEEX PATIENT 360</p><h1 class="mt-2 text-2xl font-black sm:text-3xl">نمای یکپارچه پرونده بیمار</h1><p class="mt-2 text-sm text-slate-200">مرور سریع اطلاعات ثبت‌شده در زیرسامانه‌های پرونیکس</p></div>
-      <Link :href="route('portal.patients.directory')" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">بازگشت به فهرست بیماران</Link>
+      <div class="flex flex-wrap gap-2">
+        <Link v-if="canViewClinical" :href="route('portal.patients.insurance.index', patient.id)" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">سوابق بیمه</Link>
+        <Link :href="route('portal.patients.directory')" class="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white">بازگشت به فهرست بیماران</Link>
+      </div>
     </div>
     <div class="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3">
       <div><p class="text-xs text-teal-200">نام بیمار</p><p class="mt-1 text-xl font-black">{{patient.name}}</p></div>
