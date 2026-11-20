@@ -22,7 +22,7 @@ class PatientFollowUpController extends Controller
 {
     use HasActiveDoctor;
 
-    public function index(Request $request)
+    public function index(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
@@ -84,6 +84,9 @@ class PatientFollowUpController extends Controller
             ->orderBy('users.name')->get(['users.id', 'users.name', 'users.family']);
 
         $base = PatientFollowUpTask::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
+
+        // The follow-up list contains patient and care-coordination details.
+        $audit->handle('patient.follow_ups.listed', null, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/FollowUps/Index', [
             'doctor' => $doctor,

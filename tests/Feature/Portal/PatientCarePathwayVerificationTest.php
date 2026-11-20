@@ -7,6 +7,8 @@ namespace Tests\Feature\Portal;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientCarePathwayController;
 use App\Models\User;
+use App\Models\Patient;
+use App\Models\Appointment;
 use App\Models\PatientCarePathway;
 use App\Models\PatientCarePathwayStep;
 use App\Services\PatientCarePathwayProgress;
@@ -32,9 +34,35 @@ final class PatientCarePathwayVerificationTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('family')->nullable();
+            $table->timestamp('deleted_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('patients', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
+            $table->string('phone')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('appointments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->string('status');
+            $table->timestamps();
+        });
+
         Schema::create('addresses', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -79,10 +107,64 @@ final class PatientCarePathwayVerificationTest extends TestCase
     {
         Schema::dropIfExists('patient_care_pathway_steps');
         Schema::dropIfExists('patient_care_pathways');
+        Schema::dropIfExists('appointments');
+        Schema::dropIfExists('patients');
+        Schema::dropIfExists('users');
         Schema::dropIfExists('addresses');
         Schema::dropIfExists('doctors');
 
         parent::tearDown();
+    }
+
+    public function test_pathway_list_access_is_audited_without_patient_or_step_values(): void
+    {
+        DB::table('doctors')->insert([
+            'id' => 11,
+            'user_id' => 99,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $patient = Patient::query()->create([
+            'doctor_id' => 11,
+            'name' => 'Patient',
+        ]);
+        Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+        PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => $patient->id,
+            'title' => 'Care plan',
+            'status' => 'active',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.care_pathways.listed', null, ['doctor_id' => 11]);
+
+        $response = (new PatientCarePathwayController())->index($audit);
+
+        $this->assertInstanceOf(\Inertia\Response::class, $response);
     }
 
     public function test_verifying_a_reported_step_logs_the_pathway_id_after_the_transaction(): void

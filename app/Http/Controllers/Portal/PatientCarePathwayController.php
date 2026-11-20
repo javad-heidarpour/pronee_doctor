@@ -21,7 +21,7 @@ final class PatientCarePathwayController extends Controller
 {
     use HasActiveDoctor;
 
-    public function index()
+    public function index(RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
@@ -31,6 +31,8 @@ final class PatientCarePathwayController extends Controller
         $pathways = (clone $base)->with(['patient:id,name','clinic:id,name','steps.assignee:id,name,family'])->latest()->paginate(20)->withQueryString();
         $patients = Patient::query()->where('doctor_id',$doctor->id)->whereHas('appointments',fn($q)=>$q->whereIn('clinic_id',$clinicIds))->orderBy('name')->get(['id','name']);
         $clinics = $doctor->address()->whereIn('addresses.id',$clinicIds)->orderBy('name')->get(['addresses.id','addresses.name']);
+        $audit->handle('patient.care_pathways.listed', null, ['doctor_id' => $doctor->id]);
+
         return Inertia::render('Portal/CarePathways/Index', [
             'doctor'=>$doctor,'pathways'=>$pathways,'patients'=>$patients,'clinics'=>$clinics,
             'stats'=>['draft'=>(clone $base)->where('status','draft')->count(),'active'=>(clone $base)->where('status','active')->count(),'completed'=>(clone $base)->where('status','completed')->count()],

@@ -74,7 +74,8 @@ class PatientController extends Controller
     public function index(
         ListPortalAppointmentsRequest $request,
         ListPortalAppointmentsAction $action,
-        BuildPatientIndexOptionsAction $optionsAction
+        BuildPatientIndexOptionsAction $optionsAction,
+        RecordSecurityAuditEventAction $audit
     ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('appointments.view', $doctor);
@@ -84,6 +85,10 @@ class PatientController extends Controller
 
         $result = $action->handle($doctor, $clinicIds, $filters);
         $options = $optionsAction->handle($doctor, $clinicIds);
+
+        // Appointment rows expose patient identifiers and visit context.
+        // Record access without persisting search terms or patient values.
+        $audit->handle('appointments.listed', null, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Patients/Index', [
             'doctor' => $doctor,
