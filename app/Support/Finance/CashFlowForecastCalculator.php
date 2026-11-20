@@ -12,6 +12,10 @@ final class CashFlowForecastCalculator
      */
     public function project(int $startingBalance, array $movements, int $days, float $collectionFactor = 1.0): array
     {
+        $days = max(0, $days);
+        $collectionFactor = max(0.0, min(1.0, $collectionFactor));
+        $movements = array_slice($movements, 0, $days, true);
+
         $balance = $startingBalance;
         $minimum = $balance;
         $firstDeficit = $balance < 0 ? array_key_first($movements) : null;
