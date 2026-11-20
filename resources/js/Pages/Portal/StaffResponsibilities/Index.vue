@@ -33,6 +33,8 @@ const availableMembers = computed(() => props.members.filter(item =>
 ))
 const statusLabel = value => ({ active: 'فعال', paused: 'متوقف', completed: 'پایان‌یافته' })[value] || value
 const priorityLabel = value => ({ normal: 'عادی', important: 'مهم', critical: 'فوری' })[value] || value
+const eventLabel = value => ({ created: 'ایجاد مسئولیت', updated: 'ویرایش مسئولیت', deleted: 'بایگانی مسئولیت' })[value] || value
+const formatDateTime = value => value ? new Date(String(value).replace(' ', 'T')).toLocaleString('fa-IR') : '—'
 
 function resetForm() {
   form.reset()
@@ -183,6 +185,15 @@ function archive(item) {
               <span v-if="item.effective_until">تا {{ item.effective_until }}</span>
               <span v-if="item.review_at">بازبینی: {{ item.review_at }}</span>
             </div>
+            <details v-if="item.history?.length" class="mt-3 rounded-xl bg-slate-50 p-3">
+              <summary class="cursor-pointer text-xs font-bold text-slate-700">تاریخچه تغییرات ({{ item.history.length }})</summary>
+              <ol class="mt-3 space-y-2">
+                <li v-for="(event, index) in item.history" :key="index" class="border-r-2 border-slate-300 pr-3 text-xs">
+                  <p class="font-bold">{{ eventLabel(event.event_type) }}</p>
+                  <p class="mt-1 text-slate-500">{{ event.actor_name || 'کاربر حذف‌شده' }} {{ event.actor_family || '' }} · {{ formatDateTime(event.created_at) }}</p>
+                </li>
+              </ol>
+            </details>
             <div v-if="item.can_manage" class="mt-4 flex gap-2 border-t pt-3">
               <button type="button" @click="edit(item)" class="rounded-lg border px-3 py-2 text-xs font-bold">ویرایش</button>
               <button type="button" @click="archive(item)" class="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700">بایگانی</button>
