@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 final class PatientInsuranceController extends Controller
@@ -103,7 +104,12 @@ final class PatientInsuranceController extends Controller
         }
 
         if ($data['status'] === 'verified') {
-            abort_unless(!empty($data['valid_until']) && !empty($data['policy_number']), 422, 'برای ثبت پوشش تأییدشده، شماره بیمه‌نامه و تاریخ اعتبار الزامی است.');
+            if (empty($data['valid_until']) || empty($data['policy_number'])) {
+                throw ValidationException::withMessages([
+                    'policy_number' => 'برای ثبت پوشش تأییدشده، شماره بیمه‌نامه الزامی است.',
+                    'valid_until' => 'برای ثبت پوشش تأییدشده، تاریخ پایان اعتبار الزامی است.',
+                ]);
+            }
         }
 
         $verification = DB::transaction(fn () => PatientInsuranceVerification::query()->create([
