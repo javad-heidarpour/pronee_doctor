@@ -124,7 +124,7 @@ final class PatientDocumentControllerTest extends TestCase
             app(RecordSecurityAuditEventAction::class)
         );
 
-        $this->assertSame('blood-test.pdf', $download->getFile()->getFilename() === false ? 'blood-test.pdf' : 'blood-test.pdf');
+        $this->assertStringContainsString('blood-test.pdf', (string) $download->headers->get('Content-Disposition'));
         $this->assertSame('private, no-store, max-age=0', $download->headers->get('Cache-Control'));
     }
 
