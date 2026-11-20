@@ -66,6 +66,15 @@ Route::prefix('patients')->name('patients.')->group(function () {
         ->whereNumber('patient')
         ->name('vital-signs.store');
 
+    Route::post('/{patient}/problems', [PatientProblemController::class, 'store'])
+        ->whereNumber('patient')
+        ->name('problems.store');
+
+    Route::put('/{patient}/problems/{problem}', [PatientProblemController::class, 'update'])
+        ->whereNumber('patient')
+        ->whereNumber('problem')
+        ->name('problems.update');
+
     Route::post('/{patient}/clinical-records', [PatientController::class, 'storeClinicalRecord'])
         ->whereNumber('patient')
         ->name('clinical-records.store');
