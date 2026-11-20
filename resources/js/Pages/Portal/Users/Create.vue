@@ -6,7 +6,7 @@ import PortalLayout from "@/Layouts/PortalLayout.vue";
 const props = defineProps({
   doctor: {
     type: Object,
-    required: true,
+    default: null,
   },
   roles: {
     type: Array,
