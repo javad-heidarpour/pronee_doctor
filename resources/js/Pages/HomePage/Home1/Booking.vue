@@ -14,6 +14,15 @@
     <main dir="rtl" class="booking-page">
       <!-- Main Content -->
       <div class="booking-container">
+        <div
+          v-if="requestedClinicUnavailable"
+          class="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900"
+          role="status"
+          aria-live="polite"
+        >
+          این شعبه در حال حاضر نوبت آزاد ندارد یا ظرفیت آن تغییر کرده است؛ می‌توانید شعبه دیگری را انتخاب کنید.
+        </div>
+
         <!-- Steps -->
         <section class="steps-card">
           <div class="step" :class="{ 'step-active': selectedClinicIndex !== null }">
@@ -441,6 +450,10 @@ const props = defineProps({
   clinicId: {
     type: [Number, String],
     default: null,
+  },
+  requestedClinicUnavailable: {
+    type: Boolean,
+    default: false,
   },
 });
 
