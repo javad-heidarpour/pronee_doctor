@@ -14,7 +14,7 @@ const props = defineProps({
   },
 });
 
-const bookingUrl = route("booking");
+const bookingUrl = route("booking", { slug: props.doctor.slug });
 
 const doctorName = computed(() => {
   return (
