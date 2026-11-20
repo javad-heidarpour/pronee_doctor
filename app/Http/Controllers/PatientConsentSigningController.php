@@ -27,6 +27,9 @@ final class PatientConsentSigningController extends Controller
             ->firstOrFail();
 
         abort_unless($model->hasValidContentHash(), 409, 'یکپارچگی متن رضایت‌نامه تأیید نشد؛ امضا متوقف شد.');
+        if ($model->status === PatientConsent::STATUS_SIGNED) {
+            abort_unless($model->hasValidSignature(), 409, 'یکپارچگی امضای الکترونیکی تأیید نشد.');
+        }
 
         $audit->handle('patient.consent.viewed', $model);
 
