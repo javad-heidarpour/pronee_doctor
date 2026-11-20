@@ -212,7 +212,8 @@ final class StaffAttendanceController extends Controller
         abort_unless($member,404,'کارمند در این مجموعه عضویت فعال ندارد.');
         $assigned = $member->clinic_ids ? json_decode($member->clinic_ids,true) : [];
         abort_unless(in_array((int)$data['clinic_id'],array_map('intval',is_array($assigned)?$assigned:[]),true),403,'کارمند به این شعبه تخصیص ندارد.');
-        DB::transaction(function () use ($organization, $data, $user = Auth::guard('web')->user()): void {
+        $user = Auth::guard('web')->user();
+        DB::transaction(function () use ($organization, $data, $user): void {
             // Serialize schedule writes per employee so parallel requests cannot create overlapping shifts.
             DB::table('users')->where('id', $data['staff_user_id'])->lockForUpdate()->first();
 
