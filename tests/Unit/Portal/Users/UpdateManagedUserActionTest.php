@@ -6,8 +6,11 @@ namespace Tests\Unit\Portal\Users;
 
 use App\Actions\Portal\Users\UpdateManagedUserAction;
 use App\Actions\Portal\Users\RestoreOrDeleteManagedUserAction;
+use App\Actions\Portal\Users\ChangeManagedUserStatusAction;
+use App\Actions\Portal\Users\CreateManagedUserAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
+use App\Models\Doctor;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,6 +31,7 @@ final class UpdateManagedUserActionTest extends TestCase
             $table->string('name')->nullable();
             $table->string('family')->nullable();
             $table->string('email')->nullable();
+            $table->string('username')->nullable();
             $table->string('phone')->nullable();
             $table->string('role')->nullable();
             $table->boolean('is_active')->default(true);
@@ -163,6 +167,69 @@ final class UpdateManagedUserActionTest extends TestCase
         $this->assertFalse($trashedUser->fresh()->trashed());
         $this->assertFalse((bool) $trashedUser->fresh()->is_active);
         $this->assertFalse((bool) DB::table('doctors')->where('id', 22)->value('is_active'));
+    }
+
+    public function test_creating_a_secretary_for_a_doctor_creates_the_direct_assignment(): void
+    {
+        DB::table('doctors')->insert([
+            'id' => 23,
+            'user_id' => 33,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $doctor = Doctor::query()->findOrFail(23);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')->once();
+
+        $user = app(CreateManagedUserAction::class)->handle([
+            'name' => 'New',
+            'family' => 'Secretary',
+            'phone' => '09120000001',
+            'email' => null,
+            'username' => 'new.secretary',
+            'password' => 'Password123!',
+            'role' => 'secretary',
+            'is_active' => true,
+        ], $audit, $doctor);
+
+        $this->assertSame('secretary', $user->role);
+        $this->assertTrue($user->is_active);
+        $this->assertDatabaseHas('doctor_user', [
+            'doctor_id' => 23,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_deactivating_a_doctor_account_also_deactivates_its_profile(): void
+    {
+        DB::table('users')->insert([
+            'id' => 14,
+            'name' => 'Doctor To Disable',
+            'role' => 'doctor',
+            'is_active' => true,
+            'remember_token' => 'old-remember-token',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('doctors')->insert([
+            'id' => 24,
+            'user_id' => 14,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = User::query()->findOrFail(14);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')->once();
+
+        $updated = app(ChangeManagedUserStatusAction::class)->handle($user, false, $audit);
+
+        $this->assertFalse((bool) $updated->is_active);
+        $this->assertNotSame('old-remember-token', $updated->remember_token);
+        $this->assertFalse((bool) DB::table('doctors')->where('id', 24)->value('is_active'));
     }
 
     public function test_admin_cannot_assign_doctor_role_without_a_doctor_profile(): void
