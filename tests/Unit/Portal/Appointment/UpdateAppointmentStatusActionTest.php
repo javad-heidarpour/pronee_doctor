@@ -73,6 +73,17 @@ final class UpdateAppointmentStatusActionTest extends TestCase
         $this->assertSame('available', $slot->fresh()->status);
     }
 
+    public function test_legacy_completed_appointment_is_immutable(): void
+    {
+        [$appointment, $slot] = $this->bookedAppointment('booked', 'completed');
+
+        $result = app(UpdateAppointmentStatusAction::class)->handle($appointment, 'cancelled');
+
+        $this->assertSame('already_visited', $result);
+        $this->assertSame('completed', $appointment->fresh()->status);
+        $this->assertSame('booked', $slot->fresh()->status);
+    }
+
     public function test_cancelled_appointment_cannot_be_reactivated_on_a_cancelled_slot(): void
     {
         [$appointment] = $this->bookedAppointment('cancelled', 'cancelled');
