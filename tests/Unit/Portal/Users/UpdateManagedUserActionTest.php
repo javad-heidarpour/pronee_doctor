@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit\Portal\Users;
 
 use App\Actions\Portal\Users\UpdateManagedUserAction;
+use App\Actions\Portal\Users\RestoreOrDeleteManagedUserAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class UpdateManagedUserActionTest extends TestCase
@@ -124,6 +126,72 @@ final class UpdateManagedUserActionTest extends TestCase
             'doctor_id' => 21,
             'user_id' => 11,
         ]);
+    }
+
+    public function test_deleting_and_restoring_a_doctor_account_keeps_its_public_profile_inactive(): void
+    {
+        DB::table('users')->insert([
+            'id' => 12,
+            'name' => 'Doctor Account',
+            'role' => 'doctor',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('doctors')->insert([
+            'id' => 22,
+            'user_id' => 12,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')->twice();
+
+        $user = User::query()->findOrFail(12);
+        $deleted = app(RestoreOrDeleteManagedUserAction::class)->handle($user, $audit);
+
+        $this->assertFalse($deleted);
+        $this->assertTrue($user->fresh()->trashed());
+        $this->assertFalse((bool) DB::table('doctors')->where('id', 22)->value('is_active'));
+
+        $trashedUser = User::withTrashed()->findOrFail(12);
+        $restored = app(RestoreOrDeleteManagedUserAction::class)->handle($trashedUser, $audit);
+
+        $this->assertTrue($restored);
+        $this->assertFalse($trashedUser->fresh()->trashed());
+        $this->assertFalse((bool) $trashedUser->fresh()->is_active);
+        $this->assertFalse((bool) DB::table('doctors')->where('id', 22)->value('is_active'));
+    }
+
+    public function test_admin_cannot_assign_doctor_role_without_a_doctor_profile(): void
+    {
+        DB::table('users')->insert([
+            'id' => 13,
+            'name' => 'Account Without Profile',
+            'role' => 'accountant',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = User::query()->findOrFail(13);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        try {
+            app(UpdateManagedUserAction::class)->handle(
+                $user,
+                ['role' => 'doctor'],
+                $audit
+            );
+            $this->fail('A doctor role requires a doctor profile.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('role', $exception->errors());
+        }
+
+        $this->assertSame('accountant', $user->fresh()->role);
     }
 
     public function test_changing_secretary_role_deactivates_organization_memberships_and_removes_direct_grants(): void
