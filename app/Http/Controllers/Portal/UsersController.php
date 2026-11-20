@@ -125,11 +125,12 @@ class UsersController extends Controller
         User $user,
         BuildManagedUserEditPageAction $pageAction
     ): Response {
+        $authUser = Auth::guard('web')->user();
         $this->authorizeUserManagement($user);
 
         return Inertia::render(
             'Portal/Users/Edit',
-            $pageAction->handle($user)
+            $pageAction->handle($user, $authUser)
         );
     }
 
