@@ -259,7 +259,7 @@ final class MedicalNetworkReferralTest extends TestCase
             'consent_at' => now(),
         ]);
 
-        $this->authenticateDoctor(200);
+        $this->authenticateDoctor(200, 22);
 
         $this->expectException(ValidationException::class);
 
@@ -321,7 +321,7 @@ final class MedicalNetworkReferralTest extends TestCase
         $audit->shouldReceive('handle')
             ->once()
             ->with('medical_network.referral_status_changed', Mockery::type(MedicalReferral::class), [
-                'doctor_id' => 200,
+                'doctor_id' => 22,
                 'status_changed' => true,
                 'changed_fields' => ['status'],
             ]);
@@ -404,13 +404,13 @@ final class MedicalNetworkReferralTest extends TestCase
         return [11, $patient, $provider];
     }
 
-    private function authenticateDoctor(int $userId): void
+    private function authenticateDoctor(int $userId, int $activeDoctorId = 11): void
     {
         $user = new User();
         $user->id = $userId;
         $user->role = 'doctor';
         $user->is_active = true;
         Auth::guard('web')->setUser($user);
-        session(['active_doctor_id' => 11]);
+        session(['active_doctor_id' => $activeDoctorId]);
     }
 }
