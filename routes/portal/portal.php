@@ -16,6 +16,7 @@ use App\Http\Controllers\Portal\ClinicOperationsController;
 use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
+use App\Http\Controllers\Portal\ClinicDiscountController;
 use App\Http\Controllers\Portal\MedicalNetworkController;
 use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
@@ -170,6 +171,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/medical-network/referrals/{referral}', [MedicalNetworkController::class, 'updateReferral'])->middleware('throttle:30,1')->name('medical-network.referrals.update');
 
         Route::get('/marketing', [ClinicMarketingController::class, 'index'])->name('marketing.index');
+        Route::get('/marketing/discount-codes', [ClinicDiscountController::class, 'index'])->name('marketing.discounts.index');
+        Route::post('/marketing/discount-codes', [ClinicDiscountController::class, 'store'])->middleware('throttle:10,1')->name('marketing.discounts.store');
+        Route::post('/marketing/discount-codes/{code}/toggle', [ClinicDiscountController::class, 'toggle'])->whereNumber('code')->name('marketing.discounts.toggle');
         Route::post('/marketing/campaigns', [ClinicMarketingController::class, 'store'])->name('marketing.store');
         Route::post('/marketing/campaigns/{campaign}/toggle', [ClinicMarketingController::class, 'toggle'])->whereNumber('campaign')->name('marketing.toggle');
 
