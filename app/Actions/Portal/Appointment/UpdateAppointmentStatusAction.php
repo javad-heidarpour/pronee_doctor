@@ -28,7 +28,7 @@ class UpdateAppointmentStatusAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedAppointment->status === 'visited') {
+            if (in_array($lockedAppointment->status, ['visited', 'completed'], true)) {
                 return 'already_visited';
             }
 
