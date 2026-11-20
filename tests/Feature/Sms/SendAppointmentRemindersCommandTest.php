@@ -16,6 +16,8 @@ final class SendAppointmentRemindersCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $doctorSequence = 0;
+
     public function test_scheduled_command_sends_only_for_confirmed_appointments_tomorrow(): void
     {
         config([
@@ -51,7 +53,10 @@ final class SendAppointmentRemindersCommandTest extends TestCase
 
     private function appointment(string $status, string $date): int
     {
-        $doctor = Doctor::factory()->create(['family' => 'آزمایشی']);
+        $doctor = Doctor::factory()->create([
+            'family' => 'آزمایشی',
+            'slug' => 'sms-reminder-test-' . (++$this->doctorSequence),
+        ]);
 
         $clinicId = DB::table('addresses')->insertGetId([
             'doctor_id' => $doctor->id,
