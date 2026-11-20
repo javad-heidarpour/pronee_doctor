@@ -1,17 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Sms;
 
+use App\Contracts\Sms\SmsGateway;
 use App\Models\Appointment;
 use App\Models\SmsLog;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Morilog\Jalali\Jalalian;
 use Throwable;
 
-class SendAppointmentReminderSmsAction
+final class SendAppointmentReminderSmsAction
 {
+    public function __construct(
+        private readonly SmsGateway $gateway
+    ) {
+    }
+
     /**
      * Send one configured reminder for a confirmed appointment.
      *
@@ -68,41 +75,16 @@ class SendAppointmentReminderSmsAction
             $date = Jalalian::fromDateTime($appointment->appointment_date)->format('j F Y');
             $time = substr((string) $appointment->appointment_time, 0, 5);
 
-            $response = Http::timeout(15)->withHeaders([
-                'ApiKey' => config('services.ghasedak.api_key'),
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ])->post(
-                'https://gateway.ghasedak.me/rest/api/v1/WebService/SendOtpSMS',
+            $this->gateway->sendTemplate(
+                $mobile,
+                $template,
                 [
-                    'sendDate' => null,
-                    'receptors' => [[
-                        'mobile' => $mobile,
-                        'clientReferenceId' => 'reminder-' . $appointment->id,
-                    ]],
-                    'templateName' => $template,
-                    'inputs' => [
-                        ['param' => 'param1', 'value' => $patientName],
-                        ['param' => 'param2', 'value' => $date . ' ساعت ' . $time],
-                        ['param' => 'param3', 'value' => $clinicAddress],
-                    ],
-                    'isVoice' => false,
-                ]
+                    ['param' => 'param1', 'value' => $patientName],
+                    ['param' => 'param2', 'value' => $date . ' ساعت ' . $time],
+                    ['param' => 'param3', 'value' => $clinicAddress],
+                ],
+                'reminder-' . $appointment->id
             );
-
-            if (!$response->successful() || $response->json('IsSuccess') === false) {
-                $smsLog->update([
-                    'status' => 'failed',
-                    'error_message' => 'provider_rejected_request',
-                ]);
-
-                Log::warning('Appointment reminder SMS rejected by provider', [
-                    'appointment_id' => $appointment->id,
-                    'http_status' => $response->status(),
-                ]);
-
-                return 'failed';
-            }
 
             $smsLog->update([
                 'status' => 'sent',
@@ -113,10 +95,10 @@ class SendAppointmentReminderSmsAction
         } catch (Throwable $exception) {
             $smsLog->update([
                 'status' => 'failed',
-                'error_message' => 'provider_connection_error',
+                'error_message' => 'provider_or_connection_error',
             ]);
 
-            Log::error('Appointment reminder SMS exception', [
+            Log::error('Appointment reminder SMS failed', [
                 'appointment_id' => $appointment->id,
                 'exception' => get_class($exception),
             ]);
