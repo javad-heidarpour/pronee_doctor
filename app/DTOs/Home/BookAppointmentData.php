@@ -14,6 +14,7 @@ final readonly class BookAppointmentData
         public ?string $description,
         public ?int $visitReasonId,
         public ?string $newVisitReason,
+        public ?string $discountCode = null,
     ) {
     }
 
@@ -34,6 +35,9 @@ final readonly class BookAppointmentData
                 : null,
             newVisitReason: isset($data['new_visit_reason'])
                 ? (string) $data['new_visit_reason']
+                : null,
+            discountCode: isset($data['discount_code']) && trim((string) $data['discount_code']) !== ''
+                ? strtoupper(trim((string) $data['discount_code']))
                 : null,
         );
     }
