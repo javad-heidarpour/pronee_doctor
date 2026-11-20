@@ -174,6 +174,85 @@ final class SyncOrganizationSecretaryDoctorAccessActionTest extends TestCase
         );
     }
 
+    public function test_detaching_a_clinic_revokes_only_that_clinic_and_clears_stale_member_selection(): void
+    {
+        $secretary = $this->secretary();
+        $doctor = $this->doctor();
+        $firstClinic = $this->clinic($doctor, 801);
+        $secondClinic = $this->clinic($doctor, 802);
+
+        $this->organizationGrant(801, $doctor, $secretary, $firstClinic, ['appointments.view']);
+        $this->organizationGrant(802, $doctor, $secretary, $secondClinic, ['patients.view']);
+        app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+        DB::table('clinic_organization_clinics')
+            ->where('organization_id', 801)
+            ->where('clinic_id', $firstClinic->id)
+            ->update(['status' => 'inactive']);
+        DB::table('addresses')->where('id', $firstClinic->id)->update(['organization_id' => null]);
+        DB::table('clinic_organization_members')
+            ->where('organization_id', 801)
+            ->where('user_id', $secretary->id)
+            ->update(['clinic_ids' => json_encode([])]);
+
+        app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+        $pivot = DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $secretary->id)->first();
+        $this->assertSame(['patients.view'], json_decode($pivot->permissions, true));
+        $this->assertSame([$secondClinic->id], json_decode($pivot->clinic_ids, true));
+        $this->assertSame([], json_decode(
+            DB::table('clinic_organization_members')
+                ->where('organization_id', 801)
+                ->where('user_id', $secretary->id)
+                ->value('clinic_ids'),
+            true
+        ));
+
+        // Reattaching the physical branch must not silently restore the old grant.
+        DB::table('clinic_organization_clinics')
+            ->where('organization_id', 801)
+            ->where('clinic_id', $firstClinic->id)
+            ->update(['status' => 'active']);
+        DB::table('addresses')->where('id', $firstClinic->id)->update(['organization_id' => 801]);
+
+        app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+        $pivot = DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $secretary->id)->first();
+        $this->assertSame([$secondClinic->id], json_decode($pivot->clinic_ids, true));
+    }
+
+    public function test_removing_doctor_from_one_organization_preserves_other_organization_grants(): void
+    {
+        $secretary = $this->secretary();
+        $doctor = $this->doctor();
+        $firstClinic = $this->clinic($doctor, 901);
+        $secondClinic = $this->clinic($doctor, 902);
+
+        $this->organizationGrant(901, $doctor, $secretary, $firstClinic, ['appointments.view']);
+        $this->organizationGrant(902, $doctor, $secretary, $secondClinic, ['patients.view']);
+        app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+        DB::table('clinic_organization_doctors')
+            ->where('organization_id', 901)
+            ->where('doctor_id', $doctor->id)
+            ->update(['status' => 'inactive']);
+        DB::table('clinic_organization_clinics')
+            ->where('organization_id', 901)
+            ->where('clinic_id', $firstClinic->id)
+            ->update(['status' => 'inactive']);
+        DB::table('addresses')->where('id', $firstClinic->id)->update(['organization_id' => null]);
+        DB::table('clinic_organization_members')
+            ->where('organization_id', 901)
+            ->where('user_id', $secretary->id)
+            ->update(['clinic_ids' => json_encode([])]);
+
+        app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($secretary, $doctor);
+
+        $pivot = DB::table('doctor_user')->where('doctor_id', $doctor->id)->where('user_id', $secretary->id)->first();
+        $this->assertSame(['patients.view'], json_decode($pivot->permissions, true));
+        $this->assertSame([$secondClinic->id], json_decode($pivot->clinic_ids, true));
+    }
+
     public function test_pending_doctor_membership_and_inactive_user_do_not_grant_access(): void
     {
         $secretary = $this->secretary();
