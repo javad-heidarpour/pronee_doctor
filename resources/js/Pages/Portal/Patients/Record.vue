@@ -107,6 +107,114 @@
         </div>
       </section>
 
+      <section v-if="patient.id && canViewClinicalRecords" class="space-y-4 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-black text-slate-900">تشخیص‌ها و فهرست مشکلات بیمار</h2>
+            <p class="mt-1 text-xs text-slate-500">مشکلات فعال، علائم، عوامل خطر و تشخیص‌های ثبت‌شده در پرونده همین پزشک</p>
+          </div>
+          <span class="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">{{ patient.problems.length.toLocaleString('fa-IR') }} مورد</span>
+        </div>
+
+        <form v-if="canManageClinicalRecords" @submit.prevent="saveProblem" class="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              دسته‌بندی
+              <select v-model="problemForm.category" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="diagnosis">تشخیص</option>
+                <option value="condition">بیماری / وضعیت</option>
+                <option value="symptom">علامت</option>
+                <option value="risk_factor">عامل خطر</option>
+              </select>
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              عنوان تشخیص یا مشکل
+              <input v-model="problemForm.title" required maxlength="180" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="مثلاً دیابت نوع ۲" />
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              کد تشخیصی (اختیاری)
+              <input v-model="problemForm.code" maxlength="64" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="مثلاً E11.9" dir="ltr" />
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              نظام کدگذاری
+              <select v-model="problemForm.code_system" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="local">کد محلی / آزاد</option>
+                <option value="icd10">ICD-10</option>
+                <option value="snomed_ct">SNOMED CT</option>
+              </select>
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              شدت
+              <select v-model="problemForm.severity" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="">ثبت نشده</option>
+                <option value="mild">خفیف</option>
+                <option value="moderate">متوسط</option>
+                <option value="severe">شدید</option>
+                <option value="critical">بحرانی</option>
+              </select>
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              وضعیت
+              <select v-model="problemForm.status" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="active">فعال</option>
+                <option value="resolved">برطرف‌شده</option>
+                <option value="inactive">غیرفعال</option>
+              </select>
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              تاریخ شروع
+              <input v-model="problemForm.onset_date" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+            </label>
+            <label v-if="problemForm.status === 'resolved'" class="space-y-1 text-xs font-bold text-slate-600">
+              تاریخ برطرف‌شدن
+              <input v-model="problemForm.resolved_on" type="date" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+            </label>
+            <label class="space-y-1 text-xs font-bold text-slate-600">
+              منبع اطلاعات
+              <select v-model="problemForm.source" required class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                <option value="clinician_assessed">ارزیابی پزشک</option>
+                <option value="patient_reported">اظهار بیمار</option>
+              </select>
+            </label>
+          </div>
+          <label class="block space-y-1 text-xs font-bold text-slate-600">
+            شرح و توضیحات
+            <textarea v-model="problemForm.description" rows="2" maxlength="5000" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="توضیح تکمیلی، شواهد یا ملاحظات بالینی"></textarea>
+          </label>
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" :disabled="savingProblem" class="rounded-lg bg-indigo-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">
+              {{ savingProblem ? 'در حال ذخیره...' : (editingProblemId ? 'ذخیره تغییرات' : 'ثبت تشخیص / مشکل') }}
+            </button>
+            <button v-if="editingProblemId" type="button" @click="resetProblemForm" class="rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600">انصراف</button>
+          </div>
+        </form>
+
+        <div v-if="patient.problems.length" class="grid gap-3 md:grid-cols-2">
+          <article v-for="problem in patient.problems" :key="problem.id" class="rounded-xl border border-slate-100 p-4">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">{{ problemCategoryLabel(problem.category) }}</span>
+                  <h3 class="text-sm font-black text-slate-800">{{ problem.title }}</h3>
+                </div>
+                <p v-if="problem.code" class="mt-1 text-xs text-slate-500" dir="ltr">{{ problem.code }} · {{ problem.code_system.toUpperCase() }}</p>
+              </div>
+              <span class="rounded-md px-2 py-1 text-[10px] font-bold" :class="problem.status === 'active' ? 'bg-emerald-50 text-emerald-700' : problem.status === 'resolved' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600'">{{ problemStatusLabel(problem.status) }}</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+              <span v-if="problem.severity">شدت: {{ problemSeverityLabel(problem.severity) }}</span>
+              <span v-if="problem.onset_date">شروع: {{ formatDate(problem.onset_date) }}</span>
+              <span v-if="problem.resolved_on">رفع: {{ formatDate(problem.resolved_on) }}</span>
+              <span>{{ problem.source === 'patient_reported' ? 'اظهار بیمار' : 'ارزیابی پزشک' }}</span>
+            </div>
+            <p v-if="problem.description" class="mt-2 whitespace-pre-line text-xs leading-6 text-slate-600">{{ problem.description }}</p>
+            <button v-if="canManageClinicalRecords" type="button" @click="editProblem(problem)" class="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ویرایش</button>
+          </article>
+        </div>
+        <p v-else class="rounded-xl bg-slate-50 p-5 text-center text-xs text-slate-500">تشخیص یا مشکل بالینی ثبت نشده است.</p>
+        <p class="text-[10px] leading-5 text-slate-400">کدهای ICD-10 و SNOMED CT در این نسخه به‌صورت دستی ثبت می‌شوند و به سامانه مرجع کدگذاری متصل نیستند.</p>
+      </section>
+
       <section v-if="patient.id && canViewClinicalRecords" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -468,6 +576,7 @@ const patient = computed(() => {
     clinical_records: profile.clinical_records || [],
     archived_clinical_records: profile.archived_clinical_records || [],
     vital_signs: profile.vital_signs || [],
+    problems: profile.problems || [],
   };
 });
 
@@ -602,6 +711,63 @@ const saveVitalSign = () => {
 };
 const vitalLabel = (type) => vitalTypes.find(item => item.value === type)?.label || 'اندازه‌گیری';
 const formatVitalDate = (value) => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
+
+const editingProblemId = ref(null);
+const savingProblem = ref(false);
+const problemForm = reactive({
+  category: 'diagnosis',
+  title: '',
+  code: '',
+  code_system: 'local',
+  description: '',
+  status: 'active',
+  severity: '',
+  onset_date: '',
+  resolved_on: '',
+  source: 'clinician_assessed',
+});
+const resetProblemForm = () => {
+  editingProblemId.value = null;
+  Object.assign(problemForm, {
+    category: 'diagnosis', title: '', code: '', code_system: 'local',
+    description: '', status: 'active', severity: '', onset_date: '',
+    resolved_on: '', source: 'clinician_assessed',
+  });
+};
+const editProblem = (problem) => {
+  editingProblemId.value = problem.id;
+  Object.assign(problemForm, {
+    category: problem.category || 'diagnosis',
+    title: problem.title || '',
+    code: problem.code || '',
+    code_system: problem.code_system || 'local',
+    description: problem.description || '',
+    status: problem.status || 'active',
+    severity: problem.severity || '',
+    onset_date: problem.onset_date || '',
+    resolved_on: problem.resolved_on || '',
+    source: problem.source || 'clinician_assessed',
+  });
+};
+const saveProblem = () => {
+  savingProblem.value = true;
+  const payload = { ...problemForm };
+  const url = editingProblemId.value
+    ? route('portal.patients.problems.update', { patient: patient.value.id, problem: editingProblemId.value })
+    : route('portal.patients.problems.store', { patient: patient.value.id });
+  const options = { preserveScroll: true, onFinish: () => { savingProblem.value = false; }, onSuccess: () => resetProblemForm() };
+  if (editingProblemId.value) router.put(url, payload, options);
+  else router.post(url, payload, options);
+};
+const problemCategoryLabel = (value) => ({
+  diagnosis: 'تشخیص', condition: 'بیماری / وضعیت', symptom: 'علامت', risk_factor: 'عامل خطر',
+}[value] || 'مشکل بالینی');
+const problemStatusLabel = (value) => ({
+  active: 'فعال', resolved: 'برطرف‌شده', inactive: 'غیرفعال',
+}[value] || 'نامشخص');
+const problemSeverityLabel = (value) => ({
+  mild: 'خفیف', moderate: 'متوسط', severe: 'شدید', critical: 'بحرانی',
+}[value] || 'نامشخص');
 
 const editingClinicalRecordId = ref(null);
 const savingClinicalRecord = ref(false);
