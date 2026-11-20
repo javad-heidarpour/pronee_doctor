@@ -73,7 +73,7 @@ final class ClinicBusinessLeadControllerTest extends TestCase
         ]);
         $response=app(ClinicBusinessLeadController::class)->index(Request::create('/portal/marketing/leads','GET'));
         $this->assertInstanceOf(Response::class,$response);
-        $item=$response->getProps()['leads']['data'][0];
+        $item=$response->toResponse(request())->getData(true)['page']['props']['leads']['data'][0];
         $this->assertSame('0912••••222',$item['phone_masked']);
         $this->assertArrayNotHasKey('phone',$item);
 
