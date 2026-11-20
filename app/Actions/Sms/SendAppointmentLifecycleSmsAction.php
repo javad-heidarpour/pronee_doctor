@@ -60,7 +60,7 @@ final class SendAppointmentLifecycleSmsAction
             return 'skipped';
         }
 
-        if ($event === 'updated' && !in_array($appointment->status, ['pending', 'confirmed'], true)) {
+        if ($event === 'updated' && !in_array($appointment->status, ['pending', 'confirmed', 'contacted'], true)) {
             return 'skipped';
         }
 
