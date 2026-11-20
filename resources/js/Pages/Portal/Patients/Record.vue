@@ -7,9 +7,14 @@
           <h1 class="mt-1 text-xl font-black text-slate-900">{{ patient.patient_name || 'بیمار بدون نام' }}</h1>
           <p class="mt-2 text-sm text-slate-500">سوابق ثبت‌شده نزد همین پزشک در مطب‌های قابل دسترس</p>
         </div>
-        <Link :href="route('portal.patients.directory')" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
-          بازگشت به دفترچه بیماران
-        </Link>
+        <div class="flex flex-wrap gap-2">
+          <Link v-if="patient.id && canViewClinicalRecords" :href="route('portal.patients.documents.index', patient.id)" class="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800">
+            اسناد پزشکی
+          </Link>
+          <Link :href="route('portal.patients.directory')" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
+            بازگشت به دفترچه بیماران
+          </Link>
+        </div>
       </header>
 
       <section v-if="canViewClinicalRecords" class="rounded-2xl border p-4" :class="activeAllergies.length ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50'">
