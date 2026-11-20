@@ -24,6 +24,8 @@ final class ShowDoctorProfileAction
             ->where('slug', $slug)
             ->firstOrFail();
 
+        $doctor->load($this->publicRelations());
+
         return $this->render($doctor);
     }
 
