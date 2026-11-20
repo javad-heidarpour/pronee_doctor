@@ -67,6 +67,42 @@ final class RecordPatientVitalSignActionTest extends TestCase
         ]);
     }
 
+    public function test_it_rejects_a_measurement_timestamp_in_the_future(): void
+    {
+        $doctor = Doctor::query()->create(['name' => 'Doctor', 'slug' => 'doctor-vitals-future']);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Patient',
+            'phone' => '09120000000',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(RecordPatientVitalSignAction::class)->handle($patient, [
+            'measurement_type' => 'heart_rate',
+            'value' => 78,
+            'measured_at' => now()->addMinute()->toDateTimeString(),
+        ]);
+    }
+
+    public function test_it_rejects_non_numeric_values_even_when_called_without_a_form_request(): void
+    {
+        $doctor = Doctor::query()->create(['name' => 'Doctor', 'slug' => 'doctor-vitals-nonnumeric']);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Patient',
+            'phone' => '09120000000',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(RecordPatientVitalSignAction::class)->handle($patient, [
+            'measurement_type' => 'heart_rate',
+            'value' => 'not-a-number',
+            'measured_at' => '2026-11-18 10:30:00',
+        ]);
+    }
+
     public function test_it_records_a_vital_sign_with_a_server_defined_unit(): void
     {
         $doctor = Doctor::query()->create(['name' => 'Doctor', 'slug' => 'doctor-vitals']);
