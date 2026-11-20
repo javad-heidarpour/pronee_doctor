@@ -17,10 +17,12 @@ class BuildPatientIndexOptionsAction
                 ->select('addresses.id', 'addresses.name')
                 ->get(),
             'visitReasons' => VisitReason::query()
+                ->where('doctor_id', $doctor->id)
                 ->select('id', 'title')
                 ->orderBy('title')
                 ->get(),
             'surgeryTypes' => SurgeryType::query()
+                ->where('doctor_id', $doctor->id)
                 ->select('id', 'title')
                 ->orderBy('title')
                 ->get(),

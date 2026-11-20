@@ -118,8 +118,20 @@ class CreatePortalAppointmentAction
 
             if ($newVisitReason !== '') {
                 $visitReasonId = VisitReason::firstOrCreate([
+                    'doctor_id' => $doctor->id,
                     'title' => $newVisitReason,
                 ])->id;
+            } elseif ($visitReasonId !== null) {
+                $reasonBelongsToDoctor = VisitReason::query()
+                    ->whereKey($visitReasonId)
+                    ->where('doctor_id', $doctor->id)
+                    ->exists();
+
+                if (!$reasonBelongsToDoctor) {
+                    throw ValidationException::withMessages([
+                        'visit_reason_id' => 'علت مراجعه انتخاب‌شده متعلق به پزشک فعال نیست.',
+                    ]);
+                }
             }
 
             $fee = Fee::where('created_by', $timeSlot->doctor_id)

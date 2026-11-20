@@ -49,14 +49,20 @@ return new class extends Migration
 
         Schema::create('visit_reasons', function (Blueprint $table): void {
             $table->id();
-            $table->string('title')->unique();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('title');
             $table->timestamps();
+            $table->unique(['doctor_id', 'title'], 'visit_reasons_doctor_title_unique');
+            $table->unique(['id', 'doctor_id'], 'visit_reasons_id_doctor_unique');
         });
 
         Schema::create('surgery_types', function (Blueprint $table): void {
             $table->id();
-            $table->string('title')->unique();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('title');
             $table->timestamps();
+            $table->unique(['doctor_id', 'title'], 'surgery_types_doctor_title_unique');
+            $table->unique(['id', 'doctor_id'], 'surgery_types_id_doctor_unique');
         });
 
         Schema::create('social_platforms', function (Blueprint $table): void {
@@ -105,6 +111,16 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->string('role')->default('doctor');
+        });
+
+        Schema::table('visit_reasons', function (Blueprint $table): void {
+            $table->foreign('doctor_id', 'visit_reasons_doctor_fk')
+                ->references('id')->on('doctors')->cascadeOnDelete();
+        });
+
+        Schema::table('surgery_types', function (Blueprint $table): void {
+            $table->foreign('doctor_id', 'surgery_types_doctor_fk')
+                ->references('id')->on('doctors')->cascadeOnDelete();
         });
 
         Schema::create('addresses', function (Blueprint $table): void {
@@ -179,8 +195,8 @@ return new class extends Migration
 
         Schema::create('appointments', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('visit_reason_id')->nullable()->constrained('visit_reasons')->nullOnDelete()->cascadeOnUpdate();
-            $table->foreignId('surgery_type_id')->nullable()->constrained('surgery_types')->nullOnDelete()->cascadeOnUpdate();
+            $table->unsignedBigInteger('visit_reason_id')->nullable();
+            $table->unsignedBigInteger('surgery_type_id')->nullable();
             $table->date('surgery_date')->nullable();
             $table->text('description')->nullable();
             $table->foreignId('doctor_id')->constrained('doctors')->cascadeOnDelete();
@@ -206,6 +222,12 @@ return new class extends Migration
                 ['time_slot_id', 'clinic_id', 'doctor_id'],
                 'appointments_slot_clinic_doctor_index'
             );
+            $table->index(['visit_reason_id', 'doctor_id'], 'appointments_visit_reason_doctor_fk');
+            $table->index(['surgery_type_id', 'doctor_id'], 'appointments_surgery_type_doctor_index');
+            $table->foreign(['visit_reason_id', 'doctor_id'], 'appointments_visit_reason_doctor_fk')
+                ->references(['id', 'doctor_id'])->on('visit_reasons')->restrictOnDelete()->cascadeOnUpdate();
+            $table->foreign(['surgery_type_id', 'doctor_id'], 'appointments_surgery_type_doctor_fk')
+                ->references(['id', 'doctor_id'])->on('surgery_types')->restrictOnDelete()->cascadeOnUpdate();
             $table->foreign(['clinic_id', 'doctor_id'], 'appointments_clinic_doctor_fk')
                 ->references(['id', 'doctor_id'])
                 ->on('addresses')
