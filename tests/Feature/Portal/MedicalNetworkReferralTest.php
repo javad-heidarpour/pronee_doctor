@@ -273,6 +273,69 @@ final class MedicalNetworkReferralTest extends TestCase
         );
     }
 
+    public function test_sender_cannot_change_a_referral_from_another_active_doctor_profile(): void
+    {
+        [$doctor, $patient, $provider] = $this->seedReferralContext();
+        $referral = MedicalReferral::query()->create([
+            'tracking_code' => 'REF-TEST-003',
+            'patient_id' => $patient,
+            'referring_doctor_id' => $doctor,
+            'target_provider_id' => $provider,
+            'created_by_user_id' => 99,
+            'source_clinic_id' => 31,
+            'service_type' => 'laboratory',
+            'requested_services' => ['CBC'],
+            'priority' => 'normal',
+            'status' => 'sent',
+            'reason' => 'درخواست آزمایش',
+            'consent_at' => now(),
+        ]);
+
+        // The same account owns another doctor profile, but it is not the referral's sender profile.
+        $this->authenticateDoctor(99, 22);
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+
+        (new MedicalNetworkController())->updateReferral(
+            Request::create('/portal/medical-network/referrals/'.$referral->id, 'PATCH', [
+                'status' => 'cancelled',
+            ]),
+            $referral,
+            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            Mockery::mock(RecordSecurityAuditEventAction::class)
+        );
+    }
+
+    public function test_recipient_must_select_the_doctor_profile_that_owns_the_target_provider(): void
+    {
+        [$doctor, $patient, $provider] = $this->seedReferralContext();
+        $referral = MedicalReferral::query()->create([
+            'tracking_code' => 'REF-TEST-004',
+            'patient_id' => $patient,
+            'referring_doctor_id' => $doctor,
+            'target_provider_id' => $provider,
+            'created_by_user_id' => 99,
+            'source_clinic_id' => 31,
+            'service_type' => 'laboratory',
+            'requested_services' => ['CBC'],
+            'priority' => 'normal',
+            'status' => 'sent',
+            'reason' => 'درخواست آزمایش',
+            'consent_at' => now(),
+        ]);
+
+        $this->authenticateDoctor(200, 11);
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+
+        (new MedicalNetworkController())->updateReferral(
+            Request::create('/portal/medical-network/referrals/'.$referral->id, 'PATCH', [
+                'status' => 'accepted',
+            ]),
+            $referral,
+            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            Mockery::mock(RecordSecurityAuditEventAction::class)
+        );
+    }
+
     public function test_provider_must_explain_a_referral_rejection(): void
     {
         [$doctor, $patient, $provider] = $this->seedReferralContext();
