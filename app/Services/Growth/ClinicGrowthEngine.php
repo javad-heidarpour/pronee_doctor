@@ -101,6 +101,7 @@ final class ClinicGrowthEngine
             ->join('clinic_marketing_campaigns as c', 'c.id', '=', 'e.campaign_id')
             ->where('c.doctor_id', $doctorId)
             ->where(fn ($q) => $q->whereNull('c.clinic_id')->orWhereIn('c.clinic_id', $scope))
+            ->whereBetween('e.occurred_at', [$from, $to])
             ->selectRaw("SUM(CASE WHEN e.event_type = 'click' THEN 1 ELSE 0 END) as clicks")
             ->selectRaw("SUM(CASE WHEN e.event_type = 'booking' THEN 1 ELSE 0 END) as bookings")
             ->first();
