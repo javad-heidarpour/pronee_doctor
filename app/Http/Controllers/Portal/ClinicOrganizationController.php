@@ -246,8 +246,17 @@ class ClinicOrganizationController extends Controller
     {
         $this->authorizeOwner($organization);
         $user = $organization->members()->whereKey($member)->firstOrFail();
-        DB::transaction(function () use ($organization, $user): void {
+        $doctors = $organization->doctors()->wherePivot('status', 'active')->get();
+
+        DB::transaction(function () use ($organization, $user, $doctors): void {
             $organization->members()->detach($user->id);
+
+            // Recalculate the removed member against every remaining organization
+            // before syncing the rest of this organization's active staff.
+            foreach ($doctors as $doctor) {
+                app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($user, $doctor);
+            }
+
             $this->syncOrganizationSecretaryAccess($organization);
         });
         return back()->with('success', 'دسترسی کارمند به مجموعه لغو شد.');
