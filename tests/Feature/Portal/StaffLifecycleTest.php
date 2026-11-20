@@ -196,6 +196,35 @@ final class StaffLifecycleTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('clinic_staff_responsibilities', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('staff_user_id');
+            $table->string('title', 160);
+            $table->text('description');
+            $table->string('priority', 16)->default('normal');
+            $table->string('status', 16)->default('active');
+            $table->date('effective_from');
+            $table->date('effective_until')->nullable();
+            $table->date('review_at')->nullable();
+            $table->unsignedBigInteger('created_by');
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('clinic_staff_responsibility_events', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('responsibility_id');
+            $table->unsignedBigInteger('actor_user_id')->nullable();
+            $table->string('event_type', 24);
+            $table->text('old_values')->nullable();
+            $table->text('new_values')->nullable();
+            $table->string('reason', 500)->nullable();
+            $table->timestamp('created_at')->nullable();
+        });
+
         Schema::create('clinic_staff_payrolls', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('organization_id');
@@ -414,6 +443,110 @@ final class StaffLifecycleTest extends TestCase
         $this->assertNotNull($suggestion);
         $this->assertSame($clinicId, $suggestion['clinic_id']);
         $this->assertSame([$candidate->id], collect($suggestion['candidates'])->pluck('user_id')->all());
+    }
+
+    public function test_owner_can_create_update_and_archive_staff_responsibilities_with_audit_history(): void
+    {
+        [$owner, $doctorId, $organizationId, $clinicId] = $this->ownedOrganization();
+        $staff = $this->user('secretary');
+        DB::table('clinic_organization_members')->insert([
+            'organization_id' => $organizationId,
+            'user_id' => $staff->id,
+            'role' => 'receptionist',
+            'permissions' => json_encode(['staff.attendance.view']),
+            'clinic_ids' => json_encode([$clinicId]),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+        session(['active_doctor_id' => $doctorId]);
+
+        $controller = app(StaffResponsibilitiesController::class);
+        $payload = [
+            'organization_id' => $organizationId,
+            'clinic_id' => $clinicId,
+            'staff_user_id' => $staff->id,
+            'title' => 'پاسخ‌گویی و پذیرش',
+            'description' => 'ثبت و پیگیری درخواست‌های مراجعه‌کنندگان و هماهنگی نوبت‌ها.',
+            'priority' => 'important',
+            'status' => 'active',
+            'effective_from' => '2026-11-20',
+            'effective_until' => '2027-11-19',
+            'review_at' => '2027-02-20',
+        ];
+
+        $controller->store(Request::create('/portal/staff-responsibilities', 'POST', $payload));
+        $responsibility = DB::table('clinic_staff_responsibilities')->first();
+
+        $this->assertNotNull($responsibility);
+        $this->assertSame('پاسخ‌گویی و پذیرش', $responsibility->title);
+        $this->assertSame('active', $responsibility->status);
+        $this->assertDatabaseHas('clinic_staff_responsibility_events', [
+            'responsibility_id' => $responsibility->id,
+            'event_type' => 'created',
+            'actor_user_id' => $owner->id,
+        ]);
+
+        $payload['title'] = 'پذیرش و پیگیری مراجعان';
+        $payload['status'] = 'paused';
+        $controller->update(Request::create('/portal/staff-responsibilities/'.$responsibility->id, 'PUT', $payload), (int) $responsibility->id);
+
+        $this->assertDatabaseHas('clinic_staff_responsibilities', [
+            'id' => $responsibility->id,
+            'title' => 'پذیرش و پیگیری مراجعان',
+            'status' => 'paused',
+            'updated_by' => $owner->id,
+        ]);
+        $this->assertDatabaseHas('clinic_staff_responsibility_events', [
+            'responsibility_id' => $responsibility->id,
+            'event_type' => 'updated',
+        ]);
+
+        $controller->destroy((int) $responsibility->id);
+        $this->assertSoftDeleted('clinic_staff_responsibilities', ['id' => $responsibility->id]);
+        $this->assertDatabaseHas('clinic_staff_responsibility_events', [
+            'responsibility_id' => $responsibility->id,
+            'event_type' => 'deleted',
+        ]);
+    }
+
+    public function test_staff_responsibility_cannot_be_assigned_outside_the_members_clinic_scope(): void
+    {
+        [$owner, $doctorId, $organizationId, $clinicId] = $this->ownedOrganization();
+        $otherClinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $doctorId, 'organization_id' => $organizationId, 'name' => 'Other clinic',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('clinic_organization_clinics')->insert([
+            'organization_id' => $organizationId, 'clinic_id' => $otherClinicId,
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $staff = $this->user('secretary');
+        DB::table('clinic_organization_members')->insert([
+            'organization_id' => $organizationId,
+            'user_id' => $staff->id,
+            'role' => 'receptionist',
+            'permissions' => json_encode(['staff.attendance.view']),
+            'clinic_ids' => json_encode([$clinicId]),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+        session(['active_doctor_id' => $doctorId]);
+
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        app(StaffResponsibilitiesController::class)->store(Request::create('/portal/staff-responsibilities', 'POST', [
+            'organization_id' => $organizationId,
+            'clinic_id' => $otherClinicId,
+            'staff_user_id' => $staff->id,
+            'title' => 'مسئولیت خارج از محدوده',
+            'description' => 'این تخصیص باید رد شود.',
+            'priority' => 'normal',
+            'status' => 'active',
+            'effective_from' => '2026-11-20',
+        ]));
     }
 
     private function ownedOrganization(): array
