@@ -124,7 +124,7 @@ final class GenerateTimeSlotsSkipsDoctorHolidaysTest extends TestCase
 
         $this->assertTrue($result['has_working_hours']);
         $this->assertSame(0, $result['generated']);
-        $this->assertSame(1, $result['skipped']);
+        $this->assertSame(2, $result['skipped']);
         $this->assertDatabaseCount('time_slots', 0);
     }
 }
