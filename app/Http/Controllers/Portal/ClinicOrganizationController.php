@@ -141,7 +141,15 @@ class ClinicOrganizationController extends Controller
         $doctor = $user->doctorProfile()->firstOrFail();
         $membership = $organization->doctors()->whereKey($doctor->id)->first();
         abort_unless($membership && $membership->pivot->status === 'pending', 404);
-        $organization->doctors()->updateExistingPivot($doctor->id, ['status' => 'active', 'joined_at' => today()]);
+        DB::transaction(function () use ($organization, $doctor): void {
+            $organization->doctors()->updateExistingPivot($doctor->id, [
+                'status' => 'active',
+                'joined_at' => today(),
+            ]);
+
+            $this->syncOrganizationSecretaryAccess($organization, $doctor);
+        });
+
         return back()->with('success', 'عضویت پزشک در مجموعه تأیید شد.');
     }
 
@@ -186,6 +194,8 @@ class ClinicOrganizationController extends Controller
             $organization->clinics()->syncWithoutDetaching([$clinic->id => $pivot]);
             $organization->clinics()->updateExistingPivot($clinic->id, $pivot);
             $clinic->update(['organization_id' => $organization->id]);
+
+            $this->syncOrganizationSecretaryAccess($organization);
         });
 
         return back()->with('success', 'شعبه به مجموعه متصل شد.');
@@ -227,10 +237,7 @@ class ClinicOrganizationController extends Controller
                     'is_active' => true,
                 ],
             ]);
-            $doctors = $organization->doctors()->wherePivot('status', 'active')->get();
-            foreach ($doctors as $doctor) {
-                app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($member, $doctor);
-            }
+            $this->syncOrganizationSecretaryAccess($organization);
         });
         return back()->with('success', 'کارمند به مجموعه و شعبه‌های انتخاب‌شده متصل شد.');
     }
@@ -241,11 +248,34 @@ class ClinicOrganizationController extends Controller
         $user = $organization->members()->whereKey($member)->firstOrFail();
         DB::transaction(function () use ($organization, $user): void {
             $organization->members()->detach($user->id);
-            foreach ($organization->doctors()->get() as $doctor) {
-                app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($user, $doctor);
-            }
+            $this->syncOrganizationSecretaryAccess($organization);
         });
         return back()->with('success', 'دسترسی کارمند به مجموعه لغو شد.');
+    }
+
+    /**
+     * Reconcile legacy doctor_user grants whenever organization doctors,
+     * clinics, or staff memberships change.
+     */
+    private function syncOrganizationSecretaryAccess(
+        ClinicOrganization $organization,
+        ?Doctor $onlyDoctor = null
+    ): void {
+        $doctors = $onlyDoctor
+            ? collect([$onlyDoctor])
+            : $organization->doctors()->wherePivot('status', 'active')->get();
+
+        $members = $organization->members()
+            ->where('users.role', 'secretary')
+            ->where('users.is_active', true)
+            ->wherePivot('is_active', true)
+            ->get();
+
+        foreach ($doctors as $doctor) {
+            foreach ($members as $member) {
+                app(SyncOrganizationSecretaryDoctorAccessAction::class)->handle($member, $doctor);
+            }
+        }
     }
 
     private function authorizeOwner(ClinicOrganization $organization): void
