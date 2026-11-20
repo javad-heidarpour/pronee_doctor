@@ -30,7 +30,7 @@ final class BookAppointmentActionTest extends TestCase
             $table->string('slug')->nullable();
             $table->boolean('is_active')->default(true);
             $table->softDeletes();
-            $table->softDeletes();
+            
             $table->timestamps();
         });
 
@@ -39,6 +39,7 @@ final class BookAppointmentActionTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
