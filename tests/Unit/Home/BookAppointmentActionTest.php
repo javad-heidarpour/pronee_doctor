@@ -446,6 +446,46 @@ final class BookAppointmentActionTest extends TestCase
         $this->assertSame(0, DB::table('appointments')->count());
     }
 
+    public function test_valid_campaign_context_is_attributed_to_the_booked_appointment_once(): void
+    {
+        $this->createMarketingSchema();
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        $campaignId = DB::table('clinic_marketing_campaigns')->insertGetId([
+            'doctor_id'=>$doctor->id,'clinic_id'=>$clinic->id,'name'=>'Campaign','code'=>'CAMPAIGN1',
+            'status'=>'active','starts_at'=>now()->subDay(),'ends_at'=>now()->addDay(),
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        session([
+            'proneex_marketing_campaign_id'=>$campaignId,
+            'proneex_marketing_doctor_id'=>$doctor->id,
+            'proneex_marketing_expires_at'=>now()->addDays(2)->timestamp,
+        ]);
+
+        $appointment = app(BookAppointmentAction::class)->handle(BookAppointmentData::fromValidated([
+            'time_slot_id'=>$slot->id,'patient_name'=>'Campaign Patient','patient_phone'=>'09127770000',
+        ]));
+
+        $this->assertDatabaseHas('clinic_marketing_events',[
+            'campaign_id'=>$campaignId,'appointment_id'=>$appointment->id,'event_type'=>'booking',
+        ]);
+        $this->assertNull(session('proneex_marketing_campaign_id'));
+    }
+
+    private function createMarketingSchema(): void
+    {
+        Schema::create('clinic_marketing_campaigns',function(Blueprint $table):void{
+            $table->id();$table->unsignedBigInteger('doctor_id');$table->unsignedBigInteger('clinic_id')->nullable();
+            $table->string('name');$table->string('code');$table->string('status');$table->timestamp('starts_at')->nullable();
+            $table->timestamp('ends_at')->nullable();$table->timestamps();
+        });
+        Schema::create('clinic_marketing_events',function(Blueprint $table):void{
+            $table->id();$table->unsignedBigInteger('campaign_id');$table->unsignedBigInteger('appointment_id')->nullable();
+            $table->string('event_type');$table->timestamp('occurred_at');$table->timestamps();
+        });
+    }
+
     private function createDiscountSchema(): void
     {
         Schema::table('appointments', function (Blueprint $table): void {
