@@ -101,6 +101,10 @@ final class StaffCredentialsTest extends TestCase
             'user_id' => $this->owner->id, 'name' => 'Owner', 'family' => 'Doctor',
             'slug' => 'owner-credentials', 'is_active' => true,
         ]);
+        $this->clinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $this->doctor->id, 'name' => 'Main clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         DB::table('doctor_user')->insert(['doctor_id' => $this->doctor->id, 'user_id' => $this->owner->id]);
         DB::table('doctor_user')->insert([
             'doctor_id' => $this->doctor->id, 'user_id' => $this->staff->id,
@@ -112,10 +116,6 @@ final class StaffCredentialsTest extends TestCase
         $this->organization = ClinicOrganization::query()->create([
             'owner_user_id' => $this->owner->id, 'name' => 'Credentials Organization',
             'slug' => 'credentials-org', 'timezone' => 'Asia/Tehran', 'status' => 'active',
-        ]);
-        $this->clinicId = DB::table('addresses')->insertGetId([
-            'doctor_id' => $this->doctor->id, 'name' => 'Main clinic', 'is_active' => true,
-            'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('clinic_organization_doctors')->insert([
             'organization_id' => $this->organization->id, 'doctor_id' => $this->doctor->id,
