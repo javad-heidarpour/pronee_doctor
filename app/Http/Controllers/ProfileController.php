@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Actions\Portal\DoctorProfile\ChangeDoctorPasswordAction;
 use App\Actions\Portal\Profile\DeleteProfileAction;
 use App\Actions\Portal\Profile\UpdateProfileAction;
+use App\Actions\Home\ShowDoctorProfileAction;
 use App\Http\Requests\Profile\DeleteProfileRequest;
 use App\Http\Requests\Profile\UpdateProfilePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
