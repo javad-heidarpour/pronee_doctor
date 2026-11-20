@@ -1,46 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Home;
 
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\DoctorWorkingHour;
 
-class BuildPublicWorkingHoursAction
+final class BuildPublicWorkingHoursAction
 {
-    public function handle(Doctor $doctor)
+    public function handle(Doctor $doctor): array
     {
-        $workingHours = DoctorWorkingHour::with('clinic')
+        $clinics = $doctor->address()
+            ->where('is_active', true)
+            ->with('city')
+            ->orderBy('id')
+            ->get();
+
+        $workingHours = DoctorWorkingHour::query()
+            ->with('clinic')
             ->where('doctor_id', $doctor->id)
             ->where('is_active', true)
+            ->whereIn('clinic_id', $clinics->pluck('id'))
             ->whereHas('clinic', fn ($query) => $query->where('is_active', true))
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get()
-            ->groupBy(function ($hour) {
-                return $hour->day_of_week . '_' . $hour->clinic_id;
-            })
-            ->map(function ($hours) {
-                $firstHour = $hours->first();
-
-                return [
-                    'day_of_week' => $firstHour->day_of_week,
-                    'day_name' => $firstHour->day_name,
-                    'clinic_id' => $firstHour->clinic_id,
-                    'clinic' => $firstHour->clinic?->name,
-                    'hours' => $hours
-                        ->unique(function ($item) {
-                            return $item->start_time . '_' . $item->end_time;
-                        })
-                        ->map(function ($hour) {
-                            return $hour->formatted_start_time
-                                . ' - '
-                                . $hour->formatted_end_time;
-                        })
-                        ->implode(' / '),
-                ];
-            })
-            ->sortBy('day_of_week')
-            ->values();
+            ->groupBy('clinic_id');
 
         $allDays = collect([
             ['day_of_week' => 0, 'day_name' => 'شنبه'],
@@ -52,17 +39,50 @@ class BuildPublicWorkingHoursAction
             ['day_of_week' => 6, 'day_name' => 'جمعه'],
         ]);
 
-        return $allDays->map(function ($day) use ($workingHours) {
-            $exist = $workingHours->firstWhere(
-                'day_of_week',
-                $day['day_of_week']
-            );
+        $clinicSchedules = $clinics->map(function ($clinic) use ($workingHours, $allDays): array {
+            $clinicHours = $workingHours->get($clinic->id, collect());
+
+            $days = $allDays->map(function (array $day) use ($clinicHours): array {
+                $hours = $clinicHours
+                    ->where('day_of_week', $day['day_of_week'])
+                    ->unique(fn ($item) => $item->start_time . '_' . $item->end_time)
+                    ->map(fn ($hour) => $hour->formatted_start_time . ' - ' . $hour->formatted_end_time)
+                    ->values();
+
+                return [
+                    'day_of_week' => $day['day_of_week'],
+                    'name' => $day['day_name'],
+                    'hours' => $hours->isNotEmpty() ? $hours->implode(' / ') : null,
+                ];
+            })->values();
 
             return [
-                'name' => $day['day_name'],
-                'hours' => $exist ? $exist['hours'] : null,
-                'clinic' => $exist ? $exist['clinic'] : null,
+                'clinic_id' => $clinic->id,
+                'clinic' => $clinic->name,
+                'city' => $clinic->city?->name,
+                'days' => $days,
             ];
-        });
+        })->values();
+
+        $holidays = DoctorHoliday::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereDate('holiday_date', '>=', today()->toDateString())
+            ->whereDate('holiday_date', '<=', today()->addDays(180)->toDateString())
+            ->whereIn('clinic_id', $clinics->pluck('id'))
+            ->with('clinic')
+            ->orderBy('holiday_date')
+            ->get()
+            ->map(fn (DoctorHoliday $holiday): array => [
+                'id' => $holiday->id,
+                'date' => $holiday->holiday_date->format('Y-m-d'),
+                'title' => $holiday->title,
+                'clinic' => $holiday->clinic?->name,
+            ])
+            ->values();
+
+        return [
+            'clinics' => $clinicSchedules,
+            'holidays' => $holidays,
+        ];
     }
 }
