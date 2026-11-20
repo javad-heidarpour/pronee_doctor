@@ -222,7 +222,7 @@ final class MedicalNetworkReferralTest extends TestCase
 
         $this->authenticateDoctor($doctor);
 
-        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
         (new MedicalNetworkController())->storeReferral(
             Request::create('/portal/medical-network/referrals', 'POST', [
@@ -275,7 +275,7 @@ final class MedicalNetworkReferralTest extends TestCase
                 'patient_instructions' => 'برای پیگیری به پزشک ارجاع‌دهنده مراجعه شود.',
             ]),
             $referral,
-            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            app(\App\Services\MedicalReferralWorkflow::class),
             $audit
         );
 
