@@ -110,6 +110,45 @@ final class ClinicAccountingServiceTest extends TestCase
         $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'treatment-revenue:' . $item->id)->count());
     }
 
+    public function test_patient_payment_idempotency_rejects_a_reused_payment_with_a_different_amount(): void
+    {
+        $installment = PatientTreatmentInstallment::query()->create(['treatment_plan_id' => 177, 'amount' => 1000]);
+        $payment = PatientInstallmentPayment::query()->create(['installment_id' => $installment->id, 'amount' => 1000]);
+        $accounting = app(ClinicAccountingService::class);
+
+        $accounting->recordPatientPayment(9, 3, 12, 5, $payment->id, 177, 1000, 'پرداخت اصلی', now()->toDateTimeString());
+
+        try {
+            $accounting->recordPatientPayment(9, 3, 12, 5, $payment->id, 177, 1100, 'مبلغ دستکاری‌شده', now()->toDateTimeString());
+            $this->fail('A payment source must not be replayed with a different amount.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'patient-payment:'.$payment->id)->count());
+        $this->assertSame(1000, (int) ClinicJournalEntry::query()->where('idempotency_key', 'patient-payment:'.$payment->id)->firstOrFail()->lines()->sum('debit'));
+    }
+
+    public function test_treatment_revenue_idempotency_rejects_a_changed_recognized_amount(): void
+    {
+        $item = PatientTreatmentItem::query()->create([
+            'treatment_plan_id' => 188, 'stage' => 'completed', 'price' => 1500,
+        ]);
+        $accounting = app(ClinicAccountingService::class);
+
+        $accounting->recordTreatmentRevenue(9, 3, 12, 5, $item->id, 188, 1500, 'درآمد اصلی', now()->toDateTimeString());
+
+        try {
+            $accounting->recordTreatmentRevenue(9, 3, 12, 5, $item->id, 188, 1600, 'درآمد دستکاری‌شده', now()->toDateTimeString());
+            $this->fail('A treatment source must not be replayed with a different amount.');
+        } catch (HttpException $exception) {
+            $this->assertSame(409, $exception->getStatusCode());
+        }
+
+        $this->assertSame(1500, (int) $item->fresh()->recognized_amount);
+        $this->assertSame(1, ClinicJournalEntry::query()->where('idempotency_key', 'treatment-revenue:'.$item->id)->count());
+    }
+
     public function test_later_payment_is_applied_to_completed_treatment_receivable_first(): void
     {
         $item = PatientTreatmentItem::query()->create([
