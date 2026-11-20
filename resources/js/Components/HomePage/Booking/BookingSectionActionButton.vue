@@ -574,6 +574,11 @@ function submitBooking() {
       if (errors?.visit_reason_id || errors?.new_visit_reason) {
         reasonsError.value = errors.visit_reason_id || errors.new_visit_reason;
       }
+
+      if (errors?.time_slot_id) {
+        showBookingForm.value = false;
+        emit("slot-cleared", errorMessage.value);
+      }
     },
 
     onSuccess(page) {
