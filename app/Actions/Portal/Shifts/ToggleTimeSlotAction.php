@@ -52,7 +52,10 @@ class ToggleTimeSlotAction
                 }
             }
 
-            $lockedSlot->update(['status' => $newStatus]);
+            $lockedSlot->update([
+                'status' => $newStatus,
+                'cancelled_reason' => $newStatus === 'cancelled' ? 'manual' : null,
+            ]);
 
             return $newStatus;
         });
