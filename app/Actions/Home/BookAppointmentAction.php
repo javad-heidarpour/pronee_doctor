@@ -232,14 +232,18 @@ final class BookAppointmentAction
                         ]);
                     }
 
-                    if ($patient && $discountCode->redemptions()->where('patient_id', $patient->id)->count() >= (int) $discountCode->per_patient_limit) {
+                    if (!$patient) {
+                        throw ValidationException::withMessages(['discount_code' => 'برای استفاده از کد تخفیف، پرونده بیمار باید ایجاد یا شناسایی شود.']);
+                    }
+
+                    if ($discountCode->redemptions()->where('patient_id', $patient->id)->count() >= (int) $discountCode->per_patient_limit) {
                         throw ValidationException::withMessages([
                             'discount_code' => 'سقف استفاده این بیمار از کد تخفیف تکمیل شده است.',
                         ]);
                     }
 
                     $discountAmount = $discountCode->discount_type === 'percent'
-                        ? (int) floor($baseFee * ((int) $discountCode->discount_value / 100))
+                        ? intdiv($baseFee * (int) $discountCode->discount_value, 100)
                         : min($baseFee, (int) $discountCode->discount_value);
 
                     if ($discountCode->maximum_discount_rial !== null) {
