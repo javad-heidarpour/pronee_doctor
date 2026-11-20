@@ -35,7 +35,7 @@ function select(id) {
       <!-- Booking -->
       <div class="menu__group">
         <Link
-          :href="route('booking')"
+          :href="route('booking', { slug: props.doctor.slug })"
           class="menu__item menu__item--primary"
           :aria-expanded="bookingOpen"
         >
@@ -99,7 +99,7 @@ function select(id) {
         <transition name="slide">
           <ul v-show="servicesOpen" class="submenu">
             <li v-for="(item, index) in subItems" :key="index">
-              <Link :href="route(item.href)" class="submenu__link">
+              <Link :href="route(item.href, { slug: props.doctor.slug })" class="submenu__link">
                 <span class="submenu__text">
                   {{ item.title }}
                 </span>
@@ -117,7 +117,7 @@ function select(id) {
 
       <!-- Contact -->
       <Link
-          :href="route('contact')"
+          :href="route('contact', { slug: props.doctor.slug })"
         class="menu__item"
         :class="{ 'is-active': activeItem === 'contact' }"
         @click="select('contact')"
@@ -139,7 +139,7 @@ function select(id) {
 
       <!-- Tips -->
        <Link
-          :href="route('tips')"
+          :href="route('tips', { slug: props.doctor.slug })"
        
         class="menu__item menu__item--two"
         :class="{ 'is-active': activeItem === 'tips' }"
@@ -171,7 +171,7 @@ function select(id) {
 
       <!-- Gallery -->
        <Link
-          :href="route('galleries')"
+          :href="route('galleries', { slug: props.doctor.slug })"
         class="menu__item"
         :class="{ 'is-active': activeItem === 'gallery' }"
         @click="select('gallery')"
