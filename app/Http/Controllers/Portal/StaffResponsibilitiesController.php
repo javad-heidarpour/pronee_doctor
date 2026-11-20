@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\Rule;
-use Inertia\\Inertia;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 final class StaffResponsibilitiesController extends Controller
 {
@@ -239,24 +239,16 @@ final class StaffResponsibilitiesController extends Controller
         $user = Auth::guard('web')->user();
         $this->authorizeSecretaryPermission('staff.attendance.view', $doctor);
 
-        $record = DB::table('clinic_staff_responsibilities as r')
-            ->join('clinic_organizations as o', 'o.id', '=', 'r.organization_id')
-            ->where('r.id', $responsibility)
-            ->where('r.owner_user_id', $user->id)
-            ->whereNull('r.deleted_at')
-            ->select('r.*')
-            ->first();
+        $organizationIds = $doctor->clinicOrganizations()
+            ->wherePivot('status', 'active')
+            ->where('owner_user_id', $user->id)
+            ->pluck('clinic_organizations.id');
 
-        // Ownership is checked against the active doctor's organization, not request input.
-        if (!$record) {
-            $record = DB::table('clinic_staff_responsibilities as r')
-                ->join('clinic_organizations as o', 'o.id', '=', 'r.organization_id')
-                ->where('r.id', $responsibility)
-                ->where('o.owner_user_id', $user->id)
-                ->whereNull('r.deleted_at')
-                ->select('r.*')
-                ->first();
-        }
+        $record = DB::table('clinic_staff_responsibilities')
+            ->where('id', $responsibility)
+            ->whereIn('organization_id', $organizationIds)
+            ->whereNull('deleted_at')
+            ->first();
         abort_unless($record, 404);
 
         DB::transaction(function () use ($record, $user): void {
