@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Patient;
+namespace Tests\Unit\Portal\Patient;
 
-use App\\Http\\Requests\\Portal\\StorePatientEncounterRequest;
-use Illuminate\\Support\\Facades\\Validator;
-use Tests\\TestCase;
+use App\Http\Requests\Portal\StorePatientEncounterRequest;
+use Illuminate\Support\Facades\Validator;
+use Tests\TestCase;
 
 final class StorePatientEncounterRequestTest extends TestCase
 {
