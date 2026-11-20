@@ -50,7 +50,6 @@ final class CreateDoctorHolidayAction
                 ->where('clinic_id', (int) $data['clinic_id'])
                 ->whereDate('appointment_date', $date)
                 ->whereIn('status', ['pending', 'confirmed', 'contacted'])
-                ->lockForUpdate()
                 ->exists();
 
             if ($activeAppointmentExists) {
