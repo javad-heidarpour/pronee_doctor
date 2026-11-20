@@ -215,6 +215,15 @@ const save = () => {
                         </label>
                     </div>
 
+                    <div
+                        v-if="!doctorItem.assigned && doctorItem.organization_clinic_ids.length"
+                        class="border-t border-indigo-100 bg-indigo-50/60 px-5 py-3 text-xs leading-6 text-indigo-800"
+                    >
+                        این منشی از طریق عضویت سازمانی به
+                        {{ doctorItem.organization_clinic_ids.length }}
+                        مطب این پزشک دسترسی دارد. این دسترسی از بخش سازمان‌ها مدیریت می‌شود.
+                    </div>
+
                     <!-- Permissions -->
                     <div
                         v-if="doctorItem.assigned"
