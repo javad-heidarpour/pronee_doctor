@@ -106,14 +106,10 @@ final class UpdateSecretaryAssignmentsAction
 
             // Count effective clinic IDs across every other doctor, not just
             // the currently edited doctor.
-            $otherClinicIds = DB::table('doctor_user')
-                ->where('user_id', $lockedSecretary->id)
-                ->where('doctor_id', '<>', $activeDoctor->id)
-                ->pluck('clinic_ids')
-                ->flatMap(fn ($value) => array_map('intval', $this->decodeArray($value)))
-                ->unique()
-                ->values()
-                ->all();
+            $otherClinicIds = $this->assignedClinicIds(
+                $lockedSecretary->id,
+                $activeDoctor->id
+            );
 
             $currentClinicIds = in_array($activeDoctor->id, $submittedDoctorIds, true)
                 ? array_map(
@@ -261,14 +257,30 @@ final class UpdateSecretaryAssignmentsAction
         }
     }
 
-    private function assignedClinicIds(int $userId): array
+    private function assignedClinicIds(int $userId, ?int $excludeDoctorId = null): array
     {
-        return DB::table('doctor_user')
+        $clinicIds = DB::table('doctor_user')
             ->where('user_id', $userId)
+            ->when(
+                $excludeDoctorId !== null,
+                fn ($query) => $query->where('doctor_id', '<>', $excludeDoctorId)
+            )
             ->pluck('clinic_ids')
             ->flatMap(fn ($value) => array_map('intval', $this->decodeArray($value)))
             ->unique()
             ->values()
+            ->all();
+
+        if ($clinicIds === []) {
+            return [];
+        }
+
+        return DB::table('addresses')
+            ->whereIn('id', $clinicIds)
+            ->where('is_active', true)
+            ->whereNull('deleted_at')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
             ->all();
     }
 
