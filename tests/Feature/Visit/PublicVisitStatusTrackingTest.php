@@ -252,12 +252,12 @@ final class PublicVisitStatusTrackingTest extends TestCase
         $this->assertDatabaseHas('appointments', [
             'id' => $appointmentId,
             'time_slot_id' => $newSlotId,
-            'appointment_date' => $newDate,
         ]);
-        $storedAppointmentTime = (string) DB::table('appointments')
+        $storedAppointment = DB::table('appointments')
             ->where('id', $appointmentId)
-            ->value('appointment_time');
-        $this->assertSame('11:00', substr($storedAppointmentTime, 0, 5));
+            ->first(['appointment_date', 'appointment_time']);
+        $this->assertSame($newDate, substr((string) $storedAppointment->appointment_date, 0, 10));
+        $this->assertSame('11:00', substr((string) $storedAppointment->appointment_time, 0, 5));
         $this->assertDatabaseHas('time_slots', [
             'id' => $oldSlotId,
             'status' => 'available',
