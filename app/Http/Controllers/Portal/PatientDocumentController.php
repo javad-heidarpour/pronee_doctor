@@ -215,7 +215,7 @@ final class PatientDocumentController extends Controller
         $clinicIds = $this->accessibleClinicIds($doctor);
         abort_if($clinicIds === [], 403);
 
-        $model = DB::transaction(function () use ($document, $doctor, $clinicIds): PatientDocument {
+        $model = DB::transaction(function () use ($patient, $document, $doctor, $clinicIds): PatientDocument {
             $model = $this->scopedDocument($patient, $document, $doctor->id, $clinicIds, lock: true);
             $model->update([
                 'archived_at' => now(),
