@@ -293,14 +293,14 @@ final class MedicalNetworkReferralTest extends TestCase
 
         // The same account owns another doctor profile, but it is not the referral's sender profile.
         $this->authenticateDoctor(99, 22);
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
         (new MedicalNetworkController())->updateReferral(
             Request::create('/portal/medical-network/referrals/'.$referral->id, 'PATCH', [
                 'status' => 'cancelled',
             ]),
             $referral,
-            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            app(\App\Services\MedicalReferralWorkflow::class),
             Mockery::mock(RecordSecurityAuditEventAction::class)
         );
     }
@@ -324,14 +324,14 @@ final class MedicalNetworkReferralTest extends TestCase
         ]);
 
         $this->authenticateDoctor(200, 11);
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
         (new MedicalNetworkController())->updateReferral(
             Request::create('/portal/medical-network/referrals/'.$referral->id, 'PATCH', [
                 'status' => 'accepted',
             ]),
             $referral,
-            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            app(\App\Services\MedicalReferralWorkflow::class),
             Mockery::mock(RecordSecurityAuditEventAction::class)
         );
     }
