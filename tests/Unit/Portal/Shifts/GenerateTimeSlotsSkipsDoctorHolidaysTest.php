@@ -79,6 +79,13 @@ final class GenerateTimeSlotsSkipsDoctorHolidaysTest extends TestCase
             $table->string('cancelled_reason', 24)->nullable();
             $table->timestamps();
         });
+
+        Schema::create('appointments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('time_slot_id')->nullable();
+            $table->string('status')->default('pending');
+            $table->timestamps();
+        });
     }
 
     protected function tearDown(): void
