@@ -149,6 +149,42 @@ final class ReverseAppointmentPaymentActionTest extends TestCase
         }
     }
 
+    public function test_terminal_mismatch_is_rejected_before_calling_the_gateway(): void
+    {
+        $this->payment->update(['terminal_id' => '999999']);
+        $sep = Mockery::mock(SepPaymentService::class);
+        $sep->shouldNotReceive('reverseTransaction');
+        $accounting = Mockery::mock(ClinicAccountingService::class);
+
+        $this->expectException(RuntimeException::class);
+        app(ReverseAppointmentPaymentAction::class)->handle(
+            $this->payment, 4, 'شناسه ترمینال با پذیرنده مغایرت دارد.', $sep, $accounting
+        );
+    }
+
+    public function test_a_refund_record_prevents_a_second_gateway_request_even_when_rejected(): void
+    {
+        AppointmentPaymentRefund::query()->create([
+            'appointment_payment_id' => $this->payment->id,
+            'requested_by_user_id' => 4,
+            'amount_rial' => 1250000,
+            'reason' => 'درخواست قبلی توسط درگاه رد شد.',
+            'status' => 'rejected',
+            'gateway_ref_num' => 'REF-123',
+            'gateway_terminal_id' => '123456',
+            'idempotency_key' => hash('sha256', 'sep-payment-refund:' . $this->payment->id),
+            'requested_at' => now(),
+        ]);
+        $sep = Mockery::mock(SepPaymentService::class);
+        $sep->shouldNotReceive('reverseTransaction');
+        $accounting = Mockery::mock(ClinicAccountingService::class);
+
+        $this->expectException(RuntimeException::class);
+        app(ReverseAppointmentPaymentAction::class)->handle(
+            $this->payment, 4, 'ارسال مجدد درخواست برگشت وجه', $sep, $accounting
+        );
+    }
+
     public function test_only_a_verified_paid_sep_payment_can_be_reversed(): void
     {
         $this->payment->update(['status' => 'pending', 'paid_at' => null]);
