@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
 use App\Http\Controllers\PatientHealthController;
 use App\Http\Controllers\PatientMedicationController;
+use App\Http\Controllers\PatientConsentSigningController;
 
 require __DIR__ . '/template.php';
 require __DIR__ . '/portal/portal.php';
@@ -30,6 +31,8 @@ Route::get('/about-proneex', fn () => Inertia::render('AboutProneex'))
 
 Route::middleware('auth:web')->prefix('my-health')->name('patient.health.')->controller(PatientHealthController::class)->group(function () {
     Route::get('/', 'index')->name('index');
+    Route::get('/consents/{consent}', [PatientConsentSigningController::class, 'show'])->whereNumber('consent')->name('consents.show');
+    Route::post('/consents/{consent}/sign', [PatientConsentSigningController::class, 'sign'])->whereNumber('consent')->middleware('throttle:10,1')->name('consents.sign');
     Route::post('/access-request', 'requestAccess')->middleware('throttle:5,1')->name('access.request');
     Route::post('/medications', [PatientMedicationController::class, 'store'])->middleware('throttle:10,1')->name('medications.store');
     Route::post('/medications/{plan}/doses', [PatientMedicationController::class, 'recordDose'])->whereNumber('plan')->middleware('throttle:30,1')->name('medications.doses.store');
