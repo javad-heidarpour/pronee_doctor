@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Profile;
+namespace Tests\Unit\Portal\Profile;
 
-use App\\DTOs\\Portal\\Profile\\UpdateProfileDto;
-use App\\Models\\Doctor;
-use Tests\\TestCase;
+use App\DTOs\Portal\Profile\UpdateProfileDto;
+use App\Models\Doctor;
+use Tests\TestCase;
 
 final class UpdateProfileDtoTest extends TestCase
 {
