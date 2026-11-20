@@ -46,7 +46,7 @@ class HomeController extends Controller
 
         return redirect()->to(URL::temporarySignedRoute(
             'visit.show',
-            now()->addMinutes(30),
+            now()->addDays(180),
             ['visit_number' => $appointment->id]
         ));
     }
