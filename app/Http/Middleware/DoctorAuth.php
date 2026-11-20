@@ -188,6 +188,22 @@ class DoctorAuth
         }
 
         $specific = [
+            'portal.patient-access-requests.index' => 'patients.clinical.manage',
+            'portal.patient-access-requests.approve' => 'patients.clinical.manage',
+            'portal.patient-access-requests.reject' => 'patients.clinical.manage',
+            'portal.patient-retention.index' => 'patients.view',
+            'portal.growth.index' => 'marketing.view',
+            'portal.clinic-performance.index' => 'marketing.view',
+            'portal.revenue-optimizer.index' => 'finance.view',
+            'portal.medical-network.index' => 'appointments.view',
+            'portal.medical-network.referrals.store' => 'appointments.manage',
+            'portal.medical-network.referrals.update' => 'appointments.manage',
+            'portal.intelligence.inventory.settings' => 'inventory.manage',
+            'portal.intelligence.health.programs.store' => 'patients.manage',
+            'portal.intelligence.health.enroll' => 'patients.manage',
+            'portal.intelligence.health.checkup' => 'patients.manage',
+            'portal.intelligence.health.withdraw' => 'patients.manage',
+            'portal.intelligence.health.points' => 'patients.manage',
             'portal.staff-attendance.index' => 'staff.attendance.view',
             'portal.staff-attendance.check-in' => 'staff.attendance.view',
             'portal.staff-attendance.check-out' => 'staff.attendance.view',
@@ -217,6 +233,9 @@ class DoctorAuth
         }
 
         $map = [
+            'portal.clinic-brain.' => 'appointments',
+            'portal.marketing.' => 'marketing',
+            'portal.procurement.' => 'inventory',
             'portal.patients.' => 'patients',
             'portal.follow-ups.' => 'patients',
             'portal.encounters.' => 'patients.clinical',
