@@ -256,17 +256,22 @@ class ClinicOrganizationController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $membership = $organization->doctors()
-                ->whereKey($doctor->id)
+            $membership = DB::table('clinic_organization_doctors')
+                ->where('organization_id', $organization->id)
+                ->where('doctor_id', $doctor->id)
                 ->lockForUpdate()
                 ->first();
 
-            abort_unless($membership && $membership->pivot->status === 'pending', 404);
+            abort_unless($membership && $membership->status === 'pending', 404);
 
-            $organization->doctors()->updateExistingPivot($doctor->id, [
-                'status' => 'active',
-                'joined_at' => today(),
-            ]);
+            DB::table('clinic_organization_doctors')
+                ->where('organization_id', $organization->id)
+                ->where('doctor_id', $doctor->id)
+                ->update([
+                    'status' => 'active',
+                    'joined_at' => today(),
+                    'updated_at' => now(),
+                ]);
 
             $this->syncOrganizationSecretaryAccess($organization, $doctor);
         });
@@ -375,27 +380,35 @@ class ClinicOrganizationController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $membership = $organization->doctors()
-                ->whereKey($doctor)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $doctorProfile = Doctor::query()->whereKey($doctor)->firstOrFail();
 
+            $membership = DB::table('clinic_organization_doctors')
+                ->where('organization_id', $organization->id)
+                ->where('doctor_id', $doctorProfile->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($membership, 404);
             abort_if(
-                $membership->pivot->role === 'owner',
+                $membership->role === 'owner',
                 422,
                 'پزشک مالک مجموعه را نمی‌توان از عضویت مالک خارج کرد.'
             );
 
             $clinicIds = $organization->clinics()
                 ->wherePivot('status', 'active')
-                ->where('addresses.doctor_id', $membership->id)
+                ->where('addresses.doctor_id', $doctorProfile->id)
                 ->pluck('addresses.id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
 
-            $organization->doctors()->updateExistingPivot($membership->id, [
-                'status' => 'inactive',
-            ]);
+            DB::table('clinic_organization_doctors')
+                ->where('organization_id', $organization->id)
+                ->where('doctor_id', $doctorProfile->id)
+                ->update([
+                    'status' => 'inactive',
+                    'updated_at' => now(),
+                ]);
 
             if ($clinicIds !== []) {
                 DB::table('clinic_organization_clinics')
@@ -416,7 +429,7 @@ class ClinicOrganizationController extends Controller
 
             // Preserve direct and other-organization grants; remove only this
             // organization's contribution for the removed doctor.
-            $this->syncOrganizationSecretaryAccess($organization, $membership);
+            $this->syncOrganizationSecretaryAccess($organization, $doctorProfile);
         });
 
         return back()->with('success', 'پزشک از مجموعه خارج شد؛ سوابق و شعبه‌های فیزیکی حذف نشده‌اند.');
