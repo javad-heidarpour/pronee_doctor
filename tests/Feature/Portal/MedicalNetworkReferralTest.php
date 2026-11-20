@@ -374,7 +374,7 @@ final class MedicalNetworkReferralTest extends TestCase
         [$doctor, $patient, $provider] = $this->seedReferralContext();
         DB::table('appointments')->where('patient_id', $patient)->update(['clinic_id' => 32]);
 
-        $this->authenticateDoctor($doctor);
+        $this->authenticateDoctor(99, 11);
 
         $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
