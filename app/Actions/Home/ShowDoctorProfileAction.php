@@ -15,6 +15,7 @@ final class ShowDoctorProfileAction
         private readonly BuildPublicDoctorBookingPageAction $bookingAction,
         private readonly BuildPublicDoctorGalleryPageAction $galleryAction,
         private readonly ListPublicMedicalServicesAction $servicesAction,
+        private readonly ListPublicBookableDoctorsAction $bookableDoctorsAction,
     ) {
     }
 
@@ -54,6 +55,9 @@ final class ShowDoctorProfileAction
             ->all();
 
         $doctorData = $this->profilePayloadAction->handle($doctor);
+        $relatedDoctors = $bookingPage['clinicsWithSlots']->isEmpty()
+            ? $this->bookableDoctorsAction->handle($doctor, 3)
+            : collect();
 
         return inertia('HomePage/Home1/Index', [
             'doctor' => array_merge($doctorData, [
@@ -67,6 +71,7 @@ final class ShowDoctorProfileAction
                 'gallery_images' => $galleryPage['galleryImages'],
                 'gallery_categories' => $galleryPage['galleryCategories'],
                 'services' => $services,
+                'related_doctors' => $relatedDoctors,
             ]),
         ]);
     }
