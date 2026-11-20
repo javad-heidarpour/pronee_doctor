@@ -128,6 +128,26 @@ final class Patient360ControllerTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patient_problems', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('encounter_id')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->string('category', 32);
+            $table->string('title', 180);
+            $table->string('code', 64)->nullable();
+            $table->string('code_system', 32);
+            $table->text('description')->nullable();
+            $table->string('status', 20);
+            $table->string('severity', 20)->nullable();
+            $table->date('onset_date')->nullable();
+            $table->date('resolved_on')->nullable();
+            $table->string('source', 32);
+            $table->timestamps();
+        });
+
         Schema::create('patient_vital_signs', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -223,6 +243,33 @@ final class Patient360ControllerTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        DB::table('patient_problems')->insert([
+            [
+                'doctor_id' => $doctor,
+                'patient_id' => $patient,
+                'category' => 'diagnosis',
+                'title' => 'دیابت نوع ۲',
+                'code' => 'E11.9',
+                'code_system' => 'icd10',
+                'status' => 'active',
+                'severity' => 'moderate',
+                'source' => 'clinician_assessed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'doctor_id' => $doctor,
+                'patient_id' => $patient,
+                'category' => 'symptom',
+                'title' => 'سردرد قبلی',
+                'code_system' => 'local',
+                'status' => 'resolved',
+                'source' => 'patient_reported',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
         for ($i = 0; $i < 51; $i++) {
             DB::table('patient_vital_signs')->insert([
                 'doctor_id' => $doctor,
@@ -263,6 +310,9 @@ final class Patient360ControllerTest extends TestCase
         $this->assertCount(30, $props['appointments']);
         $this->assertSame(1, $props['summary']['encounters']);
         $this->assertSame(1, $props['summary']['active_allergies']);
+        $this->assertSame(1, $props['summary']['active_problems']);
+        $this->assertCount(2, $props['problems']);
+        $this->assertSame('E11.9', collect($props['problems'])->firstWhere('title', 'دیابت نوع ۲')['code']);
         $this->assertCount(50, $props['vitals']);
         $this->assertNotNull(collect($props['latestVitals'])->firstWhere('type', 'weight'));
         $this->assertTrue($props['canViewClinical']);
@@ -320,6 +370,8 @@ final class Patient360ControllerTest extends TestCase
         $this->assertCount(1, $props['appointments']);
         $this->assertSame(1, $props['summary']['appointments']);
         $this->assertSame(0, $props['summary']['active_allergies']);
+        $this->assertSame(0, $props['summary']['active_problems']);
+        $this->assertCount(0, $props['problems']);
         $this->assertCount(0, $props['clinicalRecords']);
         $this->assertCount(0, $props['vitals']);
         $this->assertCount(0, $props['encounters']);
