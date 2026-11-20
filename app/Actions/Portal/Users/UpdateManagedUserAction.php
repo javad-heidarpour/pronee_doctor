@@ -8,6 +8,7 @@ use App\Models\Doctor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UpdateManagedUserAction
 {
@@ -74,6 +75,12 @@ class UpdateManagedUserAction
                 ->where('user_id', $lockedUser->id)
                 ->lockForUpdate()
                 ->first();
+
+            if ($newRole === 'doctor' && !$doctorProfile) {
+                throw ValidationException::withMessages([
+                    'role' => 'برای تبدیل این حساب به پزشک، ابتدا باید پرونده حرفه‌ای پزشک ایجاد شود.',
+                ]);
+            }
 
             if ($doctorProfile) {
                 $doctorProfile->is_active = $newRole === 'doctor' && $newIsActive;
