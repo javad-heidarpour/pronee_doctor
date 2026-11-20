@@ -54,6 +54,24 @@
             <p v-if="errors.description" class="mt-1 text-sm text-red-600" role="alert">{{ errors.description }}</p>
           </div>
 
+          <section class="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 space-y-4">
+            <div>
+              <h4 class="font-bold text-slate-800">تنظیمات نمایش در گوگل</h4>
+              <p class="mt-1 text-xs text-slate-500">عنوان و توضیحی که می‌تواند در نتایج جست‌وجو برای صفحه عمومی پزشک نمایش داده شود.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2" for="profile-meta-title">عنوان صفحه (SEO)</label>
+              <input id="profile-meta-title" v-model="form.meta_title" type="text" maxlength="255" :aria-invalid="errors.meta_title ? 'true' : undefined" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500" placeholder="مثلاً دکتر ... | تخصص و خدمات" />
+              <p v-if="errors.meta_title" class="mt-1 text-sm text-red-600" role="alert">{{ errors.meta_title }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2" for="profile-meta-description">توضیحات صفحه (SEO)</label>
+              <textarea id="profile-meta-description" v-model="form.meta_description" rows="3" maxlength="320" :aria-invalid="errors.meta_description ? 'true' : undefined" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500" placeholder="معرفی کوتاه تخصص، خدمات و محل فعالیت پزشک" />
+              <p v-if="errors.meta_description" class="mt-1 text-sm text-red-600" role="alert">{{ errors.meta_description }}</p>
+              <p class="mt-1 text-xs text-slate-500">حداکثر ۳۲۰ نویسه</p>
+            </div>
+          </section>
+
           <!-- آپلود عکس -->
           <div>
             <label for="profile-photo" class="block text-sm font-bold text-gray-700 mb-2">عکس پروفایل</label>
@@ -171,6 +189,8 @@ const form = ref({
   years_of_experience: props.doctor.years_of_experience,
   Medical_system_number: props.doctor.Medical_system_number,
   description: props.doctor.description,
+  meta_title: props.doctor.meta_title || "",
+  meta_description: props.doctor.meta_description || "",
   photo: props.doctor.photo,
 });
 
