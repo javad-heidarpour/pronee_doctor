@@ -38,7 +38,15 @@ final class StaffCredentialsController extends Controller
         $user = Auth::guard('web')->user();
         abort_unless($user, 401);
         $doctor = $this->currentDoctor();
-        $organization = $this->organization($doctor, $request->integer('organization_id'));
+        $organizationId = $request->integer('organization_id');
+        if ($organizationId < 1) {
+            $organizationId = (int) $doctor->clinicOrganizations()
+                ->wherePivot('status', 'active')
+                ->where('clinic_organizations.status', 'active')
+                ->orderBy('clinic_organizations.id')
+                ->value('clinic_organizations.id');
+        }
+        $organization = $this->organization($doctor, $organizationId);
         $access = $this->accessFor($organization, $user, $doctor);
 
         $query = ClinicStaffCredential::query()
@@ -80,6 +88,7 @@ final class StaffCredentialsController extends Controller
             ->get(['id', 'name']);
 
         return Inertia::render('Portal/StaffCredentials/Index', [
+            'doctor' => $doctor,
             'organization' => [
                 'id' => $organization->id,
                 'name' => $organization->name,
@@ -271,7 +280,9 @@ final class StaffCredentialsController extends Controller
             $access = $this->accessFor($organization, $user, $doctor);
 
             abort_unless(
-                $access['is_owner'] || (int) $row->staff_user_id === (int) $user->id,
+                $access['is_owner']
+                    || ((int) $row->staff_user_id === (int) $user->id
+                        && in_array((int) $row->clinic_id, $access['clinic_ids'], true)),
                 403,
                 'اجازه بایگانی این مدرک را ندارید.'
             );
