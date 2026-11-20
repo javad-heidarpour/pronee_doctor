@@ -64,6 +64,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->string('name');
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
 
