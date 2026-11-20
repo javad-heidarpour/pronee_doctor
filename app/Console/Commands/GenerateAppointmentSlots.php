@@ -42,7 +42,7 @@ class GenerateAppointmentSlots extends Command
 
         $this->info("پزشکان فعال بررسی‌شده: {$result['doctors']}");
         $this->info("نوبت‌های ایجادشده: {$result['generated']}");
-        $this->info("بازه‌های تکراری یا متداخل: {$result['skipped']}");
+        $this->info("بازه‌های تکراری، متداخل، گذشته یا تعطیل: " . $result['skipped']);
         $this->info("پزشکان بدون الگوی کاری فعال: {$result['without_working_hours']}");
 
         return Command::SUCCESS;
