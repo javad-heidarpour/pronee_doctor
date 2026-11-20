@@ -87,7 +87,9 @@ final class BuildPublicDoctorProfilePayloadAction
                 ? $photo
                 : (str_starts_with($photo, '/')
                     ? url($photo)
-                    : asset('storage/' . ltrim($photo, '/'))))
+                    : (str_starts_with($photo, 'storage/')
+                        ? url('/' . ltrim($photo, '/'))
+                        : asset('storage/' . ltrim($photo, '/')))))
             : null;
 
         return $payload;
