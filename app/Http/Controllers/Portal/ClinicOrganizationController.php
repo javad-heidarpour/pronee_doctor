@@ -427,7 +427,7 @@ class ClinicOrganizationController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                Address::query()
+                DB::table('addresses')
                     ->whereIn('id', $clinicIds)
                     ->where('organization_id', $organization->id)
                     ->update(['organization_id' => null]);
