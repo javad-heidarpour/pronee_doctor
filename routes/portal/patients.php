@@ -13,6 +13,7 @@ use App\Http\Controllers\Portal\HealthInteropController;
 use App\Http\Controllers\Portal\PatientProblemController;
 use App\Http\Controllers\Portal\PatientDocumentController;
 use App\Http\Controllers\Portal\PatientConsentController;
+use App\Http\Controllers\Portal\PatientInsuranceController;
 
 
 Route::get('/health-interop', [HealthInteropController::class, 'index'])->name('health-interop.index');
@@ -62,6 +63,8 @@ Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
 Route::prefix('patients')->name('patients.')->group(function () {
     Route::get('/{patient}/360', [Patient360Controller::class, 'show'])->whereNumber('patient')->name('360');
     Route::get('/{patient}/consents', [PatientConsentController::class, 'index'])->whereNumber('patient')->name('consents.index');
+    Route::get('/{patient}/insurance', [PatientInsuranceController::class, 'index'])->whereNumber('patient')->name('insurance.index');
+    Route::post('/{patient}/insurance', [PatientInsuranceController::class, 'store'])->whereNumber('patient')->middleware('throttle:20,1')->name('insurance.store');
     Route::post('/{patient}/consents', [PatientConsentController::class, 'store'])->whereNumber('patient')->middleware('throttle:20,1')->name('consents.store');
     Route::get('/{patient}/documents', [PatientDocumentController::class, 'index'])->whereNumber('patient')->name('documents.index');
     Route::post('/{patient}/documents', [PatientDocumentController::class, 'store'])->whereNumber('patient')->middleware('throttle:20,1')->name('documents.store');
