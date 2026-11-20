@@ -211,7 +211,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
         (new PatientFollowUpController())->updateTemplate(
             Request::create('/portal/follow-ups/templates/'.$template->id, 'PUT', [
@@ -231,7 +231,7 @@ final class PatientFollowUpListAuditTest extends TestCase
     {
         $this->authenticateDoctor(11, 98, 'secretary');
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
         (new PatientFollowUpController())->storeTemplate(
             Request::create('/portal/follow-ups/templates', 'POST', [
