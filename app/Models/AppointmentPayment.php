@@ -35,4 +35,9 @@ class AppointmentPayment extends Model
     {
         return $this->belongsTo(Appointment::class);
     }
+
+    public function refund(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(AppointmentPaymentRefund::class, 'appointment_payment_id');
+    }
 }
