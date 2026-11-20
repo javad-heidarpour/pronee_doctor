@@ -52,7 +52,7 @@ final class PatientEncounterController extends Controller
         ]);
     }
 
-    public function create(Appointment $appointment)
+    public function create(Appointment $appointment, RecordSecurityAuditEventAction $audit)
     {
         $this->authorizeClinicalRole();
         $this->authorizeAppointment($appointment);
@@ -62,12 +62,17 @@ final class PatientEncounterController extends Controller
         abort_unless($appointment->patient_id && $appointment->status !== 'cancelled', 404);
         $patient = Patient::query()->whereKey($appointment->patient_id)
             ->where('doctor_id', $doctor->id)->firstOrFail();
+        $context = $this->clinicalContext($patient, $doctor->id);
+
+        $audit->handle('patient.encounter.create_form_viewed', $appointment, [
+            'doctor_id' => $doctor->id,
+        ]);
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,
             'appointment' => $appointment->load('clinic:id,name'),
             'patient' => $patient,
-            'context' => $this->clinicalContext($patient, $doctor->id),
+            'context' => $context,
             'encounter' => null,
             'amendsEncounter' => null,
         ]);
@@ -115,7 +120,7 @@ final class PatientEncounterController extends Controller
             ->with('success', 'پیش‌نویس یادداشت ویزیت ذخیره شد.');
     }
 
-    public function show(PatientEncounter $encounter)
+    public function show(PatientEncounter $encounter, RecordSecurityAuditEventAction $audit)
     {
         $this->authorizeClinicalRole();
         $doctor = $this->currentDoctor();
@@ -123,6 +128,7 @@ final class PatientEncounterController extends Controller
         $this->authorizeClinicalView($doctor);
 
         $encounter->load(['patient', 'appointment', 'clinic', 'author:id,name,family', 'signer:id,name,family', 'prescriptions']);
+        $audit->handle('patient.encounter.viewed', $encounter, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,
@@ -134,7 +140,7 @@ final class PatientEncounterController extends Controller
         ]);
     }
 
-    public function amend(PatientEncounter $encounter)
+    public function amend(PatientEncounter $encounter, RecordSecurityAuditEventAction $audit)
     {
         $this->authorizeClinicalRole();
         $doctor = $this->currentDoctor();
@@ -142,6 +148,7 @@ final class PatientEncounterController extends Controller
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         abort_unless($encounter->status === PatientEncounter::STATUS_SIGNED, 409);
         $encounter->load(['patient', 'appointment', 'clinic', 'prescriptions']);
+        $audit->handle('patient.encounter.amend_form_viewed', $encounter, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,

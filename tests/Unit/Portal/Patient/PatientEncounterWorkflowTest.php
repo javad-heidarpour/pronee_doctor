@@ -6,15 +6,19 @@ namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Portal\Patient\CreatePatientEncounterAction;
 use App\Actions\Portal\Patient\SignPatientEncounterAction;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Http\Controllers\Portal\PatientEncounterController;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\PatientEncounter;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
+use Mockery;
 use Tests\TestCase;
 
 final class PatientEncounterWorkflowTest extends TestCase
@@ -31,9 +35,19 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('doctors', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('deleted_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('addresses', function (Blueprint $table): void {
             $table->id();
+            $table->unsignedBigInteger('doctor_id')->nullable();
             $table->string('name');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
@@ -94,6 +108,100 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
         });
+
+        Schema::create('patient_clinical_records', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('kind');
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->string('dosage')->nullable();
+            $table->string('frequency')->nullable();
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('deleted_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('patient_vital_signs', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('measurement_type');
+            $table->decimal('value', 10, 2);
+            $table->string('unit');
+            $table->dateTime('measured_at');
+            $table->text('note')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function test_reading_encounter_forms_is_audited_without_clinical_values(): void
+    {
+        DB::table('doctors')->insert([
+            'id' => 11,
+            'user_id' => 99,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $patient = Patient::query()->create([
+            'doctor_id' => 11,
+            'name' => 'Audit Patient',
+        ]);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+        $encounter = PatientEncounter::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'appointment_id' => $appointment->id,
+            'clinic_id' => 31,
+            'note_type' => 'consultation',
+            'status' => PatientEncounter::STATUS_SIGNED,
+            'assessment' => 'Sensitive assessment',
+            'plan' => 'Sensitive plan',
+            'reviewed_allergies' => true,
+            'reviewed_medications' => true,
+            'reviewed_vitals' => true,
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.encounter.viewed', Mockery::type(PatientEncounter::class), ['doctor_id' => 11]);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.encounter.amend_form_viewed', Mockery::type(PatientEncounter::class), ['doctor_id' => 11]);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.encounter.create_form_viewed', Mockery::type(Appointment::class), ['doctor_id' => 11]);
+
+        $controller = new PatientEncounterController();
+
+        $this->assertInstanceOf(\Inertia\Response::class, $controller->show($encounter, $audit));
+        $this->assertInstanceOf(\Inertia\Response::class, $controller->amend($encounter, $audit));
+        $this->assertInstanceOf(\Inertia\Response::class, $controller->create($appointment, $audit));
     }
 
     public function test_it_creates_a_structured_draft_with_prescriptions_and_a_clinical_snapshot(): void
