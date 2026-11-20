@@ -165,6 +165,25 @@ final class ClinicOrganizationIndexAuthorizationTest extends TestCase
         $this->assertFalse($response->getProps()['isAdmin']);
     }
 
+    public function test_admin_cannot_mutate_an_organization_from_the_read_only_overview(): void
+    {
+        $admin = $this->user('admin');
+        $owner = $this->user('doctor');
+        $organizationId = $this->organization($owner->id, 'Read Only Organization');
+
+        Auth::guard('web')->setUser($admin);
+
+        try {
+            app(ClinicOrganizationController::class)->inviteDoctor(
+                Request::create('/portal/organizations/' . $organizationId . '/doctors', 'POST'),
+                ClinicOrganization::query()->findOrFail($organizationId)
+            );
+            $this->fail('Administrators must not mutate organization memberships.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+    }
+
     public function test_secretary_cannot_open_organization_overview(): void
     {
         Auth::guard('web')->setUser($this->user('secretary'));
