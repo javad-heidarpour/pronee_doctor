@@ -236,6 +236,23 @@
                 ></textarea>
               </div>
 
+              <!-- کد تخفیف -->
+              <div>
+                <label for="discount_code" class="mb-2 block text-sm font-medium text-gray-700">کد تخفیف (اختیاری)</label>
+                <input
+                  id="discount_code"
+                  v-model.trim="bookingForm.discount_code"
+                  type="text"
+                  minlength="3"
+                  maxlength="32"
+                  pattern="[A-Za-z0-9_-]+"
+                  autocomplete="off"
+                  dir="ltr"
+                  class="w-full rounded-xl border border-gray-200 px-4 py-3 text-left uppercase focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="WELCOME10"
+                />
+              </div>
+
               <!-- خلاصه -->
               <div class="rounded-xl border border-teal-200 bg-teal-50 p-4">
                 <p class="mb-2 font-medium text-teal-800">خلاصه نوبت</p>
@@ -356,6 +373,7 @@ const bookingForm = ref({
   patient_phone: "",
   patient_national_code: "",
   description: "",
+  discount_code: "",
 });
 
 const normalizedVisitReasons = computed(() =>
@@ -557,6 +575,7 @@ function submitBooking() {
     new_visit_reason: newReasonText || null,
 
     description: bookingForm.value.description.trim() || null,
+    discount_code: bookingForm.value.discount_code.trim().toUpperCase() || null,
   };
 
   isSubmitting.value = true;
