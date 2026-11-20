@@ -17,6 +17,7 @@ use App\Http\Controllers\Portal\ClinicBrainController;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
 use App\Http\Controllers\Portal\ClinicMarketingController;
 use App\Http\Controllers\Portal\ClinicDiscountController;
+use App\Http\Controllers\Portal\ClinicBusinessLeadController;
 use App\Http\Controllers\Portal\MedicalNetworkController;
 use App\Http\Controllers\Portal\MedicalCollaborationContractController;
 use App\Http\Controllers\Portal\PatientAccessRequestController;
@@ -177,6 +178,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
         Route::get('/marketing', [ClinicMarketingController::class, 'index'])->name('marketing.index');
         Route::get('/marketing/discount-codes', [ClinicDiscountController::class, 'index'])->name('marketing.discounts.index');
+        Route::get('/marketing/leads', [ClinicBusinessLeadController::class, 'index'])->name('marketing.leads.index');
+        Route::post('/marketing/leads', [ClinicBusinessLeadController::class, 'store'])->middleware('throttle:20,1')->name('marketing.leads.store');
+        Route::patch('/marketing/leads/{lead}', [ClinicBusinessLeadController::class, 'update'])->whereNumber('lead')->name('marketing.leads.update');
         Route::post('/marketing/discount-codes', [ClinicDiscountController::class, 'store'])->middleware('throttle:10,1')->name('marketing.discounts.store');
         Route::post('/marketing/discount-codes/{code}/toggle', [ClinicDiscountController::class, 'toggle'])->whereNumber('code')->name('marketing.discounts.toggle');
         Route::post('/marketing/campaigns', [ClinicMarketingController::class, 'store'])->name('marketing.store');
