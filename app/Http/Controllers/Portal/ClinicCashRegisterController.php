@@ -71,7 +71,8 @@ final class ClinicCashRegisterController extends Controller
         $userId = (int) Auth::guard('web')->id();
 
         $session = DB::transaction(function () use ($doctor, $clinicId, $data, $userId): ClinicCashRegisterSession {
-            DB::table('addresses')->where('id', $clinicId)->lockForUpdate()->firstOrFail();
+            $clinic = DB::table('addresses')->where('id', $clinicId)->lockForUpdate()->first();
+            abort_unless($clinic, 404);
             $existing = ClinicCashRegisterSession::query()->where('doctor_id', $doctor->id)
                 ->where('clinic_id', $clinicId)->where('status', 'open')->lockForUpdate()->first();
             abort_if($existing, 409, 'برای این شعبه صندوق باز وجود دارد.');
