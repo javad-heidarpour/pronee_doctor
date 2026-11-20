@@ -21,6 +21,9 @@ const cancellationSuccess = computed(() => page.props.flash?.success ?? "");
 const rescheduleForm = useForm({ patient_phone: "", new_time_slot_id: "" });
 
 const paid = computed(() => props.visit?.payment_status === "paid");
+const printReceipt = () => {
+  if (props.visit?.payment_receipt) window.print();
+};
 
 const canPay = computed(() => {
   return (
@@ -595,6 +598,58 @@ const pay = () => {
             </div>
           </section>
 
+          <!-- رسید قابل چاپ؛ فقط پس از تأیید قطعی پرداخت نمایش داده می‌شود -->
+          <section
+            v-if="visit.payment_receipt"
+            class="receipt-print overflow-hidden rounded-2xl border border-emerald-200 bg-white"
+            aria-label="رسید پرداخت"
+          >
+            <div class="flex items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+              <div>
+                <p class="text-xs font-medium text-emerald-700">پرونیکس</p>
+                <h2 class="mt-1 text-lg font-extrabold text-slate-900">رسید پرداخت نوبت</h2>
+              </div>
+              <span class="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">پرداخت تأییدشده</span>
+            </div>
+
+            <div class="grid gap-4 p-5 sm:grid-cols-2">
+              <div>
+                <p class="text-xs text-slate-500">شماره رسید</p>
+                <p class="mt-1 font-bold text-slate-900" dir="ltr">{{ visit.payment_receipt.receipt_number }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">شماره نوبت</p>
+                <p class="mt-1 font-bold text-slate-900">{{ visit.number }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">مبلغ پرداخت‌شده</p>
+                <p class="mt-1 font-bold text-slate-900">{{ formatPrice(visit.payment_receipt.amount_rial) }} تومان</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">درگاه پرداخت</p>
+                <p class="mt-1 font-bold text-slate-900">{{ visit.payment_receipt.gateway }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">شناسه پیگیری بانکی</p>
+                <p class="mt-1 font-bold text-slate-900" dir="ltr">{{ visit.payment_receipt.reference || "ثبت نشده" }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">زمان پرداخت</p>
+                <p class="mt-1 font-bold text-slate-900" dir="ltr">{{ visit.payment_receipt.paid_at || "ثبت نشده" }}</p>
+              </div>
+            </div>
+
+            <div class="no-print border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                @click="printReceipt"
+                class="w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white transition hover:bg-emerald-800"
+              >
+                چاپ رسید / ذخیره به‌صورت PDF
+              </button>
+            </div>
+          </section>
+
           <!-- راهنما -->
           <div class="rounded-2xl bg-slate-50 p-4 text-sm leading-7 text-slate-600">
             <p class="font-bold text-slate-800">راهنمای مراجعه</p>
@@ -686,3 +741,19 @@ const pay = () => {
     </footer>
   </main>
 </template>
+
+<style>
+@media print {
+  @page { margin: 14mm; }
+  body * { visibility: hidden !important; }
+  .receipt-print, .receipt-print * { visibility: visible !important; }
+  .receipt-print {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .receipt-print .no-print { display: none !important; }
+}
+</style>
