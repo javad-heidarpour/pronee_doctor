@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
 use App\Http\Controllers\Portal\ClinicFinanceController;
 use App\Http\Controllers\Portal\ClinicCashFlowController;
+use App\Http\Controllers\Portal\ClinicCashRegisterController;
 use App\Http\Controllers\Portal\ClinicRevenueOptimizerController;
 use App\Http\Controllers\Portal\ClinicOrganizationController;
 use App\Http\Controllers\Portal\ClinicOperationsController;
@@ -212,6 +213,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
         Route::get('/finance', [ClinicFinanceController::class, 'index'])->name('finance.index');
         Route::get('/finance/cash-flow', [ClinicCashFlowController::class, 'index'])->name('finance.cash-flow');
+        Route::get('/finance/cash-register', [ClinicCashRegisterController::class, 'index'])->name('finance.cash-register');
+        Route::post('/finance/cash-register/open', [ClinicCashRegisterController::class, 'open'])->middleware('throttle:10,1')->name('finance.cash-register.open');
+        Route::post('/finance/cash-register/{session}/transactions', [ClinicCashRegisterController::class, 'store'])->whereNumber('session')->middleware('throttle:30,1')->name('finance.cash-register.transactions.store');
+        Route::post('/finance/cash-register/{session}/close', [ClinicCashRegisterController::class, 'close'])->whereNumber('session')->name('finance.cash-register.close');
         Route::get('/revenue-optimizer', [ClinicRevenueOptimizerController::class, 'index'])->name('revenue-optimizer.index');
         Route::post('/finance/treatment-plans', [ClinicFinanceController::class, 'storePlan'])->name('finance.plans.store');
         Route::post('/finance/installments/{installment}/payments', [ClinicFinanceController::class, 'recordPayment'])->whereNumber('installment')->name('finance.installments.payments.store');
