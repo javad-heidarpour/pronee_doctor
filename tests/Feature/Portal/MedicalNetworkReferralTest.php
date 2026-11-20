@@ -268,7 +268,7 @@ final class MedicalNetworkReferralTest extends TestCase
                 'status' => 'accepted',
             ]),
             $referral,
-            app(\\App\\Services\\MedicalReferralWorkflow::class),
+            app(\App\Services\MedicalReferralWorkflow::class),
             Mockery::mock(RecordSecurityAuditEventAction::class)
         );
     }
