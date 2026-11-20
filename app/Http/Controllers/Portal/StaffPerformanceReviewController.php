@@ -8,6 +8,7 @@ use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Doctor;
+use App\Models\ClinicStaffPerformanceReview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -120,7 +121,7 @@ final class StaffPerformanceReviewController extends Controller
             ->whereDate('period_start',$data['period_start'])->whereDate('period_end',$data['period_end'])->exists(),
             409,'برای این کارمند و بازه زمانی قبلاً ارزیابی ثبت شده است.');
 
-        $id = DB::table('clinic_staff_performance_reviews')->insertGetId([
+        $review = ClinicStaffPerformanceReview::query()->create([
             'organization_id'=>$organization->id,'clinic_id'=>$clinicId,'staff_user_id'=>(int)$data['staff_user_id'],
             'reviewer_user_id'=>(int)$user->id,'period_start'=>$data['period_start'],'period_end'=>$data['period_end'],
             'reliability_score'=>$data['reliability_score'],'task_completion_score'=>$data['task_completion_score'],
@@ -128,9 +129,8 @@ final class StaffPerformanceReviewController extends Controller
             'learning_score'=>$data['learning_score'],'strengths'=>$data['strengths']??null,
             'improvement_areas'=>$data['improvement_areas']??null,'goals'=>$data['goals']??null,
             'reviewer_notes'=>$data['reviewer_notes']??null,'status'=>'draft',
-            'created_at'=>now(),'updated_at'=>now(),
         ]);
-        $audit->handle('staff.performance_review.created',(object)['id'=>$id],[
+        $audit->handle('staff.performance_review.created',$review,[
             'organization_id'=>$organization->id,'clinic_id'=>$clinicId,
             'staff_user_id'=>(int)$data['staff_user_id'],'period_start'=>$data['period_start'],
             'period_end'=>$data['period_end'],'changed_fields'=>['performance_review_created'],
@@ -142,20 +142,17 @@ final class StaffPerformanceReviewController extends Controller
     {
         $user = Auth::guard('web')->user();
         abort_unless($user,401);
-        $row = DB::transaction(function () use ($review,$user): object {
-            $locked = DB::table('clinic_staff_performance_reviews')->where('id',$review)->lockForUpdate()->first();
-            abort_unless($locked,404);
+        $row = DB::transaction(function () use ($review,$user): ClinicStaffPerformanceReview {
+            $locked = ClinicStaffPerformanceReview::query()->whereKey($review)->lockForUpdate()->firstOrFail();
             $organization = $this->currentDoctor()->clinicOrganizations()
                 ->wherePivot('status','active')->where('clinic_organizations.status','active')
                 ->where('owner_user_id',$user->id)->whereKey($locked->organization_id)->first();
             abort_unless($organization,404);
             abort_unless($locked->status==='draft',409,'فقط پیش‌نویس قابل انتشار است.');
-            DB::table('clinic_staff_performance_reviews')->where('id',$review)->where('status','draft')->update([
-                'status'=>'published','published_at'=>now(),'updated_at'=>now(),
-            ]);
-            return $locked;
+            $locked->update(['status'=>'published','published_at'=>now()]);
+            return $locked->refresh();
         },3);
-        $audit->handle('staff.performance_review.published',(object)['id'=>$review],[
+        $audit->handle('staff.performance_review.published',$row,[
             'organization_id'=>(int)$row->organization_id,'clinic_id'=>(int)$row->clinic_id,
             'staff_user_id'=>(int)$row->staff_user_id,'changed_fields'=>['status'],
         ]);
@@ -167,14 +164,13 @@ final class StaffPerformanceReviewController extends Controller
         $user = Auth::guard('web')->user();
         abort_unless($user,401);
         $data = $request->validate(['employee_response'=>['nullable','string','max:2000']]);
-        $row = DB::table('clinic_staff_performance_reviews')->where('id',$review)
-            ->where('staff_user_id',$user->id)->where('status','published')->first();
-        abort_unless($row,404);
-        DB::table('clinic_staff_performance_reviews')->where('id',$review)->update([
+        $row = ClinicStaffPerformanceReview::query()->whereKey($review)
+            ->where('staff_user_id',$user->id)->where('status','published')->firstOrFail();
+        $row->update([
             'acknowledged_at'=>$row->acknowledged_at ?: now(),
-            'employee_response'=>$data['employee_response']??null,'updated_at'=>now(),
+            'employee_response'=>$data['employee_response']??null,
         ]);
-        $audit->handle('staff.performance_review.acknowledged',(object)['id'=>$review],[
+        $audit->handle('staff.performance_review.acknowledged',$row,[
             'organization_id'=>(int)$row->organization_id,'clinic_id'=>(int)$row->clinic_id,
             'staff_user_id'=>(int)$user->id,'changed_fields'=>['acknowledged_at','employee_response'],
         ]);
