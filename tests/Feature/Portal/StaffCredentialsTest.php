@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Portal;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\StaffCredentialsController;
 use App\Models\ClinicOrganization;
 use App\Models\ClinicStaffCredential;
@@ -164,7 +165,7 @@ final class StaffCredentialsTest extends TestCase
             'credential_type' => 'training_certificate',
             'title' => 'گواهی دوره',
             'file' => UploadedFile::fake()->create('course.pdf', 40, 'application/pdf'),
-        ]));
+        ]), app(RecordSecurityAuditEventAction::class));
 
         $this->assertDatabaseHas('clinic_staff_credentials', [
             'staff_user_id' => $this->staff->id,
