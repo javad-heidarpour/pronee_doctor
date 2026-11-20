@@ -28,6 +28,7 @@ final class CreatePortalAppointmentActionTest extends TestCase
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->softDeletes();
+            $table->softDeletes();
             $table->timestamps();
         });
 
