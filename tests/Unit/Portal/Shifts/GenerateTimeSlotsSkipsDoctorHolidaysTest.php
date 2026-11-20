@@ -11,6 +11,7 @@ use App\DTOs\Portal\Scheduling\GenerateTimeSlotsData;
 use App\Models\Doctor;
 use App\Models\DoctorHoliday;
 use App\Models\DoctorWorkingHour;
+use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
