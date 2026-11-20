@@ -118,39 +118,66 @@ class ClinicOperationsController extends Controller
         return back()->with('success', 'خدمت، تعرفه و مواد مصرفی استاندارد آن ثبت شد.');
     }
 
-    public function storeTreatmentItem(Request $request, int $plan, ClinicAccountingService $accounting)
-    {
+    public function storeTreatmentItem(
+        Request $request,
+        int $plan,
+        ClinicAccountingService $accounting,
+        RecordSecurityAuditEventAction $audit
+    ) {
         $this->authorizeClinicRole();
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $treatmentPlan = PatientTreatmentPlan::query()->whereKey($plan)->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor))->firstOrFail();
         $data = $request->validate([
-            'service_id' => ['nullable', 'integer'], 'title' => ['required', 'string', 'max:180'],
-            'item_type' => ['required', Rule::in(['procedure','consultation','lab','imaging','medication','other'])],
-            'tooth_number' => ['nullable', Rule::in(['11','12','13','14','15','16','17','18','21','22','23','24','25','26','27','28','31','32','33','34','35','36','37','38','41','42','43','44','45','46','47','48','51','52','53','54','55','61','62','63','64','65','71','72','73','74','75','81','82','83','84','85'])], 'tooth_surface' => ['nullable', Rule::in(['M','D','O','I','B','L','F','P'])],
-            'sequence' => ['required', 'integer', 'min:1', 'max:500', Rule::unique('patient_treatment_items', 'sequence')->where(fn ($q) => $q->where('treatment_plan_id', $plan))],
+            'service_id' => ['nullable', 'integer'],
+            'title' => ['required', 'string', 'max:180'],
+            'item_type' => ['required', Rule::in(['procedure', 'consultation', 'lab', 'imaging', 'medication', 'other'])],
+            'tooth_number' => ['nullable', Rule::in(['11','12','13','14','15','16','17','18','21','22','23','24','25','26','27','28','31','32','33','34','35','36','37','38','41','42','43','44','45','46','47','48','51','52','53','54','55','61','62','63','64','65','71','72','73','74','75','81','82','83','84','85'])],
+            'tooth_surface' => ['nullable', Rule::in(['M', 'D', 'O', 'I', 'B', 'L', 'F', 'P'])],
+            'sequence' => ['required', 'integer', 'min:1', 'max:500', Rule::unique('patient_treatment_items', 'sequence')->where(fn ($query) => $query->where('treatment_plan_id', $plan))],
             'price' => ['required', 'integer', 'min:0', 'max:999999999999'],
             'doctor_share_basis_points' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'follow_up_after_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'clinical_notes' => ['nullable', 'string', 'max:5000'],
-            
         ]);
-        $service = null;
-        if (!empty($data['service_id'])) {
-            $service = ClinicService::query()->whereKey($data['service_id'])
-                ->where('clinic_id', $treatmentPlan->clinic_id)->firstOrFail();
-        }
-        $alreadyPlanned = (int) $treatmentPlan->items()->sum('price');
-        abort_if($alreadyPlanned + (int) $data['price'] > $treatmentPlan->net_amount, 422,
-            'جمع هزینه مراحل درمان نمی‌تواند از مبلغ خالص طرح درمان بیشتر باشد.');
-        $item = $treatmentPlan->items()->create([
-            ...$data,
-            'provider_doctor_id' => $doctor->id,
-            'doctor_share_basis_points' => $data['doctor_share_basis_points'] ?? $service?->doctor_share_basis_points,
-            'follow_up_after_days' => $data['follow_up_after_days'] ?? $service?->follow_up_after_days,
-            'stage' => 'planned',
+
+        $item = DB::transaction(function () use ($plan, $doctor, $data): PatientTreatmentItem {
+            $treatmentPlan = PatientTreatmentPlan::query()
+                ->whereKey($plan)
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $this->accessibleOperationsClinicIds($doctor))
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $service = null;
+            if (!empty($data['service_id'])) {
+                $service = ClinicService::query()
+                    ->whereKey($data['service_id'])
+                    ->where('clinic_id', $treatmentPlan->clinic_id)
+                    ->firstOrFail();
+            }
+
+            $alreadyPlanned = (int) $treatmentPlan->items()->sum('price');
+            abort_if(
+                $alreadyPlanned + (int) $data['price'] > $treatmentPlan->net_amount,
+                422,
+                'جمع هزینه مراحل درمان نمی‌تواند از مبلغ خالص طرح درمان بیشتر باشد.'
+            );
+
+            return $treatmentPlan->items()->create([
+                ...$data,
+                'provider_doctor_id' => $doctor->id,
+                'doctor_share_basis_points' => $data['doctor_share_basis_points'] ?? $service?->doctor_share_basis_points,
+                'follow_up_after_days' => $data['follow_up_after_days'] ?? $service?->follow_up_after_days,
+                'stage' => 'planned',
+            ]);
+        }, 3);
+
+        $audit->handle('patient.treatment_item.created', $item, [
+            'doctor_id' => $doctor->id,
+            'treatment_plan_id' => $plan,
+            'clinic_id' => $item->plan?->clinic_id,
         ]);
+
         return back()->with('success', 'مرحله درمان ثبت شد.');
     }
 
