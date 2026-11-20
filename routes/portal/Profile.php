@@ -7,6 +7,7 @@ Route::prefix('profile')->name('profile.')
     ->group(function () {
 
         Route::get('/preview', 'preview')->name('preview');
+        Route::post('/honor-badges', 'updateHonorBadges')->name('honor-badges.update');
         Route::get('/', 'edit')->name('edit');
         Route::put('/', 'update')->name('update');
         Route::put('/password', 'updatePassword')->name('password');
