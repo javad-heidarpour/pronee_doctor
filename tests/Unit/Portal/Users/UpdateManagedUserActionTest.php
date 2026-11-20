@@ -384,7 +384,16 @@ final class UpdateManagedUserActionTest extends TestCase
         DB::table('users')->insert([
             ['id' => 1, 'name' => 'Admin', 'role' => 'admin', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
             ['id' => 2, 'name' => 'Patient', 'role' => 'user', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 3, 'name' => 'Deleted Secretary', 'role' => 'secretary', 'is_active' => false, 'deleted_at' => now(), 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        DB::table('users')->insert([
+            'id' => 3,
+            'name' => 'Deleted Secretary',
+            'role' => 'secretary',
+            'is_active' => false,
+            'deleted_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $admin = User::query()->findOrFail(1);
