@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Requests\\Portal;
+namespace App\Http\Requests\Portal;
 
-use App\\Models\\User;
-use Illuminate\\Foundation\\Http\\FormRequest;
+use App\Models\User;
+use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * قوانین اعتبارسنجی مطب (برای ایجاد و ویرایش یکسان است).
