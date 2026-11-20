@@ -224,10 +224,16 @@ const save = () => {
                                     class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"
                                 >
                                     <input
-                                        v-model="doctorItem.clinic_ids"
                                         type="checkbox"
-                                        :value="clinic.id"
-                                        :disabled="!clinic.is_active || (!doctorItem.clinic_ids.includes(clinic.id) && !doctorItem.organization_clinic_ids.includes(clinic.id) && selectedClinicCount >= 2)"
+                                        :checked="doctorItem.clinic_ids.includes(clinic.id) || doctorItem.organization_clinic_ids.includes(clinic.id)"
+                                        :disabled="!clinic.is_active || doctorItem.organization_clinic_ids.includes(clinic.id) || (!doctorItem.clinic_ids.includes(clinic.id) && selectedClinicCount >= 2)"
+                                        @change="(event) => {
+                                            if (event.target.checked) {
+                                                doctorItem.clinic_ids.push(clinic.id);
+                                            } else {
+                                                doctorItem.clinic_ids = doctorItem.clinic_ids.filter(id => id !== clinic.id);
+                                            }
+                                        }"
                                         class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                     />
                                     <span class="text-sm font-medium text-slate-700">
