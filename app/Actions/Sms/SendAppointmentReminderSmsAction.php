@@ -39,7 +39,10 @@ final class SendAppointmentReminderSmsAction
             return 'skipped';
         }
 
-        $deduplicationKey = 'appointment-reminder-day-before:' . $appointment->id;
+        $appointmentDate = $appointment->appointment_date->format('Y-m-d');
+        $appointmentTime = substr((string) $appointment->appointment_time, 0, 5);
+        $scheduleVersion = $appointmentDate . '-' . str_replace(':', '', $appointmentTime);
+        $deduplicationKey = 'appointment-reminder-day-before:' . $appointment->id . ':' . $scheduleVersion;
 
         if (SmsLog::query()->where('deduplication_key', $deduplicationKey)->exists()) {
             return 'already_attempted';
@@ -66,7 +69,7 @@ final class SendAppointmentReminderSmsAction
                 $mobile,
                 $template,
                 $sms['inputs'],
-                'reminder-' . $appointment->id
+                'reminder-' . $appointment->id . '-' . $scheduleVersion
             );
 
             $smsLog->update([
