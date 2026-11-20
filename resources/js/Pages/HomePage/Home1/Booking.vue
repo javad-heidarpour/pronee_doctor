@@ -511,6 +511,7 @@ function changeClinic() {
 function selectDate(index) {
   selectedDateIndex.value = index;
   selectedSlot.value = null;
+  availabilityMessage.value = "";
   nextTick(updateScrollPositions);
 }
 
