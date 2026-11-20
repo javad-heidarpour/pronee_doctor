@@ -154,6 +154,88 @@ final class PublicBookableDoctorsTest extends TestCase
         );
     }
 
+    public function test_public_booking_dates_and_slots_are_sorted_and_respect_the_one_hour_cutoff(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-11-20 10:00:00');
+
+        try {
+            $doctor = $this->createDoctor();
+            $clinicId = DB::table('addresses')->insertGetId([
+                'doctor_id' => $doctor->id,
+                'name' => 'مطب اصلی',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            foreach ([
+                ['2026-11-19', '12:00:00'],
+                ['2026-11-20', '10:30:00'],
+                ['2026-11-20', '11:30:00'],
+                ['2026-11-20', '11:00:00'],
+                ['2026-11-21', '09:00:00'],
+            ] as [$date, $startTime]) {
+                DB::table('time_slots')->insert([
+                    'doctor_id' => $doctor->id,
+                    'clinic_id' => $clinicId,
+                    'date' => $date,
+                    'start_time' => $startTime,
+                    'end_time' => \Carbon\Carbon::parse($date . ' ' . $startTime)->addMinutes(30)->format('H:i:s'),
+                    'status' => 'available',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $page = app(BuildPublicDoctorBookingPageAction::class)->handle($doctor);
+            $dates = $page['clinicsWithSlots']->first()['dates'];
+
+            $this->assertCount(2, $dates);
+            $this->assertSame('2026-11-20', $dates[0]['date']);
+            $this->assertSame(['11:00', '11:30'], $dates[0]['slots']->pluck('start_time')->all());
+            $this->assertSame('2026-11-21', $dates[1]['date']);
+            $this->assertSame(['09:00'], $dates[1]['slots']->pluck('start_time')->all());
+        } finally {
+            \Carbon\Carbon::setTestNow();
+        }
+    }
+
+    public function test_public_booking_cutoff_is_applied_correctly_when_it_crosses_midnight(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-11-20 23:30:00');
+
+        try {
+            $doctor = $this->createDoctor();
+            $clinicId = DB::table('addresses')->insertGetId([
+                'doctor_id' => $doctor->id,
+                'name' => 'مطب اصلی',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            foreach (['00:15:00', '00:30:00', '00:45:00'] as $startTime) {
+                DB::table('time_slots')->insert([
+                    'doctor_id' => $doctor->id,
+                    'clinic_id' => $clinicId,
+                    'date' => '2026-11-21',
+                    'start_time' => $startTime,
+                    'end_time' => \Carbon\Carbon::parse('2026-11-21 ' . $startTime)->addMinutes(30)->format('H:i:s'),
+                    'status' => 'available',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $page = app(BuildPublicDoctorBookingPageAction::class)->handle($doctor);
+            $slots = $page['clinicsWithSlots']->first()['dates']->first()['slots'];
+
+            $this->assertSame(['00:30', '00:45'], $slots->pluck('start_time')->all());
+        } finally {
+            \Carbon\Carbon::setTestNow();
+        }
+    }
+
     private function createDoctor(array $attributes = []): Doctor
     {
         $unique = Str::lower(Str::random(10));
