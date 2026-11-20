@@ -73,6 +73,26 @@ final class MedicalNetworkController extends Controller
             ->with(['patient:id,name', 'referringDoctor:id,name,family', 'targetProvider:id,name,provider_type', 'events' => fn ($q) => $q->orderByDesc('created_at')->limit(5)])
             ->latest()->limit(40)->get();
 
+        $canViewReferralClinical = $user->role !== 'secretary';
+        if ($user->role === 'secretary') {
+            $assignment = $user->doctors()->where('doctors.id', $doctor->id)->first();
+            $permissions = $assignment?->pivot?->permissions ?? [];
+            if (is_string($permissions)) $permissions = json_decode($permissions, true) ?: [];
+            $canViewReferralClinical = is_array($permissions) && in_array('patients.clinical.view', $permissions, true);
+        }
+        if (!$canViewReferralClinical) {
+            foreach ([$outgoing, $incoming] as $referrals) {
+                $referrals->each(function (MedicalReferral $referral): void {
+                    $referral->setRelation('patient', null);
+                    $referral->clinical_summary = null;
+                    $referral->patient_message = null;
+                    $referral->reason = 'جزئیات بالینی به دلیل سطح دسترسی نمایش داده نمی‌شود.';
+                    $referral->result_summary = null;
+                    $referral->patient_instructions = null;
+                });
+            }
+        }
+
         return Inertia::render('Portal/MedicalNetwork/Index', [
             'providers' => $providers,
             'networkIntelligence' => $networkIntelligence,
