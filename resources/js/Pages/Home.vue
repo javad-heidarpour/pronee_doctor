@@ -65,11 +65,25 @@
           />
         </div>
 
-        <div class="flex items-center justify-between gap-3 px-1 sm:justify-end">
-          <span class="text-xs text-slate-500">پزشکان قابل مشاهده</span>
-          <span class="inline-flex min-w-10 items-center justify-center rounded-xl bg-emerald-50 px-3 py-2 text-sm font-black tabular-nums text-emerald-800">
-            {{ filteredDoctors.length }}
-          </span>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <label class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="shrink-0">مرتب‌سازی</span>
+            <select
+              v-model="sortMode"
+              aria-label="مرتب‌سازی نتایج پزشکان"
+              class="min-w-44 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+            >
+              <option value="nearest">نزدیک‌ترین نوبت آزاد</option>
+              <option value="recent">تازه‌ترین نوبت آزادشده</option>
+            </select>
+          </label>
+
+          <div class="flex items-center justify-between gap-3 px-1 sm:justify-end">
+            <span class="text-xs text-slate-500">پزشکان قابل مشاهده</span>
+            <span class="inline-flex min-w-10 items-center justify-center rounded-xl bg-emerald-50 px-3 py-2 text-sm font-black tabular-nums text-emerald-800">
+              {{ filteredDoctors.length }}
+            </span>
+          </div>
         </div>
       </section>
 
@@ -120,17 +134,19 @@
               </p>
 
               <div
-                v-if="doctor.next_available && doctor.next_clinic"
+                v-if="displayedSlot(doctor) && displayedClinic(doctor)"
                 class="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3"
               >
-                <p class="text-[11px] font-bold text-emerald-800">نزدیک‌ترین نوبت آزاد</p>
+                <p class="text-[11px] font-bold text-emerald-800">
+                  {{ sortMode === "recent" ? "تازه‌ترین فرصت آزادشده" : "نزدیک‌ترین نوبت آزاد" }}
+                </p>
                 <p class="mt-1 text-sm font-black text-slate-900">
-                  {{ formatPersianDate(doctor.next_available.date) }}
-                  · ساعت {{ doctor.next_available.start_time }}
+                  {{ formatPersianDate(displayedSlot(doctor).date) }}
+                  · ساعت {{ displayedSlot(doctor).start_time }}
                 </p>
                 <p class="mt-1 truncate text-xs text-slate-600">
-                  {{ doctor.next_clinic.name }}
-                  <span v-if="doctor.next_clinic.city_name"> · {{ doctor.next_clinic.city_name }}</span>
+                  {{ displayedClinic(doctor).name }}
+                  <span v-if="displayedClinic(doctor).city_name"> · {{ displayedClinic(doctor).city_name }}</span>
                 </p>
                 <p v-if="doctor.clinics?.length > 1" class="mt-1 text-[11px] text-slate-500">
                   دارای نوبت در {{ doctor.clinics.length }} شعبه
@@ -196,26 +212,60 @@ const props = defineProps({
 });
 
 const search = ref("");
+const sortMode = ref("nearest");
 
 const filteredDoctors = computed(() => {
   const term = search.value.trim().toLocaleLowerCase();
+  const matches = term
+    ? props.doctors.filter((doctor) => {
+        const searchable = [
+          doctor.caption,
+          doctor.name,
+          doctor.family,
+          doctor.specialty_title,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLocaleLowerCase();
 
-  if (!term) return props.doctors;
+        return searchable.includes(term);
+      })
+    : [...props.doctors];
 
-  return props.doctors.filter((doctor) => {
-    const searchable = [
-      doctor.caption,
-      doctor.name,
-      doctor.family,
-      doctor.specialty_title,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLocaleLowerCase();
+  return matches.sort((left, right) => {
+    if (sortMode.value === "recent") {
+      const leftTime = left.latest_available?.available_at
+        ? new Date(left.latest_available.available_at).getTime()
+        : 0;
+      const rightTime = right.latest_available?.available_at
+        ? new Date(right.latest_available.available_at).getTime()
+        : 0;
 
-    return searchable.includes(term);
+      return rightTime - leftTime;
+    }
+
+    const leftTime = left.next_available
+      ? new Date(`${left.next_available.date}T${left.next_available.start_time}:00`).getTime()
+      : Number.MAX_SAFE_INTEGER;
+    const rightTime = right.next_available
+      ? new Date(`${right.next_available.date}T${right.next_available.start_time}:00`).getTime()
+      : Number.MAX_SAFE_INTEGER;
+
+    return leftTime - rightTime;
   });
 });
+
+function displayedSlot(doctor) {
+  return sortMode.value === "recent"
+    ? doctor.latest_available
+    : doctor.next_available;
+}
+
+function displayedClinic(doctor) {
+  return sortMode.value === "recent"
+    ? doctor.latest_clinic
+    : doctor.next_clinic;
+}
 
 function doctorFullName(doctor) {
   return [doctor.name, doctor.family].filter(Boolean).join(" ").trim() || "پزشک پرونیکس";
