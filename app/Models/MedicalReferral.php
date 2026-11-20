@@ -20,7 +20,8 @@ class MedicalReferral extends Model
     ];
 
     protected $casts = [
-        'requested_services' => 'array',\n        'consent_at' => 'datetime',
+        'requested_services' => 'array',
+        'consent_at' => 'datetime',
         'accepted_at' => 'datetime',
         'scheduled_at' => 'datetime',
         'completed_at' => 'datetime',
