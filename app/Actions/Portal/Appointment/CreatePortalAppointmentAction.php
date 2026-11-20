@@ -142,12 +142,25 @@ class CreatePortalAppointmentAction
                 }
             }
 
-            $visitReasonId = $data->visitReasonId;
+            $visitReasonId = null;
+            $description = trim($data->description ?? '');
 
+            if ($newVisitReason === '' && $data->visitReasonId !== null) {
+                $visitReason = VisitReason::query()->find($data->visitReasonId);
+
+                if (!$visitReason) {
+                    throw ValidationException::withMessages([
+                        'visit_reason_id' => 'دلیل مراجعه انتخاب‌شده معتبر نیست.',
+                    ]);
+                }
+
+                $visitReasonId = $visitReason->id;
+            }
+
+            // Free-text reasons are kept on this appointment, not promoted
+            // into the shared reason catalog without review.
             if ($newVisitReason !== '') {
-                $visitReasonId = VisitReason::firstOrCreate([
-                    'title' => $newVisitReason,
-                ])->id;
+                $description = trim($description . "\n" . 'دلیل مراجعه: ' . $newVisitReason);
             }
 
             $fee = Fee::where('created_by', $timeSlot->doctor_id)
@@ -176,7 +189,7 @@ class CreatePortalAppointmentAction
                 'patient_name' => $data->patientName,
                 'patient_phone' => $data->patientPhone,
                 'patient_national_code' => $data->patientNationalCode,
-                'description' => $data->description,
+                'description' => $description !== '' ? $description : null,
 
                 'status' => 'pending',
                 'appointment_date' => $timeSlot->date,
