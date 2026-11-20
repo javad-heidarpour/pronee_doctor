@@ -6,6 +6,9 @@ namespace Tests\Unit\Portal\WorkingHours;
 
 use App\Actions\Portal\WorkingHours\CreateDoctorHolidayAction;
 use App\Actions\Portal\WorkingHours\DeleteDoctorHolidayAction;
+use App\Actions\Portal\Shifts\CreateTimeSlotAction;
+use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
+use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\Models\Doctor;
 use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
@@ -153,6 +156,46 @@ final class DoctorHolidayActionTest extends TestCase
         }
 
         $this->assertDatabaseCount('doctor_holidays', 1);
+    }
+
+    public function test_manual_slot_creation_is_rejected_on_a_holiday(): void
+    {
+        [$doctor, $clinicId] = $this->doctorAndClinic();
+        DoctorHoliday::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinicId,
+            'holiday_date' => '2026-11-25',
+            'title' => 'تعطیلی',
+        ]);
+
+        $created = app(CreateTimeSlotAction::class)->handle(
+            $doctor,
+            new TimeSlotData($clinicId, '2026-11-25', '09:00:00', '09:30:00')
+        );
+
+        $this->assertFalse($created);
+        $this->assertDatabaseCount('time_slots', 0);
+    }
+
+    public function test_existing_slot_cannot_be_moved_into_a_holiday(): void
+    {
+        [$doctor, $clinicId] = $this->doctorAndClinic();
+        $slot = $this->slot($doctor, $clinicId, '2026-11-24', 'available');
+        DoctorHoliday::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinicId,
+            'holiday_date' => '2026-11-25',
+            'title' => 'تعطیلی',
+        ]);
+
+        $updated = app(UpdateTimeSlotAction::class)->handle(
+            $doctor,
+            $slot,
+            new TimeSlotData($clinicId, '2026-11-25', '10:00:00', '10:30:00')
+        );
+
+        $this->assertFalse($updated);
+        $this->assertSame('2026-11-24', $slot->fresh()->date->format('Y-m-d'));
     }
 
     public function test_deleting_a_holiday_removes_only_the_exception_record(): void
