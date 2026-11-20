@@ -12,6 +12,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  roles: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const form = useForm({
@@ -19,6 +23,7 @@ const form = useForm({
   family: props.user.family ?? "",
 
   phone: props.user.phone ?? "",
+  username: props.user.username ?? "",
   email: props.user.email ?? "",
   role: props.user.role ?? "user",
   is_active: Boolean(props.user.is_active),
@@ -26,14 +31,9 @@ const form = useForm({
   password_confirmation: "",
 });
 
-const roleLabels = {
-  doctor: "پزشک",
-  secretary: "منشی",
-  admin: "مدیر",
-  user: "کاربر",
-};
-
-const roleLabel = computed(() => roleLabels[form.role] ?? form.role);
+const roleLabel = computed(
+  () => props.roles.find((role) => role.value === form.role)?.label ?? form.role
+);
 
 const submit = () => {
   form.patch(route("portal.users.update", props.user.id), {
@@ -156,6 +156,23 @@ const submit = () => {
 
                 <div>
                   <label class="mb-2 block text-sm font-bold text-slate-700">
+                    نام کاربری
+                  </label>
+                  <input
+                    v-model="form.username"
+                    type="text"
+                    dir="ltr"
+                    maxlength="100"
+                    class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/10"
+                    placeholder="username"
+                  />
+                  <p v-if="form.errors.username" class="mt-2 text-xs text-red-500">
+                    {{ form.errors.username }}
+                  </p>
+                </div>
+
+                <div>
+                  <label class="mb-2 block text-sm font-bold text-slate-700">
                     ایمیل
                   </label>
 
@@ -264,10 +281,9 @@ const submit = () => {
                     v-model="form.role"
                     class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-teal-500 focus:bg-white"
                   >
-                    <option value="user">کاربر</option>
-                    <option value="secretary">منشی</option>
-                    <option value="doctor">پزشک</option>
-                    <option value="admin">مدیر</option>
+                    <option v-for="role in roles" :key="role.value" :value="role.value">
+                      {{ role.label }}
+                    </option>
                   </select>
 
                   <p v-if="form.errors.role" class="mt-2 text-xs text-red-500">
