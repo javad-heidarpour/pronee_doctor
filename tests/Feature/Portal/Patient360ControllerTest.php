@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\Patient360Controller;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -256,14 +257,14 @@ final class Patient360ControllerTest extends TestCase
         );
 
         $this->assertInstanceOf(Response::class, $response);
-        $props = $response->getProps();
+        $props = $this->responseProps($response);
 
         $this->assertSame(31, $props['summary']['appointments']);
         $this->assertCount(30, $props['appointments']);
         $this->assertSame(1, $props['summary']['encounters']);
         $this->assertSame(1, $props['summary']['active_allergies']);
         $this->assertCount(50, $props['vitals']);
-        $this->assertSame('weight', $props['latestVitals']->first()['type']);
+        $this->assertSame('weight', collect($props['latestVitals'])->first()['type']);
         $this->assertTrue($props['canViewClinical']);
     }
 
@@ -355,6 +356,17 @@ final class Patient360ControllerTest extends TestCase
             Patient::query()->findOrFail($patientId),
             Mockery::mock(RecordSecurityAuditEventAction::class)
         );
+    }
+
+
+    private function responseProps(Response $response): array
+    {
+        $request = Request::create('/portal/patients/1/360', 'GET');
+        $request->headers->set('X-Inertia', 'true');
+        $httpResponse = $response->toResponse($request);
+        $payload = json_decode($httpResponse->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        return $payload['props'];
     }
 
     private function doctorPatientAndClinic(bool $secondClinic = false): array
