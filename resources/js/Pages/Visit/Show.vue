@@ -97,7 +97,7 @@ const formatPrice = (value) => {
 const getPersianFullDate = (dateStr) => {
   if (!dateStr) return "مشخص نشده";
 
-  const match = String(dateStr).match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const date = match
     ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)
     : new Date(dateStr);
