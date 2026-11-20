@@ -80,6 +80,7 @@ class ClinicOrganizationController extends Controller
         $clinicIds = Address::query()
             ->where('doctor_id', $ownedDoctor->id)
             ->whereNull('organization_id')
+            ->where('is_active', true)
             ->whereIn('id', $requestedClinicIds)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -165,6 +166,7 @@ class ClinicOrganizationController extends Controller
             $clinic = Address::query()
                 ->whereKey($data['clinic_id'])
                 ->whereIn('doctor_id', $doctorIds)
+                ->where('is_active', true)
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -222,6 +224,8 @@ class ClinicOrganizationController extends Controller
         $member = User::query()->whereKey($data['user_id'])->where('role', 'secretary')->where('is_active', true)->firstOrFail();
         $clinicIds = $organization->clinics()
             ->wherePivot('status', 'active')
+            ->where('addresses.is_active', true)
+            ->where('addresses.organization_id', $organization->id)
             ->whereIn('addresses.id', $data['clinic_ids'])
             ->pluck('addresses.id')
             ->map(fn ($id) => (int) $id)
@@ -246,6 +250,11 @@ class ClinicOrganizationController extends Controller
     {
         $this->authorizeOwner($organization);
         $user = $organization->members()->whereKey($member)->firstOrFail();
+        abort_if(
+            (int) $user->id === (int) $organization->owner_user_id,
+            422,
+            'مالک مجموعه را نمی‌توان از عضویت مالک خارج کرد.'
+        );
         $doctors = $organization->doctors()->wherePivot('status', 'active')->get();
 
         DB::transaction(function () use ($organization, $user, $doctors): void {
