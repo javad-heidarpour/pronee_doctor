@@ -24,6 +24,7 @@ use App\Http\Controllers\Portal\ClinicPerformanceController;
 use App\Http\Controllers\Portal\ClinicProfessionalPartnershipController;
 use App\Http\Controllers\Portal\ProcurementController;
 use App\Http\Controllers\Portal\StaffAttendanceController;
+use App\Http\Controllers\Portal\StaffResponsibilitiesController;
 use App\Http\Controllers\Portal\StaffManagementController;
 use App\Http\Controllers\Portal\StaffObligationController;
 
@@ -101,6 +102,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/clinic-performance', [ClinicPerformanceController::class, 'index'])->name('clinic-performance.index');
         Route::get('/procurement', [ProcurementController::class, 'index'])->name('procurement.index');
         Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
+        Route::get('/staff-responsibilities', [StaffResponsibilitiesController::class, 'index'])->name('staff-responsibilities.index');
+        Route::post('/staff-responsibilities', [StaffResponsibilitiesController::class, 'store'])->middleware('throttle:20,1')->name('staff-responsibilities.store');
+        Route::put('/staff-responsibilities/{responsibility}', [StaffResponsibilitiesController::class, 'update'])->whereNumber('responsibility')->middleware('throttle:20,1')->name('staff-responsibilities.update');
+        Route::delete('/staff-responsibilities/{responsibility}', [StaffResponsibilitiesController::class, 'destroy'])->whereNumber('responsibility')->name('staff-responsibilities.destroy');
         Route::get('/staff-management', [StaffManagementController::class, 'index'])->name('staff-management.index');
         Route::post('/staff-management/contracts', [StaffManagementController::class, 'storeContract'])->name('staff-management.contracts.store');
         Route::post('/staff-management/leave-balances', [StaffManagementController::class, 'setLeaveBalance'])->name('staff-management.leave-balances.store');
