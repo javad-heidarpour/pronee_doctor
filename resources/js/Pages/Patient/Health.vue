@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, accessType: String,
-  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array, carePathways: { type: Array, default: () => [] },
+  patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array, consents: { type: Array, default: () => [] }, carePathways: { type: Array, default: () => [] },
 })
 const linkForm = useForm({ national_code: '', phone: '' })
 const clinicToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
