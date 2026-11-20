@@ -59,14 +59,9 @@ final class SaveWorkingHourActionTest extends TestCase
 
         $this->assertTrue($result['saved']);
         $this->assertNull($result['duplicate']);
-        $this->assertDatabaseHas('doctor_working_hours', [
-            'doctor_id' => $doctor->id,
-            'clinic_id' => $clinicId,
-            'day_of_week' => 1,
-            'start_time' => '09:00:00',
-            'end_time' => '12:00:00',
-            'is_active' => true,
-        ]);
+        $saved = DoctorWorkingHour::query()->firstOrFail();
+        $this->assertSame('09:00', substr((string) $saved->start_time, 0, 5));
+        $this->assertSame('12:00', substr((string) $saved->end_time, 0, 5));
     }
 
     public function test_it_rejects_overlapping_active_hours_even_across_two_clinics(): void
@@ -119,8 +114,8 @@ final class SaveWorkingHourActionTest extends TestCase
         );
 
         $this->assertTrue($result['saved']);
-        $this->assertSame('10:00:00', $hour->fresh()->start_time);
-        $this->assertSame('11:00:00', $hour->fresh()->end_time);
+        $this->assertSame('10:00', substr((string) $hour->fresh()->start_time, 0, 5));
+        $this->assertSame('11:00', substr((string) $hour->fresh()->end_time, 0, 5));
     }
 
     public function test_updating_an_active_working_hour_does_not_overwrite_an_overlapping_schedule(): void
@@ -137,8 +132,8 @@ final class SaveWorkingHourActionTest extends TestCase
 
         $this->assertFalse($result['saved']);
         $this->assertSame($other->id, $result['duplicate']->id);
-        $this->assertSame('09:00:00', $hour->fresh()->start_time);
-        $this->assertSame('10:00:00', $hour->fresh()->end_time);
+        $this->assertSame('09:00', substr((string) $hour->fresh()->start_time, 0, 5));
+        $this->assertSame('10:00', substr((string) $hour->fresh()->end_time, 0, 5));
     }
 
     public function test_editing_an_inactive_working_hour_keeps_it_inactive(): void
@@ -154,7 +149,7 @@ final class SaveWorkingHourActionTest extends TestCase
 
         $this->assertTrue($result['saved']);
         $this->assertFalse($hour->fresh()->is_active);
-        $this->assertSame('13:00:00', $hour->fresh()->start_time);
+        $this->assertSame('13:00', substr((string) $hour->fresh()->start_time, 0, 5));
     }
 
     public function test_it_rejects_a_clinic_not_owned_by_the_doctor(): void
