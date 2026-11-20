@@ -8,6 +8,7 @@ use App\Actions\Portal\WorkingHours\CreateDoctorHolidayAction;
 use App\Actions\Portal\WorkingHours\DeleteDoctorHolidayAction;
 use App\Actions\Portal\Shifts\CreateTimeSlotAction;
 use App\Actions\Portal\Shifts\UpdateTimeSlotAction;
+use App\Actions\Portal\Shifts\ToggleTimeSlotAction;
 use App\DTOs\Portal\Scheduling\TimeSlotData;
 use App\Models\Doctor;
 use App\Models\DoctorHoliday;
@@ -196,6 +197,23 @@ final class DoctorHolidayActionTest extends TestCase
 
         $this->assertFalse($updated);
         $this->assertSame('2026-11-24', $slot->fresh()->date->format('Y-m-d'));
+    }
+
+    public function test_a_cancelled_slot_cannot_be_reactivated_on_a_holiday(): void
+    {
+        [$doctor, $clinicId] = $this->doctorAndClinic();
+        $slot = $this->slot($doctor, $clinicId, '2026-11-25', 'cancelled');
+        DoctorHoliday::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinicId,
+            'holiday_date' => '2026-11-25',
+            'title' => 'تعطیلی',
+        ]);
+
+        $result = app(ToggleTimeSlotAction::class)->handle($slot);
+
+        $this->assertNull($result);
+        $this->assertSame('cancelled', $slot->fresh()->status);
     }
 
     public function test_deleting_a_holiday_removes_only_the_exception_record(): void
