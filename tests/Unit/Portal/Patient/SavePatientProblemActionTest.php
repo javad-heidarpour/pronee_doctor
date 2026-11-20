@@ -159,6 +159,28 @@ final class SavePatientProblemActionTest extends TestCase
         }
     }
 
+    public function test_it_rejects_linking_to_an_encounter_outside_accessible_clinics(): void
+    {
+        $patient = $this->makePatient(16);
+        $actor = $this->makeActor(26);
+        $encounter = PatientEncounter::query()->create([
+            'doctor_id' => 16,
+            'patient_id' => $patient->id,
+            'clinic_id' => 99,
+            'status' => PatientEncounter::STATUS_SIGNED,
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(SavePatientProblemAction::class)->handle($patient, $actor, [
+            'category' => 'diagnosis',
+            'title' => 'Restricted clinic diagnosis',
+            'code_system' => 'local',
+            'status' => 'active',
+            'source' => 'clinician_assessed',
+            'encounter_id' => $encounter->id,
+        ], null, [77]);
+    }
+
     public function test_it_rejects_linking_to_a_draft_encounter(): void
     {
         $patient = $this->makePatient(14);
