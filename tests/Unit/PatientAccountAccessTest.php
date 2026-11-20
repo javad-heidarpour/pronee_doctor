@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use App\\Models\\PatientAccountAccess;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
-use Tests\\TestCase;
+use App\Models\PatientAccountAccess;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 final class PatientAccountAccessTest extends TestCase
 {
