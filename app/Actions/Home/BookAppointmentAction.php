@@ -132,7 +132,7 @@ final class BookAppointmentAction
                     $existingAppointment = Appointment::query()
                         ->where('patient_national_code', $data->patientNationalCode)
                         ->where('doctor_id', $doctor->id)
-                        ->whereIn('status', ['pending', 'confirmed'])
+                        ->whereIn('status', ['pending', 'confirmed', 'contacted'])
                         ->exists();
 
                     if ($existingAppointment) {
