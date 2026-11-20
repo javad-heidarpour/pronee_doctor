@@ -52,7 +52,7 @@ final class UpdateDoctorHonorBadgesTest extends TestCase
 
     public function test_empty_honor_badge_list_removes_existing_public_badges(): void
     {
-        $doctor = Doctor::factory()->create();
+        $doctor = Doctor::factory()->create(['family' => 'آزمایشی']);
         $doctor->honorBadges()->create([
             'title' => 'سابقه قبلی',
             'icon' => '🏅',
