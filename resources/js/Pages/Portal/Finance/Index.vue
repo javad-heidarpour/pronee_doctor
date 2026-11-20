@@ -90,6 +90,7 @@ const netAmount = computed(() => Math.max(0, Number(planForm.total_amount || 0) 
         <h1 class="text-xl font-black text-slate-900">مدیریت مالی و طرح درمان</h1>
         <p class="mt-1 text-sm text-slate-500">قرارداد درمان، اقساط، وثایق، دریافت‌ها و هزینه‌های هر شعبه</p>
               <a :href="route('portal.finance.cash-flow')" class="mt-3 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">پیش‌بینی جریان نقدینگی</a>
+              <a :href="route('portal.finance.cash-register')" class="mt-3 mr-2 inline-flex rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white">صندوق و دریافت حضوری</a>
       </header>
       <section class="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 class="font-extrabold">دوره گزارش‌گیری مالی</h2>
