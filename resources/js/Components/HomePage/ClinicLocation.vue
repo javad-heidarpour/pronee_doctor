@@ -65,6 +65,14 @@
               </div>
             </div>
 
+            <Link
+              :href="route('booking', { slug: doctor.slug, clinic: addr.id })"
+              class="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800"
+            >
+              دریافت نوبت از این شعبه
+              <span aria-hidden="true">←</span>
+            </Link>
+
             <!-- دکمه‌های لینک -->
             <div v-if="addr.Latitude && addr.Longitude" class="flex gap-2 mt-4">
               <a
@@ -183,6 +191,8 @@
 </template>
 
 <script setup>
+import { Link } from "@inertiajs/vue3";
+
 defineProps({
   doctor: {
     type: Object,
