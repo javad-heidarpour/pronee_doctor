@@ -35,7 +35,20 @@ final class PatientInsuranceController extends Controller
             ->where('doctor_id', $doctor->id)
             ->where('patient_id', $patient->id)
             ->orderByDesc('checked_at')->orderByDesc('id')
-            ->paginate(15)->withQueryString();
+            ->paginate(15)->withQueryString()
+            ->through(fn (PatientInsuranceVerification $item): array => [
+                'id' => $item->id,
+                'payer_code' => $item->payer_code,
+                'payer_name' => $item->payer_name,
+                'policy_number_masked' => $this->maskIdentifier($item->policy_number),
+                'member_number_masked' => $this->maskIdentifier($item->member_number),
+                'status' => $item->status,
+                'checked_at' => $item->checked_at?->toIso8601String(),
+                'valid_from' => $item->valid_from?->toDateString(),
+                'valid_until' => $item->valid_until?->toDateString(),
+                'tracking_id' => $item->tracking_id,
+                'failure_message' => $item->failure_message,
+            ]);
 
         return Inertia::render('Portal/Patients/Insurance', [
             'doctor' => $doctor,
@@ -124,5 +137,11 @@ final class PatientInsuranceController extends Controller
         ]);
 
         return back()->with('success', 'وضعیت بیمه به‌صورت دستی ثبت شد؛ این ثبت به معنی استعلام خودکار از شرکت بیمه نیست.');
+    }
+    private function maskIdentifier(?string $value): ?string
+    {
+        if (!$value) return null;
+        $digits = preg_replace('/\s+/', '', $value);
+        return mb_strlen($digits) <= 4 ? str_repeat('•', mb_strlen($digits)) : str_repeat('•', max(4, mb_strlen($digits) - 4)) . mb_substr($digits, -4);
     }
 }
