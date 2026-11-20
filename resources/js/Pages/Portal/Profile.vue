@@ -6,7 +6,19 @@
       <div
         class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-6"
       >
-        <h3 class="text-lg font-bold text-gray-900 mb-6">اطلاعات شخصی</h3>
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-bold text-gray-900">اطلاعات شخصی</h3>
+          <a
+            v-if="doctor.slug"
+            :href="route('home1', { doctor: doctor.slug })"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-800 transition hover:bg-teal-100"
+          >
+            پیش‌نمایش صفحه عمومی
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
 
         <form @submit.prevent="submitProfile" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
