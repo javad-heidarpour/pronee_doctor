@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Visit;
 
+use App\Actions\Sms\SendAppointmentLifecycleSmsAction;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\DoctorHoliday;
@@ -14,11 +15,16 @@ use Illuminate\Validation\ValidationException;
 
 final class ReschedulePublicAppointmentAction
 {
+    public function __construct(
+        private readonly SendAppointmentLifecycleSmsAction $smsAction
+    ) {
+    }
+
     private const ACTIVE_STATUSES = ['pending', 'confirmed', 'contacted'];
 
     public function handle(int $visitNumber, string $patientPhone, int $newTimeSlotId): string
     {
-        return DB::transaction(function () use ($visitNumber, $patientPhone, $newTimeSlotId): string {
+        $result = DB::transaction(function () use ($visitNumber, $patientPhone, $newTimeSlotId): string {
             $appointment = Appointment::query()
                 ->whereKey($visitNumber)
                 ->lockForUpdate()
@@ -169,5 +175,11 @@ final class ReschedulePublicAppointmentAction
 
             return 'rescheduled';
         });
+
+        if ($result === 'rescheduled') {
+            $this->smsAction->handle($visitNumber, 'updated');
+        }
+
+        return $result;
     }
 }
