@@ -193,7 +193,11 @@ final class MedicalNetworkController extends Controller
         Patient::query()->whereKey($data['patient_id'])->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->where('clinic_id', $data['source_clinic_id']))->firstOrFail();
         $provider = MedicalNetworkProvider::query()->whereKey($data['target_provider_id'])->where('status', 'active')->where('is_verified', true)->firstOrFail();
-        abort_if($provider->doctor_id === $doctor->id, 422, 'ارجاع به پروفایل خودتان امکان‌پذیر نیست.');
+        abort_if(
+            (int) $provider->created_by_user_id === (int) $user->id || (int) $provider->doctor_id === (int) $doctor->id,
+            422,
+            'ارجاع به پروفایل یا مرکز متعلق به خودتان امکان‌پذیر نیست.'
+        );
         $expectedService = in_array($provider->provider_type, ['doctor', 'psychiatrist', 'psychologist', 'counselor', 'social_worker', 'speech_therapist', 'occupational_therapist', 'nutritionist', 'nurse', 'midwife', 'physiotherapist', 'other'], true) ? 'consultation' : $provider->provider_type;
         abort_unless($data['service_type'] === $expectedService, 422, 'نوع خدمت با نوع مرکز مقصد همخوانی ندارد.');
 
@@ -257,8 +261,14 @@ final class MedicalNetworkController extends Controller
                 $hasClinicAccess = in_array((int) $locked->source_clinic_id, $this->accessibleClinicIds($locked->referringDoctor), true);
                 $senderSecretary = $hasClinicAccess && is_array($permissions) && in_array('appointments.manage', $permissions, true);
             }
-            $isSender = (int) $locked->referringDoctor?->user_id === (int) $user->id || $senderSecretary;
-            $isRecipient = (int) $locked->targetProvider?->created_by_user_id === (int) $user->id;
+            $activeDoctorId = (int) session('active_doctor_id');
+            $isSender = (
+                (int) $locked->referringDoctor?->user_id === (int) $user->id
+                && $activeDoctorId === (int) $locked->referring_doctor_id
+            ) || $senderSecretary;
+            $providerDoctorId = $locked->targetProvider?->doctor_id;
+            $isRecipient = (int) $locked->targetProvider?->created_by_user_id === (int) $user->id
+                && ($providerDoctorId === null || (int) $providerDoctorId === $activeDoctorId);
             abort_unless($isSender || $isRecipient, 403, 'به این ارجاع دسترسی ندارید.');
 
             $from = $locked->status;
