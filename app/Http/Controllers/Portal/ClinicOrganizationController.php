@@ -425,6 +425,7 @@ class ClinicOrganizationController extends Controller
     public function inviteMember(Request $request, ClinicOrganization $organization)
     {
         $this->authorizeOwner($organization);
+
         $allowed = [
             'appointments.view','appointments.manage','patients.view','patients.manage',
             'patients.clinical.view','patients.clinical.manage','clinics.view',
@@ -432,6 +433,7 @@ class ClinicOrganizationController extends Controller
             'finance.view','finance.manage','services.view','services.manage',
             'inventory.view','inventory.manage','staff.attendance.view',
         ];
+
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'role' => [Rule::in(['receptionist','accountant','clinic_manager','inventory_manager','secretary'])],
@@ -440,18 +442,36 @@ class ClinicOrganizationController extends Controller
             'clinic_ids' => ['required', 'array', 'min:1'],
             'clinic_ids.*' => ['integer', 'distinct'],
         ]);
-        $member = User::query()->whereKey($data['user_id'])->where('role', 'secretary')->where('is_active', true)->firstOrFail();
-        $clinicIds = $organization->clinics()
-            ->wherePivot('status', 'active')
-            ->where('addresses.is_active', true)
-            ->where('addresses.organization_id', $organization->id)
-            ->whereIn('addresses.id', $data['clinic_ids'])
-            ->pluck('addresses.id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-        abort_unless(count($clinicIds) === count($data['clinic_ids']), 422, 'یکی از شعب انتخاب‌شده متعلق به این مجموعه نیست.');
 
-        DB::transaction(function () use ($organization, $member, $data, $clinicIds): void {
+        DB::transaction(function () use ($organization, $data): void {
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $member = User::query()
+                ->whereKey($data['user_id'])
+                ->where('role', 'secretary')
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $clinicIds = $organization->clinics()
+                ->wherePivot('status', 'active')
+                ->where('addresses.is_active', true)
+                ->where('addresses.organization_id', $organization->id)
+                ->whereIn('addresses.id', $data['clinic_ids'])
+                ->lockForUpdate()
+                ->pluck('addresses.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if (count($clinicIds) !== count($data['clinic_ids'])) {
+                throw ValidationException::withMessages([
+                    'clinic_ids' => 'یکی از شعب انتخاب‌شده متعلق به این مجموعه یا فعال نیست.',
+                ]);
+            }
+
             $organization->members()->syncWithoutDetaching([
                 $member->id => [
                     'role' => $data['role'] ?? 'secretary',
@@ -460,23 +480,39 @@ class ClinicOrganizationController extends Controller
                     'is_active' => true,
                 ],
             ]);
+
             $this->syncOrganizationSecretaryAccess($organization);
         });
+
         return back()->with('success', 'کارمند به مجموعه و شعبه‌های انتخاب‌شده متصل شد.');
     }
 
     public function removeMember(ClinicOrganization $organization, int $member)
     {
         $this->authorizeOwner($organization);
-        $user = $organization->members()->whereKey($member)->firstOrFail();
-        abort_if(
-            (int) $user->id === (int) $organization->owner_user_id,
-            422,
-            'مالک مجموعه را نمی‌توان از عضویت مالک خارج کرد.'
-        );
-        $doctors = $organization->doctors()->wherePivot('status', 'active')->get();
 
-        DB::transaction(function () use ($organization, $user, $doctors): void {
+        DB::transaction(function () use ($organization, $member): void {
+            ClinicOrganization::query()
+                ->whereKey($organization->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $user = $organization->members()
+                ->whereKey($member)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_if(
+                (int) $user->id === (int) $organization->owner_user_id,
+                422,
+                'مالک مجموعه را نمی‌توان از عضویت مالک خارج کرد.'
+            );
+
+            $doctors = $organization->doctors()
+                ->wherePivot('status', 'active')
+                ->lockForUpdate()
+                ->get();
+
             $organization->members()->detach($user->id);
 
             // Recalculate the removed member against every remaining organization
@@ -487,13 +523,10 @@ class ClinicOrganizationController extends Controller
 
             $this->syncOrganizationSecretaryAccess($organization);
         });
+
         return back()->with('success', 'دسترسی کارمند به مجموعه لغو شد.');
     }
 
-    /**
-     * Reconcile legacy doctor_user grants whenever organization doctors,
-     * clinics, or staff memberships change.
-     */
     private function syncOrganizationSecretaryAccess(
         ClinicOrganization $organization,
         ?Doctor $onlyDoctor = null
