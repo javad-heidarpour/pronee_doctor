@@ -6,10 +6,16 @@ namespace App\Actions\Portal\Patient;
 
 use App\Models\Doctor;
 use App\Models\Patient;
+use App\Support\PatientIdentityNormalizer;
 use Illuminate\Support\Facades\DB;
 
 final class ResolveOrCreatePatientAction
 {
+    public function __construct(
+        private readonly PatientIdentityNormalizer $identityNormalizer
+    ) {
+    }
+
     /**
      * Resolve a patient inside one doctor's workspace.
      *
@@ -22,9 +28,9 @@ final class ResolveOrCreatePatientAction
         ?string $phone,
         ?string $nationalCode
     ): ?Patient {
-        $phone = $this->normalize($phone);
-        $nationalCode = $this->normalize($nationalCode);
-        $name = trim($name);
+        $phone = $this->identityNormalizer->normalizePhone($phone);
+        $nationalCode = $this->identityNormalizer->normalizeNationalCode($nationalCode);
+        $name = $this->identityNormalizer->normalizeName($name);
 
         if ($phone === null && $nationalCode === null) {
             return null;
@@ -65,12 +71,5 @@ final class ResolveOrCreatePatientAction
                 'national_code' => $nationalCode,
             ]);
         });
-    }
-
-    private function normalize(?string $value): ?string
-    {
-        $value = trim((string) $value);
-
-        return $value === '' ? null : $value;
     }
 }
