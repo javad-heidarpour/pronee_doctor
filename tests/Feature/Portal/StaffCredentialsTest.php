@@ -41,6 +41,9 @@ final class StaffCredentialsTest extends TestCase
         });
         Schema::create('doctor_user', function (Blueprint $table): void {
             $table->unsignedBigInteger('doctor_id'); $table->unsignedBigInteger('user_id');
+            $table->json('permissions')->nullable(); $table->json('clinic_ids')->nullable();
+            $table->boolean('managed_by_organization')->default(false);
+            $table->timestamps();
             $table->primary(['doctor_id', 'user_id']);
         });
         Schema::create('doctors', function (Blueprint $table): void {
