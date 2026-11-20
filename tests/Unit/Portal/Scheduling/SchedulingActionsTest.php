@@ -232,6 +232,35 @@ final class SchedulingActionsTest extends TestCase
         $this->assertDatabaseCount('time_slots', 2);
     }
 
+    public function test_repeated_generation_is_idempotent_and_does_not_duplicate_slots(): void
+    {
+        Carbon::setTestNow('2026-11-14 08:00:00');
+
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+
+        DoctorWorkingHour::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'day_of_week' => 0,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        $action = app(GenerateTimeSlotsAction::class);
+        $data = new GenerateTimeSlotsData(1, $clinic->id);
+
+        $firstRun = $action->handle($doctor, $data);
+        $secondRun = $action->handle($doctor, $data);
+
+        $this->assertSame(2, $firstRun['generated']);
+        $this->assertSame(0, $secondRun['generated']);
+        $this->assertSame(2, $secondRun['skipped']);
+        $this->assertDatabaseCount('time_slots', 2);
+    }
+
     public function test_generate_slots_skips_slots_that_have_already_started_today(): void
     {
         Carbon::setTestNow('2026-11-14 09:15:00');
