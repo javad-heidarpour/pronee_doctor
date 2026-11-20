@@ -27,7 +27,9 @@ return [
     ],
     'sep' => [
         'terminal_id' => env('SEP_TERMINAL_ID'),
-        'token_url' => env('SEP_TOKEN_URL'),
+        'token_url' => env('SEP_TOKEN_URL', 'https://sep.shaparak.ir/OnlinePG/OnlinePG'),
+        'verify_url' => env('SEP_VERIFY_URL', 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction'),
+        'reverse_url' => env('SEP_REVERSE_URL', 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction'),
         'ocp_url' => env('SEP_OCP_URL'),
         'callback_url' => env('SEP_CALLBACK_URL'),
     ],
