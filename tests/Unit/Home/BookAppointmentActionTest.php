@@ -222,6 +222,49 @@ final class BookAppointmentActionTest extends TestCase
         ]));
     }
 
+    public function test_it_rejects_a_slot_with_less_than_one_hour_notice(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-17', '08:30');
+
+        $this->expectException(ValidationException::class);
+
+        app(BookAppointmentAction::class)->handle(BookAppointmentData::fromValidated([
+            'time_slot_id' => $slot->id,
+            'patient_name' => 'Test Patient',
+            'patient_phone' => '09120000000',
+        ]));
+    }
+
+    public function test_it_rejects_a_slot_with_an_active_contacted_appointment(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+
+        DB::table('appointments')->insert([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'time_slot_id' => $slot->id,
+            'patient_name' => 'Existing Patient',
+            'patient_phone' => '09121111111',
+            'status' => 'contacted',
+            'appointment_date' => $slot->date,
+            'appointment_time' => $slot->start_time,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(BookAppointmentAction::class)->handle(BookAppointmentData::fromValidated([
+            'time_slot_id' => $slot->id,
+            'patient_name' => 'Test Patient',
+            'patient_phone' => '09120000000',
+        ]));
+    }
+
     public function test_it_rejects_a_past_slot(): void
     {
         Carbon::setTestNow('2026-11-17 12:00:00');
