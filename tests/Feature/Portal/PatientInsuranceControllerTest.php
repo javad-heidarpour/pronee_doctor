@@ -30,6 +30,7 @@ final class PatientInsuranceControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         Schema::create('users', function (Blueprint $table): void {
             $table->id(); $table->string('name'); $table->string('email')->unique();
             $table->string('role'); $table->boolean('is_active')->default(true);
