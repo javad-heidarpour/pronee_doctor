@@ -66,6 +66,7 @@ final class SchedulingActionsTest extends TestCase
             $table->time('start_time');
             $table->time('end_time');
             $table->string('status');
+            $table->string('cancelled_reason', 24)->nullable();
             $table->timestamps();
         });
 
