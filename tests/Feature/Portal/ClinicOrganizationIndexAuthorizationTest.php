@@ -199,6 +199,183 @@ final class ClinicOrganizationIndexAuthorizationTest extends TestCase
         }
     }
 
+    public function test_doctor_can_create_an_organization_and_attach_only_an_owned_clinic(): void
+    {
+        $owner = $this->user('doctor');
+        $doctorId = $this->doctorProfile($owner->id);
+        $clinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $doctorId, 'name' => 'Owned clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+
+        app(ClinicOrganizationController::class)->store(Request::create('/portal/organizations', 'POST', [
+            'name' => 'Test Organization',
+            'clinic_ids' => [$clinicId],
+        ]));
+
+        $organization = DB::table('clinic_organizations')->where('owner_user_id', $owner->id)->first();
+        $this->assertNotNull($organization);
+        $this->assertDatabaseHas('clinic_organization_doctors', [
+            'organization_id' => $organization->id, 'doctor_id' => $doctorId, 'role' => 'owner', 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('clinic_organization_clinics', [
+            'organization_id' => $organization->id, 'clinic_id' => $clinicId, 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('addresses', ['id' => $clinicId, 'organization_id' => $organization->id]);
+    }
+
+    public function test_doctor_cannot_create_an_organization_with_another_doctors_clinic(): void
+    {
+        $owner = $this->user('doctor');
+        $other = $this->user('doctor');
+        $otherDoctorId = $this->doctorProfile($other->id);
+        $foreignClinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $otherDoctorId, 'name' => 'Foreign clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+
+        try {
+            app(ClinicOrganizationController::class)->store(Request::create('/portal/organizations', 'POST', [
+                'name' => 'Invalid Organization', 'clinic_ids' => [$foreignClinicId],
+            ]));
+            $this->fail('A doctor must not attach a clinic owned by another doctor.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('clinic_ids', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('clinic_organizations', ['name' => 'Invalid Organization']);
+    }
+
+    public function test_admin_cannot_create_an_organization(): void
+    {
+        Auth::guard('web')->setUser($this->user('admin'));
+
+        try {
+            app(ClinicOrganizationController::class)->store(Request::create('/portal/organizations', 'POST', ['name' => 'Admin Organization']));
+            $this->fail('Organization creation is restricted to doctor owners.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+    }
+
+    public function test_owner_can_invite_an_active_doctor_and_invitation_starts_pending(): void
+    {
+        $owner = $this->user('doctor');
+        $ownerDoctorId = $this->doctorProfile($owner->id);
+        $invitee = $this->user('doctor');
+        $inviteeDoctorId = $this->doctorProfile($invitee->id);
+        $organizationId = $this->organization($owner->id, 'Membership Organization');
+        DB::table('clinic_organization_doctors')->insert([
+            'organization_id' => $organizationId, 'doctor_id' => $ownerDoctorId,
+            'role' => 'owner', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+
+        app(ClinicOrganizationController::class)->inviteDoctor(
+            Request::create('/portal/organizations/'.$organizationId.'/doctors', 'POST', [
+                'doctor_id' => $inviteeDoctorId, 'revenue_share_basis_points' => 6500, 'role' => 'practitioner',
+            ]),
+            ClinicOrganization::query()->findOrFail($organizationId)
+        );
+
+        $this->assertDatabaseHas('clinic_organization_doctors', [
+            'organization_id' => $organizationId, 'doctor_id' => $inviteeDoctorId,
+            'status' => 'pending', 'revenue_share_basis_points' => 6500,
+        ]);
+    }
+
+    public function test_invited_doctor_can_accept_membership_but_uninvited_doctor_cannot(): void
+    {
+        $owner = $this->user('doctor');
+        $ownerDoctorId = $this->doctorProfile($owner->id);
+        $invitee = $this->user('doctor');
+        $inviteeDoctorId = $this->doctorProfile($invitee->id);
+        $organizationId = $this->organization($owner->id, 'Accept Organization');
+        DB::table('clinic_organization_doctors')->insert([
+            'organization_id' => $organizationId, 'doctor_id' => $ownerDoctorId,
+            'role' => 'owner', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('clinic_organization_doctors')->insert([
+            'organization_id' => $organizationId, 'doctor_id' => $inviteeDoctorId,
+            'role' => 'practitioner', 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($invitee);
+
+        app(ClinicOrganizationController::class)->acceptDoctor(ClinicOrganization::query()->findOrFail($organizationId));
+
+        $this->assertDatabaseHas('clinic_organization_doctors', [
+            'organization_id' => $organizationId, 'doctor_id' => $inviteeDoctorId, 'status' => 'active',
+        ]);
+    }
+
+    public function test_owner_can_attach_and_detach_an_active_member_clinic_without_deleting_it(): void
+    {
+        $owner = $this->user('doctor');
+        $doctorId = $this->doctorProfile($owner->id);
+        $organizationId = $this->organization($owner->id, 'Branches Organization');
+        DB::table('clinic_organization_doctors')->insert([
+            'organization_id' => $organizationId, 'doctor_id' => $doctorId,
+            'role' => 'owner', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $clinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $doctorId, 'name' => 'Branch A', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Auth::guard('web')->setUser($owner);
+        $organization = ClinicOrganization::query()->findOrFail($organizationId);
+
+        app(ClinicOrganizationController::class)->attachClinic(
+            Request::create('/portal/organizations/'.$organizationId.'/clinics', 'POST', ['clinic_id' => $clinicId, 'branch_code' => 'A1']),
+            $organization
+        );
+
+        $this->assertDatabaseHas('addresses', ['id' => $clinicId, 'organization_id' => $organizationId]);
+
+        app(ClinicOrganizationController::class)->detachClinic($organization, $clinicId);
+
+        $this->assertDatabaseHas('clinic_organization_clinics', [
+            'organization_id' => $organizationId, 'clinic_id' => $clinicId, 'status' => 'inactive',
+        ]);
+        $this->assertDatabaseHas('addresses', ['id' => $clinicId, 'organization_id' => null]);
+    }
+
+    public function test_owner_can_invite_active_secretary_with_scoped_permissions_and_clinics(): void
+    {
+        $owner = $this->user('doctor');
+        $doctorId = $this->doctorProfile($owner->id);
+        $organizationId = $this->organization($owner->id, 'Staff Organization');
+        DB::table('clinic_organization_doctors')->insert([
+            'organization_id' => $organizationId, 'doctor_id' => $doctorId,
+            'role' => 'owner', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $clinicId = DB::table('addresses')->insertGetId([
+            'doctor_id' => $doctorId, 'organization_id' => $organizationId, 'name' => 'Staff clinic',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('clinic_organization_clinics')->insert([
+            'organization_id' => $organizationId, 'clinic_id' => $clinicId,
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $secretary = $this->user('secretary');
+        Auth::guard('web')->setUser($owner);
+
+        app(ClinicOrganizationController::class)->inviteMember(
+            Request::create('/portal/organizations/'.$organizationId.'/members', 'POST', [
+                'user_id' => $secretary->id, 'role' => 'receptionist',
+                'permissions' => ['appointments.view', 'patients.view'],
+                'clinic_ids' => [$clinicId],
+            ]),
+            ClinicOrganization::query()->findOrFail($organizationId)
+        );
+
+        $this->assertDatabaseHas('clinic_organization_members', [
+            'organization_id' => $organizationId, 'user_id' => $secretary->id,
+            'role' => 'receptionist', 'is_active' => true,
+        ]);
+    }
+
     private function user(string $role): User
     {
         $id = DB::table('users')->insertGetId([
