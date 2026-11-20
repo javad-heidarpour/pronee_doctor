@@ -8,6 +8,7 @@ use App\Actions\Portal\Appointment\CreatePortalAppointmentAction;
 use App\DTOs\Portal\Appointment\CreatePortalAppointmentData;
 use App\Models\Address;
 use App\Models\Doctor;
+use App\Models\DoctorHoliday;
 use App\Models\TimeSlot;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -153,6 +154,27 @@ final class CreatePortalAppointmentActionTest extends TestCase
             'id' => $appointment->visit_reason_id,
             'title' => 'Initial consultation',
         ]);
+    }
+
+    public function test_it_rejects_booking_on_a_clinic_holiday(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+
+        DoctorHoliday::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'holiday_date' => '2026-11-18',
+            'title' => 'تعطیلی',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(CreatePortalAppointmentAction::class)->handle(
+            $doctor,
+            $this->appointmentData($slot->id)
+        );
     }
 
     public function test_it_rejects_booking_a_slot_that_is_already_booked(): void
