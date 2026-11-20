@@ -68,6 +68,18 @@ final class PatientCarePathwayVerificationTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patient_account_accesses', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('granted_by_user_id')->nullable();
+            $table->string('access_type');
+            $table->json('permissions')->nullable();
+            $table->dateTime('expires_at')->nullable();
+            $table->dateTime('revoked_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('patient_care_pathways', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -106,7 +118,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
 
     protected function tearDown(): void
     {
-        Schema::dropIfExists('patient_care_pathway_steps');
+        Schema::dropIfExists('patient_care_pathway_steps');\n        Schema::dropIfExists('patient_account_accesses');
         Schema::dropIfExists('patient_care_pathways');
         Schema::dropIfExists('appointments');
         Schema::dropIfExists('patients');
@@ -168,6 +180,72 @@ final class PatientCarePathwayVerificationTest extends TestCase
         $this->assertInstanceOf(\Inertia\Response::class, $response);
     }
 
+    public function test_a_patient_can_report_only_a_pending_step_once_for_their_owned_pathway(): void
+    {
+        $patient = Patient::query()->create([
+            'doctor_id' => 11,
+            'name' => 'Patient owner',
+        ]);
+        $pathway = PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => $patient->id,
+            'title' => 'Patient care plan',
+            'status' => 'active',
+        ]);
+        $step = $pathway->steps()->create([
+            'title' => 'Record blood pressure',
+            'category' => 'measurement',
+            'sort_order' => 1,
+            'status' => 'pending',
+        ]);
+
+        PatientAccountAccess::query()->create([
+            'patient_id' => $patient->id,
+            'user_id' => 101,
+            'access_type' => 'owner',
+        ]);
+
+        $user = new User();
+        $user->id = 101;
+        $user->role = 'user';
+        $user->is_active = true;
+        Auth::guard('web')->setUser($user);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.care_pathway.step_reported',
+                Mockery::type(PatientCarePathwayStep::class),
+                ['pathway_id' => $pathway->id]
+            );
+
+        $response = (new PatientHealthController())->reportCarePathwayStep(
+            Request::create('/my-health/pathways/'.$pathway->id.'/steps/'.$step->id.'/complete', 'POST'),
+            $pathway->id,
+            $step->id,
+            $audit
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame('patient_reported', $step->fresh()->status);
+        $this->assertNotNull($step->fresh()->patient_reported_at);
+
+        try {
+            (new PatientHealthController())->reportCarePathwayStep(
+                Request::create('/my-health/pathways/'.$pathway->id.'/steps/'.$step->id.'/complete', 'POST'),
+                $pathway->id,
+                $step->id,
+                $audit
+            );
+            $this->fail('A patient must not report the same step more than once.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+            $this->assertSame('patient_reported', $step->fresh()->status);
+        }
+    }
+
     public function test_verifying_a_reported_step_logs_the_pathway_id_after_the_transaction(): void
     {
         $pathway = PatientCarePathway::query()->create([
@@ -182,6 +260,12 @@ final class PatientCarePathwayVerificationTest extends TestCase
             'title' => 'Measure blood pressure',
             'category' => 'measurement',
             'sort_order' => 1,
+            'status' => 'patient_reported',
+        ]);
+        $secondStep = $pathway->steps()->create([
+            'title' => 'Attend follow-up appointment',
+            'category' => 'appointment',
+            'sort_order' => 2,
             'status' => 'patient_reported',
         ]);
 
@@ -229,6 +313,16 @@ final class PatientCarePathwayVerificationTest extends TestCase
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame('verified', $step->fresh()->status);
+        $this->assertSame('active', $pathway->fresh()->status);
+
+        $secondResponse = $controller->verifyStep(
+            Request::create('/portal/care-pathway-steps/'.$secondStep->id.'/verify', 'POST'),
+            $secondStep->id,
+            $audit
+        );
+
+        $this->assertSame(302, $secondResponse->getStatusCode());
+        $this->assertSame('verified', $secondStep->fresh()->status);
         $this->assertSame('completed', $pathway->fresh()->status);
     }
 }
