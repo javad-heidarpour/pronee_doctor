@@ -86,7 +86,10 @@ final class ListPublicBookableDoctorsAction
                 ])
                 ->orderByRaw('CASE WHEN city_id = ? THEN 0 ELSE 1 END', [
                     $relatedTo->city_id ?? -1,
-                ]);
+                ])
+                ->orderBy('id');
+        } else {
+            $query->orderBy('id');
         }
 
         $doctors = $query->get()->map(function (Doctor $doctor) use ($relatedTo): array {
