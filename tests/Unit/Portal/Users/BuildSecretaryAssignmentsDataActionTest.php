@@ -30,6 +30,7 @@ final class BuildSecretaryAssignmentsDataActionTest extends TestCase
             $table->boolean('is_active')->default(true);
             $table->string('remember_token')->nullable();
             $table->softDeletes();
+            $table->softDeletes();
             $table->timestamps();
         });
 
