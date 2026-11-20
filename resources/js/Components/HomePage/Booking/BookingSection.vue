@@ -488,6 +488,7 @@ const selectClinic = (index) => {
   selectedClinicIndex.value = index;
   selectedDateIndex.value = 0;
   selectedSlot.value = null;
+  availabilityMessage.value = "";
 
   const clinicData = props.doctor.clinics_with_slots?.[index];
   // پیدا کردن اولین روز دارای نوبت آزاد
