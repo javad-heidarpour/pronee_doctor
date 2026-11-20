@@ -216,6 +216,29 @@ final class ReschedulePublicAppointmentActionTest extends TestCase
         $this->assertSame('available', $newSlot->fresh()->status);
     }
 
+    public function test_rescheduling_rejects_a_holiday_date(): void
+    {
+        [$appointment, $oldSlot, $newSlot] = $this->appointmentWithNewSlot();
+        \\App\\Models\\DoctorHoliday::query()->create([
+            'doctor_id' => $appointment->doctor_id,
+            'clinic_id' => $appointment->clinic_id,
+            'holiday_date' => '2026-11-27',
+            'title' => 'تعطیلی',
+        ]);
+
+        $this->assertValidationFailure(
+            fn () => app(ReschedulePublicAppointmentAction::class)->handle(
+                $appointment->id,
+                '09120000000',
+                $newSlot->id
+            ),
+            'new_time_slot_id'
+        );
+
+        $this->assertSame($oldSlot->id, $appointment->fresh()->time_slot_id);
+        $this->assertSame('available', $newSlot->fresh()->status);
+    }
+
     public function test_visited_appointment_cannot_be_rescheduled(): void
     {
         [$appointment, $oldSlot, $newSlot] = $this->appointmentWithNewSlot();
