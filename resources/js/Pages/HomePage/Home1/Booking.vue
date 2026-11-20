@@ -431,16 +431,12 @@ const props = defineProps({
     required: true,
   },
   clinicsWithSlots: {
-    type: Object,
-    required: true,
-  },
-  selectedClinic: {
-    type: Object,
-    required: true,
+    type: Array,
+    default: () => [],
   },
   visitReasons: {
-    type: Object,
-    required: true,
+    type: Array,
+    default: () => [],
   },
   clinicId: {
     type: [Number, String],
@@ -449,7 +445,7 @@ const props = defineProps({
 });
 
 const clinics = computed(() =>
-  (props.doctor?.clinics_with_slots ?? []).filter(
+  (props.clinicsWithSlots?.length ? props.clinicsWithSlots : props.doctor?.clinics_with_slots ?? []).filter(
     (item) => item.clinic?.id && item.clinic?.name
   )
 );
