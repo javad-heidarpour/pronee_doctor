@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Patient;
+namespace Tests\Unit\Portal\Patient;
 
-use App\\Contracts\\Sms\\SmsGateway;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
+use App\Contracts\Sms\SmsGateway;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Mockery;
-use Tests\\TestCase;
+use Tests\TestCase;
 
 final class SendPatientFollowUpRemindersTest extends TestCase
 {
