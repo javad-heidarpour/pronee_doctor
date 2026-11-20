@@ -106,6 +106,12 @@ final class ClinicCashRegisterControllerTest extends TestCase
 
         $this->assertSame(1, DB::table('clinic_cash_transactions')->count());
         $this->assertDatabaseHas('clinic_cash_transactions',['amount_rial'=>250000,'direction'=>'in']);
+
+        $this->expectException(HttpException::class);
+        $controller->store(Request::create('/portal/finance/cash-register/'.$session->id.'/transactions','POST',[
+            'direction'=>'in','category'=>'other_receipt','amount_rial'=>250000,
+            'description'=>'دریافت ویزیت حضوری','idempotency_key'=>'cash-receipt-idempotency-001',
+        ]),$session,$accounting,$audit);
     }
 
     public function test_close_calculates_and_persists_cash_difference(): void
