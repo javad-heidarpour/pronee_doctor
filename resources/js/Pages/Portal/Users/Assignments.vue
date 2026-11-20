@@ -55,7 +55,7 @@ const selectedClinicCount = computed(() =>
         (total, item) =>
             total +
             new Set([
-                ...item.clinic_ids,
+                ...(item.assigned ? item.clinic_ids : []),
                 ...item.organization_clinic_ids,
             ]).size,
         0
