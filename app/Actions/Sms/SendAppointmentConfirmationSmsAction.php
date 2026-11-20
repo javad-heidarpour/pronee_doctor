@@ -22,6 +22,18 @@ final class SendAppointmentConfirmationSmsAction
 
     public function handle(int $visitNumber): JsonResponse
     {
+        $template = trim((string) config(
+            'services.ghasedak.appointment_confirmation_template',
+            'AppointmentConfirmationSMS'
+        ));
+
+        if ($template === '' || !config('services.ghasedak.api_key')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
+            ], 503);
+        }
+
         $appointment = Appointment::query()
             ->with('clinic.city')
             ->find($visitNumber);
@@ -48,22 +60,6 @@ final class SendAppointmentConfirmationSmsAction
                 'success' => false,
                 'message' => 'شماره موبایل بیمار معتبر نیست.',
             ], 422);
-        }
-
-        $template = trim((string) config(
-            'services.ghasedak.appointment_confirmation_template',
-            'AppointmentConfirmationSMS'
-        ));
-
-        if ($template === '' || !config('services.ghasedak.api_key')) {
-            Log::warning('Appointment confirmation SMS unavailable: provider or template not configured', [
-                'appointment_id' => $visitNumber,
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'سرویس ارسال پیامک در حال حاضر پیکربندی نشده است.',
-            ], 503);
         }
 
         $cacheKey = 'appointment-confirmation-sms:' . $visitNumber;
