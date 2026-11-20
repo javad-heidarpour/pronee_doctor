@@ -34,8 +34,18 @@ class BuildManagedUserAssignmentsPageAction
             'user' => $user->only(['id', 'name', 'family', 'phone', 'role']),
             'doctors' => $doctors->map(function ($doctor) use ($assigned) {
                 $relation = $assigned->get($doctor->id);
-                $permissions = $relation?->pivot?->permissions ?? [];
-                $clinicIds = $relation?->pivot?->clinic_ids ?? [];
+                $managedByOrganization = (bool) ($relation?->pivot?->managed_by_organization ?? false);
+                $permissions = $managedByOrganization
+                    ? $relation?->pivot?->base_permissions
+                    : $relation?->pivot?->permissions;
+                $clinicIds = $managedByOrganization
+                    ? $relation?->pivot?->base_clinic_ids
+                    : $relation?->pivot?->clinic_ids;
+                $hasDirectAssignment = $relation !== null && (
+                    ! $managedByOrganization
+                    || $relation->pivot->base_permissions !== null
+                    || $relation->pivot->base_clinic_ids !== null
+                );
 
                 if (is_string($permissions)) {
                     $permissions = json_decode($permissions, true) ?: [];
@@ -51,7 +61,7 @@ class BuildManagedUserAssignmentsPageAction
                     'family' => $doctor->family ?: $doctor->user?->family,
                     'phone' => $doctor->phone ?: $doctor->user?->phone,
                     'specialty_title' => $doctor->specialty_title,
-                    'assigned' => (bool) $relation,
+                    'assigned' => $hasDirectAssignment,
                     'permissions' => $permissions,
                     'clinics' => $doctor->address->map(fn ($clinic) => [
                         'id' => $clinic->id,
