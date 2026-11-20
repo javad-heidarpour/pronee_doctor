@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Actions\\Portal\\WorkingHours;
+namespace App\Actions\Portal\WorkingHours;
 
-use App\\Models\\Doctor;
-use App\\Models\\DoctorWorkingHour;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\Doctor;
+use App\Models\DoctorWorkingHour;
+use Illuminate\Support\Facades\DB;
 
 class ToggleWorkingHourAction
 {
