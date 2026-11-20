@@ -62,6 +62,51 @@ final class AppointmentSmsNotificationsTest extends TestCase
     }
 
 
+
+    public function test_failed_confirmation_sms_can_be_retried_without_creating_duplicate_logs(): void
+    {
+        config([
+            'services.ghasedak.api_key' => 'test-api-key',
+            'services.ghasedak.appointment_confirmation_template' => 'AppointmentConfirmationSMS',
+        ]);
+
+        $appointment = $this->appointment('confirmed');
+        $attempt = 0;
+        $gateway = Mockery::mock(SmsGateway::class);
+        $gateway->shouldReceive('sendTemplate')
+            ->twice()
+            ->andReturnUsing(function () use (&$attempt): array {
+                $attempt++;
+
+                if ($attempt === 1) {
+                    throw new \\RuntimeException('Temporary provider failure');
+                }
+
+                return ['success' => true];
+            });
+        $this->app->instance(SmsGateway::class, $gateway);
+
+        $action = app(SendAppointmentConfirmationSmsAction::class);
+        $first = $action->handle($appointment->id);
+
+        $this->assertSame(503, $first->getStatusCode());
+        $this->assertDatabaseHas('sms_logs', [
+            'appointment_id' => $appointment->id,
+            'type' => 'appointment_confirmation',
+            'status' => 'failed',
+        ]);
+
+        $second = $action->handle($appointment->id);
+
+        $this->assertSame(200, $second->getStatusCode());
+        $this->assertDatabaseHas('sms_logs', [
+            'appointment_id' => $appointment->id,
+            'type' => 'appointment_confirmation',
+            'status' => 'sent',
+        ]);
+        $this->assertDatabaseCount('sms_logs', 1);
+    }
+
     public function test_confirmation_sms_is_rejected_until_the_appointment_is_confirmed(): void
     {
         config([
