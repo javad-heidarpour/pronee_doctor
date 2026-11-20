@@ -441,7 +441,7 @@ final class MedicalNetworkReferralTest extends TestCase
 
     public function test_provider_profile_requires_admin_verification_before_network_listing(): void
     {
-        $this->authenticateDoctor(99);
+        $this->seedReferralContext();
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')->once()->with('medical_network.provider_submitted', Mockery::type(MedicalNetworkProvider::class), [
             'doctor_id' => 11,
