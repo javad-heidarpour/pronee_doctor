@@ -25,6 +25,7 @@ class BookAppointmentRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:1000'],
             'visit_reason_id' => ['nullable', 'integer', 'exists:visit_reasons,id'],
             'new_visit_reason' => ['nullable', 'string', 'max:150'],
+            'discount_code' => ['nullable', 'string', 'min:3', 'max:32', 'regex:/^[A-Za-z0-9_-]+$/'],
         ];
     }
 
@@ -64,6 +65,9 @@ class BookAppointmentRequest extends FormRequest
             'new_visit_reason' => is_string($this->input('new_visit_reason'))
                 ? trim($this->input('new_visit_reason'))
                 : $this->input('new_visit_reason'),
+            'discount_code' => is_string($this->input('discount_code'))
+                ? strtoupper(trim($this->input('discount_code')))
+                : $this->input('discount_code'),
             'description' => is_string($this->input('description'))
                 ? trim($this->input('description'))
                 : $this->input('description'),
