@@ -43,6 +43,41 @@ final class MigrationForeignKeyNameTest extends TestCase
         );
     }
 
+    public function test_long_composite_indexes_use_mysql_safe_names(): void
+    {
+        $cases = [
+            [
+                'file' => '2026_11_18_300000_create_clinic_intelligence_modules.php',
+                'definition' => "index(['doctor_id', 'scenario_type', 'created_at'], 'ces_doctor_type_created_idx')",
+                'name' => 'ces_doctor_type_created_idx',
+            ],
+            [
+                'file' => '2026_11_19_090000_create_clinic_procurement_tables.php',
+                'definition' => "index(['purchase_order_id', 'inventory_item_id'], 'cpoi_order_inventory_idx')",
+                'name' => 'cpoi_order_inventory_idx',
+            ],
+        ];
+
+        foreach ($cases as $case) {
+            $migration = $this->migration($case['file']);
+
+            $this->assertLessThanOrEqual(64, strlen($case['name']));
+            $this->assertStringContainsString($case['definition'], $migration);
+        }
+    }
+
+    public function test_staff_replacement_foreign_key_uses_a_mysql_safe_name(): void
+    {
+        $migration = $this->migration('2026_11_19_120000_create_staff_compensation_and_replacement_tables.php');
+        $name = 'cssr_replacement_staff_user_fk';
+
+        $this->assertLessThanOrEqual(64, strlen($name));
+        $this->assertStringContainsString(
+            "constrained('users', '{$name}')",
+            $migration
+        );
+    }
+
     private function migration(string $filename): string
     {
         $content = file_get_contents(base_path('database/migrations/'.$filename));

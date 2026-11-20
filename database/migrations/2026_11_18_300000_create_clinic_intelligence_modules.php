@@ -70,7 +70,7 @@ return new class extends Migration {
             $table->json('inputs');
             $table->json('results');
             $table->timestamps();
-            $table->index(['doctor_id', 'scenario_type', 'created_at']);
+            $table->index(['doctor_id', 'scenario_type', 'created_at'], 'ces_doctor_type_created_idx');
         });
 
         if (Schema::hasTable('menus')) {

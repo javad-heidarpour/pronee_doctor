@@ -69,7 +69,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('unit_cost_rial');
             $table->unsignedBigInteger('line_total_rial');
             $table->timestamps();
-            $table->index(['purchase_order_id', 'inventory_item_id']);
+            $table->index(['purchase_order_id', 'inventory_item_id'], 'cpoi_order_inventory_idx');
         });
 
         if (Schema::hasTable('menus')) {
