@@ -49,9 +49,34 @@ final class UpdateSecretaryAssignmentsActionTest extends TestCase
         Schema::create('addresses', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('organization_id')->nullable();
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
+        });
+
+        Schema::create('clinic_organization_doctors', function (Blueprint $table): void {
+            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('status')->default('pending');
+            $table->primary(['organization_id', 'doctor_id']);
+        });
+
+        Schema::create('clinic_organization_members', function (Blueprint $table): void {
+            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('user_id');
+            $table->json('permissions')->nullable();
+            $table->json('clinic_ids')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->primary(['organization_id', 'user_id']);
+        });
+
+        Schema::create('clinic_organization_clinics', function (Blueprint $table): void {
+            $table->unsignedBigInteger('organization_id');
+            $table->unsignedBigInteger('clinic_id');
+            $table->string('status')->default('active');
+            $table->primary(['organization_id', 'clinic_id']);
         });
 
         Schema::create('doctor_user', function (Blueprint $table): void {
@@ -59,6 +84,9 @@ final class UpdateSecretaryAssignmentsActionTest extends TestCase
             $table->unsignedBigInteger('user_id');
             $table->json('permissions')->nullable();
             $table->json('clinic_ids')->nullable();
+            $table->json('base_permissions')->nullable();
+            $table->json('base_clinic_ids')->nullable();
+            $table->boolean('managed_by_organization')->default(false);
             $table->timestamps();
             $table->primary(['doctor_id', 'user_id']);
         });
