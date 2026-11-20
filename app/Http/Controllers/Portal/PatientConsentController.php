@@ -27,7 +27,7 @@ final class PatientConsentController extends Controller
     public function index(int $patient, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
+        $this->authorizeSecretaryConsentView($doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         abort_if($clinicIds === [], 403);
 
@@ -137,6 +137,28 @@ final class PatientConsentController extends Controller
         ]);
 
         return back()->with('success', 'رضایت‌نامه برای امضای بیمار ثبت شد.');
+    }
+
+    private function authorizeSecretaryConsentView(\App\Models\Doctor $doctor): void
+    {
+        $user = Auth::guard('web')->user();
+        if (!$user || $user->role !== 'secretary') {
+            return;
+        }
+
+        $assignment = $user->doctors()->where('doctors.id', $doctor->id)->first();
+        $permissions = $assignment?->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        abort_unless(
+            is_array($permissions)
+                && (in_array('patients.clinical.view', $permissions, true)
+                    || in_array('patients.clinical.manage', $permissions, true)),
+            403,
+            'مجوز مشاهده رضایت‌نامه‌های بالینی برای شما فعال نیست.'
+        );
     }
 
     private function secretaryCanManage(\App\Models\Doctor $doctor): bool
