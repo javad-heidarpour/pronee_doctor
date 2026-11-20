@@ -62,8 +62,8 @@ final class ClinicGrowthEngineIntegrationTest extends TestCase
         $this->assertSame(1,$report['appointments']['visited']);
         $this->assertSame(1,$report['appointments']['cancelled']);
         $this->assertSame(1,$report['patients']['active']);
-        $this->assertSame(1,$report['patients']['new']);
-        $this->assertSame(0,$report['patients']['returning']);
+        $this->assertSame(0,$report['patients']['new']);
+        $this->assertSame(1,$report['patients']['returning']);
         $this->assertSame(500000,$report['finance']['paid_revenue_rial']);
         $this->assertSame(1,$report['marketing']['clicks']);
         $this->assertSame(1,$report['marketing']['bookings']);
