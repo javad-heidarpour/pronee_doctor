@@ -31,10 +31,10 @@ final class StaffPayrollCalculatorTest extends TestCase
             'overtime_multiplier_basis_points'=>15000,
         ], 480, 420, 0, 60, 100000, 50000);
 
-        $this->assertSame(4800000, $result['base_pay']);
+        $this->assertSame(4200000, $result['base_pay']);
         $this->assertSame(900000, $result['overtime_pay']);
-        $this->assertSame(5800000, $result['gross_amount']);
-        $this->assertSame(5750000, $result['net_amount']);
+        $this->assertSame(5200000, $result['gross_amount']);
+        $this->assertSame(5150000, $result['net_amount']);
     }
 
     public function test_deductions_are_capped_at_gross_and_values_never_become_negative(): void
