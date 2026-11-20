@@ -29,4 +29,17 @@ final class PatientAccountAccess extends Model
         return $query->whereNull('revoked_at')
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()));
     }
+
+    /**
+     * Owners retain full access; caregivers receive only explicitly granted permissions.
+     */
+    public function allows(string $permission): bool
+    {
+        if ($this->access_type === 'owner') {
+            return true;
+        }
+
+        return $this->access_type === 'caregiver'
+            && in_array($permission, $this->permissions ?? [], true);
+    }
 }

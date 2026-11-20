@@ -25,7 +25,7 @@ use Inertia\Inertia;
 
 final class PatientHealthController extends Controller
 {
-    public function index()
+    public function index(RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user', 403);
@@ -35,10 +35,16 @@ final class PatientHealthController extends Controller
             ->with(['patient.doctor:id,name,family,specialty_title'])
             ->get();
 
-        $pending = PatientAccessRequest::query()
-            ->where('user_id', $user->id)->where('status', 'pending')->exists();
+        $visibleAccesses = $accesses
+            ->filter(fn (PatientAccountAccess $access): bool => $access->allows('view_summary'))
+            ->values();
 
-        if ($accesses->isEmpty()) {
+        $pending = PatientAccessRequest::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($visibleAccesses->isEmpty()) {
             return Inertia::render('Patient/Health', [
                 'hasAccess' => false,
                 'pendingRequest' => $pending,
@@ -46,18 +52,30 @@ final class PatientHealthController extends Controller
             ]);
         }
 
-        $selected = $accesses->first();
+        $selected = $visibleAccesses->first();
         $accessType = $selected->access_type;
-        $patient = Patient::query()->select(['id', 'doctor_id', 'name'])
-            ->with([
-                'doctor:id,name,family,specialty_title,photo',
+        $canViewRecords = $selected->allows('view_records');
+        $canViewAppointments = $selected->allows('view_appointments');
+        $canViewFollowUps = $selected->allows('view_followups');
+        $canManageCaregivers = $selected->allows('manage_caregivers');
+
+        $patient = Patient::query()
+            ->select(['id', 'doctor_id', 'name'])
+            ->with(['doctor:id,name,family,specialty_title,photo'])
+            ->findOrFail($selected->patient_id);
+
+        if ($canViewAppointments) {
+            $patient->load([
                 'appointments' => fn ($q) => $q->select([
                     'id', 'patient_id', 'doctor_id', 'clinic_id', 'appointment_date',
                     'appointment_time', 'status', 'visit_number',
                 ])->with('clinic:id,name')->orderByDesc('appointment_date')->limit(25),
-            ])->findOrFail($selected->patient_id);
+            ]);
+        } else {
+            $patient->setRelation('appointments', collect());
+        }
 
-        if ($accessType === 'owner') {
+        if ($canViewRecords) {
             $patient->load([
                 'clinicalRecords' => fn ($q) => $q->select([
                     'id', 'patient_id', 'doctor_id', 'kind', 'title', 'description',
@@ -73,7 +91,7 @@ final class PatientHealthController extends Controller
             $patient->setRelation('vitalSigns', collect());
         }
 
-        $encounters = $accessType === 'owner'
+        $encounters = $canViewRecords
             ? PatientEncounter::query()
                 ->where('patient_id', $patient->id)
                 ->where('status', PatientEncounter::STATUS_SIGNED)
@@ -82,13 +100,16 @@ final class PatientHealthController extends Controller
                 ->latest('signed_at')->limit(20)->get()
             : collect();
 
-        $followUps = PatientFollowUpTask::query()
-            ->where('patient_id', $patient->id)
-            ->whereIn('status', ['pending', 'in_progress'])
-            ->orderBy('due_at')->limit(30)->get([
-                'id', 'title', 'description', 'due_at', 'priority', 'status',
-            ]);
+        $followUps = $canViewFollowUps
+            ? PatientFollowUpTask::query()
+                ->where('patient_id', $patient->id)
+                ->whereIn('status', ['pending', 'in_progress'])
+                ->orderBy('due_at')->limit(30)->get([
+                    'id', 'title', 'description', 'due_at', 'priority', 'status',
+                ])
+            : collect();
 
+        // Medication reminders and patient-entered observations remain private to the owner.
         $medicationPlans = $accessType === 'owner'
             ? PatientMedicationPlan::query()->where('patient_id', $patient->id)->where('user_id', $user->id)
                 ->where('status', 'active')
@@ -97,7 +118,7 @@ final class PatientHealthController extends Controller
                 ->orderByDesc('created_at')->get()
             : collect();
 
-        $availablePrescriptions = $accessType === 'owner'
+        $availablePrescriptions = $canViewRecords
             ? PatientEncounterPrescription::query()
                 ->whereHas('encounter', fn ($q) => $q->where('patient_id', $patient->id)->where('status', PatientEncounter::STATUS_SIGNED))
                 ->with('encounter:id,signed_at')->latest('created_at')->limit(50)
@@ -108,13 +129,13 @@ final class PatientHealthController extends Controller
             ? PatientHealthObservation::query()->where('patient_id', $patient->id)->where('user_id', $user->id)->latest('observed_at')->limit(60)->get()
             : collect();
 
-        $carePathways = $accessType === 'owner'
+        $carePathways = $canViewRecords
             ? PatientCarePathway::query()->where('patient_id', $patient->id)->where('status', 'active')
                 ->with(['steps' => fn ($q) => $q->orderBy('sort_order')])
                 ->orderByDesc('activated_at')->limit(10)->get()
             : collect();
 
-        $caregivers = $accessType === 'owner'
+        $caregivers = $canManageCaregivers
             ? PatientAccountAccess::query()->active()
                 ->where('patient_id', $patient->id)
                 ->where('access_type', 'caregiver')
@@ -126,14 +147,16 @@ final class PatientHealthController extends Controller
             ? app(PatientHealthIntelligence::class)->build($patient, $followUps, $observations)
             : ['summary' => [], 'insights' => [], 'trends' => []];
 
+        $audit->handle('patient.portal.health.viewed', $selected);
+
         return Inertia::render('Patient/Health', [
             'hasAccess' => true,
             'pendingRequest' => $pending,
-            'accesses' => $accesses->map(fn ($access) => [
+            'accesses' => $visibleAccesses->map(fn ($access) => [
                 'id' => $access->id,
                 'access_type' => $access->access_type,
                 'patient' => ['id' => $access->patient->id, 'name' => $access->patient->name],
-            ]),
+            ])->values(),
             'accessType' => $accessType,
             'patient' => $patient,
             'encounters' => $encounters,
@@ -146,7 +169,6 @@ final class PatientHealthController extends Controller
             'carePathways' => $carePathways,
         ]);
     }
-
 
     public function reportCarePathwayStep(Request $request, int $pathway, int $step, RecordSecurityAuditEventAction $audit)
     {
@@ -162,7 +184,7 @@ final class PatientHealthController extends Controller
         return back()->with('success', 'انجام این گام برای بررسی به مرکز درمانی گزارش شد.');
     }
 
-    public function storeObservation(Request $request)
+    public function storeObservation(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user', 403);
@@ -187,7 +209,7 @@ final class PatientHealthController extends Controller
             'مقدار واردشده خارج از محدوده قابل ثبت است؛ واحد و مقدار را بررسی کنید.'
         );
 
-        PatientHealthObservation::query()->create([
+        $observation = PatientHealthObservation::query()->create([
             'patient_id' => $ownerAccess->patient_id,
             'user_id' => $user->id,
             'measurement_type' => $validated['measurement_type'],
@@ -197,10 +219,12 @@ final class PatientHealthController extends Controller
             'note' => $validated['note'] ?? null,
         ]);
 
+        $audit->handle('patient.health_observation.created', $observation);
+
         return back()->with('success', 'اندازه‌گیری شخصی شما ثبت شد و با برچسب «ثبت‌شده توسط بیمار» در تحلیل‌ها نمایش داده می‌شود.');
     }
 
-    public function destroyObservation(int $observation)
+    public function destroyObservation(int $observation, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user', 403);
@@ -217,11 +241,12 @@ final class PatientHealthController extends Controller
             ->firstOrFail();
 
         $record->delete();
+        $audit->handle('patient.health_observation.deleted', $record);
 
         return back()->with('success', 'اندازه‌گیری شخصی حذف شد.');
     }
 
-    public function requestAccess(Request $request)
+    public function requestAccess(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user', 403);
@@ -262,10 +287,13 @@ final class PatientHealthController extends Controller
             }
         }
 
+        // Log the attempt without recording national code, phone, or match outcome.
+        $audit->handle('patient.access_request.submitted');
+
         return back()->with('success', 'اگر اطلاعات با پرونده‌ای تطبیق داشته باشد، درخواست برای بررسی هویت به مرکز درمانی ارسال می‌شود.');
     }
 
-    public function grantCaregiver(Request $request)
+    public function grantCaregiver(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user', 403);
@@ -277,7 +305,7 @@ final class PatientHealthController extends Controller
         $caregiver = User::query()->where('email', $data['email'])->where('role', 'user')->first();
         abort_unless($caregiver && (int) $caregiver->id !== (int) $user->id, 422, 'حساب مراقب یافت نشد یا معتبر نیست.');
 
-        PatientAccountAccess::query()->updateOrCreate(
+        $caregiverAccess = PatientAccountAccess::query()->updateOrCreate(
             ['patient_id' => $ownerAccess->patient_id, 'user_id' => $caregiver->id],
             [
                 'granted_by_user_id' => $user->id,
@@ -288,10 +316,12 @@ final class PatientHealthController extends Controller
             ]
         );
 
+        $audit->handle('patient.caregiver.access_granted', $caregiverAccess);
+
         return back()->with('success', 'دسترسی مراقب برای ۹۰ روز فعال شد. هر زمان می‌توانید آن را لغو کنید.');
     }
 
-    public function revokeCaregiver(PatientAccountAccess $access)
+    public function revokeCaregiver(PatientAccountAccess $access, RecordSecurityAuditEventAction $audit)
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user', 403);
@@ -302,6 +332,7 @@ final class PatientHealthController extends Controller
 
         abort_unless($access->access_type === 'caregiver', 404);
         $access->update(['revoked_at' => now()]);
+        $audit->handle('patient.caregiver.access_revoked', $access);
 
         return back()->with('success', 'دسترسی مراقب لغو شد.');
     }

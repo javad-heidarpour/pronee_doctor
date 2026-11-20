@@ -8,6 +8,7 @@ use App\Models\PatientAccountAccess;
 use App\Models\PatientEncounter;
 use App\Models\PatientEncounterPrescription;
 use App\Models\PatientMedicationDose;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\PatientMedicationPlan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ final class PatientMedicationController extends Controller
         return [$user, $access];
     }
 
-    public function store(Request $request)
+    public function store(Request $request, RecordSecurityAuditEventAction $audit)
     {
         [$user, $access] = $this->owner();
         $data = $request->validate([
@@ -46,7 +47,7 @@ final class PatientMedicationController extends Controller
             ? Carbon::parse($data['start_date'])->addDays(max(0, (int) $prescription->duration_days - 1))->toDateString()
             : null);
 
-        PatientMedicationPlan::query()->updateOrCreate(
+        $plan = PatientMedicationPlan::query()->updateOrCreate(
             ['user_id' => $user->id, 'prescription_id' => $prescription->id],
             [
                 'patient_id' => $access->patient_id,
@@ -58,10 +59,12 @@ final class PatientMedicationController extends Controller
             ]
         );
 
+        $audit->handle('patient.medication.reminder_created', $plan);
+
         return back()->with('success', 'برنامه یادآوری شخصی دارو ذخیره شد. این برنامه نسخه پزشک را تغییر نمی‌دهد.');
     }
 
-    public function recordDose(Request $request, PatientMedicationPlan $plan)
+    public function recordDose(Request $request, PatientMedicationPlan $plan, RecordSecurityAuditEventAction $audit)
     {
         [$user, $access] = $this->owner();
         abort_unless((int) $plan->patient_id === (int) $access->patient_id && (int) $plan->user_id === (int) $user->id && $plan->status === 'active', 404);
@@ -95,14 +98,18 @@ final class PatientMedicationController extends Controller
             );
         });
 
+        $audit->handle('patient.medication.dose_recorded', $plan);
+
         return back()->with('success', $data['status'] === 'taken' ? 'مصرف دارو ثبت شد.' : 'عدم مصرف این نوبت ثبت شد.');
     }
 
-    public function pause(Request $request, PatientMedicationPlan $plan)
+    public function pause(Request $request, PatientMedicationPlan $plan, RecordSecurityAuditEventAction $audit)
     {
         [$user, $access] = $this->owner();
         abort_unless((int) $plan->patient_id === (int) $access->patient_id && (int) $plan->user_id === (int) $user->id, 404);
         $plan->update(['status' => 'paused']);
+        $audit->handle('patient.medication.reminder_paused', $plan);
+
         return back()->with('success', 'یادآوری شخصی متوقف شد؛ این کار نسخه یا دستور پزشک را تغییر نمی‌دهد.');
     }
 }

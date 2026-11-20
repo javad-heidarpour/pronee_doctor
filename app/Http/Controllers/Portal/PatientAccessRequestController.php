@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Models\PatientAccessRequest;
 use App\Models\PatientAccountAccess;
 use App\Models\Patient;
@@ -19,7 +20,7 @@ final class PatientAccessRequestController extends Controller
 {
     use HasActiveDoctor;
 
-    public function index()
+    public function index(RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
@@ -29,6 +30,10 @@ final class PatientAccessRequestController extends Controller
             ->where('status', 'pending')
             ->with(['user:id,name,family,phone,email', 'patient:id,name,phone,national_code'])
             ->latest()->paginate(30);
+
+        $audit->handle('patient.access_requests.viewed', null, [
+            'doctor_id' => $doctor->id,
+        ]);
 
         return Inertia::render('Portal/PatientAccessRequests/Index', [
             'requests' => $requests,
@@ -42,12 +47,12 @@ final class PatientAccessRequestController extends Controller
      * قفل سطری مانع آن است که دو کاربر هم‌زمان یک درخواست را با وضعیت‌های
      * متفاوت تأیید/رد کنند یا درخواست در فاصله بررسی تا اعطای دسترسی تغییر کند.
      */
-    public function approve(PatientAccessRequest $accessRequest)
+    public function approve(PatientAccessRequest $accessRequest, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
 
-        DB::transaction(function () use ($accessRequest, $doctor): void {
+        DB::transaction(function () use ($accessRequest, $doctor, $audit): void {
             // درخواست را دوباره در محدوده پزشک فعال و با قفل پایگاه داده می‌خوانیم.
             $lockedRequest = PatientAccessRequest::query()
                 ->whereKey($accessRequest->id)
@@ -89,6 +94,8 @@ final class PatientAccessRequestController extends Controller
                     'revoked_at' => null,
                 ]
             );
+
+            $audit->handle('patient.access_request.approved', $lockedRequest);
         }, 3);
 
         return back()->with('success', 'پس از تأیید هویت توسط مرکز درمانی، دسترسی پرونده فعال شد.');
@@ -98,13 +105,13 @@ final class PatientAccessRequestController extends Controller
      * رد درخواست نیز با قفل سطری انجام می‌شود تا وضعیت بررسی‌شده
      * توسط درخواست هم‌زمان دیگری بازنویسی نشود.
      */
-    public function reject(Request $request, PatientAccessRequest $accessRequest)
+    public function reject(Request $request, PatientAccessRequest $accessRequest, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $data = $request->validate(['review_note' => ['required', 'string', 'max:500']]);
 
-        DB::transaction(function () use ($accessRequest, $doctor, $data): void {
+        DB::transaction(function () use ($accessRequest, $doctor, $data, $audit): void {
             $lockedRequest = PatientAccessRequest::query()
                 ->whereKey($accessRequest->id)
                 ->where('doctor_id', $doctor->id)
@@ -119,6 +126,8 @@ final class PatientAccessRequestController extends Controller
                 'reviewed_at' => now(),
                 'review_note' => $data['review_note'],
             ]);
+
+            $audit->handle('patient.access_request.rejected', $lockedRequest);
         }, 3);
 
         return back()->with('success', 'درخواست دسترسی رد شد.');
