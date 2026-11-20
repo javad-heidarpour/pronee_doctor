@@ -6,13 +6,16 @@ use App\Models\User;
 
 class BuildManagedUserEditPageAction
 {
-    /**
-     * Build the data required by the managed-user edit page.
-     */
-    public function handle(User $user): array
+    public function __construct(
+        private readonly ListManagedUserRolesAction $rolesAction
+    ) {
+    }
+
+    public function handle(User $user, User $authUser): array
     {
         return [
             'user' => $user,
+            'roles' => $this->rolesAction->handle($authUser),
         ];
     }
 }
