@@ -17,10 +17,36 @@
   <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
     <Metric label="نوبت‌های اخیر" :value="summary.appointments"/><Metric label="ویزیت‌های ثبت‌شده" :value="summary.encounters"/>
     <Metric label="حساسیت‌های فعال" :value="summary.active_allergies"/><Metric label="داروهای ثبت‌شده" :value="summary.active_medications"/>
-    <Metric label="پیگیری‌های باز" :value="summary.open_follow_ups"/><Metric label="مسیرهای مراقبت فعال" :value="summary.active_pathways"/>
+    <Metric label="مشکلات فعال" :value="summary.active_problems"/><Metric label="پیگیری‌های باز" :value="summary.open_follow_ups"/><Metric label="مسیرهای مراقبت فعال" :value="summary.active_pathways"/>
   </section>
 
   <section v-if="!canViewClinical" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">سطح دسترسی این حساب فقط اجازه مشاهده اطلاعات عمومی نوبت‌ها را می‌دهد. برای مشاهده اطلاعات بالینی، مجوز «مشاهده پرونده بالینی» باید توسط مدیر دسترسی فعال شود.</section>
+
+  <section v-if="canViewClinical" class="rounded-2xl border bg-white p-5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 class="font-black text-slate-900">تشخیص‌ها و مشکلات بیمار</h2>
+      <span class="text-xs text-slate-500">{{ fa(problems.length) }} مورد ثبت‌شده</span>
+    </div>
+    <div v-if="problems.length" class="mt-3 grid gap-3 md:grid-cols-2">
+      <article v-for="problem in problems" :key="problem.id" class="rounded-xl border border-slate-100 p-3">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <span class="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">{{ problemCategoryLabel(problem.category) }}</span>
+            <h3 class="mt-2 text-sm font-bold text-slate-800">{{ problem.title }}</h3>
+            <p v-if="problem.code" class="mt-1 text-xs text-slate-500" dir="ltr">{{ problem.code }} · {{ problem.code_system.toUpperCase() }}</p>
+          </div>
+          <span class="rounded-md bg-slate-100 px-2 py-1 text-[10px] text-slate-600">{{ problemStatusLabel(problem.status) }}</span>
+        </div>
+        <p v-if="problem.description" class="mt-2 whitespace-pre-line text-xs leading-6 text-slate-600">{{ problem.description }}</p>
+        <p class="mt-2 text-[11px] text-slate-500">
+          <span v-if="problem.severity">شدت: {{ problemSeverityLabel(problem.severity) }} · </span>
+          <span v-if="problem.onset_date">شروع: {{ problem.onset_date }} · </span>
+          {{ problem.source === 'patient_reported' ? 'اظهار بیمار' : 'ارزیابی پزشک' }}
+        </p>
+      </article>
+    </div>
+    <p v-else class="mt-3 text-sm text-slate-500">تشخیص یا مشکل ساختاریافته‌ای ثبت نشده است.</p>
+  </section>
 
   <section v-if="canViewClinical" class="space-y-3">
     <div class="flex items-center justify-between"><h2 class="text-lg font-black text-slate-900">آخرین علائم حیاتی</h2><span class="text-xs text-slate-500">آخرین مقدار ثبت‌شده از هر نوع</span></div>
@@ -58,12 +84,15 @@ const props=defineProps({
  canViewClinical:{type:Boolean,default:false},clinicalRecords:{type:Array,default:()=>[]},
  vitals:{type:Array,default:()=>[]},latestVitals:{type:Array,default:()=>[]},encounters:{type:Array,default:()=>[]},
  appointments:{type:Array,default:()=>[]},followUps:{type:Array,default:()=>[]},pathways:{type:Array,default:()=>[]},
- medicationPlans:{type:Array,default:()=>[]},timeline:{type:Array,default:()=>[]},dataMeta:{type:Object,default:()=>({})}
+ medicationPlans:{type:Array,default:()=>[]},problems:{type:Array,default:()=>[]},timeline:{type:Array,default:()=>[]},dataMeta:{type:Object,default:()=>({})}
 })
 const Metric=defineComponent({props:{label:String,value:[String,Number]},setup(p){return()=>h('div',{class:'rounded-2xl border bg-white p-4 shadow-sm'},[h('p',{class:'text-xs text-slate-500'},p.label),h('p',{class:'mt-2 text-2xl font-black text-slate-900'},Number(p.value||0).toLocaleString('fa-IR'))])}})
 const fa=v=>Number(v||0).toLocaleString('fa-IR')
 const dateTime=v=>v?new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(v)):'—'
 const vitalLabel=k=>({systolic:'فشار سیستولیک',diastolic:'فشار دیاستولیک',heart_rate:'ضربان قلب',temperature:'دما',oxygen_saturation:'اشباع اکسیژن',blood_glucose:'قند خون',weight:'وزن',height:'قد'}[k]||k)
+const problemCategoryLabel=v=>({diagnosis:'تشخیص',condition:'بیماری / وضعیت',symptom:'علامت',risk_factor:'عامل خطر'}[v]||'مشکل بالینی')
+const problemStatusLabel=v=>({active:'فعال',resolved:'برطرف‌شده',inactive:'غیرفعال'}[v]||'نامشخص')
+const problemSeverityLabel=v=>({mild:'خفیف',moderate:'متوسط',severe:'شدید',critical:'بحرانی'}[v]||'نامشخص')
 const recordLabel=k=>({allergy:'حساسیت',medication:'دارو',medical_history:'سابقه پزشکی',adverse_reaction:'عارضه دارویی'}[k]||'سابقه')
 const statusLabel=s=>({draft:'پیش‌نویس',signed:'نهایی‌شده',pending:'در انتظار',in_progress:'در حال انجام',completed:'تکمیل‌شده',verified:'تأییدشده',active:'فعال',cancelled:'لغوشده',confirmed:'تأییدشده',visited:'ویزیت‌شده',recorded:'ثبت‌شده',fulfilled:'انجام‌شده',offered:'پیشنهادشده'}[s]||s||'نامشخص')
 </script>
