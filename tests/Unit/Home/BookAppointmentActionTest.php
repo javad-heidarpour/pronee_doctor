@@ -185,6 +185,27 @@ final class BookAppointmentActionTest extends TestCase
         $action->handle($data($secondSlot->id));
     }
 
+    public function test_it_rejects_booking_on_a_clinic_holiday(): void
+    {
+        $doctor = $this->doctor();
+        $clinic = $this->clinic($doctor);
+        $slot = $this->slot($doctor, $clinic, '2026-11-18', '09:00');
+        \\App\\Models\\DoctorHoliday::query()->create([
+            'doctor_id' => $doctor->id,
+            'clinic_id' => $clinic->id,
+            'holiday_date' => '2026-11-18',
+            'title' => 'تعطیلی',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(BookAppointmentAction::class)->handle(BookAppointmentData::fromValidated([
+            'time_slot_id' => $slot->id,
+            'patient_name' => 'Test Patient',
+            'patient_phone' => '09120000000',
+        ]));
+    }
+
     public function test_it_rejects_a_slot_from_an_inactive_clinic(): void
     {
         $doctor = $this->doctor();
