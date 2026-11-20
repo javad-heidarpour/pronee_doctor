@@ -28,6 +28,10 @@ final class PublicBookableDoctorsTest extends TestCase
         $bookedDoctor = $this->createDoctor();
         $this->createClinicWithSlot($bookedDoctor, 'booked');
 
+        $contactedDoctor = $this->createDoctor();
+        $contactedSlot = $this->createClinicWithSlot($contactedDoctor, 'available');
+        $this->createAppointment($contactedDoctor, $contactedSlot, 'contacted');
+
         $inactiveClinicDoctor = $this->createDoctor();
         $this->createClinicWithSlot($inactiveClinicDoctor, 'available', false);
 
@@ -187,7 +191,7 @@ final class PublicBookableDoctorsTest extends TestCase
         ]);
     }
 
-    private function createAppointment(Doctor $doctor, int $slotId): void
+    private function createAppointment(Doctor $doctor, int $slotId, string $status = 'pending'): void
     {
         $slot = DB::table('time_slots')->where('id', $slotId)->first();
 
@@ -197,7 +201,7 @@ final class PublicBookableDoctorsTest extends TestCase
             'time_slot_id' => $slotId,
             'patient_name' => 'بیمار آزمایشی',
             'patient_phone' => '09120000000',
-            'status' => 'pending',
+            'status' => $status,
             'appointment_date' => $slot->date,
             'appointment_time' => $slot->start_time,
             'created_at' => now(),
