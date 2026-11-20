@@ -98,18 +98,31 @@ class CreatePortalAppointmentAction
                 ]);
             }
 
-            // جلوگیری از داشتن دو نوبت فعال برای یک کد ملی نزد همین پزشک
-            if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
-                $duplicate = Appointment::query()
-                    ->where('doctor_id', $doctor->id)
-                    ->where('patient_national_code', $data->patientNationalCode)
-                    ->whereIn('status', ['pending', 'confirmed'])
-                    ->exists();
+            // National code is the primary identity. For phone-only patients,
+            // use phone as a fallback without merging into a national-code record.
+            $duplicatePatientQuery = Appointment::query()
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('status', ['pending', 'confirmed']);
 
-                if ($duplicate) {
+            if ($data->patientNationalCode !== null && $data->patientNationalCode !== '') {
+                $duplicatePatientQuery->where(
+                    'patient_national_code',
+                    $data->patientNationalCode
+                );
+            } elseif ($data->patientPhone !== null && $data->patientPhone !== '') {
+                $duplicatePatientQuery
+                    ->whereNull('patient_national_code')
+                    ->where('patient_phone', $data->patientPhone);
+            }
+
+            if (
+                ($data->patientNationalCode !== null && $data->patientNationalCode !== '') ||
+                ($data->patientPhone !== null && $data->patientPhone !== '')
+            ) {
+                if ($duplicatePatientQuery->exists()) {
                     throw ValidationException::withMessages([
-                        'patient_national_code' =>
-                            'این بیمار نزد شما نوبت فعال دارد.',
+                        $data->patientNationalCode ? 'patient_national_code' : 'patient_phone'
+                            => 'این بیمار نزد شما نوبت فعال دارد.',
                     ]);
                 }
             }
