@@ -194,6 +194,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
         DB::table('addresses')->insert([
             'id' => 31,
             'doctor_id' => 11,
+            'name' => 'Test Clinic',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
