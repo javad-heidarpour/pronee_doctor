@@ -119,3 +119,23 @@ CREATE TABLE IF NOT EXISTS notifications (
   INDEX notifications_notifiable_type_notifiable_id_index (notifiable_type, notifiable_id),
   INDEX notifications_owner_read_idx (notifiable_type, notifiable_id, read_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Feature 095: doctor educational articles (run this OR the matching Laravel migration, not both).
+CREATE TABLE IF NOT EXISTS doctor_articles (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  doctor_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  slug VARCHAR(200) NOT NULL,
+  excerpt VARCHAR(500) NULL,
+  body LONGTEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft',
+  published_at TIMESTAMP NULL,
+  meta_title VARCHAR(180) NULL,
+  meta_description VARCHAR(320) NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  deleted_at TIMESTAMP NULL,
+  CONSTRAINT doctor_articles_doctor_id_foreign FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
+  UNIQUE KEY doctor_articles_doctor_slug_unique (doctor_id, slug),
+  INDEX doctor_articles_publish_idx (doctor_id, status, published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
