@@ -13,7 +13,8 @@ final class ClinicalNoteExtractor
     private const LABELS = [
         'subjective' => ['S', 'SUBJECTIVE', 'HPI', 'CC', 'شرح حال', 'شرح‌حال', 'شکایت اصلی', 'علت مراجعه'],
         'objective' => ['O', 'OBJECTIVE', 'EXAM', 'PHYSICAL EXAM', 'معاینه', 'یافته‌های عینی', 'یافته های عینی', 'بررسی‌ها', 'بررسی ها'],
-        'assessment' => ['A', 'ASSESSMENT', 'IMPRESSION', 'ارزیابی', 'جمع‌بندی', 'جمع بندی', 'تشخیص'],
+        'assessment' => ['A', 'ASSESSMENT', 'IMPRESSION', 'ارزیابی', 'جمع‌بندی', 'جمع بندی'],
+        'diagnosis' => ['DIAGNOSIS', 'DX', 'تشخیص'],
         'plan' => ['P', 'PLAN', 'TREATMENT', 'برنامه', 'برنامه درمان', 'برنامه درمانی', 'اقدامات', 'توصیه‌ها', 'توصیه ها', 'پیگیری'],
     ];
 
@@ -25,6 +26,7 @@ final class ClinicalNoteExtractor
             'objective' => [],
             'assessment' => [],
             'plan' => [],
+            'diagnosis' => [],
         ];
         $unclassified = [];
         $current = null;
