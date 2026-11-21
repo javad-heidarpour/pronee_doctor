@@ -61,7 +61,7 @@ final class ReferralNetworkIntelligence
                 'overdue_count' => $overdue,
                 'acceptance_rate' => $enough && $eligible->isNotEmpty() ? round($accepted->count() / $eligible->count() * 100, 1) : null,
                 'completion_rate' => $enough && $accepted->isNotEmpty() ? round($completed->count() / $accepted->count() * 100, 1) : null,
-                'average_response_hours' => $responseMinutes->isNotEmpty() ? round($responseMinutes->avg() / 60, 1) : null,
+                'average_response_hours' => $enough && $responseMinutes->isNotEmpty() ? round($responseMinutes->avg() / 60, 1) : null,
                 'data_sufficient' => $enough,
             ];
         }
