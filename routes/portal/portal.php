@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Portal\AuthController;
 use App\Http\Controllers\Portal\DashboardController;
+use App\Http\Controllers\Portal\NotificationController;
 use App\Http\Controllers\Portal\SecurityAuditController;
 use App\Http\Controllers\Portal\PaymentReviewController;
 use App\Http\Controllers\Portal\SecuritySessionsController;
@@ -104,6 +105,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
             DashboardController::class,
             'index'
         ])->name('dashboard');
+
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->whereUuid('notification')->middleware('throttle:60,1')->name('notifications.read');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->middleware('throttle:10,1')->name('notifications.read-all');
 
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->whereUuid('notification')->middleware('throttle:60,1')->name('notifications.read');
