@@ -48,7 +48,8 @@
           <div class="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4 sm:px-5">
             <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] text-slate-500">پرچم‌های فعال</p><p class="mt-1 text-lg font-black text-slate-800">{{ fa(patient.flags_count) }}</p></div>
             <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] text-slate-500">پیگیری عقب‌افتاده</p><p class="mt-1 text-lg font-black text-slate-800">{{ fa(patient.overdue_followups_count) }}</p></div>
-            <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] text-slate-500">برنامه دارویی فعال</p><p class="mt-1 text-lg font-black text-slate-800">{{ fa(patient.active_medication_plans_count) }}</p></div>\n            <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] text-slate-500">آخرین اندازه‌گیری مرکز</p><p class="mt-1 text-sm font-black text-slate-800">{{ formatDateTime(patient.last_clinic_measurement_at) }}</p></div>
+            <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] text-slate-500">برنامه دارویی فعال</p><p class="mt-1 text-lg font-black text-slate-800">{{ fa(patient.active_medication_plans_count) }}</p></div>
+            <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] text-slate-500">آخرین اندازه‌گیری مرکز</p><p class="mt-1 text-sm font-black text-slate-800">{{ formatDateTime(patient.last_clinic_measurement_at) }}</p></div>
           </div>
           <div v-if="patient.flags.length" class="space-y-2 px-4 pb-4 sm:px-5">
             <div v-for="(flag, index) in patient.flags" :key="index" class="rounded-xl border p-3" :class="flag.level === 'urgent' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'">
