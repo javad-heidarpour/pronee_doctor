@@ -372,7 +372,7 @@ const props = defineProps({
   },
   canViewAppointments: {
     type: Boolean,
-    default: true,
+    default: false,
   },
 
   stats: {
