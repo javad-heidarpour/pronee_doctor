@@ -6,6 +6,8 @@ namespace Tests\Unit\Models;
 
 use App\Models\Doctor;
 use App\Models\DoctorArticle;
+use App\Http\Controllers\Portal\DoctorArticleController;
+use ReflectionMethod;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
