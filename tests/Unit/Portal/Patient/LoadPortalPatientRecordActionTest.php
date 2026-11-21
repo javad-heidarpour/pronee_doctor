@@ -28,8 +28,30 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         Schema::create('addresses', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id')->nullable();
+            $table->unsignedBigInteger('city_id')->nullable();
             $table->string('name')->nullable();
             $table->timestamps();
+        });
+
+        Schema::create('cities', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name')->nullable();
+        });
+
+        Schema::create('time_slots', function (Blueprint $table): void {
+            $table->id();
+        });
+
+        Schema::create('sms_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('appointment_id');
+            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('visit_reasons', function (Blueprint $table): void {
@@ -119,25 +141,97 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         $this->assertNull($visits->first()->patient);
     }
 
-    public function test_it_uses_phone_only_when_the_reference_has_no_national_code(): void
+    public function test_it_does_not_group_legacy_visits_by_a_shared_phone_without_a_national_code(): void
     {
         $doctor = $this->doctor('doctor-phone');
         $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => null,
             'patient_national_code' => null,
             'patient_phone' => '09120000000',
         ]);
-        $matching = $this->visit($doctor, 10, '2026-11-10', '09:00', [
+        $this->visit($doctor, 10, '2026-11-10', '09:00', [
+            'patient_id' => null,
             'patient_national_code' => null,
             'patient_phone' => '09120000000',
-        ]);
-        $this->visit($doctor, 10, '2026-11-11', '09:00', [
-            'patient_national_code' => null,
-            'patient_phone' => '09129999999',
         ]);
 
         $visits = app(LoadPortalPatientRecordAction::class)->handle($reference, [10]);
 
-        $this->assertSame([$reference->id, $matching->id], $visits->pluck('id')->all());
+        $this->assertSame([$reference->id], $visits->pluck('id')->all());
+    }
+
+    public function test_legacy_timeline_uses_national_code_only_for_unlinked_rows(): void
+    {
+        $doctor = $this->doctor('doctor-legacy-national-code');
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => null,
+            'patient_national_code' => '0012345678',
+            'patient_phone' => '09120000000',
+        ]);
+        $matchingLegacy = $this->visit($doctor, 10, '2026-11-10', '09:00', [
+            'patient_id' => null,
+            'patient_national_code' => '0012345678',
+            'patient_phone' => '09129999999',
+        ]);
+        $this->visit($doctor, 10, '2026-11-11', '09:00', [
+            'patient_id' => 77,
+            'patient_national_code' => '0012345678',
+            'patient_phone' => '09120000000',
+        ]);
+        $this->visit($doctor, 10, '2026-11-12', '09:00', [
+            'patient_id' => null,
+            'patient_national_code' => '0099999999',
+            'patient_phone' => '09120000000',
+        ]);
+
+        $visits = app(LoadPortalPatientRecordAction::class)->handle($reference, [10]);
+
+        $this->assertSame([$reference->id, $matchingLegacy->id], $visits->pluck('id')->all());
+    }
+
+    public function test_appointment_details_history_uses_patient_id_instead_of_shared_phone(): void
+    {
+        $doctor = $this->doctor('doctor-appointment-details-identity');
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => 101,
+            'patient_national_code' => null,
+            'patient_phone' => '09120000000',
+        ]);
+        $samePatient = $this->visit($doctor, 10, '2026-11-10', '09:00', [
+            'patient_id' => 101,
+            'patient_national_code' => null,
+            'patient_phone' => '09128888888',
+        ]);
+        $this->visit($doctor, 10, '2026-11-11', '09:00', [
+            'patient_id' => 202,
+            'patient_national_code' => null,
+            'patient_phone' => '09120000000',
+        ]);
+
+        $details = app(\\App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction::class)
+            ->handle($reference, [10]);
+
+        $this->assertSame([$samePatient->id], $details->patientHistory->pluck('id')->all());
+    }
+
+    public function test_legacy_appointment_details_do_not_use_phone_as_a_patient_identifier(): void
+    {
+        $doctor = $this->doctor('doctor-legacy-appointment-details');
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => null,
+            'patient_national_code' => null,
+            'patient_phone' => '09120000000',
+        ]);
+        $this->visit($doctor, 10, '2026-11-10', '09:00', [
+            'patient_id' => null,
+            'patient_national_code' => null,
+            'patient_phone' => '09120000000',
+        ]);
+
+        $details = app(\\App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction::class)
+            ->handle($reference, [10]);
+
+        $this->assertCount(0, $details->patientHistory);
     }
 
     public function test_it_prefers_the_stable_patient_id_when_loading_a_patient_timeline(): void
