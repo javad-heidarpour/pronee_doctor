@@ -19,12 +19,22 @@ class LoadPortalAppointmentDetailsAction
         ]);
 
         $nationalCode = trim((string) $appointment->patient_national_code);
-        $phone = trim((string) $appointment->patient_phone);
-
         $history = collect();
 
-        if ($nationalCode !== '' || $phone !== '') {
-            $history = Appointment::query()
+        $identityQuery = null;
+        if ($appointment->patient_id !== null) {
+            $identityQuery = Appointment::query()
+                ->where('patient_id', $appointment->patient_id);
+        } elseif ($nationalCode !== '') {
+            // Legacy rows can be linked by national code, but never by phone:
+            // household phone numbers are not unique patient identifiers.
+            $identityQuery = Appointment::query()
+                ->whereNull('patient_id')
+                ->where('patient_national_code', $nationalCode);
+        }
+
+        if ($identityQuery !== null) {
+            $history = $identityQuery
                 ->where('doctor_id', $appointment->doctor_id)
                 ->whereIn('clinic_id', $accessibleClinicIds)
                 ->where('id', '!=', $appointment->id)
@@ -37,13 +47,6 @@ class LoadPortalAppointmentDetailsAction
                                 ->whereDate('appointment_date', $appointment->appointment_date)
                                 ->where('appointment_time', '<', $appointment->appointment_time);
                         });
-                })
-                ->where(function ($query) use ($nationalCode, $phone) {
-                    if ($nationalCode !== '') {
-                        $query->where('patient_national_code', $nationalCode);
-                    } else {
-                        $query->where('patient_phone', $phone);
-                    }
                 })
                 ->with(['clinic', 'visitReason', 'latestPayment'])
                 ->orderByDesc('appointment_date')
