@@ -77,3 +77,17 @@ SELECT
 WHERE NOT EXISTS (
     SELECT 1 FROM menus WHERE route_name = 'portal.no-show-risk.index'
 );
+
+
+-- Feature 085: clinic capacity analysis has no schema changes.
+-- Equivalent menu entry for database/migrations/2026_11_21_030000_add_clinic_capacity_menu.php.
+-- Apply this menu insert OR the Laravel migration, never both.
+INSERT INTO menus
+    (title, route_name, icon, \`order\`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT
+    'تحلیل ظرفیت مطب', 'portal.shifts.capacity', 'IconChartBar', 59,
+    'doctor', 1, 1, JSON_ARRAY('shifts.view'),
+    JSON_ARRAY('doctor', 'admin', 'secretary'), NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM menus WHERE route_name = 'portal.shifts.capacity'
+);
