@@ -20,7 +20,7 @@ final class ClinicalNoteExtractorTest extends TestCase
         self::assertSame('نیازمند بررسی بیشتر', $result['sections']['assessment']);
         self::assertSame('پیگیری طی یک هفته', $result['sections']['plan']);
         self::assertSame('', $result['sections']['diagnosis']);
-        self::assertSame([], $result['missing_sections']);
+        self::assertSame(['diagnosis'], $result['missing_sections']);
         self::assertFalse($result['has_unclassified_text']);
     }
 
