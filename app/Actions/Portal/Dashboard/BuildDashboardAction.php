@@ -74,7 +74,7 @@ class BuildDashboardAction
                     'status_label' => match ($appointment->status) {
                         'pending' => 'در انتظار تأیید',
                         'confirmed' => 'تأیید شده',
-                        'visited' => 'ویزیت شده',
+                        'visited', 'completed' => 'ویزیت شده',
                         'cancelled' => 'لغو شده',
                         default => 'نامشخص',
                     },
@@ -139,10 +139,12 @@ class BuildDashboardAction
             'today_total' => $todayAppointments->count(),
             'today_pending' => $todayAppointments->where('status', 'pending')->count(),
             'today_confirmed' => $todayAppointments->where('status', 'confirmed')->count(),
-            'today_visited' => $todayAppointments->where('status', 'visited')->count(),
+            'today_visited' => $todayAppointments->whereIn('status', ['visited', 'completed'])->count(),
             'today_unpaid' => $todayAppointments
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->whereIn('payment_status', ['pending', 'initiated', 'failed'])
+                ->filter(fn (array $appointment): bool =>
+                    in_array($appointment['status'], ['pending', 'confirmed'], true)
+                    && $appointment['payment_status'] !== 'paid'
+                )
                 ->count(),
             'today_cancelled' => $todayAppointments
                 ->where('status', 'cancelled')
