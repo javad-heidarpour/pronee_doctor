@@ -19,6 +19,7 @@ final class ClinicalNoteExtractorTest extends TestCase
         self::assertSame('هوشیار و پاسخگو', $result['sections']['objective']);
         self::assertSame('نیازمند بررسی بیشتر', $result['sections']['assessment']);
         self::assertSame('پیگیری طی یک هفته', $result['sections']['plan']);
+        self::assertSame('', $result['sections']['diagnosis']);
         self::assertSame([], $result['missing_sections']);
         self::assertFalse($result['has_unclassified_text']);
     }
@@ -42,7 +43,15 @@ final class ClinicalNoteExtractorTest extends TestCase
         self::assertSame('متن بدون برچسب', $result['unclassified']);
         self::assertSame('درد شکم', $result['sections']['subjective']);
         self::assertTrue($result['has_unclassified_text']);
-        self::assertSame(['objective', 'assessment', 'plan'], $result['missing_sections']);
+        self::assertSame(['objective', 'assessment', 'plan', 'diagnosis'], $result['missing_sections']);
+    }
+
+    public function test_it_extracts_diagnosis_only_when_explicitly_labelled(): void
+    {
+        $result = (new ClinicalNoteExtractor())->extract("تشخیص: عنوان ثبت‌شده توسط پزشک");
+
+        self::assertSame('عنوان ثبت‌شده توسط پزشک', $result['sections']['diagnosis']);
+        self::assertSame('', $result['sections']['assessment']);
     }
 
     public function test_empty_input_returns_all_sections_as_missing(): void
@@ -50,7 +59,7 @@ final class ClinicalNoteExtractorTest extends TestCase
         $result = (new ClinicalNoteExtractor())->extract("  \n ");
 
         self::assertSame('', $result['unclassified']);
-        self::assertSame(['subjective', 'objective', 'assessment', 'plan'], $result['missing_sections']);
+        self::assertSame(['subjective', 'objective', 'assessment', 'plan', 'diagnosis'], $result['missing_sections']);
     }
 
     public function test_it_does_not_infer_a_diagnosis_or_prescription(): void
@@ -58,6 +67,7 @@ final class ClinicalNoteExtractorTest extends TestCase
         $result = (new ClinicalNoteExtractor())->extract('بیمار سردرد دارد');
 
         self::assertSame('', $result['sections']['assessment']);
+        self::assertSame('', $result['sections']['diagnosis']);
         self::assertSame('', $result['sections']['plan']);
         self::assertContains('No diagnosis or differential diagnosis is inferred.', $result['limitations']);
     }
