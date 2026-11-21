@@ -23,7 +23,11 @@
               <span>نوبت {{ fa(appointment.id) }} · {{ appointment.date }} · {{ appointment.time || '—' }}</span>
               <span v-if="appointment.attendance_outcome === 'attended'" class="font-bold text-emerald-700">حضور ثبت شده</span>
               <span v-else-if="appointment.attendance_outcome === 'no_show'" class="font-bold text-rose-700">عدم حضور ثبت شده</span>
-              <span v-else class="text-slate-500">نتیجه نامشخص</span>
+              <div v-else class="flex flex-wrap items-center gap-2">
+                <span class="text-slate-500">نتیجه نامشخص</span>
+                <button v-if="appointment.status === 'visited' || appointment.status === 'completed'" type="button" @click="recordOutcome(appointment.id, 'attended')" class="rounded-lg bg-emerald-100 px-2 py-1 font-bold text-emerald-800">ثبت حضور</button>
+                <button type="button" @click="recordOutcome(appointment.id, 'no_show')" class="rounded-lg bg-rose-100 px-2 py-1 font-bold text-rose-800">ثبت عدم حضور</button>
+              </div>
             </div>
           </div>
         </article>
@@ -36,12 +40,18 @@
 
 <script setup>
 import PortalLayout from '@/Layouts/PortalLayout.vue'
+import { router } from '@inertiajs/vue3'
 
 defineProps({
   doctor: { type: Object, required: true },
   patients: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({ patients: 0, insufficient_history: 0, high_historical_rate: 0 }) },
 })
+const recordOutcome = (appointmentId, outcome) => router.patch(
+  route('portal.appointments.attendance-outcome', appointmentId),
+  { attendance_outcome: outcome },
+  { preserveScroll: true },
+)
 const fa = value => Number(value || 0).toLocaleString('fa-IR')
 const badgeClass = band => ({
   high: 'bg-rose-100 text-rose-800',
