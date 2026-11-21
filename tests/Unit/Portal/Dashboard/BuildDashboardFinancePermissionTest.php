@@ -18,6 +18,23 @@ final class BuildDashboardFinancePermissionTest extends TestCase
         return $method->invoke(new BuildDashboardAction(), $permissions);
     }
 
+    private function hasPermission(mixed $permissions, string $permission): bool
+    {
+        $method = new ReflectionMethod(BuildDashboardAction::class, 'hasPermission');
+        $method->setAccessible(true);
+
+        return $method->invoke(new BuildDashboardAction(), $permissions, $permission);
+    }
+
+    public function test_appointment_details_require_explicit_read_or_manage_permission(): void
+    {
+        $this->assertFalse($this->hasPermission(null, 'appointments.view'));
+        $this->assertFalse($this->hasPermission(['finance.view'], 'appointments.view'));
+        $this->assertTrue($this->hasPermission(['appointments.view'], 'appointments.view'));
+        $this->assertTrue($this->hasPermission(['appointments.manage'], 'appointments.manage'));
+        $this->assertTrue($this->hasPermission('["appointments.view"]', 'appointments.view'));
+    }
+
     public function test_secretary_without_finance_permission_cannot_view_financial_metrics(): void
     {
         $this->assertFalse($this->allows(null));
