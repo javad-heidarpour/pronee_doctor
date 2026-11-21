@@ -5,10 +5,11 @@ use Carbon\CarbonImmutable;
 final class ClinicCapacityAdvisor
 {
     private const ACTIVE = ['pending', 'contacted', 'confirmed', 'visited', 'completed'];
+    private const INACTIVE_APPOINTMENTS = ['cancelled', 'canceled', 'failed'];
     public function summarize(iterable $slots): array
     {
         $daily = $weekdays = [];
-        $totals = ['capacity'=>0,'occupied'=>0,'available'=>0,'cancelled'=>0];
+        $totals = ['capacity'=>0,'occupied'=>0,'available'=>0,'cancelled'=>0,'duration_minutes'=>0];
         foreach ($slots as $slot) {
             $date=(string)$slot['date']; $clinicId=(int)$slot['clinic_id'];
             $key=$clinicId.':'.$date; $status=(string)$slot['status'];
@@ -20,26 +21,30 @@ final class ClinicCapacityAdvisor
             ];
             if ($status==='cancelled') { $daily[$key]['cancelled']++; $totals['cancelled']++; continue; }
             $duration=$this->durationMinutes((string)$slot['start_time'],(string)$slot['end_time']);
-            $occupied=$status==='booked' || in_array($appointmentStatus,self::ACTIVE,true);
+            $occupied=!in_array($appointmentStatus,self::INACTIVE_APPOINTMENTS,true)
+                && ($status==='booked' || in_array($appointmentStatus,self::ACTIVE,true));
             $daily[$key]['capacity']++; $daily[$key]['duration_minutes'] += $duration;
-            $totals['capacity']++;
+            $totals['capacity']++; $totals['duration_minutes'] += $duration;
             if ($occupied) { $daily[$key]['occupied']++; $totals['occupied']++; }
             else { $daily[$key]['available']++; $totals['available']++; }
             $weekday=(CarbonImmutable::parse($date)->dayOfWeekIso+1)%7;
             $weekdayKey=$clinicId.':'.$weekday;
             if (!isset($weekdays[$weekdayKey])) $weekdays[$weekdayKey]=[
                 'clinic_id'=>$clinicId,'clinic_name'=>(string)($slot['clinic_name'] ?? ''),
-                'day_of_week'=>$weekday,'capacity'=>0,'occupied'=>0,'available'=>0,
+                'day_of_week'=>$weekday,'observed_days'=>0,'observed_dates'=>[],'capacity'=>0,'occupied'=>0,'available'=>0,
             ];
+            $weekdays[$weekdayKey]['observed_dates'][$date]=true;
             $weekdays[$weekdayKey]['capacity']++;
             if ($occupied) $weekdays[$weekdayKey]['occupied']++; else $weekdays[$weekdayKey]['available']++;
         }
         foreach ($daily as &$day) $day['utilization_percent']=$day['capacity']>0?(int)round($day['occupied']/$day['capacity']*100):0;
         unset($day);
         foreach ($weekdays as &$weekday) {
+            $weekday['observed_days']=count($weekday['observed_dates']);
+            unset($weekday['observed_dates']);
             $weekday['utilization_percent']=$weekday['capacity']>0?(int)round($weekday['occupied']/$weekday['capacity']*100):0;
             $weekday['signal']=match(true) {
-                $weekday['capacity']<4=>'insufficient',
+                $weekday['capacity']<4 || $weekday['observed_days']<2=>'insufficient',
                 $weekday['utilization_percent']>=80=>'high_demand',
                 $weekday['utilization_percent']<=30=>'underused',
                 default=>'balanced',
