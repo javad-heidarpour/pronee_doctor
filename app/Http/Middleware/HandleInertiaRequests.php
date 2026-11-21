@@ -49,6 +49,10 @@ class HandleInertiaRequests extends Middleware
             |--------------------------------------------------------------------------
             */
 
+            'locale' => app()->getLocale(),
+            'direction' => in_array(app()->getLocale(), ['fa', 'ar'], true) ? 'rtl' : 'ltr',
+            'availableLocales' => ['fa', 'en', 'ar', 'tr'],
+
             'auth' => [
                 'user' => fn() => Auth::guard('web')->user()?->only([
                     'id',
@@ -94,6 +98,7 @@ class HandleInertiaRequests extends Middleware
                 'appointment_id' => fn() => $request->session()->get('appointment_id'),
                 'payment_url' => fn() => $request->session()->get('payment_url'),
                 'info' => fn() => $request->session()->get('info'),
+                'ticket_reference' => fn() => $request->session()->get('ticket_reference'),
             ],
         ];
     }

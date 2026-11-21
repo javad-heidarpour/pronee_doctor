@@ -1,9 +1,14 @@
 <script setup>
-import { Link } from "@inertiajs/vue3";
+import { Link, usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
+import LocaleSwitcher from "@/Components/LocaleSwitcher.vue";
 import HeadTemplate from "./Head-Template.vue";
 import PublicBottomBooking from "./PublicBottomBooking.vue";
 import teamImg from "../assets/team.png";
 import SiteDrawer from "@/Pages/HomePage/Home1/SiteDrawer.vue";
+
+const page = usePage();
+const localeDirection = computed(() => page.props.direction || "rtl");
 
 const props = defineProps({
   doctor: {
@@ -55,7 +60,7 @@ const goBack = () => {
   />
 
   <div
-    dir="rtl"
+    :dir="localeDirection"
     class="relative min-h-screen w-full overflow-x-clip bg-[#f1f8f3] font-[Vazirmatn,IRANSans,Tahoma,sans-serif] text-[#1d342b]"
   >
     <!-- ================= HEADER ================= -->

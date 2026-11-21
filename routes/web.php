@@ -22,6 +22,12 @@ require __DIR__ . '/auth.php';
 
 Route::get('/c/{code}', [ClinicMarketingController::class, 'track'])->where('code', '[A-Za-z0-9]{8}')->name('growth.track');
 
+Route::post('/locale', function (\Illuminate\Http\Request $request) {
+    $data = $request->validate(['locale' => ['required', 'in:fa,en,ar,tr']]);
+    $request->session()->put('locale', $data['locale']);
+    return back();
+})->name('locale.update');
+
 Route::get('/', [HomeController::class, 'Home'])
     ->name('home');
 
