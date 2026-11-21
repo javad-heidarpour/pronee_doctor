@@ -69,7 +69,7 @@ GROUP BY attendance_outcome;
 
 -- Feature 084 menu entry. Equivalent to 2026_11_21_020000_add_no_show_risk_menu.php.
 INSERT INTO menus
-    (title, route_name, icon, \`order\`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+    (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
 SELECT
     'سابقه عدم حضور بیماران', 'portal.no-show-risk.index', 'IconCalendarX', 58,
     'doctor', 1, 1, JSON_ARRAY('appointments.view'),
@@ -83,7 +83,7 @@ WHERE NOT EXISTS (
 -- Equivalent menu entry for database/migrations/2026_11_21_030000_add_clinic_capacity_menu.php.
 -- Apply this menu insert OR the Laravel migration, never both.
 INSERT INTO menus
-    (title, route_name, icon, \`order\`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+    (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
 SELECT
     'تحلیل ظرفیت مطب', 'portal.shifts.capacity', 'IconChartBar', 59,
     'doctor', 1, 1, JSON_ARRAY('shifts.view'),
