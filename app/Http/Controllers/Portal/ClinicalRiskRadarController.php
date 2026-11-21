@@ -38,7 +38,9 @@ final class ClinicalRiskRadarController extends Controller
             ->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($query) => $query->whereIn('clinic_id', $clinicIds))
             ->with([
-                'vitalSigns' => fn ($query) => $query->where('measured_at', '>=', now()->subDays(90))
+                'vitalSigns' => fn ($query) => $query
+                    ->where('doctor_id', $doctor->id)
+                    ->where('measured_at', '>=', now()->subDays(90))
                     ->orderByDesc('measured_at')->limit(40),
             ])
             ->withCount(['appointments' => fn ($query) => $query->whereIn('clinic_id', $clinicIds)])
@@ -70,6 +72,9 @@ final class ClinicalRiskRadarController extends Controller
             $medicationPlans = PatientMedicationPlan::query()
                 ->whereIn('patient_id', $patientIds)
                 ->where('status', 'active')
+                ->whereHas('prescription.encounter', fn ($query) => $query
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $clinicIds))
                 ->with(['doses' => fn ($query) => $query
                     ->where('scheduled_for', '>=', now()->subDays(7))
                     ->where('scheduled_for', '<=', now())
