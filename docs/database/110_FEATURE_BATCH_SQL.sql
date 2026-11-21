@@ -91,3 +91,17 @@ SELECT
 WHERE NOT EXISTS (
     SELECT 1 FROM menus WHERE route_name = 'portal.shifts.capacity'
 );
+
+
+-- Feature 087: population health trends menu only; no schema changes.
+-- Equivalent to database/migrations/2026_11_21_040000_add_population_health_menu.php.
+-- Apply this INSERT OR the Laravel migration, never both.
+INSERT INTO menus
+    (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT
+    'روند سلامت جمعیت بیماران', 'portal.population-health.index', 'IconChartNoAxesCombined', 61,
+    'doctor', 1, 1, JSON_ARRAY('patients.clinical.view'),
+    JSON_ARRAY('doctor', 'admin', 'secretary'), NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM menus WHERE route_name = 'portal.population-health.index'
+);
