@@ -219,6 +219,19 @@ const reviewStatsFallback = {
         </div>
       </section>
 
+      <section v-if="doctor.articles_url" class="rounded-3xl border border-teal-100 bg-teal-50/70 p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-bold text-teal-700">دانش و آگاهی</span>
+            <h2 class="mt-1 text-lg font-black text-slate-900">مقالات و مطالب آموزشی پزشک</h2>
+            <p class="mt-1 text-sm text-slate-600">مطالب آموزشی منتشرشده را مطالعه کنید.</p>
+          </div>
+          <Link :href="doctor.articles_url" class="rounded-xl bg-teal-700 px-5 py-3 text-sm font-bold text-white hover:bg-teal-800">
+            مشاهده مقالات
+          </Link>
+        </div>
+      </section>
+
       <section id="booking-section" class="scroll-mt-24">
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
