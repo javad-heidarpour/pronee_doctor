@@ -75,20 +75,44 @@ final class PatientMedicationController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $scheduled = Carbon::parse($data['scheduled_for'], $plan->timezone);
-        $date = $scheduled->toDateString();
-        abort_unless($date >= $plan->start_date->toDateString(), 422);
-        abort_if($plan->end_date && $date > $plan->end_date->toDateString(), 422);
-        abort_unless(in_array($scheduled->format('H:i'), $plan->reminder_times ?? [], true), 422);
+        DB::transaction(function () use ($plan, $user, $access, $data): void {
+            // Lock the owner grant before the plan so dose recording and pausing
+            // serialize against each other and cannot use a revoked grant.
+            $lockedAccess = PatientAccountAccess::query()
+                ->active()
+                ->whereKey($access->id)
+                ->where('user_id', $user->id)
+                ->where('patient_id', $plan->patient_id)
+                ->where('access_type', 'owner')
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($scheduled->gt(now($plan->timezone)->addMinutes(15)) || $scheduled->lt(now($plan->timezone)->subDays(7))) {
-            throw ValidationException::withMessages(['scheduled_for' => 'ثبت مصرف فقط برای نوبت‌های هفت روز گذشته تا ۱۵ دقیقه آینده مجاز است.']);
-        }
+            $lockedPlan = PatientMedicationPlan::query()
+                ->whereKey($plan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        DB::transaction(function () use ($plan, $user, $data, $scheduled): void {
-            PatientMedicationPlan::query()->whereKey($plan->id)->lockForUpdate()->firstOrFail();
+            // The route-bound model may have been loaded before another request
+            // paused the plan. Always authorize against the freshly locked row.
+            abort_unless(
+                (int) $lockedPlan->patient_id === (int) $lockedAccess->patient_id &&
+                (int) $lockedPlan->user_id === (int) $user->id &&
+                $lockedPlan->status === 'active',
+                404
+            );
+
+            $scheduled = Carbon::parse($data['scheduled_for'], $lockedPlan->timezone);
+            $date = $scheduled->toDateString();
+            abort_unless($date >= $lockedPlan->start_date->toDateString(), 422);
+            abort_if($lockedPlan->end_date && $date > $lockedPlan->end_date->toDateString(), 422);
+            abort_unless(in_array($scheduled->format('H:i'), $lockedPlan->reminder_times ?? [], true), 422);
+
+            if ($scheduled->gt(now($lockedPlan->timezone)->addMinutes(15)) || $scheduled->lt(now($lockedPlan->timezone)->subDays(7))) {
+                throw ValidationException::withMessages(['scheduled_for' => 'ثبت مصرف فقط برای نوبت‌های هفت روز گذشته تا ۱۵ دقیقه آینده مجاز است.']);
+            }
+
             PatientMedicationDose::query()->updateOrCreate(
-                ['plan_id' => $plan->id, 'scheduled_for' => $scheduled->utc()],
+                ['plan_id' => $lockedPlan->id, 'scheduled_for' => $scheduled->utc()],
                 [
                     'status' => $data['status'],
                     'recorded_by_user_id' => $user->id,
@@ -107,7 +131,32 @@ final class PatientMedicationController extends Controller
     {
         [$user, $access] = $this->owner();
         abort_unless((int) $plan->patient_id === (int) $access->patient_id && (int) $plan->user_id === (int) $user->id, 404);
-        $plan->update(['status' => 'paused']);
+
+        DB::transaction(function () use ($plan, $user, $access): void {
+            $lockedAccess = PatientAccountAccess::query()
+                ->active()
+                ->whereKey($access->id)
+                ->where('user_id', $user->id)
+                ->where('patient_id', $plan->patient_id)
+                ->where('access_type', 'owner')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedPlan = PatientMedicationPlan::query()
+                ->whereKey($plan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless(
+                (int) $lockedPlan->patient_id === (int) $lockedAccess->patient_id &&
+                (int) $lockedPlan->user_id === (int) $user->id,
+                404
+            );
+
+            $lockedPlan->update(['status' => 'paused']);
+        });
+
+        $plan->refresh();
         $audit->handle('patient.medication.reminder_paused', $plan);
 
         return back()->with('success', 'یادآوری شخصی متوقف شد؛ این کار نسخه یا دستور پزشک را تغییر نمی‌دهد.');
