@@ -21,6 +21,7 @@ class GalleryController extends Controller
     public function index(ListGalleryImagesAction $action)
     {
         $doctor = $this->currentDoctor();
+        $this->authorizeDoctorOnly();
 
         return Inertia::render('Portal/Gallery', $action->handle($doctor));
     }
