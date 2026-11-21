@@ -25,9 +25,12 @@ use Inertia\Inertia;
 
 final class PatientHealthController extends Controller
 {
-    public function index(RecordSecurityAuditEventAction $audit)
+    public function index(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = $this->authenticatedPatient();
+        $selection = $request->validate([
+            'access_id' => ['nullable', 'integer', 'min:1'],
+        ]);
 
         $accesses = PatientAccountAccess::query()->active()
             ->where('user_id', $user->id)
@@ -51,7 +54,13 @@ final class PatientHealthController extends Controller
             ]);
         }
 
-        $selected = $visibleAccesses->first();
+        $selected = isset($selection['access_id'])
+            ? $visibleAccesses->firstWhere('id', (int) $selection['access_id'])
+            : $visibleAccesses->first();
+
+        // Only active grants that explicitly allow the summary may be selected.
+        abort_unless($selected, 404);
+
         $accessType = $selected->access_type;
         $canViewRecords = $selected->allows('view_records');
         $canViewAppointments = $selected->allows('view_appointments');
@@ -155,7 +164,13 @@ final class PatientHealthController extends Controller
                 'id' => $access->id,
                 'access_type' => $access->access_type,
                 'patient' => ['id' => $access->patient->id, 'name' => $access->patient->name],
+                'doctor' => [
+                    'name' => $access->patient->doctor?->name,
+                    'family' => $access->patient->doctor?->family,
+                    'specialty_title' => $access->patient->doctor?->specialty_title,
+                ],
             ])->values(),
+            'selectedAccessId' => $selected->id,
             'accessType' => $accessType,
             'patient' => $patient,
             'encounters' => $encounters,
