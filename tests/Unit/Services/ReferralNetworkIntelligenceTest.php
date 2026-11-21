@@ -13,6 +13,13 @@ use Tests\TestCase;
 
 final class ReferralNetworkIntelligenceTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        Schema::dropIfExists('medical_referrals');
+
+        parent::tearDown();
+    }
+
     public function test_it_declares_a_bounded_reporting_window_and_minimum_sample(): void
     {
         $this->assertSame(180, ReferralNetworkIntelligence::WINDOW_DAYS);
