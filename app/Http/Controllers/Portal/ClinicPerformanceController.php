@@ -31,12 +31,12 @@ final class ClinicPerformanceController extends Controller
     $total = (int) $st->sum();
     $visited = (int) ($st['visited'] ?? 0);
     $completed = (int) ($st['completed'] ?? 0);
-    $cancelled = (int) ($st['cancelled'] ?? 0);
+    $cancelled = (int) ($st['cancelled'] ?? 0) + (int) ($st['canceled'] ?? 0);
     $daily = (clone $q)->selectRaw('appointment_date day,COUNT(*) total')->groupBy('appointment_date')->orderBy('appointment_date')->get()->map(fn($x) => ['day' => (string) $x->day, 'total' => (int) $x->total]);
     $grouped = (clone $q)->select('clinic_id')->selectRaw('COUNT(*) total')
       ->selectRaw("SUM(CASE WHEN status IN ('visited','completed') THEN 1 ELSE 0 END) served")
-      ->selectRaw("SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) cancelled")
-      ->selectRaw("SUM(CASE WHEN status IN ('pending','confirmed') THEN 1 ELSE 0 END) awaiting")->groupBy('clinic_id')->get()->keyBy('clinic_id');
+      ->selectRaw("SUM(CASE WHEN status IN ('cancelled','canceled') THEN 1 ELSE 0 END) cancelled")
+      ->selectRaw("SUM(CASE WHEN status IN ('pending','contacted','confirmed') THEN 1 ELSE 0 END) awaiting")->groupBy('clinic_id')->get()->keyBy('clinic_id');
     $payments = DB::table('appointment_payments as p')
       ->join('appointments as a', 'a.id', '=', 'p.appointment_id')
       ->where('a.doctor_id', $doctor->id)->whereIn('a.clinic_id', $scope)
@@ -95,7 +95,7 @@ final class ClinicPerformanceController extends Controller
       'clinics' => $clinics,
       'filters' => ['from' => $from, 'to' => $to, 'clinic_id' => $clinicId],
       'report' => [
-        'appointments' => ['total' => $total, 'served' => $visited + $completed, 'visited' => $visited, 'completed' => $completed, 'cancelled' => $cancelled, 'pending' => (int) ($st['pending'] ?? 0), 'confirmed' => (int) ($st['confirmed'] ?? 0), 'cancellation_rate' => $total ? round($cancelled * 100 / $total, 1) : null, 'completion_rate' => $total ? round(($visited + $completed) * 100 / $total, 1) : null],
+        'appointments' => ['total' => $total, 'served' => $visited + $completed, 'visited' => $visited, 'completed' => $completed, 'cancelled' => $cancelled, 'pending' => (int) ($st['pending'] ?? 0), 'contacted' => (int) ($st['contacted'] ?? 0), 'confirmed' => (int) ($st['confirmed'] ?? 0), 'cancellation_rate' => $total ? round($cancelled * 100 / $total, 1) : null, 'completion_rate' => $total ? round(($visited + $completed) * 100 / $total, 1) : null],
         'capacity' => ['total' => $slotCount, 'occupied' => $occupied, 'available' => max(0, $slotCount - $occupied), 'rate' => $slotCount ? round(min(100, $occupied * 100 / $slotCount), 1) : null],
         'finance' => ['gross_paid_rial' => $revenue, 'paid_appointments' => $paid],
         'clinics' => $clinicRows,
