@@ -435,8 +435,8 @@
         </p>
       </section>
 
-      <!-- کارت توضیحات -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <!-- کارت توضیحات بالینی؛ فقط برای نقش دارای مجوز بالینی -->
+      <div v-if="canViewClinicalNotes" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-3">
             <div class="p-2 bg-purple-50 rounded-xl">
@@ -459,7 +459,7 @@
 
           <!-- دکمه ویرایش/ذخیره -->
           <button
-            v-if="!isEditingDescription"
+            v-if="!isEditingDescription && canEditVisitDetails"
             @click="startEditingDescription"
             class="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 rounded-xl text-sm font-bold hover:bg-teal-100 transition-all"
           >
@@ -604,6 +604,8 @@ const props = defineProps({
     required: true,
   },
   appointment: Object,
+  canViewClinicalNotes: { type: Boolean, default: false },
+  canEditVisitDetails: { type: Boolean, default: false },
 });
 
 // State توضیحات
