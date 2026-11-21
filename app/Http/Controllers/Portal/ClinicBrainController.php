@@ -192,7 +192,10 @@ final class ClinicBrainController extends Controller
             $lockedEntry = ClinicBrainWaitlistEntry::query()->whereKey($entry->id)->lockForUpdate()->firstOrFail();
             abort_unless($lockedEntry->status === 'offered' && $lockedEntry->offered_slot_id, 422, 'ابتدا باید یک زمان به بیمار پیشنهاد شده باشد.');
             $offeredSlot = TimeSlot::query()->whereKey($lockedEntry->offered_slot_id)
-                ->where('doctor_id', $doctor->id)->firstOrFail();
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                ->lockForUpdate()
+                ->firstOrFail();
             $appointment = Appointment::query()->whereKey($data['appointment_id'])
                 ->where('doctor_id', $doctor->id)->where('patient_id', $lockedEntry->patient_id)
                 ->where('clinic_id', $offeredSlot->clinic_id)
@@ -218,8 +221,26 @@ final class ClinicBrainController extends Controller
             $this->authorizeSecretaryPermission('appointments.manage', $doctor);
         }
 
-        abort_unless(in_array($entry->status, ['waiting', 'offered'], true), 422);
-        $entry->update(['status' => 'closed']);
+        DB::transaction(function () use ($entry, $doctor): void {
+            $lockedEntry = ClinicBrainWaitlistEntry::query()
+                ->whereKey($entry->id)
+                ->where('doctor_id', $doctor->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless(
+                in_array((int) $lockedEntry->clinic_id, $this->accessibleClinicIds($doctor), true)
+                    || $lockedEntry->clinic_id === null,
+                403
+            );
+            abort_unless(in_array($lockedEntry->status, ['waiting', 'offered'], true), 422);
+
+            $lockedEntry->update([
+                'status' => 'closed',
+                'offered_slot_id' => null,
+                'offered_at' => null,
+            ]);
+        });
 
         return back()->with('success', 'درخواست از فهرست انتظار خارج شد.');
     }
