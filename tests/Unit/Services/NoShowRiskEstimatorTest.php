@@ -28,14 +28,15 @@ final class NoShowRiskEstimatorTest extends TestCase
         $rows = collect([
             (object) ['attendance_outcome' => 'no_show'],
             (object) ['attendance_outcome' => 'attended'],
+            (object) ['attendance_outcome' => 'attended'],
             (object) ['attendance_outcome' => 'cancelled'],
             (object) ['attendance_outcome' => null],
         ]);
 
         $result = app(NoShowRiskEstimator::class)->summarize($rows);
 
-        $this->assertSame(2, $result['observed_appointments']);
-        $this->assertSame(50.0, $result['historical_no_show_rate']);
+        $this->assertSame(3, $result['observed_appointments']);
+        $this->assertSame(66.7, $result['historical_no_show_rate']);
         $this->assertSame('high', $result['risk_band']);
     }
 
