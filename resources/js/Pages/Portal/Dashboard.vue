@@ -486,7 +486,7 @@ const weekdayLabel = (date) => {
 const patientInitials = (name) => {
   return (name || '؟')
     .trim()
-    .split(/\\s+/)
+    .split(/\s+/)
     .filter(Boolean)
     .map((part) => part[0])
     .join('')
