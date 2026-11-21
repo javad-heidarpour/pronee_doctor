@@ -182,7 +182,9 @@ class PatientController extends Controller
         );
 
         $canManageClinicalRecords = $this->hasSecretaryPermission($doctor, 'patients.clinical.manage');
-        $canViewClinicalRecords = $this->canViewClinicalDetails($doctor);
+        $canViewClinicalRecords = $canManageClinicalRecords ||
+            $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
+        $canViewClinicalNotes = $this->canViewClinicalNotes($doctor);
 
         if ($canViewClinicalRecords) {
             $visits->loadMissing(['patient.clinicalRecords.relatedRecord', 'patient.clinicalRecords.relatedAllergyRecord', 'patient.archivedClinicalRecords', 'patient.vitalSigns']);
@@ -193,8 +195,11 @@ class PatientController extends Controller
                 'doctor_id' => $doctor->id,
             ]);
         } else {
-            $visits->each(function (Appointment $visit): void {
-                $this->redactClinicalNotes($visit);
+            $visits->each(function (Appointment $visit) use ($canViewClinicalNotes): void {
+                if (!$canViewClinicalNotes) {
+                    $this->redactClinicalNotes($visit);
+                }
+
                 $visit->patient?->setRelation('clinicalRecords', collect());
                 $visit->patient?->setRelation('vitalSigns', collect());
             });
@@ -360,10 +365,15 @@ class PatientController extends Controller
         return is_array($permissions) && in_array($permission, $permissions, true);
     }
 
-    protected function canViewClinicalDetails(\App\Models\Doctor $doctor): bool
+    protected function canViewClinicalNotes(\App\Models\Doctor $doctor): bool
     {
+        // Anyone allowed to edit visit details must also be able to read them.
         return $this->hasSecretaryPermission($doctor, 'patients.clinical.manage') ||
-            $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
+            $this->hasSecretaryPermission($doctor, 'patients.clinical.view') ||
+            (
+                $this->hasSecretaryPermission($doctor, 'appointments.manage') &&
+                $this->hasSecretaryPermission($doctor, 'patients.manage')
+            );
     }
 
     /**
@@ -408,7 +418,7 @@ class PatientController extends Controller
         $this->authorizeSecretaryPermission('patients.view', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $appointment = $action->handle($appointment, $clinicIds);
-        $canViewClinicalNotes = $this->canViewClinicalDetails($doctor);
+        $canViewClinicalNotes = $this->canViewClinicalNotes($doctor);
         $canEditVisitDetails = $this->hasSecretaryPermission($doctor, 'appointments.manage') &&
             $this->hasSecretaryPermission($doctor, 'patients.manage');
 
