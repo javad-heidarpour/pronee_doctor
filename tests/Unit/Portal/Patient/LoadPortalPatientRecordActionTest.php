@@ -8,6 +8,7 @@ use App\Actions\Portal\Patient\LoadPortalPatientRecordAction;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
