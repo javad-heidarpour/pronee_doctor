@@ -65,3 +65,15 @@ ALTER TABLE appointments
 SELECT attendance_outcome, COUNT(*) AS total
 FROM appointments
 GROUP BY attendance_outcome;
+
+
+-- Feature 084 menu entry. Equivalent to 2026_11_21_020000_add_no_show_risk_menu.php.
+INSERT INTO menus
+    (title, route_name, icon, \`order\`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT
+    'سابقه عدم حضور بیماران', 'portal.no-show-risk.index', 'IconCalendarX', 58,
+    'doctor', 1, 1, JSON_ARRAY('appointments.view'),
+    JSON_ARRAY('doctor', 'admin', 'secretary'), NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM menus WHERE route_name = 'portal.no-show-risk.index'
+);
