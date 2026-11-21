@@ -23,4 +23,33 @@ final class ReferralNetworkIntelligenceTest extends TestCase
         $this->assertSame(5, $result['minimum_sample']);
         $this->assertSame([], $result['providers']);
     }
+    public function test_average_response_time_is_hidden_below_the_minimum_sample(): void
+    {
+        Schema::create('medical_referrals', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('target_provider_id');
+            $table->string('status', 24);
+            $table->timestamp('created_at')->nullable();
+            $table->timestamp('accepted_at')->nullable();
+            $table->timestamp('scheduled_at')->nullable();
+        });
+
+        $now = Carbon::parse('2026-11-21 12:00:00');
+        DB::table('medical_referrals')->insert([
+            'target_provider_id' => 9,
+            'status' => 'accepted',
+            'created_at' => $now->copy()->subHours(4),
+            'accepted_at' => $now->copy()->subHours(2),
+        ]);
+
+        $provider = (object) ['id' => 9, 'name' => 'Provider', 'provider_type' => 'laboratory', 'city' => 'Bojnord'];
+        $result = (new ReferralNetworkIntelligence())->forProviders(collect([$provider]), $now);
+
+        $this->assertSame(1, $result['providers'][0]['sample_size']);
+        $this->assertFalse($result['providers'][0]['data_sufficient']);
+        $this->assertNull($result['providers'][0]['average_response_hours']);
+        $this->assertNull($result['providers'][0]['acceptance_rate']);
+        $this->assertNull($result['providers'][0]['completion_rate']);
+    }
+
 }
