@@ -11,4 +11,4 @@ use App\Http\Controllers\ReviewController;
 Route::post(
     '/{doctor:slug}/review',
     [ReviewController::class, 'store']
-)->name('review.store');
+)->middleware('throttle:5,1')->name('review.store');
