@@ -19,7 +19,7 @@ final class ClinicCapacityController extends Controller
         $filters=$request->validate(['clinic_id'=>['nullable','integer'],'days'=>['nullable','integer','min:14','max:90']]);
         $clinicId=isset($filters['clinic_id'])&&$filters['clinic_id']!==''?(int)$filters['clinic_id']:null;
         if ($clinicId!==null) abort_unless(in_array($clinicId,$allowedClinicIds,true),403,'شما به این مطب دسترسی ندارید.');
-        $days=(int)($filters['days']??56); $from=now()->subDays($days-1)->toDateString(); $to=today()->toDateString();
+        $days=(int)($filters['days']??56); $from=now()->subDays($days-1)->toDateString(); $to=now()->subDay()->toDateString();
         $slots=TimeSlot::query()->where('doctor_id',$doctor->id)
             ->whereIn('clinic_id',$clinicId===null?$allowedClinicIds:[$clinicId])
             ->whereBetween('date',[$from,$to])
