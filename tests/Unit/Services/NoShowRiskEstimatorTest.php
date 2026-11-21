@@ -19,7 +19,7 @@ final class NoShowRiskEstimatorTest extends TestCase
         $result = app(NoShowRiskEstimator::class)->summarize($rows);
 
         $this->assertSame('insufficient', $result['risk_band']);
-        $this->assertNull($result['historical_no_show_rate'] === null ? null : null);
+        $this->assertSame(50.0, $result['historical_no_show_rate']);
         $this->assertFalse($result['minimum_sample_met']);
     }
 
