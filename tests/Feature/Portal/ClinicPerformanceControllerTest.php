@@ -134,6 +134,20 @@ final class ClinicPerformanceControllerTest extends TestCase
             ['doctor_id' => $this->doctor->id, 'clinic_id' => $this->clinicA, 'date' => $date, 'status' => 'available', 'created_at' => now(), 'updated_at' => now()],
             ['doctor_id' => $this->doctor->id, 'clinic_id' => $this->clinicB, 'date' => $date, 'status' => 'booked', 'created_at' => now(), 'updated_at' => now()],
         ]);
+        $staleBookedSlotId = DB::table('time_slots')->insertGetId([
+            'doctor_id' => $this->doctor->id, 'clinic_id' => $this->clinicA,
+            'date' => $date, 'status' => 'booked', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('appointments')->insert([
+            'doctor_id' => $this->doctor->id, 'clinic_id' => $this->clinicA,
+            'time_slot_id' => $staleBookedSlotId, 'appointment_date' => $date,
+            'appointment_time' => '12:00:00', 'status' => 'cancelled',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('time_slots')->insert([
+            'doctor_id' => $this->doctor->id, 'clinic_id' => $this->clinicA,
+            'date' => $date, 'status' => 'cancelled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
 
         $response = app(ClinicPerformanceController::class)->index(Request::create('/portal/clinic-performance', 'GET', [
             'from' => $date, 'to' => $date, 'clinic_id' => $this->clinicA,
@@ -146,13 +160,13 @@ final class ClinicPerformanceControllerTest extends TestCase
         $this->assertSame(1, $props['report']['appointments']['cancelled']);
         $this->assertSame(250000, $props['report']['finance']['gross_paid_rial']);
         $this->assertSame(1, $props['report']['finance']['paid_appointments']);
-        $this->assertSame(2, $props['report']['capacity']['total']);
+        $this->assertSame(3, $props['report']['capacity']['total']);
         $this->assertSame(1, $props['report']['capacity']['occupied']);
         $this->assertSame(250000, $props['report']['clinics'][0]['gross_paid_rial']);
         $this->assertSame(1, $props['report']['clinics'][0]['paid_appointments']);
-        $this->assertSame(2, $props['report']['clinics'][0]['capacity_total']);
+        $this->assertSame(3, $props['report']['clinics'][0]['capacity_total']);
         $this->assertSame(1, $props['report']['clinics'][0]['capacity_occupied']);
-        $this->assertSame(50.0, $props['report']['clinics'][0]['capacity_rate']);
+        $this->assertSame(33.3, $props['report']['clinics'][0]['capacity_rate']);
         $this->assertCount(1, $props['report']['clinics']);
         $this->assertSame($this->clinicA, $props['report']['clinics'][0]['id']);
     }
