@@ -149,3 +149,82 @@ WHERE NOT EXISTS (SELECT 1 FROM menus WHERE route_name = 'portal.notifications.i
 INSERT INTO menus (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
 SELECT 'مقالات آموزشی', 'portal.articles.index', 'IconBookOpen', 72, 'doctor', 1, 1, JSON_ARRAY(), JSON_ARRAY('doctor','admin'), NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM menus WHERE route_name = 'portal.articles.index');
+
+
+-- Feature 096: doctor FAQs (run this OR the matching Laravel migration, never both).
+CREATE TABLE doctor_faqs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    doctor_id BIGINT UNSIGNED NOT NULL,
+    question VARCHAR(240) NOT NULL,
+    answer TEXT NOT NULL,
+    category VARCHAR(80) NULL,
+    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    is_published TINYINT(1) NOT NULL DEFAULT 0,
+    published_at TIMESTAMP NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    PRIMARY KEY (id),
+    KEY doctor_faqs_public_order_idx (doctor_id, is_published, sort_order),
+    CONSTRAINT doctor_faqs_doctor_fk
+        FOREIGN KEY (doctor_id) REFERENCES doctors (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO menus
+    (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT
+    'پرسش‌های متداول', 'portal.faqs.index', 'IconHelpCircle', 73,
+    'doctor', 1, 1, JSON_ARRAY(), JSON_ARRAY('doctor', 'admin'), NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM menus WHERE route_name = 'portal.faqs.index'
+);
+
+-- Feature 097: enforce one social-platform row per doctor.
+-- Equivalent to database/migrations/2026_11_21_100000_harden_doctor_social_links.php.
+-- Review duplicate rows before running; this keeps the lowest id for each doctor/platform pair.
+DELETE duplicate_row
+FROM doctor_socials AS duplicate_row
+INNER JOIN doctor_socials AS kept_row
+    ON duplicate_row.doctor_id = kept_row.doctor_id
+   AND duplicate_row.social_platform_id = kept_row.social_platform_id
+   AND duplicate_row.id > kept_row.id;
+
+ALTER TABLE doctor_socials
+    ADD UNIQUE KEY doctor_socials_doctor_platform_unique (doctor_id, social_platform_id);
+
+-- Feature 098: support ticket intake and admin response (run this OR migration, never both).
+CREATE TABLE support_tickets (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NULL,
+    reference VARCHAR(20) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(190) NOT NULL,
+    category VARCHAR(30) NOT NULL DEFAULT 'other',
+    subject VARCHAR(180) NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+    staff_response TEXT NULL,
+    responded_by BIGINT UNSIGNED NULL,
+    responded_at TIMESTAMP NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY support_tickets_reference_unique (reference),
+    KEY support_tickets_status_created_idx (status, created_at),
+    KEY support_tickets_email_created_idx (email, created_at),
+    CONSTRAINT support_tickets_user_fk
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT support_tickets_responder_fk
+        FOREIGN KEY (responded_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO menus
+    (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT
+    'درخواست‌های پشتیبانی', 'portal.support-tickets.index', 'IconLifeBuoy', 74,
+    'doctor', 1, 1, JSON_ARRAY(), JSON_ARRAY('admin'), NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM menus WHERE route_name = 'portal.support-tickets.index'
+);
+
+-- Feature 099: locale selection is session-based and requires no database schema change.
