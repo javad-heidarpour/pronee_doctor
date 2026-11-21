@@ -37,18 +37,59 @@ final class ClinicPerformanceController extends Controller
       ->selectRaw("SUM(CASE WHEN status IN ('visited','completed') THEN 1 ELSE 0 END) served")
       ->selectRaw("SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) cancelled")
       ->selectRaw("SUM(CASE WHEN status IN ('pending','confirmed') THEN 1 ELSE 0 END) awaiting")->groupBy('clinic_id')->get()->keyBy('clinic_id');
-    $clinicRows = $clinics->map(function ($c) use ($grouped) {
-      $x = $grouped->get($c->id);
-      $n = (int) ($x->total ?? 0);
-      $s = (int) ($x->served ?? 0);
-      return ['id' => $c->id, 'name' => $c->name, 'appointments' => $n, 'served' => $s, 'cancelled' => (int) ($x->cancelled ?? 0), 'awaiting' => (int) ($x->awaiting ?? 0), 'completion_rate' => $n ? round($s * 100 / $n, 1) : null]; });
-    $payments = DB::table('appointment_payments as p')->join('appointments as a', 'a.id', '=', 'p.appointment_id')->where('a.doctor_id', $doctor->id)->whereIn('a.clinic_id', $scope)->where('p.status', 'paid')->whereBetween('p.paid_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()]);
+    $payments = DB::table('appointment_payments as p')
+      ->join('appointments as a', 'a.id', '=', 'p.appointment_id')
+      ->where('a.doctor_id', $doctor->id)->whereIn('a.clinic_id', $scope)
+      ->where('p.status', 'paid')
+      ->whereBetween('p.paid_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()]);
     $revenue = (int) (clone $payments)->sum('p.amount_rial');
     $paid = (int) (clone $payments)->distinct('p.appointment_id')->count('p.appointment_id');
-    $slots = DB::table('time_slots')->where('doctor_id', $doctor->id)->whereIn('clinic_id', $scope)->whereBetween('date', [$from, $to]);
+
+    $clinicPayments = (clone $payments)->select('a.clinic_id')
+      ->selectRaw('SUM(p.amount_rial) gross_paid_rial')
+      ->selectRaw('COUNT(DISTINCT p.appointment_id) paid_appointments')
+      ->groupBy('a.clinic_id')->get()->keyBy('clinic_id');
+
+    $slots = DB::table('time_slots')->where('doctor_id', $doctor->id)
+      ->whereIn('clinic_id', $scope)->whereBetween('date', [$from, $to])
+      ->whereNotIn('status', ['cancelled', 'canceled']);
     $slotCount = (int) (clone $slots)->count();
-    $occupied = (int) (clone $slots)->where(function ($b) {
-      $b->where('status', 'booked')->orWhereExists(fn($s) => $s->selectRaw('1')->from('appointments')->whereColumn('appointments.time_slot_id', 'time_slots.id')->whereIn('appointments.status', ['pending', 'confirmed', 'visited', 'completed'])); })->count();
+    $occupiedQuery = fn () => (clone $slots)->where(function ($b) {
+      $b->whereExists(fn($s) => $s->selectRaw('1')->from('appointments')
+        ->whereColumn('appointments.time_slot_id', 'time_slots.id')
+        ->whereIn('appointments.status', ['pending', 'contacted', 'confirmed', 'visited', 'completed']))
+        ->orWhere(function ($booked) {
+          $booked->where('time_slots.status', 'booked')
+            ->whereNotExists(fn($s) => $s->selectRaw('1')->from('appointments')
+              ->whereColumn('appointments.time_slot_id', 'time_slots.id')
+              ->whereIn('appointments.status', ['cancelled', 'canceled', 'failed']));
+        });
+    });
+    $occupied = (int) $occupiedQuery()->count();
+
+    $clinicSlots = (clone $slots)->select('clinic_id')
+      ->selectRaw('COUNT(*) total')
+      ->selectRaw("SUM(CASE WHEN status='booked' OR EXISTS (SELECT 1 FROM appointments ap WHERE ap.time_slot_id=time_slots.id AND ap.status IN ('pending','contacted','confirmed','visited','completed')) THEN 1 ELSE 0 END) occupied")
+      ->groupBy('clinic_id')->get()->keyBy('clinic_id');
+
+    $clinicRows = $clinics->map(function ($c) use ($grouped, $clinicPayments, $clinicSlots) {
+      $x = $grouped->get($c->id);
+      $payment = $clinicPayments->get($c->id);
+      $capacity = $clinicSlots->get($c->id);
+      $n = (int) ($x->total ?? 0);
+      $served = (int) ($x->served ?? 0);
+      $slotTotal = (int) ($capacity->total ?? 0);
+      $slotOccupied = (int) ($capacity->occupied ?? 0);
+      return [
+        'id' => $c->id, 'name' => $c->name, 'appointments' => $n, 'served' => $served,
+        'cancelled' => (int) ($x->cancelled ?? 0), 'awaiting' => (int) ($x->awaiting ?? 0),
+        'completion_rate' => $n ? round($served * 100 / $n, 1) : null,
+        'gross_paid_rial' => (int) ($payment->gross_paid_rial ?? 0),
+        'paid_appointments' => (int) ($payment->paid_appointments ?? 0),
+        'capacity_total' => $slotTotal, 'capacity_occupied' => $slotOccupied,
+        'capacity_rate' => $slotTotal ? round(min(100, $slotOccupied * 100 / $slotTotal), 1) : null,
+      ];
+    });
     return Inertia::render('Portal/ClinicPerformance/Index', [
       'doctor' => $doctor,
       'clinics' => $clinics,
