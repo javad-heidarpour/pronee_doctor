@@ -208,7 +208,7 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             'patient_phone' => '09120000000',
         ]);
 
-        $details = app(\\App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction::class)
+        $details = app(\App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction::class)
             ->handle($reference, [10]);
 
         $this->assertSame([$samePatient->id], $details->patientHistory->pluck('id')->all());
@@ -228,7 +228,7 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             'patient_phone' => '09120000000',
         ]);
 
-        $details = app(\\App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction::class)
+        $details = app(\App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction::class)
             ->handle($reference, [10]);
 
         $this->assertCount(0, $details->patientHistory);
