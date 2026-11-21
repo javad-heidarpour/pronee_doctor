@@ -269,6 +269,7 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         $this->assertArrayNotHasKey('gateway_result_message', $details->latestPayment->getAttributes());
         $this->assertArrayNotHasKey('provider_message_id', $details->smsLogs->first()->getAttributes());
         $this->assertArrayNotHasKey('deduplication_key', $details->smsLogs->first()->getAttributes());
+        $this->assertArrayNotHasKey('error_message', $details->smsLogs->first()->getAttributes());
         $this->assertArrayNotHasKey('description', $details->patientHistory->first()->getAttributes());
         $this->assertArrayNotHasKey('patient_phone', $details->patientHistory->first()->getAttributes());
         $this->assertSame($history->id, $details->patientHistory->first()->id);
