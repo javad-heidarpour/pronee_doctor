@@ -34,6 +34,8 @@ final class RegisterPublicUserAction
 
         event(new Registered($user));
         Auth::guard('web')->login($user);
+        // Rotate the anonymous session after privilege elevation to prevent session fixation.
+        request()->session()->regenerate();
 
         return $user;
     }

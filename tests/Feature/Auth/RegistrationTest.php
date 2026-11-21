@@ -13,6 +13,8 @@ class RegistrationTest extends AuthTestCase
 
     public function test_public_registration_creates_a_least_privilege_user_account(): void
     {
+        $originalSessionId = session()->getId();
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'family' => 'Tester',
@@ -22,6 +24,7 @@ class RegistrationTest extends AuthTestCase
         ]);
 
         $this->assertAuthenticated('web');
+        $this->assertNotSame($originalSessionId, session()->getId(), 'Registration must rotate the session identifier.');
         $response->assertRedirect(route('patient.health.index', absolute: false));
 
         $user = User::query()->where('email', 'test@example.com')->firstOrFail();

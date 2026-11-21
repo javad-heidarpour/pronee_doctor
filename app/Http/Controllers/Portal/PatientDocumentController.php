@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Throwable;
@@ -144,11 +145,15 @@ final class PatientDocumentController extends Controller
 
         abort_unless(is_string($storedPath) && $storedPath !== '', 500, 'ذخیره امن فایل انجام نشد.');
 
-        $originalName = $this->safeOriginalName($file->getClientOriginalName());
-        $mimeType = (string) ($file->getMimeType() ?: 'application/octet-stream');
-        $checksum = hash_file('sha256', $file->getRealPath());
-
         try {
+            $originalName = $this->safeOriginalName($file->getClientOriginalName());
+            $mimeType = (string) ($file->getMimeType() ?: 'application/octet-stream');
+            $checksum = hash_file('sha256', $file->getRealPath());
+
+            if (! is_string($checksum) || $checksum === '') {
+                throw new RuntimeException('محاسبه اثرانگشت فایل ناموفق بود.');
+            }
+
             $document = DB::transaction(fn (): PatientDocument => PatientDocument::query()->create([
                 'patient_id' => $patientModel->id,
                 'doctor_id' => $doctor->id,
@@ -167,6 +172,7 @@ final class PatientDocumentController extends Controller
                 'uploaded_at' => now(),
             ]), 3);
         } catch (Throwable $exception) {
+            // Any failure after writing the private file must not leave an orphan behind.
             Storage::disk('local')->delete($storedPath);
             throw $exception;
         }
