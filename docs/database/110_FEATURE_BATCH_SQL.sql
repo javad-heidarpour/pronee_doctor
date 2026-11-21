@@ -45,3 +45,23 @@ CREATE TABLE clinic_staff_performance_reviews (
 -- Post-deployment verification:
 SELECT COUNT(*) AS performance_review_rows FROM clinic_staff_performance_reviews;
 SHOW CREATE TABLE clinic_staff_performance_reviews;
+
+
+-- Feature 084: explicit attendance outcomes for historical no-show analysis.
+-- Equivalent to database/migrations/2026_11_21_010000_add_appointment_attendance_outcomes.php
+-- Run this OR the Laravel migration, never both.
+ALTER TABLE appointments
+    ADD COLUMN attendance_outcome VARCHAR(20) NULL AFTER status,
+    ADD COLUMN attendance_outcome_recorded_at TIMESTAMP NULL AFTER attendance_outcome,
+    ADD COLUMN attendance_outcome_recorded_by BIGINT UNSIGNED NULL AFTER attendance_outcome_recorded_at,
+    ADD KEY appt_attendance_learning_idx
+        (doctor_id, patient_id, attendance_outcome, appointment_date),
+    ADD CONSTRAINT appt_attendance_recorded_by_fk
+        FOREIGN KEY (attendance_outcome_recorded_by) REFERENCES users(id)
+        ON DELETE SET NULL;
+
+-- Historical rows intentionally remain NULL: attendance must not be inferred
+-- from appointment status or cancellation. Backfill only from verified records.
+SELECT attendance_outcome, COUNT(*) AS total
+FROM appointments
+GROUP BY attendance_outcome;
