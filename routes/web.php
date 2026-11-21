@@ -57,5 +57,6 @@ require __DIR__ . '/DoctorRegister.php';
 require __DIR__ . '/appointment.php';
 require __DIR__ . '/doctor.php';
 require __DIR__ . '/review.php';
+require __DIR__ . '/articles.php';
 require __DIR__ . '/home.php';
 
