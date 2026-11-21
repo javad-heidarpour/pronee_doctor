@@ -30,16 +30,16 @@ final class LoadPortalPatientRecordAction
         if ($reference->patient_id !== null) {
             $query->where('patient_id', $reference->patient_id);
         } else {
-            // Compatibility while legacy appointments are being backfilled.
+            // Legacy rows may be grouped by national code only. A phone number
+            // can be shared by family members and is not a safe patient key.
             $nationalCode = trim((string) $reference->patient_national_code);
-            $phone = trim((string) $reference->patient_phone);
-
-            abort_if($nationalCode === '' && $phone === '', 404);
 
             if ($nationalCode !== '') {
-                $query->where('patient_national_code', $nationalCode);
+                $query->whereNull('patient_id')
+                    ->where('patient_national_code', $nationalCode);
             } else {
-                $query->whereNull('patient_id')->where('patient_phone', $phone);
+                // Without a stable patient identifier, expose only this visit.
+                $query->whereKey($reference->id);
             }
         }
 
