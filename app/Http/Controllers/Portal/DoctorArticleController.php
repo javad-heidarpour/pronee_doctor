@@ -118,8 +118,8 @@ final class DoctorArticleController extends Controller
         $slug = $base;
         $suffix = 2;
 
-        while (DoctorArticle::query()->where('doctor_id', $doctorId)
-            ->where('slug', $slug)->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))->exists()) {
+        while (DoctorArticle::withTrashed()->where('doctor_id', $doctorId)
+            ->where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '<>', $ignoreId))->exists()) {
             $slug = $base . '-' . $suffix++;
         }
 
