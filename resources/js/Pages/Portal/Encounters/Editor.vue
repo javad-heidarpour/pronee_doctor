@@ -40,6 +40,7 @@
 
       <section class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
         <p class="text-xs font-bold text-indigo-700">PRONEEX CLINICAL DECISION SUPPORT</p><h2 class="mt-1 text-base font-black text-indigo-950">مراجعه‌گر هوشمند پیش از نهایی‌سازی</h2>
+        <div v-if="context.decision_support?.summary" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">{{ context.decision_support.summary }}</div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3"><div v-for="item in context.decision_support?.checks || []" :key="item.key" class="rounded-xl bg-white p-3"><p class="text-xs font-black">{{item.title}}</p><p class="mt-1 text-xs leading-6" :class="item.status==='available'?'text-emerald-700':'text-amber-800'">{{item.message}}</p></div></div>
         <div v-if="prescriptionReview.length" class="mt-3 space-y-2"><div v-for="(item,index) in prescriptionReview" :key="index" class="rounded-lg border border-amber-200 bg-amber-100 p-3 text-xs leading-6"><strong>{{item.title}}</strong> {{item.message}}</div></div>
         <p class="mt-3 text-[11px] leading-6 text-indigo-900">این بررسی فقط کامل‌بودن و تازگی اطلاعات را ارزیابی می‌کند؛ تشخیص، تطبیق دارو با حساسیت، تداخل دارویی یا توصیه دوز انجام نمی‌شود. نبود داده به معنی طبیعی بودن وضعیت نیست و تصمیم نهایی با پزشک است.</p>
