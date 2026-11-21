@@ -26,6 +26,7 @@ class BuildDashboardAction
             ->all();
 
         $canViewFinance = true;
+        $canViewAppointments = true;
 
         if ($user->role === 'secretary') {
             $assignment = $user->doctors()
@@ -42,9 +43,10 @@ class BuildDashboardAction
                 ? array_values(array_unique(array_filter(array_map('intval', $assignedClinicIds))))
                 : [];
 
-            $canViewFinance = $this->hasFinancePermission(
-                $assignment?->pivot?->permissions
-            );
+            $permissions = $assignment?->pivot?->permissions;
+            $canViewFinance = $this->hasFinancePermission($permissions);
+            $canViewAppointments = $this->hasPermission($permissions, 'appointments.view')
+                || $this->hasPermission($permissions, 'appointments.manage');
 
             // منشی فقط به مطب‌های فعال همان پزشک دسترسی داشبوردی دارد.
             $clinicIds = array_values(array_intersect($assignedClinicIds, $activeClinicIds));
@@ -57,6 +59,12 @@ class BuildDashboardAction
         $appointmentsQuery = Appointment::query()
             ->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds);
+
+        if (!$canViewAppointments) {
+            // Do not serialize patient identifiers or appointment-level details
+            // to a secretary who has no explicit appointment read/manage grant.
+            $appointmentsQuery->whereRaw('1 = 0');
+        }
 
         $todayAppointmentsQuery = (clone $appointmentsQuery)
             ->whereDate('appointment_date', $today);
@@ -120,6 +128,7 @@ class BuildDashboardAction
         $todayRevenueRial = $canViewFinance
             ? AppointmentPayment::query()
                 ->where('status', 'paid')
+                ->whereRaw('appointment_payments.id = (SELECT MAX(latest_payment.id) FROM appointment_payments AS latest_payment WHERE latest_payment.appointment_id = appointment_payments.appointment_id)')
                 ->whereHas('appointment', fn ($query) => $query
                     ->where('doctor_id', $doctor->id)
                     ->whereIn('clinic_id', $clinicIds)
@@ -130,6 +139,7 @@ class BuildDashboardAction
         $weeklyRevenueRial = $canViewFinance
             ? AppointmentPayment::query()
                 ->where('status', 'paid')
+                ->whereRaw('appointment_payments.id = (SELECT MAX(latest_payment.id) FROM appointment_payments AS latest_payment WHERE latest_payment.appointment_id = appointment_payments.appointment_id)')
                 ->whereHas('appointment', fn ($query) => $query
                     ->where('doctor_id', $doctor->id)
                     ->whereIn('clinic_id', $clinicIds)
@@ -171,6 +181,7 @@ class BuildDashboardAction
             'today_revenue_rial' => $todayRevenueRial === null ? null : (int) $todayRevenueRial,
             'weekly_revenue_rial' => $weeklyRevenueRial === null ? null : (int) $weeklyRevenueRial,
             'can_view_finance' => $canViewFinance,
+            'can_view_appointments' => $canViewAppointments,
 
             'total_reviews' => $user->role === 'secretary'
                 ? 0
@@ -206,6 +217,7 @@ class BuildDashboardAction
             ],
             'stats' => $stats,
             'canViewFinance' => $canViewFinance,
+            'canViewAppointments' => $canViewAppointments,
             'todayAppointments' => $todayAppointments,
             'weeklyAppointments' => $weeklyAppointments,
             'nextAppointment' => $nextAppointment,
@@ -225,13 +237,17 @@ class BuildDashboardAction
      */
     private function hasFinancePermission(mixed $permissions): bool
     {
+        return $this->hasPermission($permissions, 'finance.view')
+            || $this->hasPermission($permissions, 'finance.manage');
+    }
+
+    private function hasPermission(mixed $permissions, string $permission): bool
+    {
         if (is_string($permissions)) {
             $permissions = json_decode($permissions, true);
         }
 
-        return is_array($permissions)
-            && (in_array('finance.view', $permissions, true)
-                || in_array('finance.manage', $permissions, true));
+        return is_array($permissions) && in_array($permission, $permissions, true);
     }
 
 }
