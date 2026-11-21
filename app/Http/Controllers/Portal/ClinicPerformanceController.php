@@ -25,7 +25,7 @@ final class ClinicPerformanceController extends Controller
     if ($clinicId !== null)
       $this->authorizeClinicAccess($clinicId, $doctor);
     $scope = $clinicId ? [$clinicId] : $ids;
-    $clinics = Address::where('doctor_id', $doctor->id)->whereIn('id', $ids)->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    $clinicsQuery = Address::where('doctor_id', $doctor->id)->whereIn('id', $ids)->where('is_active', true);\n    if ($clinicId !== null) {\n      $clinicsQuery->whereKey($clinicId);\n    }\n    $clinics = $clinicsQuery->orderBy('name')->get(['id', 'name']);
     $q = DB::table('appointments')->where('doctor_id', $doctor->id)->whereIn('clinic_id', $scope)->whereBetween('appointment_date', [$from, $to]);
     $st = (clone $q)->selectRaw('status,COUNT(*) total')->groupBy('status')->pluck('total', 'status');
     $total = (int) $st->sum();
