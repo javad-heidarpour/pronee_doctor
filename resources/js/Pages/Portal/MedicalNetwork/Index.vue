@@ -73,7 +73,7 @@ const receivedCount = computed(() => props.incoming.filter(x => ['sent','accepte
           </article>
           <p v-if="!networkIntelligence.providers.length" class="col-span-full rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">هنوز مرکز تأییدشده‌ای برای تحلیل وجود ندارد.</p>
         </div>
-        <p class="mt-3 text-[11px] leading-6 text-slate-500">نرخ‌ها فقط با حداقل نمونه تعیین‌شده نمایش داده می‌شوند. اطلاعات بیمار در این گزارش تجمیعی نمایش داده نمی‌شود؛ «معطل» یعنی ارجاع ارسال‌شده بدون پاسخ بیش از ۴۸ ساعت یا زمان مراجعه گذشته در وضعیت باز.</p>
+        <p class="mt-3 text-[11px] leading-6 text-slate-500">نرخ‌ها و میانگین زمان پاسخ فقط با حداقل نمونه تعیین‌شده نمایش داده می‌شوند. اطلاعات بیمار در این گزارش تجمیعی نمایش داده نمی‌شود؛ «معطل» یعنی ارجاع ارسال‌شده بدون پاسخ بیش از ۴۸ ساعت یا زمان مراجعه گذشته در وضعیت باز.</p>
       </section>
 
       <section class="rounded-2xl border bg-white p-4">
