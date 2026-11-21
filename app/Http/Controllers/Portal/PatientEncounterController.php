@@ -146,8 +146,8 @@ final class PatientEncounterController extends Controller
 
         $audit->handle('patient.encounter.text_extracted', $appointment, [
             'doctor_id' => $doctor->id,
-            'input_length' => mb_strlen($validated['raw_text']),
-            'matched_sections' => $result['matched_sections'],
+            'decision' => 'explicit_heading_parser_v1',
+            'changed_fields' => $result['matched_sections'],
         ]);
 
         return response()->json($result);
