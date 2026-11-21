@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Policies;
+namespace Tests\Unit\Policies;
 
-use App\\Models\\Doctor;
-use App\\Models\\DoctorImage;
-use App\\Policies\\DoctorImagePolicy;
-use PHPUnit\\Framework\\TestCase;
+use App\Models\Doctor;
+use App\Models\DoctorImage;
+use App\Policies\DoctorImagePolicy;
+use PHPUnit\Framework\TestCase;
 
 final class DoctorImagePolicyTest extends TestCase
 {
