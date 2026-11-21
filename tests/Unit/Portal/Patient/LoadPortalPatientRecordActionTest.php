@@ -51,6 +51,10 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         Schema::create('sms_logs', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('appointment_id');
+            $table->string('status')->nullable();
+            $table->string('provider_message_id')->nullable();
+            $table->string('deduplication_key')->nullable();
+            $table->text('error_message')->nullable();
             $table->timestamp('created_at')->nullable();
         });
 
@@ -69,8 +73,14 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         Schema::create('appointment_payments', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('appointment_id');
+            $table->unsignedBigInteger('amount_rial')->nullable();
             $table->string('status')->nullable();
             $table->string('gateway_name')->nullable();
+            $table->string('gateway_token')->nullable();
+            $table->string('ref_num')->nullable();
+            $table->string('terminal_id')->nullable();
+            $table->text('gateway_result_message')->nullable();
+            $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
 
@@ -212,6 +222,55 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             ->handle($reference, [10]);
 
         $this->assertSame([$samePatient->id], $details->patientHistory->pluck('id')->all());
+    }
+
+    public function test_appointment_details_omit_unused_user_and_gateway_credentials(): void
+    {
+        $doctor = $this->doctor('doctor-minimal-appointment-payload');
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => 101,
+        ]);
+        $history = $this->visit($doctor, 10, '2026-11-10', '09:00', [
+            'patient_id' => 101,
+        ]);
+
+        DB::table('appointment_payments')->insert([
+            'appointment_id' => $reference->id,
+            'amount_rial' => 1250000,
+            'status' => 'paid',
+            'gateway_name' => 'sep',
+            'gateway_token' => 'sensitive-gateway-token',
+            'ref_num' => 'sensitive-reference',
+            'terminal_id' => 'private-terminal',
+            'gateway_result_message' => 'private gateway response',
+            'paid_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('sms_logs')->insert([
+            'appointment_id' => $reference->id,
+            'status' => 'sent',
+            'provider_message_id' => 'private-provider-id',
+            'deduplication_key' => 'private-deduplication-key',
+            'error_message' => null,
+            'created_at' => now(),
+        ]);
+
+        $details = app(\\App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction::class)
+            ->handle($reference, [10]);
+
+        $this->assertFalse($details->relationLoaded('user'));
+        $this->assertFalse($details->relationLoaded('timeSlot'));
+        $this->assertArrayNotHasKey('gateway_token', $details->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('ref_num', $details->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('terminal_id', $details->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('gateway_result_message', $details->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('provider_message_id', $details->smsLogs->first()->getAttributes());
+        $this->assertArrayNotHasKey('deduplication_key', $details->smsLogs->first()->getAttributes());
+        $this->assertArrayNotHasKey('description', $details->patientHistory->first()->getAttributes());
+        $this->assertArrayNotHasKey('patient_phone', $details->patientHistory->first()->getAttributes());
+        $this->assertSame($history->id, $details->patientHistory->first()->id);
     }
 
     public function test_legacy_appointment_details_do_not_use_phone_as_a_patient_identifier(): void
