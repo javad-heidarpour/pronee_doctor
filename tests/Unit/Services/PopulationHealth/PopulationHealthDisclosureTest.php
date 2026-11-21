@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Services\\PopulationHealth;
+namespace Tests\Unit\Services\PopulationHealth;
 
-use App\\Services\\PopulationHealth\\PopulationHealthDisclosure;
-use PHPUnit\\Framework\\TestCase;
+use App\Services\PopulationHealth\PopulationHealthDisclosure;
+use PHPUnit\Framework\TestCase;
 
 final class PopulationHealthDisclosureTest extends TestCase
 {
