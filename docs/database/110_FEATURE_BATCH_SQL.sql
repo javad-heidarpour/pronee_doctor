@@ -139,3 +139,13 @@ CREATE TABLE IF NOT EXISTS doctor_articles (
   UNIQUE KEY doctor_articles_doctor_slug_unique (doctor_id, slug),
   INDEX doctor_articles_publish_idx (doctor_id, status, published_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Feature 092: notification center menu.
+INSERT INTO menus (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT 'مرکز اعلان‌ها', 'portal.notifications.index', 'IconBell', 4, 'doctor', 1, 1, JSON_ARRAY(), JSON_ARRAY('doctor','admin','secretary'), NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM menus WHERE route_name = 'portal.notifications.index');
+
+-- Feature 095: educational articles menu.
+INSERT INTO menus (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT 'مقالات آموزشی', 'portal.articles.index', 'IconBookOpen', 72, 'doctor', 1, 1, JSON_ARRAY(), JSON_ARRAY('doctor','admin'), NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM menus WHERE route_name = 'portal.articles.index');
