@@ -50,6 +50,8 @@ Route::middleware('auth:web')->prefix('my-health')->name('patient.health.')->con
     Route::delete('/caregivers/{access}', 'revokeCaregiver')->whereNumber('access')->name('caregivers.revoke');
 });
 
+require __DIR__ . '/support.php';
+
 Route::get('/{doctor:slug}', [HomeController::class, 'showDoctor'])
     ->name('home1');
 
@@ -66,6 +68,5 @@ require __DIR__ . '/review.php';
 require __DIR__ . '/articles.php';
 require __DIR__ . '/faqs.php';
 require __DIR__ . '/home.php';
-require __DIR__ . '/support.php';
 require __DIR__ . '/satisfaction.php';
 
