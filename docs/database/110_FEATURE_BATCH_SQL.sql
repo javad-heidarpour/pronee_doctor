@@ -228,3 +228,37 @@ WHERE NOT EXISTS (
 );
 
 -- Feature 099: locale selection is session-based and requires no database schema change.
+
+
+-- Feature 100: patient satisfaction survey (run this OR the Laravel migration, never both).
+-- Survey rows are unique per appointment; signed-link validation is enforced by the application.
+CREATE TABLE appointment_satisfaction_surveys (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    appointment_id BIGINT UNSIGNED NOT NULL,
+    doctor_id BIGINT UNSIGNED NOT NULL,
+    overall_rating TINYINT UNSIGNED NOT NULL,
+    communication_rating TINYINT UNSIGNED NOT NULL,
+    waiting_rating TINYINT UNSIGNED NOT NULL,
+    facility_rating TINYINT UNSIGNED NOT NULL,
+    comment TEXT NULL,
+    is_anonymous TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY appointment_satisfaction_surveys_appointment_id_unique (appointment_id),
+    KEY satisfaction_doctor_created_idx (doctor_id, created_at),
+    CONSTRAINT satisfaction_survey_appointment_fk
+        FOREIGN KEY (appointment_id) REFERENCES appointments (id) ON DELETE CASCADE,
+    CONSTRAINT satisfaction_survey_doctor_fk
+        FOREIGN KEY (doctor_id) REFERENCES doctors (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO menus
+    (title, route_name, icon, `order`, guard, is_active, show_in_sidebar, permissions, roles, created_at, updated_at)
+SELECT
+    'رضایت بیماران', 'portal.satisfaction.index', 'IconStar', 75,
+    'doctor', 1, 1, JSON_ARRAY('appointments.view'),
+    JSON_ARRAY('doctor', 'admin', 'secretary'), NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM menus WHERE route_name = 'portal.satisfaction.index'
+);
