@@ -296,6 +296,89 @@ final class PatientHealthAccessTest extends AuthTestCase
             );
     }
 
+    public function test_patient_can_switch_between_their_active_summary_access_grants(): void
+    {
+        [$user] = $this->createScenario(['view_summary', 'view_appointments']);
+
+        $secondDoctor = Doctor::query()->create([
+            'name' => 'Second Doctor',
+            'family' => 'Test',
+            'slug' => 'doctor-second-health-access',
+            'specialty_title' => 'Internal Medicine',
+        ]);
+        $secondPatient = Patient::query()->create([
+            'doctor_id' => $secondDoctor->id,
+            'name' => 'Second Patient',
+        ]);
+        $secondAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $secondPatient->id,
+            'user_id' => $user->id,
+            'access_type' => 'caregiver',
+            'permissions' => ['view_summary'],
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->get(route('patient.health.index', ['access_id' => $secondAccess->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Patient/Health')
+                ->where('hasAccess', true)
+                ->where('selectedAccessId', $secondAccess->id)
+                ->where('patient.id', $secondPatient->id)
+                ->where('patient.name', 'Second Patient')
+                ->has('accesses', 2)
+            );
+
+        $this->assertDatabaseHas('security_audit_logs', [
+            'event' => 'patient.portal.health.viewed',
+            'subject_type' => PatientAccountAccess::class,
+            'subject_id' => $secondAccess->id,
+        ]);
+    }
+
+    public function test_patient_cannot_select_a_foreign_or_non_summary_access_grant(): void
+    {
+        [$user, $ownAccess] = $this->createScenario(['view_summary']);
+
+        $hiddenPatient = Patient::query()->create([
+            'doctor_id' => $ownAccess->patient->doctor_id,
+            'name' => 'Hidden Patient',
+        ]);
+        $hiddenAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $hiddenPatient->id,
+            'user_id' => $user->id,
+            'access_type' => 'caregiver',
+            'permissions' => ['view_records'],
+        ]);
+
+        $foreignUser = User::query()->create([
+            'name' => 'Foreign',
+            'family' => 'User',
+            'email' => 'foreign-health-access@example.test',
+            'username' => 'foreign-health-access',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $foreignAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $ownAccess->patient_id,
+            'user_id' => $foreignUser->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->get(route('patient.health.index', ['access_id' => $hiddenAccess->id]))
+            ->assertNotFound();
+
+        $this->get(route('patient.health.index', ['access_id' => $foreignAccess->id]))
+            ->assertNotFound();
+
+        $this->assertDatabaseMissing('security_audit_logs', [
+            'event' => 'patient.portal.health.viewed',
+        ]);
+    }
+
     /**
      * @return array{0: User, 1: PatientAccountAccess}
      */

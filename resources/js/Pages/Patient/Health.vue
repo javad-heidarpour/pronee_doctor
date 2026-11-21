@@ -3,7 +3,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 const props = defineProps({
-  hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, accessType: String,
+  hasAccess: Boolean, pendingRequest: Boolean, accesses: Array, selectedAccessId: Number, accessType: String,
   patient: Object, encounters: Array, followUps: Array, caregivers: Array, intelligence: Object, observations: Array, medicationPlans: Array, availablePrescriptions: Array, carePathways: { type: Array, default: () => [] },
 })
 const linkForm = useForm({ national_code: '', phone: '' })
@@ -38,6 +38,15 @@ const deleteObservation = item => {
 const observationLabel = value => observationOptions.find(item => item.value === value)?.label || value
 const caregiverForm = useForm({ email: '' })
 const requestAccess = () => linkForm.post(route('patient.health.access.request'))
+const switchAccess = event => {
+  const accessId = Number(event.target.value)
+  if (!Number.isSafeInteger(accessId) || accessId < 1) return
+  router.get(route('patient.health.index'), { access_id: accessId }, {
+    preserveScroll: true,
+    preserveState: false,
+    replace: true,
+  })
+}
 const grantCaregiver = () => caregiverForm.post(route('patient.health.caregivers.store'), { onSuccess: () => caregiverForm.reset() })
 const revoke = access => {
   if (window.confirm('دسترسی این مراقب لغو شود؟')) router.delete(route('patient.health.caregivers.revoke', access.id))
@@ -72,6 +81,20 @@ const statusLabel = value => ({ pending: 'در انتظار', confirmed: 'تأی
       </section>
 
       <template v-else>
+        <section v-if="accesses?.length > 1" class="rounded-2xl border bg-white p-4 shadow-sm">
+          <label for="health-access-selector" class="mb-2 block text-sm font-bold text-slate-700">انتخاب پرونده سلامت</label>
+          <select
+            id="health-access-selector"
+            :value="selectedAccessId"
+            @change="switchAccess"
+            class="w-full rounded-xl border-slate-300 text-sm"
+          >
+            <option v-for="access in accesses" :key="access.id" :value="access.id">
+              {{ access.patient.name }} — {{ access.doctor?.name }} {{ access.doctor?.family }} · {{ access.access_type === 'owner' ? 'صاحب پرونده' : 'مراقب' }}
+            </option>
+          </select>
+          <p class="mt-2 text-xs text-slate-500">فقط پرونده‌هایی نمایش داده می‌شوند که دسترسی فعال و مجاز به خلاصه سلامت دارند.</p>
+        </section>
         <section class="rounded-2xl border bg-white p-5 shadow-sm">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div><p class="text-xs text-teal-700">پرونده سلامت متصل</p><h2 class="mt-1 text-xl font-black">{{ patient.name }}</h2><p class="mt-1 text-xs text-slate-500">{{ patient.doctor?.caption }} {{ patient.doctor?.name }} {{ patient.doctor?.family }} · {{ patient.doctor?.specialty_title }}</p></div>
