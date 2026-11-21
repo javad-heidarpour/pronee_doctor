@@ -69,7 +69,7 @@ final class ClinicPerformanceController extends Controller
 
     $clinicSlots = (clone $slots)->select('clinic_id')
       ->selectRaw('COUNT(*) total')
-      ->selectRaw("SUM(CASE WHEN status='booked' OR EXISTS (SELECT 1 FROM appointments ap WHERE ap.time_slot_id=time_slots.id AND ap.status IN ('pending','contacted','confirmed','visited','completed')) THEN 1 ELSE 0 END) occupied")
+      ->selectRaw("SUM(CASE WHEN EXISTS (SELECT 1 FROM appointments ap WHERE ap.time_slot_id=time_slots.id AND ap.status IN ('pending','contacted','confirmed','visited','completed')) OR (status='booked' AND NOT EXISTS (SELECT 1 FROM appointments ax WHERE ax.time_slot_id=time_slots.id AND ax.status IN ('cancelled','canceled','failed'))) THEN 1 ELSE 0 END) occupied")
       ->groupBy('clinic_id')->get()->keyBy('clinic_id');
 
     $clinicRows = $clinics->map(function ($c) use ($grouped, $clinicPayments, $clinicSlots) {
