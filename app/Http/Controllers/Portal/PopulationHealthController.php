@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Portal;
+namespace App\Http\Controllers\Portal;
 
-use App\\Actions\\Security\\RecordSecurityAuditEventAction;
-use App\\Http\\Controllers\\Controller;
-use App\\Http\\Controllers\\Portal\\Concerns\\HasActiveDoctor;
-use App\\Models\\Address;
-use App\\Models\\Patient;
-use App\\Models\\PatientProblem;
-use App\\Models\\PatientVitalSign;
-use App\\Services\\PopulationHealth\\PopulationHealthDisclosure;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Carbon;
-use Illuminate\\Support\\Facades\\DB;
-use Inertia\\Inertia;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
+use App\Models\Address;
+use App\Models\Patient;
+use App\Models\PatientProblem;
+use App\Models\PatientVitalSign;
+use App\Services\PopulationHealth\PopulationHealthDisclosure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 final class PopulationHealthController extends Controller
 {
