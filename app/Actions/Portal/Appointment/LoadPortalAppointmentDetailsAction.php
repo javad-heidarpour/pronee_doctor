@@ -9,13 +9,11 @@ class LoadPortalAppointmentDetailsAction
     public function handle(Appointment $appointment, array $accessibleClinicIds): Appointment
     {
         $appointment->load([
-            'user',
-            'timeSlot',
-            'clinic.city',
-            'visitReason',
-            'surgeryType',
-            'latestPayment',
-            'smsLogs',
+            'clinic:id,name',
+            'visitReason:id,title',
+            'surgeryType:id,title',
+            'latestPayment:id,appointment_id,status,gateway_name,amount_rial,paid_at',
+            'smsLogs:id,appointment_id,status,error_message,created_at',
         ]);
 
         $nationalCode = trim((string) $appointment->patient_national_code);
@@ -35,6 +33,17 @@ class LoadPortalAppointmentDetailsAction
 
         if ($identityQuery !== null) {
             $history = $identityQuery
+                // The timeline UI needs visit context only, never free-text notes
+                // or patient identifiers from older appointment rows.
+                ->select([
+                    'id',
+                    'doctor_id',
+                    'clinic_id',
+                    'appointment_date',
+                    'appointment_time',
+                    'status',
+                    'visit_reason_id',
+                ])
                 ->where('doctor_id', $appointment->doctor_id)
                 ->whereIn('clinic_id', $accessibleClinicIds)
                 ->where('id', '!=', $appointment->id)
@@ -48,7 +57,11 @@ class LoadPortalAppointmentDetailsAction
                                 ->where('appointment_time', '<', $appointment->appointment_time);
                         });
                 })
-                ->with(['clinic', 'visitReason', 'latestPayment'])
+                ->with([
+                    'clinic:id,name',
+                    'visitReason:id,title',
+                    'latestPayment:id,appointment_id,status',
+                ])
                 ->orderByDesc('appointment_date')
                 ->orderByDesc('appointment_time')
                 ->limit(10)
