@@ -15,7 +15,7 @@
           <button @click="applyFilters" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white">اعمال</button>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div v-for="card in cards" :key="card.label" class="rounded-xl border border-gray-200 bg-white p-4">
           <p class="text-sm text-gray-500">{{ card.label }}</p><p class="mt-2 text-2xl font-bold text-gray-900">{{ card.value }}</p>
         </div>
@@ -24,10 +24,10 @@
         <h2 class="mb-3 font-bold text-gray-900">پیشنهاد بر اساس روز هفته</h2>
         <p v-if="!weekday_recommendations.length" class="text-sm text-gray-500">در این بازه اسلات کافی برای تحلیل وجود ندارد.</p>
         <div v-else class="overflow-x-auto"><table class="w-full min-w-[640px] text-sm">
-          <thead class="bg-gray-50 text-right text-gray-600"><tr><th class="p-3">مطب</th><th class="p-3">روز هفته</th><th class="p-3">ظرفیت</th><th class="p-3">رزروشده</th><th class="p-3">اشغال</th><th class="p-3">پیشنهاد</th></tr></thead>
+          <thead class="bg-gray-50 text-right text-gray-600"><tr><th class="p-3">مطب</th><th class="p-3">روز هفته</th><th class="p-3">ظرفیت</th><th class="p-3">رزروشده</th><th class="p-3">روزهای مشاهده</th><th class="p-3">اشغال</th><th class="p-3">پیشنهاد</th></tr></thead>
           <tbody class="divide-y divide-gray-100"><tr v-for="item in weekday_recommendations" :key="item.clinic_id + '-' + item.day_of_week">
             <td class="p-3">{{ item.clinic_name }}</td><td class="p-3">{{ weekdayNames[item.day_of_week] }}</td>
-            <td class="p-3">{{ item.capacity }}</td><td class="p-3">{{ item.occupied }}</td><td class="p-3 font-semibold">{{ item.utilization_percent }}٪</td><td class="p-3 leading-6">{{ item.recommendation }}</td>
+            <td class="p-3">{{ item.capacity }}</td><td class="p-3">{{ item.occupied }}</td><td class="p-3">{{ item.observed_days }}</td><td class="p-3 font-semibold">{{ item.utilization_percent }}٪</td><td class="p-3 leading-6">{{ item.recommendation }}</td>
           </tr></tbody></table></div>
       </section>
       <section class="rounded-xl border border-gray-200 bg-white p-4">
