@@ -17,8 +17,8 @@ class UpdateGalleryImageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'caption' => 'nullable|string|max:255',
-            'category' => 'required|in:clinic,equipment,team,certificate,other',
+            'caption' => 'nullable|string|max:500',
+            'category' => 'required|in:Workplace,equipment,team,certificate,Heartfelt,Portfolio,Satisfaction,other',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];
