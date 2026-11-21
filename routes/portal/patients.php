@@ -24,6 +24,8 @@ Route::post('/health-interop/encounters/{encounter}', [HealthInteropController::
 
 Route::get('/clinical-risk', [ClinicalRiskRadarController::class, 'index'])->name('clinical-risk.index');
 Route::get('/predictive-patients', [PredictivePatientController::class, 'index'])->name('predictive-patients.index');
+Route::get('/no-show-risk', [NoShowRiskController::class, 'index'])->name('no-show-risk.index');
+Route::patch('/appointments/{appointment}/attendance-outcome', [NoShowRiskController::class, 'updateOutcome'])->whereNumber('appointment')->middleware('throttle:20,1')->name('appointments.attendance-outcome');
 Route::get('/care-pathways', [PatientCarePathwayController::class, 'index'])->name('care-pathways.index');
 Route::post('/care-pathways', [PatientCarePathwayController::class, 'store'])->middleware('throttle:20,1')->name('care-pathways.store');
 Route::post('/care-pathways/{pathway}/activate', [PatientCarePathwayController::class, 'activate'])->whereNumber('pathway')->name('care-pathways.activate');
