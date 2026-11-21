@@ -259,6 +259,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         require __DIR__ . '/doctor-reviews.php';
         require __DIR__ . '/articles.php';
         require __DIR__ . '/faqs.php';
+        require __DIR__ . '/socials.php';
         require __DIR__ . '/Fees.php';
         require __DIR__ . '/Users.php';
     });

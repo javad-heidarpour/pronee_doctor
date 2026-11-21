@@ -59,6 +59,7 @@ final class BuildPublicDoctorProfilePayloadAction
                 'id' => $social->id,
                 'username' => $social->username,
                 'url' => $social->url,
+                'href' => $this->safeSocialUrl($social),
                 'platform' => $social->platform?->only([
                     'name',
                     'title',
@@ -93,5 +94,24 @@ final class BuildPublicDoctorProfilePayloadAction
             : null;
 
         return $payload;
+    }
+
+    private function safeSocialUrl(DoctorSocial $social): ?string
+    {
+        $candidate = $social->url;
+        if (!$candidate && $social->username && $social->platform?->base_url) {
+            $candidate = rtrim($social->platform->base_url, '/') . '/' . ltrim($social->username, '/');
+        }
+
+        if (!is_string($candidate) || !filter_var($candidate, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $parts = parse_url($candidate);
+        if (($parts['scheme'] ?? null) !== 'https' || empty($parts['host'])) {
+            return null;
+        }
+
+        return $candidate;
     }
 }

@@ -45,7 +45,7 @@ final class FindPublicDoctorBySlugAction
                     ->where('is_active', true),
                 'address.city:id,name',
                 'socials' => fn ($query) => $query
-                    ->select(['id', 'doctor_id', 'platform_id', 'username', 'url'])
+                    ->select(['id', 'doctor_id', 'social_platform_id', 'username', 'url'])
                     ->where('is_visible', true)
                     ->whereHas('platform', fn ($platform) => $platform->where('is_active', true)),
                 'socials.platform:id,name,title,base_url,icon,color',
