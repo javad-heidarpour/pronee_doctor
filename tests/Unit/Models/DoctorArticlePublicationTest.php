@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Models;
+namespace Tests\Unit\Models;
 
-use App\\Models\\Doctor;
-use App\\Models\\DoctorArticle;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
-use Tests\\TestCase;
+use App\Models\Doctor;
+use App\Models\DoctorArticle;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 final class DoctorArticlePublicationTest extends TestCase
 {
