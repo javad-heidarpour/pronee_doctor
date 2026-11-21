@@ -73,6 +73,12 @@ jobs:
       - name: Run SMS delivery feature tests
         run: php artisan test tests/Feature/Sms
 
+      - name: Run health interoperability dispatch tests
+        run: php artisan test tests/Feature/HealthInterop
+
+      - name: Run request correlation tests
+        run: php artisan test tests/Feature/RequestCorrelationIdTest.php
+
       # These focused Portal tests create their own minimal SQLite schemas.
       - name: Run isolated portal regression tests
         run: php artisan test tests/Feature/Portal

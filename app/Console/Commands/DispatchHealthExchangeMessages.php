@@ -18,6 +18,19 @@ final class DispatchHealthExchangeMessages extends Command
     public function handle(HealthExchangeGateway $gateway): int
     {
         $limit = max(1, min(200, (int) $this->option('limit')));
+
+        // Recover messages whose worker died after claiming them. The stable
+        // idempotency_key is reused on retry so the remote receiver can deduplicate.
+        HealthExchangeMessage::query()
+            ->where('status', HealthExchangeMessage::PROCESSING)
+            ->where('updated_at', '<=', now()->subMinutes(30))
+            ->update([
+                'status' => HealthExchangeMessage::FAILED,
+                'available_at' => now(),
+                'last_error' => 'Processing lease expired; retrying with the same idempotency key.',
+                'updated_at' => now(),
+            ]);
+
         $ids = HealthExchangeMessage::query()
             ->whereIn('status', [
                 HealthExchangeMessage::PENDING,

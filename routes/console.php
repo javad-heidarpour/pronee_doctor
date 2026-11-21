@@ -37,3 +37,9 @@ Schedule::command('finance:send-installment-reminders')
 Schedule::command('finance:create-collateral-reminders')
     ->dailyAt('09:20')
     ->withoutOverlapping();
+
+
+// Retry the encrypted health-exchange outbox; each message keeps its stable idempotency key.
+Schedule::command('health:dispatch-exchange --limit=50')
+    ->everyMinute()
+    ->withoutOverlapping();
