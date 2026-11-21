@@ -77,17 +77,17 @@
                 <h2 class="text-sm font-black text-indigo-950">استخراج ساختاریافته از متن بالینی</h2>
                 <p class="mt-1 text-xs leading-6 text-indigo-900">متن دارای برچسب‌هایی مانند «شرح حال:»، «معاینه:»، «ارزیابی:» و «برنامه درمانی:» را به بخش‌های SOAP تفکیک کنید.</p>
               </div>
-              <button type="button" @click="extractClinicalText" :disabled="extracting || !rawClinicalText.trim()" class="rounded-xl bg-indigo-700 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="button" @click="extractClinicalText" :disabled="readonly || extracting || !rawClinicalText.trim()" class="rounded-xl bg-indigo-700 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
                 {{ extracting ? 'در حال استخراج...' : 'استخراج بخش‌ها' }}
               </button>
             </div>
-            <textarea v-model="rawClinicalText" rows="5" maxlength="12000" class="mt-3 w-full rounded-xl border-indigo-200 bg-white text-sm" placeholder="شرح حال: ...&#10;معاینه: ...&#10;ارزیابی: ...&#10;برنامه درمانی: ..."></textarea>
+            <textarea v-model="rawClinicalText" :disabled="readonly" rows="5" maxlength="12000" class="mt-3 w-full rounded-xl border-indigo-200 bg-white text-sm" placeholder="شرح حال: ...&#10;معاینه: ...&#10;ارزیابی: ...&#10;برنامه درمانی: ..."></textarea>
             <p class="mt-2 text-[11px] leading-6 text-indigo-900">استخراج بر اساس برچسب‌های صریح و بدون تفسیر پزشکی انجام می‌شود. متن خام به‌صورت خودکار ذخیره نمی‌شود؛ پیش از ثبت یا امضا، همه بخش‌ها را بازبینی کنید.</p>
             <div v-if="extractionError" role="alert" class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{{ extractionError }}</div>
             <div v-if="extractionResult" class="mt-3 space-y-3 rounded-xl bg-white p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <p class="text-xs font-black text-slate-800">نتیجه استخراج: {{ extractionResult.matched_sections.length }} بخش شناسایی‌شده</p>
-                <button type="button" @click="applyExtractedText" :disabled="!extractionResult.matched_sections.length" class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">افزودن به فیلدهای خالی</button>
+                <button type="button" @click="applyExtractedText" :disabled="readonly || !extractionResult.matched_sections.length" class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">افزودن به فیلدهای خالی</button>
               </div>
               <p v-if="extractionNotice" class="text-xs leading-6 text-teal-800">{{ extractionNotice }}</p>
               <div class="grid gap-2 sm:grid-cols-2">
