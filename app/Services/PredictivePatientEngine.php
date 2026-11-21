@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\\Services;
 
-use App\Models\Patient;
-use Illuminate\Support\Collection;
+use App\\Models\\Patient;
+use Carbon\\CarbonInterface;
+use Illuminate\\Support\\Collection;
 
 final class PredictivePatientEngine
 {
@@ -19,28 +20,59 @@ final class PredictivePatientEngine
         'weight' => 'وزن',
     ];
 
-    public function evaluate(Patient $patient, Collection $measurements, Collection $followUps): array
-    {
+    /**
+     * Describe longitudinal changes only. This is not a validated prediction model.
+     *
+     * @return array<string, mixed>
+     */
+    public function evaluate(
+        Patient $patient,
+        Collection $measurements,
+        Collection $followUps,
+        ?CarbonInterface $now = null
+    ): array {
+        $now = $now ?? now();
         $signals = [];
-        $coverage = [];
-        foreach ($measurements->groupBy('measurement_type') as $type => $rows) {
-            $rows = $rows->filter(fn ($row) => is_numeric($row->value) && $row->measured_at)
-                ->sortBy(fn ($row) => $row->measured_at->timestamp)->values();
-            if ($rows->isEmpty()) continue;
+        $seriesCoverage = [];
+        $validMeasurementCount = 0;
 
+        foreach ($measurements->groupBy('measurement_type') as $type => $rows) {
+            $rows = $rows->filter(fn ($row) => is_numeric($row->value)
+                    && $row->measured_at instanceof CarbonInterface
+                    && !$row->measured_at->greaterThan($now->copy()->addMinutes(5)))
+                ->sortBy(fn ($row) => $row->measured_at->timestamp)
+                ->values();
+
+            if ($rows->isEmpty()) {
+                continue;
+            }
+
+            $validMeasurementCount += $rows->count();
             $first = $rows->first();
             $last = $rows->last();
             $spanDays = (int) $first->measured_at->diffInDays($last->measured_at);
-            $coverage[] = ['count' => $rows->count(), 'span_days' => $spanDays];
-            if ($rows->count() < 4 || $spanDays < 14) continue;
+            $seriesCoverage[] = [
+                'type' => (string) $type,
+                'count' => $rows->count(),
+                'span_days' => $spanDays,
+            ];
+
+            if ($rows->count() < 4 || $spanDays < 14) {
+                continue;
+            }
 
             $half = max(2, (int) floor($rows->count() / 2));
             $early = $rows->take($half)->avg(fn ($row) => (float) $row->value);
             $recent = $rows->slice($rows->count() - $half)->avg(fn ($row) => (float) $row->value);
-            if ($early === null || abs((float) $early) < 0.0001) continue;
+
+            if ($early === null || abs((float) $early) < 0.0001) {
+                continue;
+            }
 
             $change = (($recent - $early) / abs($early)) * 100;
-            if (abs($change) < 10) continue;
+            if (abs($change) < 10) {
+                continue;
+            }
 
             $signals[] = [
                 'type' => (string) $type,
@@ -58,22 +90,37 @@ final class PredictivePatientEngine
             ];
         }
 
-        $active = fn ($task) => in_array($task->status, ['pending', 'in_progress'], true);
-        $overdue = $followUps->filter(fn ($task) => $active($task) && $task->due_at && $task->due_at->isPast())->count();
-        $dueSoon = $followUps->filter(fn ($task) => $active($task) && $task->due_at && $task->due_at->between(now(), now()->addDays(7)))->count();
+        $active = fn ($task): bool => in_array($task->status, ['pending', 'in_progress'], true);
+        $overdue = $followUps->filter(fn ($task) => $active($task)
+            && $task->due_at
+            && $task->due_at->lessThan($now))->count();
+        $dueSoon = $followUps->filter(fn ($task) => $active($task)
+            && $task->due_at
+            && $task->due_at->betweenIncluded($now, $now->copy()->addDays(7)))->count();
 
-        $sampleCount = $measurements->count();
-        $maxSpan = collect($coverage)->max('span_days') ?? 0;
-        $confidence = $sampleCount >= 12 && $maxSpan >= 30 ? 'strong'
-            : ($sampleCount >= 4 && $maxSpan >= 14 ? 'limited' : 'insufficient');
+        $maxSpan = (int) (collect($seriesCoverage)->max('span_days') ?? 0);
+        // Coverage is assessed within one measurement series, never by adding
+        // unrelated types (e.g. BP + glucose + weight) into a false sample count.
+        $hasStrongSeries = collect($seriesCoverage)->contains(
+            fn (array $series): bool => $series['count'] >= 12 && $series['span_days'] >= 30
+        );
+        $hasLimitedSeries = collect($seriesCoverage)->contains(
+            fn (array $series): bool => $series['count'] >= 4 && $series['span_days'] >= 14
+        );
+        $confidence = $hasStrongSeries ? 'strong'
+            : ($hasLimitedSeries ? 'limited' : 'insufficient');
 
         return [
             'patient_id' => $patient->id,
             'patient_name' => $patient->name,
-            'measurement_count' => $sampleCount,
-            'coverage_days' => (int) $maxSpan,
+            'measurement_count' => $validMeasurementCount,
+            'coverage_days' => $maxSpan,
             'confidence' => $confidence,
-            'confidence_label' => ['strong' => 'پوشش داده مناسب', 'limited' => 'پوشش داده محدود', 'insufficient' => 'داده ناکافی'][$confidence],
+            'confidence_label' => [
+                'strong' => 'پوشش روند مناسب',
+                'limited' => 'پوشش روند محدود',
+                'insufficient' => 'داده ناکافی',
+            ][$confidence],
             'signals' => $signals,
             'overdue_followups' => $overdue,
             'upcoming_followups' => $dueSoon,
