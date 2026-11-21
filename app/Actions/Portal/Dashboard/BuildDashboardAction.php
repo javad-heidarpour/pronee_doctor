@@ -42,13 +42,9 @@ class BuildDashboardAction
                 ? array_values(array_unique(array_filter(array_map('intval', $assignedClinicIds))))
                 : [];
 
-            $permissions = $assignment?->pivot?->permissions ?? [];
-            if (is_string($permissions)) {
-                $permissions = json_decode($permissions, true) ?: [];
-            }
-            $canViewFinance = is_array($permissions)
-                && (in_array('finance.view', $permissions, true)
-                    || in_array('finance.manage', $permissions, true));
+            $canViewFinance = $this->hasFinancePermission(
+                $assignment?->pivot?->permissions
+            );
 
             // منشی فقط به مطب‌های فعال همان پزشک دسترسی داشبوردی دارد.
             $clinicIds = array_values(array_intersect($assignedClinicIds, $activeClinicIds));
@@ -223,4 +219,19 @@ class BuildDashboardAction
             'activeDoctorId' => (int) $activeDoctorId,
         ];
     }
+    /**
+     * Finance figures and payment status are visible only with an explicit
+     * finance permission. A manage grant also includes read access.
+     */
+    private function hasFinancePermission(mixed $permissions): bool
+    {
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true);
+        }
+
+        return is_array($permissions)
+            && (in_array('finance.view', $permissions, true)
+                || in_array('finance.manage', $permissions, true));
+    }
+
 }
