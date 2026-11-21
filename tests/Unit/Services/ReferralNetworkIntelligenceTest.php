@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\ReferralNetworkIntelligence;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 final class ReferralNetworkIntelligenceTest extends TestCase
@@ -50,6 +54,19 @@ final class ReferralNetworkIntelligenceTest extends TestCase
         $this->assertNull($result['providers'][0]['average_response_hours']);
         $this->assertNull($result['providers'][0]['acceptance_rate']);
         $this->assertNull($result['providers'][0]['completion_rate']);
+
+        foreach (range(1, 4) as $offset) {
+            DB::table('medical_referrals')->insert([
+                'target_provider_id' => 9,
+                'status' => 'accepted',
+                'created_at' => $now->copy()->subHours(4 + $offset),
+                'accepted_at' => $now->copy()->subHours(2 + $offset),
+            ]);
+        }
+
+        $sufficient = (new ReferralNetworkIntelligence())->forProviders(collect([$provider]), $now);
+        $this->assertSame(5, $sufficient['providers'][0]['sample_size']);
+        $this->assertNotNull($sufficient['providers'][0]['average_response_hours']);
     }
 
 }
