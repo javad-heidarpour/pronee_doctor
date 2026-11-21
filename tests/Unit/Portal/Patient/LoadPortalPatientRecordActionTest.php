@@ -257,7 +257,7 @@ final class LoadPortalPatientRecordActionTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $details = app(\\App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction::class)
+        $details = app(\App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction::class)
             ->handle($reference, [10]);
 
         $this->assertFalse($details->relationLoaded('user'));
