@@ -66,10 +66,13 @@ final class ClinicalRiskRadar
                 $matchesMin = $rule['min'] === null || ($rule['min_exclusive'] ?? false ? $value > $rule['min'] : $value >= $rule['min']);
                 $matchesMax = $rule['max'] === null || $value <= $rule['max'];
                 if ($matchesMin && $matchesMax) {
+                    $isFresh = $latest->measured_at->betweenIncluded(now()->subHours(24), now()->addMinutes(5));
                     $flags[] = $this->flag(
-                        $rule['level'],
+                        $isFresh ? $rule['level'] : 'review',
                         'بررسی علامت حیاتی',
-                        $rule['message'],
+                        $isFresh
+                            ? $rule['message']
+                            : 'مقدار خارج از محدوده در اندازه‌گیری بیش از ۲۴ ساعت قبل ثبت شده است؛ تازگی داده و وضعیت فعلی بیمار ابتدا بررسی شود.',
                         'clinic',
                         $latest->measured_at,
                         (string) $latest->measurement_type,
