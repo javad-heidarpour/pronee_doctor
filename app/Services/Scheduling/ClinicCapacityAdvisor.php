@@ -21,7 +21,7 @@ final class ClinicCapacityAdvisor
             if ($status==='cancelled') { $daily[$key]['cancelled']++; $totals['cancelled']++; continue; }
             $duration=$this->durationMinutes((string)$slot['start_time'],(string)$slot['end_time']);
             $occupied=$status==='booked' || in_array($appointmentStatus,self::ACTIVE,true);
-            $daily[$key]['capacity']++; $daily[$key]['duration_minutes']++; $daily[$key]['duration_minutes']+=$duration-1;
+            $daily[$key]['capacity']++; $daily[$key]['duration_minutes'] += $duration;
             $totals['capacity']++;
             if ($occupied) { $daily[$key]['occupied']++; $totals['occupied']++; }
             else { $daily[$key]['available']++; $totals['available']++; }
