@@ -25,6 +25,8 @@ class BuildDashboardAction
             ->map(fn ($id) => (int) $id)
             ->all();
 
+        $canViewFinance = true;
+
         if ($user->role === 'secretary') {
             $assignment = $user->doctors()
                 ->where('doctors.id', $doctor->id)
@@ -39,6 +41,14 @@ class BuildDashboardAction
             $assignedClinicIds = is_array($assignedClinicIds)
                 ? array_values(array_unique(array_filter(array_map('intval', $assignedClinicIds))))
                 : [];
+
+            $permissions = $assignment?->pivot?->permissions ?? [];
+            if (is_string($permissions)) {
+                $permissions = json_decode($permissions, true) ?: [];
+            }
+            $canViewFinance = is_array($permissions)
+                && (in_array('finance.view', $permissions, true)
+                    || in_array('finance.manage', $permissions, true));
 
             // منشی فقط به مطب‌های فعال همان پزشک دسترسی داشبوردی دارد.
             $clinicIds = array_values(array_intersect($assignedClinicIds, $activeClinicIds));
@@ -56,12 +66,12 @@ class BuildDashboardAction
             ->whereDate('appointment_date', $today);
 
         $todayAppointments = (clone $todayAppointmentsQuery)
-            ->with(['clinic', 'latestPayment'])
+            ->with($canViewFinance ? ['clinic', 'latestPayment'] : ['clinic'])
             ->orderBy('appointment_time')
             ->orderBy('id')
             ->get()
-            ->map(function (Appointment $appointment) {
-                $paymentStatus = $appointment->latestPayment?->status;
+            ->map(function (Appointment $appointment) use ($canViewFinance) {
+                $paymentStatus = $canViewFinance ? $appointment->latestPayment?->status : null;
 
                 return [
                     'id' => $appointment->id,
@@ -111,21 +121,25 @@ class BuildDashboardAction
             })
             ->values();
 
-        $todayRevenueRial = AppointmentPayment::query()
-            ->where('status', 'paid')
-            ->whereHas('appointment', fn ($query) => $query
-                ->where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $clinicIds)
-                ->whereDate('appointment_date', $today))
-            ->sum('amount_rial');
+        $todayRevenueRial = $canViewFinance
+            ? AppointmentPayment::query()
+                ->where('status', 'paid')
+                ->whereHas('appointment', fn ($query) => $query
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $clinicIds)
+                    ->whereDate('appointment_date', $today))
+                ->sum('amount_rial')
+            : null;
 
-        $weeklyRevenueRial = AppointmentPayment::query()
-            ->where('status', 'paid')
-            ->whereHas('appointment', fn ($query) => $query
-                ->where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $clinicIds)
-                ->whereBetween('appointment_date', [$weeklyStart, $today]))
-            ->sum('amount_rial');
+        $weeklyRevenueRial = $canViewFinance
+            ? AppointmentPayment::query()
+                ->where('status', 'paid')
+                ->whereHas('appointment', fn ($query) => $query
+                    ->where('doctor_id', $doctor->id)
+                    ->whereIn('clinic_id', $clinicIds)
+                    ->whereBetween('appointment_date', [$weeklyStart, $today]))
+                ->sum('amount_rial')
+            : null;
 
         $stats = [
             // شمارش از جدول نوبت‌ها انجام می‌شود، نه اسلات‌ها؛
@@ -140,12 +154,14 @@ class BuildDashboardAction
             'today_pending' => $todayAppointments->where('status', 'pending')->count(),
             'today_confirmed' => $todayAppointments->where('status', 'confirmed')->count(),
             'today_visited' => $todayAppointments->whereIn('status', ['visited', 'completed'])->count(),
-            'today_unpaid' => $todayAppointments
-                ->filter(fn (array $appointment): bool =>
-                    in_array($appointment['status'], ['pending', 'confirmed'], true)
-                    && $appointment['payment_status'] !== 'paid'
-                )
-                ->count(),
+            'today_unpaid' => $canViewFinance
+                ? $todayAppointments
+                    ->filter(fn (array $appointment): bool =>
+                        in_array($appointment['status'], ['pending', 'confirmed'], true)
+                        && $appointment['payment_status'] !== 'paid'
+                    )
+                    ->count()
+                : null,
             'today_cancelled' => $todayAppointments
                 ->where('status', 'cancelled')
                 ->count(),
@@ -156,8 +172,9 @@ class BuildDashboardAction
                     ->where('doctor_id', $doctor->id)
                     ->whereIn('clinic_id', $clinicIds))
                 ->count(),
-            'today_revenue_rial' => (int) $todayRevenueRial,
-            'weekly_revenue_rial' => (int) $weeklyRevenueRial,
+            'today_revenue_rial' => $todayRevenueRial === null ? null : (int) $todayRevenueRial,
+            'weekly_revenue_rial' => $weeklyRevenueRial === null ? null : (int) $weeklyRevenueRial,
+            'can_view_finance' => $canViewFinance,
 
             'total_reviews' => $user->role === 'secretary'
                 ? 0
@@ -192,6 +209,7 @@ class BuildDashboardAction
                 'email' => $user->email,
             ],
             'stats' => $stats,
+            'canViewFinance' => $canViewFinance,
             'todayAppointments' => $todayAppointments,
             'weeklyAppointments' => $weeklyAppointments,
             'nextAppointment' => $nextAppointment,
