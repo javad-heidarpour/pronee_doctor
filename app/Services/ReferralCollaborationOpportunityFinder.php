@@ -122,7 +122,7 @@ final class ReferralCollaborationOpportunityFinder
                     'demand_count' => (int) $need->demand_count,
                     'history_sample' => $sample,
                     'completion_rate' => $completionRate,
-                    'average_response_hours' => $responseHours->isNotEmpty() ? round($responseHours->avg(), 1) : null,
+                    'average_response_hours' => $sample >= 5 && $responseHours->isNotEmpty() ? round($responseHours->avg(), 1) : null,
                     'same_city' => $sameCity,
                     'fit_score' => $score,
                     'reasons' => $reasons,
