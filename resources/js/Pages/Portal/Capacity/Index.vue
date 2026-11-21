@@ -62,6 +62,7 @@ const cards=computed(()=>[
  {label:'نوبت‌های اشغال‌شده',value:props.summary.occupied},
  {label:'نوبت‌های آزاد',value:props.summary.available},
  {label:'درصد اشغال',value:props.summary.utilization_percent+'٪'},
+ {label:'مجموع مدت نوبت‌ها',value:props.summary.duration_minutes+' دقیقه'},
 ])
 function applyFilters(){
  router.get(route('portal.shifts.capacity'),{clinic_id:localClinic.value||undefined,days:localDays.value},
