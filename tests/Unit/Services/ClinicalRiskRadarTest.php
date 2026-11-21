@@ -26,6 +26,22 @@ final class ClinicalRiskRadarTest extends TestCase
         $this->assertSame('clinic', $result['flags'][0]['source']);
     }
 
+    public function test_old_extreme_clinic_measurement_requires_review_not_urgent(): void
+    {
+        $patient = new Patient();
+        $patient->setAttribute('id', 16);
+        $patient->setAttribute('name', 'بیمار با داده قدیمی');
+        $patient->setRelation('vitalSigns', collect([
+            (object) ['measurement_type' => 'systolic_bp', 'value' => 185, 'unit' => 'mmHg', 'measured_at' => now()->subDays(2)],
+        ]));
+
+        $result = app(ClinicalRiskRadar::class)->evaluate($patient, new Collection(), new Collection(), new Collection());
+
+        $this->assertSame('review', $result['priority']);
+        $this->assertSame('review', $result['flags'][0]['level']);
+        $this->assertStringContainsString('بیش از ۲۴ ساعت', $result['flags'][0]['description']);
+    }
+
     public function test_patient_entered_observation_never_creates_urgent_flag(): void
     {
         $patient = new Patient();
