@@ -220,6 +220,7 @@ final class PatientEncounterController extends Controller
     public function sign(
         PatientEncounter $encounter,
         SignPatientEncounterAction $action,
+        SendAppointmentSatisfactionSurveySmsAction $surveySms,
         RecordSecurityAuditEventAction $audit
     ) {
         $this->authorizeClinicalRole();
@@ -229,6 +230,14 @@ final class PatientEncounterController extends Controller
         $this->authorizeDoctorOnly();
 
         $signed = $action->handle($encounter, Auth::guard('web')->user());
+        try {
+            $surveySms->handle((int) $signed->appointment_id);
+        } catch (Throwable $exception) {
+            Log::warning('Appointment satisfaction survey SMS could not be dispatched.', [
+                'appointment_id' => $signed->appointment_id,
+                'exception' => get_class($exception),
+            ]);
+        }
         $audit->handle('patient.encounter.signed', $signed, [
             'doctor_id' => $doctor->id,
             'status_changed' => true,

@@ -108,6 +108,11 @@ class Appointment extends Model
         return $this->hasOne(AppointmentPayment::class, 'appointment_id')->latestOfMany();
     }
 
+    public function satisfactionSurvey(): HasOne
+    {
+        return $this->hasOne(AppointmentSatisfactionSurvey::class, 'appointment_id');
+    }
+
     public function smsLogs(): HasMany
     {
         return $this->hasMany(SmsLog::class)->latest();
