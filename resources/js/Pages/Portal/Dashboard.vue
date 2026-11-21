@@ -60,6 +60,10 @@
         </div>
       </section>
 
+      <div v-if="!canViewAppointments" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+        مجوز مشاهده جزئیات نوبت‌ها برای این حساب فعال نیست. برای دسترسی با مدیر مطب تماس بگیرید.
+      </div>
+
       <!-- Statistics Section -->
       <section class="space-y-4">
         <div class="flex items-center justify-between gap-3">
@@ -95,7 +99,7 @@
       </section>
 
       <!-- Today's clinic operations -->
-      <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:rounded-3xl">
+      <section v-if="canViewAppointments" class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:rounded-3xl">
         <div class="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
             <div class="flex items-center gap-2">
@@ -173,7 +177,7 @@
       </section>
 
       <!-- Weekly activity -->
-      <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
+      <section v-if="canViewAppointments" class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
         <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-extrabold text-slate-900 sm:text-lg">روند مراجعات هفت روز اخیر</h2>
@@ -365,6 +369,10 @@ const props = defineProps({
   canViewFinance: {
     type: Boolean,
     default: false,
+  },
+  canViewAppointments: {
+    type: Boolean,
+    default: true,
   },
 
   stats: {
