@@ -63,7 +63,7 @@ return new class extends Migration {
             $table->foreignId('organization_id')->constrained('clinic_organizations')->cascadeOnDelete();
             $table->foreignId('clinic_id')->constrained('addresses')->cascadeOnDelete();
             $table->foreignId('absent_staff_user_id')->constrained('users')->restrictOnDelete();
-            $table->foreignId('replacement_staff_user_id')->constrained('users', 'cssr_replacement_staff_user_fk')->restrictOnDelete();
+            $table->foreignId('replacement_staff_user_id')->constrained('users', 'id', 'cssr_replacement_staff_user_fk')->restrictOnDelete();
             $table->date('work_date');
             $table->time('start_time');
             $table->time('end_time');
