@@ -17,6 +17,8 @@ final class ReviewController extends Controller
         Doctor $doctor,
         StoreReviewAction $action
     ): RedirectResponse {
+        abort_unless($doctor->is_active, 404);
+
         $data = StoreReviewData::fromValidated(
             $request->validated(),
             $request->user('web')?->getAuthIdentifier()
