@@ -7,7 +7,7 @@ Route::prefix('shifts')->name('shifts.')
     ->controller(ShiftController::class)
     ->group(function () {
 
-        Route::get('/', 'index')->name('index');
+        Route::get('/', 'index')->name('index');\n        Route::get('/capacity', [ClinicCapacityController::class, 'index'])->name('capacity');
         Route::post('/', 'store')->name('store');
         Route::put('/{slot}', 'update')->name('update');
         Route::put('/{slot}/toggle', 'toggle')->name('toggle');
