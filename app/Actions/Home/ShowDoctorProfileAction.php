@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Home;
 
 use App\Models\Doctor;
+use App\Models\DoctorArticle;
 
 final class ShowDoctorProfileAction
 {
@@ -55,6 +56,11 @@ final class ShowDoctorProfileAction
             ->all();
 
         $doctorData = $this->profilePayloadAction->handle($doctor);
+        $hasPublishedArticles = !$isPreview && DoctorArticle::query()
+            ->where('doctor_id', $doctor->id)
+            ->published()
+            ->exists();
+
         $relatedDoctors = !$isPreview && $bookingPage['clinicsWithSlots']->isEmpty()
             ? $this->bookableDoctorsAction->handle($doctor, 3)
             : collect();
@@ -72,6 +78,9 @@ final class ShowDoctorProfileAction
                 'gallery_categories' => $galleryPage['galleryCategories'],
                 'services' => $services,
                 'related_doctors' => $relatedDoctors,
+                'articles_url' => $hasPublishedArticles
+                    ? route('doctors.articles.index', ['doctor' => $doctor->slug])
+                    : null,
             ]),
         ]);
     }
