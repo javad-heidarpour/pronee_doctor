@@ -27,6 +27,7 @@ final class NoShowRiskController extends Controller
             ->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)
             ->whereDate('appointment_date', '<', today())
+            ->whereDate('appointment_date', '>=', today()->subYears(2))
             ->whereNotIn('status', ['cancelled', 'canceled', 'failed'])
             ->whereNotNull('patient_id')
             ->with('patient:id,name')
@@ -81,6 +82,7 @@ final class NoShowRiskController extends Controller
         abort_unless((int) $appointment->doctor_id === (int) $doctor->id, 404);
         abort_if($appointment->appointment_date >= today(), 422, 'نتیجه حضور فقط پس از تاریخ نوبت قابل ثبت است.');
         abort_if(in_array($appointment->status, ['cancelled', 'canceled', 'failed'], true), 422, 'برای نوبت لغوشده نتیجه حضور ثبت نمی‌شود.');
+        abort_if($appointment->attendance_outcome !== null, 409, 'نتیجه حضور قبلاً ثبت شده است؛ اصلاح آن باید از مسیر ممیزی‌شده جداگانه انجام شود.');
 
         $validated = $request->validate([
             'attendance_outcome' => ['required', 'in:attended,no_show'],
@@ -88,6 +90,8 @@ final class NoShowRiskController extends Controller
 
         if ($validated['attendance_outcome'] === 'attended') {
             abort_unless(in_array($appointment->status, ['visited', 'completed'], true), 422, 'برای ثبت حضور، وضعیت نوبت باید ویزیت‌شده باشد.');
+        } else {
+            abort_unless(!in_array($appointment->status, ['visited', 'completed'], true), 422, 'نوبت ویزیت‌شده را نمی‌توان عدم حضور ثبت کرد.');
         }
 
         $appointment->forceFill([
