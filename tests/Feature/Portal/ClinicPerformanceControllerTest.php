@@ -148,6 +148,11 @@ final class ClinicPerformanceControllerTest extends TestCase
         $this->assertSame(1, $props['report']['finance']['paid_appointments']);
         $this->assertSame(2, $props['report']['capacity']['total']);
         $this->assertSame(1, $props['report']['capacity']['occupied']);
+        $this->assertSame(250000, $props['report']['clinics'][0]['gross_paid_rial']);
+        $this->assertSame(1, $props['report']['clinics'][0]['paid_appointments']);
+        $this->assertSame(2, $props['report']['clinics'][0]['capacity_total']);
+        $this->assertSame(1, $props['report']['clinics'][0]['capacity_occupied']);
+        $this->assertSame(50.0, $props['report']['clinics'][0]['capacity_rate']);
         $this->assertCount(1, $props['report']['clinics']);
         $this->assertSame($this->clinicA, $props['report']['clinics'][0]['id']);
     }
