@@ -110,9 +110,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->whereUuid('notification')->middleware('throttle:60,1')->name('notifications.read');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->middleware('throttle:10,1')->name('notifications.read-all');
 
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->whereUuid('notification')->middleware('throttle:60,1')->name('notifications.read');
-        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->middleware('throttle:10,1')->name('notifications.read-all');
+
 
         Route::get('/clinic-brain', [ClinicBrainController::class, 'index'])->name('clinic-brain.index');
         Route::get('/patient-retention', [PatientRetentionController::class, 'index'])->name('patient-retention.index');
