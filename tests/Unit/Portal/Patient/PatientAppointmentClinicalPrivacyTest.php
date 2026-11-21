@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Patient;
+namespace Tests\Unit\Portal\Patient;
 
-use App\\Actions\\Portal\\Appointment\\LoadPortalAppointmentDetailsAction;
-use App\\Actions\\Security\\RecordSecurityAuditEventAction;
-use App\\Http\\Controllers\\Portal\\PatientController;
-use App\\Models\\Appointment;
-use App\\Models\\Doctor;
-use App\\Models\\User;
-use Illuminate\\Support\\Facades\\Auth;
-use Inertia\\Response;
+use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Http\Controllers\Portal\PatientController;
+use App\Models\Appointment;
+use App\Models\Doctor;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Response;
 use Mockery;
-use Tests\\TestCase;
+use Tests\TestCase;
 
 final class PatientAppointmentClinicalPrivacyTest extends TestCase
 {
