@@ -80,6 +80,7 @@ final class ReferralCollaborationOpportunityFinderTest extends TestCase
             'target_provider_id' => 9,
             'service_type' => 'imaging',
             'status' => 'sent',
+            'accepted_at' => $now->copy()->subDays(1),
             'created_at' => $now->copy()->subDays(2),
             'updated_at' => $now->copy()->subDays(2),
         ]);
@@ -91,5 +92,7 @@ final class ReferralCollaborationOpportunityFinderTest extends TestCase
         $this->assertSame([], $hidden['items']);
         $this->assertCount(1, $visible['items']);
         $this->assertSame('imaging', $visible['items'][0]['service_type']);
+        $this->assertSame(1, $visible['items'][0]['opportunities'][0]['history_sample']);
+        $this->assertNull($visible['items'][0]['opportunities'][0]['average_response_hours']);
     }
 }
