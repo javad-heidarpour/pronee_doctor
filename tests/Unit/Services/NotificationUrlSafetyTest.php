@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Services;
+namespace Tests\Unit\Services;
 
-use App\\Http\\Controllers\\Portal\\NotificationController;
+use App\Http\Controllers\Portal\NotificationController;
 use ReflectionMethod;
-use Tests\\TestCase;
+use Tests\TestCase;
 
 final class NotificationUrlSafetyTest extends TestCase
 {
