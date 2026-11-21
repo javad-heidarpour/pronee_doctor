@@ -182,8 +182,7 @@ class PatientController extends Controller
         );
 
         $canManageClinicalRecords = $this->hasSecretaryPermission($doctor, 'patients.clinical.manage');
-        $canViewClinicalRecords = $canManageClinicalRecords ||
-            $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
+        $canViewClinicalRecords = $this->canViewClinicalDetails($doctor);
 
         if ($canViewClinicalRecords) {
             $visits->loadMissing(['patient.clinicalRecords.relatedRecord', 'patient.clinicalRecords.relatedAllergyRecord', 'patient.archivedClinicalRecords', 'patient.vitalSigns']);
@@ -195,6 +194,7 @@ class PatientController extends Controller
             ]);
         } else {
             $visits->each(function (Appointment $visit): void {
+                $this->redactClinicalNotes($visit);
                 $visit->patient?->setRelation('clinicalRecords', collect());
                 $visit->patient?->setRelation('vitalSigns', collect());
             });
@@ -336,7 +336,7 @@ class PatientController extends Controller
         return back()->with('success', 'سابقه پزشکی با موفقیت بازیابی شد.');
     }
 
-    private function hasSecretaryPermission(\App\Models\Doctor $doctor, string $permission): bool
+    protected function hasSecretaryPermission(\App\Models\Doctor $doctor, string $permission): bool
     {
         $user = Auth::guard('web')->user();
 
@@ -358,6 +358,27 @@ class PatientController extends Controller
         }
 
         return is_array($permissions) && in_array($permission, $permissions, true);
+    }
+
+    protected function canViewClinicalDetails(\App\Models\Doctor $doctor): bool
+    {
+        return $this->hasSecretaryPermission($doctor, 'patients.clinical.manage') ||
+            $this->hasSecretaryPermission($doctor, 'patients.clinical.view');
+    }
+
+    /**
+     * Free-text visit descriptions can contain diagnoses and treatment details.
+     * Remove them from every serialized visit, including the history relation.
+     */
+    protected function redactClinicalNotes(Appointment $appointment): void
+    {
+        $appointment->setAttribute('description', null);
+
+        if ($appointment->relationLoaded('patientHistory')) {
+            $appointment->getRelation('patientHistory')->each(
+                fn (Appointment $history): mixed => $history->setAttribute('description', null)
+            );
+        }
     }
 
     private function authorizePatientClinicalAccess(Patient $patient, \App\Models\Doctor $doctor): Patient
@@ -387,6 +408,13 @@ class PatientController extends Controller
         $this->authorizeSecretaryPermission('patients.view', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $appointment = $action->handle($appointment, $clinicIds);
+        $canViewClinicalNotes = $this->canViewClinicalDetails($doctor);
+        $canEditVisitDetails = $this->hasSecretaryPermission($doctor, 'appointments.manage') &&
+            $this->hasSecretaryPermission($doctor, 'patients.manage');
+
+        if (!$canViewClinicalNotes) {
+            $this->redactClinicalNotes($appointment);
+        }
 
         $audit->handle('appointment.viewed', $appointment, [
             'doctor_id' => $doctor->id,
@@ -395,6 +423,8 @@ class PatientController extends Controller
         return Inertia::render('Portal/Patients/Show', [
             'doctor' => $doctor,
             'appointment' => $appointment,
+            'canViewClinicalNotes' => $canViewClinicalNotes,
+            'canEditVisitDetails' => $canEditVisitDetails,
         ]);
     }
 
