@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Patient;
+namespace Tests\Unit\Portal\Patient;
 
-use App\\Actions\\Security\\RecordSecurityAuditEventAction;
-use App\\Http\\Controllers\\PatientMedicationController;
-use App\\Models\\PatientMedicationPlan;
-use App\\Models\\User;
-use Carbon\\Carbon;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
+use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Http\Controllers\PatientMedicationController;
+use App\Models\PatientMedicationPlan;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Mockery;
-use Symfony\\Component\\HttpKernel\\Exception\\HttpException;
-use Tests\\TestCase;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tests\TestCase;
 
 final class PatientMedicationPlanStateTest extends TestCase
 {
