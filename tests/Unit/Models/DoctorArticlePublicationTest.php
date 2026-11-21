@@ -104,4 +104,21 @@ final class DoctorArticlePublicationTest extends TestCase
         $this->assertSame(0, DoctorArticle::query()->published()->count());
         $this->assertSame(1, DoctorArticle::withTrashed()->count());
     }
+    public function test_slug_generation_does_not_reuse_a_soft_deleted_article_slug(): void
+    {
+        $doctor = Doctor::query()->create(['name' => 'Doctor', 'is_active' => true]);
+        DoctorArticle::query()->create([
+            'doctor_id' => $doctor->id,
+            'title' => 'Same article title',
+            'slug' => 'same-article-title',
+            'body' => 'Previously published content for patient education.',
+        ])->delete();
+
+        $slugMethod = new ReflectionMethod(DoctorArticleController::class, 'uniqueSlug');
+        $slugMethod->setAccessible(true);
+        $slug = $slugMethod->invoke(new DoctorArticleController(), $doctor->id, 'Same article title');
+
+        $this->assertSame('same-article-title-2', $slug);
+    }
+
 }
