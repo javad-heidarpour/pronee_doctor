@@ -17,6 +17,7 @@ use App\Models\Patient;
 use App\Models\PatientClinicalRecord;
 use App\Models\PatientEncounter;
 use App\Models\PatientVitalSign;
+use App\Services\ClinicalNoteExtractor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -118,6 +119,38 @@ final class PatientEncounterController extends Controller
 
         return redirect()->route('portal.encounters.show', $encounter)
             ->with('success', 'پیش‌نویس یادداشت ویزیت ذخیره شد.');
+    }
+
+    public function extractText(
+        Request $request,
+        Appointment $appointment,
+        ClinicalNoteExtractor $extractor,
+        RecordSecurityAuditEventAction $audit
+    ) {
+        $this->authorizeClinicalRole();
+        $this->authorizeAppointment($appointment);
+
+        $doctor = $this->currentDoctor();
+        $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
+
+        abort_unless($appointment->patient_id && $appointment->status !== 'cancelled', 404);
+        Patient::query()->whereKey($appointment->patient_id)
+            ->where('doctor_id', $doctor->id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'raw_text' => ['required', 'string', 'min:1', 'max:12000'],
+        ]);
+
+        $result = $extractor->extract($validated['raw_text']);
+
+        $audit->handle('patient.encounter.text_extracted', $appointment, [
+            'doctor_id' => $doctor->id,
+            'input_length' => mb_strlen($validated['raw_text']),
+            'matched_sections' => $result['matched_sections'],
+        ]);
+
+        return response()->json($result);
     }
 
     public function show(PatientEncounter $encounter, RecordSecurityAuditEventAction $audit)
