@@ -15,6 +15,7 @@ use App\Http\Controllers\Portal\PatientDocumentController;
 use App\Http\Controllers\Portal\PatientConsentController;
 use App\Http\Controllers\Portal\PatientInsuranceController;
 use App\Http\Controllers\Portal\NoShowRiskController;
+use App\Http\Controllers\Portal\PopulationHealthController;
 
 
 Route::get('/health-interop', [HealthInteropController::class, 'index'])->name('health-interop.index');
