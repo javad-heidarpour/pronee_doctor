@@ -140,7 +140,7 @@ final class ClinicPerformanceControllerTest extends TestCase
         ]));
 
         $this->assertInstanceOf(Response::class, $response);
-        $props = $response->toResponse(\\Illuminate\\Http\\Request::create('/', 'GET', [], [], [], ['HTTP_X_INERTIA' => 'true']))->getData(true)['page']['props'];
+        $props = $response->toResponse(\Illuminate\Http\Request::create('/', 'GET', [], [], [], ['HTTP_X_INERTIA' => 'true']))->getData(true)['page']['props'];
         $this->assertSame(2, $props['report']['appointments']['total']);
         $this->assertSame(1, $props['report']['appointments']['served']);
         $this->assertSame(1, $props['report']['appointments']['cancelled']);
