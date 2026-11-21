@@ -71,6 +71,39 @@
             </div>
           </section>
 
+          <section class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 class="text-sm font-black text-indigo-950">استخراج ساختاریافته از متن بالینی</h2>
+                <p class="mt-1 text-xs leading-6 text-indigo-900">متن دارای برچسب‌هایی مانند «شرح حال:»، «معاینه:»، «ارزیابی:» و «برنامه درمانی:» را به بخش‌های SOAP تفکیک کنید.</p>
+              </div>
+              <button type="button" @click="extractClinicalText" :disabled="extracting || !rawClinicalText.trim()" class="rounded-xl bg-indigo-700 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                {{ extracting ? 'در حال استخراج...' : 'استخراج بخش‌ها' }}
+              </button>
+            </div>
+            <textarea v-model="rawClinicalText" rows="5" maxlength="12000" class="mt-3 w-full rounded-xl border-indigo-200 bg-white text-sm" placeholder="شرح حال: ...&#10;معاینه: ...&#10;ارزیابی: ...&#10;برنامه درمانی: ..."></textarea>
+            <p class="mt-2 text-[11px] leading-6 text-indigo-900">استخراج بر اساس برچسب‌های صریح و بدون تفسیر پزشکی انجام می‌شود. متن خام به‌صورت خودکار ذخیره نمی‌شود؛ پیش از ثبت یا امضا، همه بخش‌ها را بازبینی کنید.</p>
+            <div v-if="extractionError" role="alert" class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{{ extractionError }}</div>
+            <div v-if="extractionResult" class="mt-3 space-y-3 rounded-xl bg-white p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-xs font-black text-slate-800">نتیجه استخراج: {{ extractionResult.matched_sections.length }} بخش شناسایی‌شده</p>
+                <button type="button" @click="applyExtractedText" :disabled="!extractionResult.matched_sections.length" class="rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">افزودن به فیلدهای خالی</button>
+              </div>
+              <p v-if="extractionNotice" class="text-xs leading-6 text-teal-800">{{ extractionNotice }}</p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <div v-for="key in ['subjective','objective','assessment','plan']" :key="key" class="rounded-lg border border-slate-100 p-3">
+                  <p class="text-[11px] font-black text-slate-600">{{ sectionTitles[key] }}</p>
+                  <p class="mt-1 whitespace-pre-wrap text-xs leading-6 text-slate-800">{{ extractionResult.sections[key] || 'بخشی با این برچسب در متن پیدا نشد.' }}</p>
+                </div>
+              </div>
+              <div v-if="extractionResult.unclassified" class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p class="text-xs font-black text-amber-900">متن بدون برچسب (جدا نگه داشته شده)</p>
+                <p class="mt-1 whitespace-pre-wrap text-xs leading-6 text-amber-900">{{ extractionResult.unclassified }}</p>
+              </div>
+              <p class="text-[11px] leading-6 text-slate-500">فیلدهایی که از قبل متن دارند بازنویسی نمی‌شوند. برای استفاده از نتیجه در آن فیلدها، ابتدا محتوای فعلی را خودتان بررسی و در صورت لزوم پاک کنید.</p>
+            </div>
+          </section>
+
           <section class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-base font-black text-slate-900">یادداشت ساختاریافته بالینی (SOAP)</h2>
             <div class="grid gap-4">
@@ -143,6 +176,7 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import axios from 'axios'
 import { router, Link } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 import VoiceDictationButton from '@/Components/Portal/VoiceDictationButton.vue'
@@ -158,6 +192,17 @@ const readonly = computed(() => props.encounter?.status === 'signed')
 const source = props.encounter || props.amendsEncounter
 const processing = ref(false)
 const signDialogOpen = ref(false)
+const rawClinicalText = ref('')
+const extracting = ref(false)
+const extractionResult = ref(null)
+const extractionError = ref('')
+const extractionNotice = ref('')
+const sectionTitles = {
+  subjective: 'S · شرح حال',
+  objective: 'O · یافته‌های عینی',
+  assessment: 'A · ارزیابی',
+  plan: 'P · برنامه درمانی',
+}
 const form = reactive({
   note_type: source?.note_type || 'consultation',
   subjective: source?.subjective || '',
@@ -185,6 +230,43 @@ const prescriptionReview = computed(() => {
   return warnings
 })
 const canSign = computed(() => form.reviewed_allergies && form.reviewed_medications && form.reviewed_vitals && form.assessment.trim() && form.plan.trim())
+const extractClinicalText = async () => {
+  if (!rawClinicalText.value.trim() || extracting.value) return
+  extracting.value = true
+  extractionError.value = ''
+  extractionNotice.value = ''
+  extractionResult.value = null
+  try {
+    const response = await axios.post(route('portal.encounters.extract', props.appointment.id), {
+      raw_text: rawClinicalText.value,
+    })
+    extractionResult.value = response.data
+  } catch (error) {
+    extractionError.value = error.response?.data?.message || 'استخراج متن انجام نشد. متن و دسترسی خود را بررسی و دوباره تلاش کنید.'
+  } finally {
+    extracting.value = false
+  }
+}
+const applyExtractedText = () => {
+  if (!extractionResult.value) return
+  const sections = extractionResult.value.sections || {}
+  const applied = []
+  const skipped = []
+  for (const key of ['subjective', 'objective', 'assessment', 'plan']) {
+    const value = String(sections[key] || '').trim()
+    if (!value) continue
+    if (String(form[key] || '').trim()) {
+      skipped.push(sectionTitles[key])
+      continue
+    }
+    form[key] = value
+    applied.push(sectionTitles[key])
+  }
+  extractionNotice.value = [
+    applied.length ? 'به فیلدهای خالی افزوده شد: ' + applied.join('، ') : 'هیچ فیلد خالیِ قابل تکمیلی وجود نداشت.',
+    skipped.length ? 'به دلیل وجود متن قبلی، این فیلدها بدون تغییر ماندند: ' + skipped.join('، ') : '',
+  ].filter(Boolean).join(' ')
+}
 const addPrescription = () => form.prescriptions.push({ medication_name: '', strength: '', dosage: '', route: '', frequency: '', duration_days: '', quantity: '', instructions: '' })
 const removePrescription = index => form.prescriptions.splice(index, 1)
 const formatDate = value => value ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
