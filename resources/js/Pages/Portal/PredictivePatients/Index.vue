@@ -1,8 +1,8 @@
 <template>
-  <PortalLayout :doctor="doctor" title="موتور پیش‌بینی روند بیماران">
+  <PortalLayout :doctor="doctor" title="تحلیل روند طولی بیماران">
     <div dir="rtl" class="space-y-5">
       <section class="rounded-2xl bg-gradient-to-l from-indigo-950 via-slate-900 to-cyan-900 p-5 text-white sm:p-7">
-        <p class="text-xs font-bold tracking-widest text-cyan-200">PRONEEX PREDICTIVE PATIENT ENGINE</p>
+        <p class="text-xs font-bold tracking-widest text-cyan-200">PRONEEX LONGITUDINAL TREND REVIEW</p>
         <h2 class="mt-2 text-2xl font-black">نگاه طولی به مسیر مراقبت بیمار</h2>
         <p class="mt-2 max-w-3xl text-sm leading-7 text-slate-200">روند اندازه‌گیری‌های ثبت‌شده و پیگیری‌های برنامه‌ریزی‌شده را کنار هم قرار می‌دهد تا پرونده‌های نیازمند بازبینی زودتر دیده شوند؛ بدون تولید احتمال یا تشخیص ساختگی.</p>
         <p class="mt-3 text-xs text-cyan-100">زمان محاسبه: {{ formatDate(generatedAt) }}</p>
@@ -10,7 +10,7 @@
       <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-slate-500">کل بیماران</p><p class="mt-2 text-2xl font-black">{{ fa(stats.total) }}</p></div>
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-amber-700">نیازمند بازبینی</p><p class="mt-2 text-2xl font-black text-amber-700">{{ fa(stats.needs_review) }}</p></div>
-        <div class="rounded-xl border bg-white p-4"><p class="text-xs text-emerald-700">پوشش داده مناسب</p><p class="mt-2 text-2xl font-black text-emerald-700">{{ fa(stats.strong) }}</p></div>
+        <div class="rounded-xl border bg-white p-4"><p class="text-xs text-emerald-700">پوشش روند مناسب</p><p class="mt-2 text-2xl font-black text-emerald-700">{{ fa(stats.strong) }}</p></div>
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-slate-500">داده ناکافی</p><p class="mt-2 text-2xl font-black">{{ fa(stats.insufficient) }}</p></div>
       </section>
       <form @submit.prevent="apply" class="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-[1fr_220px_auto]">
