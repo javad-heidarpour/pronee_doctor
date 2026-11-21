@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\\Support\\Facades\\Route;
-use App\\Http\\Controllers\\Portal\\DoctorArticleController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Portal\DoctorArticleController;
 
 Route::prefix('articles')->name('articles.')->controller(DoctorArticleController::class)->group(function () {
     Route::get('/', 'index')->name('index');
