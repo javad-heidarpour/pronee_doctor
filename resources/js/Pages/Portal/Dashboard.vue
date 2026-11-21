@@ -109,7 +109,7 @@
           <div class="flex flex-wrap gap-2 text-xs">
             <span class="rounded-xl bg-amber-50 px-3 py-2 font-bold text-amber-700">در انتظار: {{ todayStats.pending }}</span>
             <span class="rounded-xl bg-emerald-50 px-3 py-2 font-bold text-emerald-700">تأییدشده: {{ todayStats.confirmed }}</span>
-            <span class="rounded-xl bg-rose-50 px-3 py-2 font-bold text-rose-700">پرداخت نیازمند پیگیری: {{ todayStats.unpaid }}</span>
+            <span v-if="canViewFinance" class="rounded-xl bg-rose-50 px-3 py-2 font-bold text-rose-700">پرداخت نیازمند پیگیری: {{ todayStats.unpaid }}</span>
             <span class="rounded-xl bg-slate-100 px-3 py-2 font-bold text-slate-700">لغوشده: {{ todayStats.cancelled }}</span>
             <span class="rounded-xl bg-violet-50 px-3 py-2 font-bold text-violet-700">پیامک ناموفق: {{ todayStats.smsFailed }}</span>
           </div>
@@ -153,7 +153,7 @@
             <div class="flex flex-wrap items-center gap-2 sm:justify-end">
               <span class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black tabular-nums text-slate-700">{{ appointment.appointment_time || '--:--' }}</span>
               <span :class="appointmentStatusClass(appointment.status)" class="rounded-lg px-3 py-2 text-[11px] font-bold">{{ appointment.status_label }}</span>
-              <span :class="paymentStatusClass(appointment.payment_status)" class="rounded-lg px-3 py-2 text-[11px] font-bold">{{ appointment.payment_status_label }}</span>
+              <span v-if="canViewFinance" :class="paymentStatusClass(appointment.payment_status)" class="rounded-lg px-3 py-2 text-[11px] font-bold">{{ appointment.payment_status_label }}</span>
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@
       </section>
 
       <!-- Financial overview -->
-      <section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <section v-if="canViewFinance" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div class="rounded-2xl border border-emerald-100 bg-gradient-to-l from-emerald-50 to-white p-5 shadow-sm">
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -361,6 +361,10 @@ const props = defineProps({
   doctor: {
     type: Object,
     default: null,
+  },
+  canViewFinance: {
+    type: Boolean,
+    default: false,
   },
 
   stats: {
