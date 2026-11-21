@@ -4,7 +4,7 @@
       <section class="rounded-2xl bg-slate-900 p-5 text-white sm:p-7">
         <p class="text-xs font-bold tracking-widest text-cyan-200">PRONEEX APPOINTMENT ATTENDANCE</p>
         <h2 class="mt-2 text-2xl font-black">تحلیل سابقه حضور بیماران</h2>
-        <p class="mt-2 text-sm leading-7 text-slate-200">این صفحه فقط از نتایج حضور ثبت‌شده قبلی، نرخ تاریخی عدم حضور را محاسبه می‌کند. خروجی، احتمال قطعی یا مدل یادگیری ماشین نیست.</p>
+        <p class="mt-2 text-sm leading-7 text-slate-200">این صفحه نتایج حضور ثبت‌شده در ۲۴ ماه اخیر را بررسی و نرخ تاریخی عدم حضور را محاسبه می‌کند. خروجی، احتمال قطعی یا مدل یادگیری ماشین نیست.</p>
       </section>
       <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-xl border bg-white p-4"><p class="text-xs text-slate-500">بیماران دارای سابقه</p><p class="mt-2 text-2xl font-black">{{ fa(stats.patients) }}</p></div>
