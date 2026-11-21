@@ -91,7 +91,7 @@
               </div>
               <p v-if="extractionNotice" class="text-xs leading-6 text-teal-800">{{ extractionNotice }}</p>
               <div class="grid gap-2 sm:grid-cols-2">
-                <div v-for="key in ['subjective','objective','assessment','plan']" :key="key" class="rounded-lg border border-slate-100 p-3">
+                <div v-for="key in ['subjective','objective','assessment','plan','diagnosis']" :key="key" class="rounded-lg border border-slate-100 p-3">
                   <p class="text-[11px] font-black text-slate-600">{{ sectionTitles[key] }}</p>
                   <p class="mt-1 whitespace-pre-wrap text-xs leading-6 text-slate-800">{{ extractionResult.sections[key] || 'بخشی با این برچسب در متن پیدا نشد.' }}</p>
                 </div>
@@ -202,6 +202,7 @@ const sectionTitles = {
   objective: 'O · یافته‌های عینی',
   assessment: 'A · ارزیابی',
   plan: 'P · برنامه درمانی',
+  diagnosis: 'تشخیص ثبت‌شده',
 }
 const form = reactive({
   note_type: source?.note_type || 'consultation',
@@ -252,7 +253,7 @@ const applyExtractedText = () => {
   const sections = extractionResult.value.sections || {}
   const applied = []
   const skipped = []
-  for (const key of ['subjective', 'objective', 'assessment', 'plan']) {
+  for (const key of ['subjective', 'objective', 'assessment', 'plan', 'diagnosis']) {
     const value = String(sections[key] || '').trim()
     if (!value) continue
     if (String(form[key] || '').trim()) {
