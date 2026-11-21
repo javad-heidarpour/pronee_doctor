@@ -146,7 +146,17 @@ final class ClinicBrainController extends Controller
         abort_unless($entry->status === 'waiting' && $entry->contact_consent, 422, 'درخواست باید فعال و دارای رضایت تماس باشد.');
 
         DB::transaction(function () use ($data, $entry, $doctor, $eligibility) {
-            $lockedEntry = ClinicBrainWaitlistEntry::query()->whereKey($entry->id)->lockForUpdate()->firstOrFail();
+            $lockedEntry = ClinicBrainWaitlistEntry::query()
+                ->whereKey($entry->id)
+                ->where('doctor_id', $doctor->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless(
+                $lockedEntry->clinic_id === null
+                    || in_array((int) $lockedEntry->clinic_id, $this->accessibleClinicIds($doctor), true),
+                403
+            );
             abort_unless($lockedEntry->status === 'waiting' && $lockedEntry->contact_consent, 422, 'درخواست باید فعال و دارای رضایت تماس باشد.');
 
             $slot = TimeSlot::query()->whereKey($data['slot_id'])
@@ -189,13 +199,28 @@ final class ClinicBrainController extends Controller
 
         $data = $request->validate(['appointment_id' => ['required', 'integer']]);
         DB::transaction(function () use ($data, $entry, $doctor) {
-            $lockedEntry = ClinicBrainWaitlistEntry::query()->whereKey($entry->id)->lockForUpdate()->firstOrFail();
-            abort_unless($lockedEntry->status === 'offered' && $lockedEntry->offered_slot_id, 422, 'ابتدا باید یک زمان به بیمار پیشنهاد شده باشد.');
-            $offeredSlot = TimeSlot::query()->whereKey($lockedEntry->offered_slot_id)
+            $lockedEntry = ClinicBrainWaitlistEntry::query()
+                ->whereKey($entry->id)
                 ->where('doctor_id', $doctor->id)
-                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            abort_unless(
+                $lockedEntry->clinic_id === null
+                    || in_array((int) $lockedEntry->clinic_id, $this->accessibleClinicIds($doctor), true),
+                403
+            );
+            abort_unless($lockedEntry->status === 'offered' && $lockedEntry->offered_slot_id, 422, 'ابتدا باید یک زمان به بیمار پیشنهاد شده باشد.');
+
+            $offeredSlotQuery = TimeSlot::query()->whereKey($lockedEntry->offered_slot_id)
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor));
+
+            if ($lockedEntry->clinic_id !== null) {
+                $offeredSlotQuery->where('clinic_id', $lockedEntry->clinic_id);
+            }
+
+            $offeredSlot = $offeredSlotQuery->lockForUpdate()->firstOrFail();
             $appointment = Appointment::query()->whereKey($data['appointment_id'])
                 ->where('doctor_id', $doctor->id)->where('patient_id', $lockedEntry->patient_id)
                 ->where('clinic_id', $offeredSlot->clinic_id)
