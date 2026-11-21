@@ -101,6 +101,30 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
         $this->assertFalse($response->getProps()['canEditVisitDetails']);
     }
 
+    public function test_secretary_with_existing_visit_edit_permissions_can_read_the_notes_they_can_edit(): void
+    {
+        $controller = $this->controller(['appointments.manage', 'patients.manage']);
+        $appointment = $this->appointment();
+
+        $action = Mockery::mock(LoadPortalAppointmentDetailsAction::class);
+        $action->shouldReceive('handle')
+            ->once()
+            ->with($appointment, [31])
+            ->andReturn($appointment);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('appointment.viewed', $appointment, ['doctor_id' => 11]);
+
+        $response = $controller->show($appointment, $action, $audit);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame('Private diagnosis and treatment notes', $appointment->description);
+        $this->assertTrue($response->getProps()['canViewClinicalNotes']);
+        $this->assertTrue($response->getProps()['canEditVisitDetails']);
+    }
+
     public function test_secretary_with_clinical_view_permission_can_read_but_not_edit_visit_notes(): void
     {
         $controller = $this->controller(['patients.clinical.view']);
