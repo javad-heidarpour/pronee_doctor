@@ -13,7 +13,7 @@ class LoadPortalAppointmentDetailsAction
             'visitReason:id,title',
             'surgeryType:id,title',
             'latestPayment:id,appointment_id,status,gateway_name,amount_rial,paid_at',
-            'smsLogs:id,appointment_id,status,error_message,created_at',
+            'smsLogs:id,appointment_id,status,created_at',
         ]);
 
         $nationalCode = trim((string) $appointment->patient_national_code);
