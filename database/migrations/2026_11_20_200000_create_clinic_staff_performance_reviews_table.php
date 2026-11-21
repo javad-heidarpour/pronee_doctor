@@ -11,10 +11,10 @@ return new class extends Migration {
     {
         Schema::create('clinic_staff_performance_reviews', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('organization_id', 'cspr_org_fk')->constrained('clinic_organizations')->cascadeOnDelete();
-            $table->foreignId('clinic_id', 'cspr_clinic_fk')->constrained('addresses')->cascadeOnDelete();
-            $table->foreignId('staff_user_id', 'cspr_staff_fk')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('reviewer_user_id', 'cspr_reviewer_fk')->constrained('users')->restrictOnDelete();
+            $table->foreignId('organization_id')->constrained('clinic_organizations', 'id', 'cspr_org_fk')->cascadeOnDelete();
+            $table->foreignId('clinic_id')->constrained('addresses', 'id', 'cspr_clinic_fk')->cascadeOnDelete();
+            $table->foreignId('staff_user_id')->constrained('users', 'id', 'cspr_staff_fk')->cascadeOnDelete();
+            $table->foreignId('reviewer_user_id')->constrained('users', 'id', 'cspr_reviewer_fk')->restrictOnDelete();
             $table->date('period_start');
             $table->date('period_end');
             $table->unsignedTinyInteger('reliability_score');
