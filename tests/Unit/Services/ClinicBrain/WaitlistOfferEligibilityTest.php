@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Services;
+namespace Tests\Unit\Services;
 
-use App\\Services\\ClinicBrain\\WaitlistOfferEligibility;
-use Tests\\TestCase;
+use App\Services\ClinicBrain\WaitlistOfferEligibility;
+use Tests\TestCase;
 
 final class WaitlistOfferEligibilityTest extends TestCase
 {
