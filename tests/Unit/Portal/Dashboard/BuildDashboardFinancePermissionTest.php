@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Portal\\Dashboard;
+namespace Tests\Unit\Portal\Dashboard;
 
-use App\\Actions\\Portal\\Dashboard\\BuildDashboardAction;
-use PHPUnit\\Framework\\TestCase;
+use App\Actions\Portal\Dashboard\BuildDashboardAction;
+use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
 final class BuildDashboardFinancePermissionTest extends TestCase
