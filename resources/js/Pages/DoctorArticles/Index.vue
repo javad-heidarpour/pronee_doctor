@@ -1,4 +1,8 @@
 <template>
+  <Head :title="`${doctor.caption || ''} ${doctor.name} ${doctor.family} | مقالات آموزشی`">
+    <meta name="description" :content="articles.data[0]?.meta_description || 'مقالات و مطالب آموزشی منتشرشده پزشک'" />
+    <link rel="canonical" :href="route('doctors.articles.index', { doctor: doctor.slug })" />
+  </Head>
   <main dir="rtl" class="mx-auto max-w-5xl space-y-8 px-4 py-10">
     <header class="rounded-3xl bg-gradient-to-l from-teal-800 to-cyan-700 p-7 text-white">
       <p class="text-sm text-teal-100">مطالب آموزشی پزشک</p>
@@ -18,6 +22,7 @@
   </main>
 </template>
 <script setup>
+import { Head } from '@inertiajs/vue3'
 defineProps({doctor:Object,articles:Object})
 const formatDate=(value)=>value?new Intl.DateTimeFormat('fa-IR',{dateStyle:'long'}).format(new Date(value)):''
 </script>
