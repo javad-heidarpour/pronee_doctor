@@ -9,22 +9,41 @@ class LoadPortalAppointmentDetailsAction
     public function handle(Appointment $appointment, array $accessibleClinicIds): Appointment
     {
         $appointment->load([
-            'user',
-            'timeSlot',
-            'clinic.city',
-            'visitReason',
-            'surgeryType',
-            'latestPayment',
-            'smsLogs',
+            'clinic:id,name',
+            'visitReason:id,title',
+            'surgeryType:id,title',
+            'latestPayment:appointment_payments.id,appointment_payments.appointment_id,appointment_payments.status,appointment_payments.gateway_name,appointment_payments.amount_rial,appointment_payments.paid_at',
+            'smsLogs:id,appointment_id,status,created_at',
         ]);
 
         $nationalCode = trim((string) $appointment->patient_national_code);
-        $phone = trim((string) $appointment->patient_phone);
-
         $history = collect();
 
-        if ($nationalCode !== '' || $phone !== '') {
-            $history = Appointment::query()
+        $identityQuery = null;
+        if ($appointment->patient_id !== null) {
+            $identityQuery = Appointment::query()
+                ->where('patient_id', $appointment->patient_id);
+        } elseif ($nationalCode !== '') {
+            // Legacy rows can be linked by national code, but never by phone:
+            // household phone numbers are not unique patient identifiers.
+            $identityQuery = Appointment::query()
+                ->whereNull('patient_id')
+                ->where('patient_national_code', $nationalCode);
+        }
+
+        if ($identityQuery !== null) {
+            $history = $identityQuery
+                // The timeline UI needs visit context only, never free-text notes
+                // or patient identifiers from older appointment rows.
+                ->select([
+                    'id',
+                    'doctor_id',
+                    'clinic_id',
+                    'appointment_date',
+                    'appointment_time',
+                    'status',
+                    'visit_reason_id',
+                ])
                 ->where('doctor_id', $appointment->doctor_id)
                 ->whereIn('clinic_id', $accessibleClinicIds)
                 ->where('id', '!=', $appointment->id)
@@ -38,14 +57,11 @@ class LoadPortalAppointmentDetailsAction
                                 ->where('appointment_time', '<', $appointment->appointment_time);
                         });
                 })
-                ->where(function ($query) use ($nationalCode, $phone) {
-                    if ($nationalCode !== '') {
-                        $query->where('patient_national_code', $nationalCode);
-                    } else {
-                        $query->where('patient_phone', $phone);
-                    }
-                })
-                ->with(['clinic', 'visitReason', 'latestPayment'])
+                ->with([
+                    'clinic:id,name',
+                    'visitReason:id,title',
+                    'latestPayment:appointment_payments.id,appointment_payments.appointment_id,appointment_payments.status',
+                ])
                 ->orderByDesc('appointment_date')
                 ->orderByDesc('appointment_time')
                 ->limit(10)

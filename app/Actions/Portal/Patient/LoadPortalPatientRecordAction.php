@@ -16,30 +16,53 @@ final class LoadPortalPatientRecordAction
     public function handle(Appointment $reference, array $accessibleClinicIds): Collection
     {
         $query = Appointment::query()
-            ->where('doctor_id', $reference->doctor_id)
-            ->whereIn('clinic_id', $accessibleClinicIds)
+            // Only serialize fields used by the patient timeline. In particular,
+            // do not send account, slot, or unrelated booking metadata to Inertia.
+            ->select([
+                'appointments.id',
+                'appointments.doctor_id',
+                'appointments.patient_id',
+                'appointments.clinic_id',
+                'appointments.patient_name',
+                'appointments.patient_phone',
+                'appointments.patient_national_code',
+                'appointments.status',
+                'appointments.appointment_date',
+                'appointments.appointment_time',
+                'appointments.description',
+                'appointments.visit_reason_id',
+                'appointments.surgery_type_id',
+                'appointments.surgery_date',
+            ])
+            ->where('appointments.doctor_id', $reference->doctor_id)
+            ->whereIn('appointments.clinic_id', $accessibleClinicIds)
             ->with([
                 'patient' => fn ($patientQuery) => $patientQuery
+                    ->select(['patients.id', 'patients.doctor_id', 'patients.name', 'patients.phone', 'patients.national_code'])
                     ->where('doctor_id', $reference->doctor_id),
-                'clinic',
-                'visitReason',
-                'latestPayment',
-                'surgeryType',
+                'clinic:id,name',
+                'visitReason:id,title',
+                'latestPayment' => fn ($paymentQuery) => $paymentQuery->select([
+                    'appointment_payments.id',
+                    'appointment_payments.appointment_id',
+                    'appointment_payments.status',
+                ]),
+                'surgeryType:id,title',
             ]);
 
         if ($reference->patient_id !== null) {
             $query->where('patient_id', $reference->patient_id);
         } else {
-            // Compatibility while legacy appointments are being backfilled.
+            // Legacy rows may be grouped by national code only. A phone number
+            // can be shared by family members and is not a safe patient key.
             $nationalCode = trim((string) $reference->patient_national_code);
-            $phone = trim((string) $reference->patient_phone);
-
-            abort_if($nationalCode === '' && $phone === '', 404);
 
             if ($nationalCode !== '') {
-                $query->where('patient_national_code', $nationalCode);
+                $query->whereNull('patient_id')
+                    ->where('patient_national_code', $nationalCode);
             } else {
-                $query->whereNull('patient_id')->where('patient_phone', $phone);
+                // Without a stable patient identifier, expose only this visit.
+                $query->whereKey($reference->id);
             }
         }
 

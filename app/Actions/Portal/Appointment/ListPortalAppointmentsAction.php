@@ -13,17 +13,34 @@ class ListPortalAppointmentsAction
     public function handle(Doctor $doctor, array $clinicIds, array $filters): array
     {
         $query = Appointment::query()
-            ->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)
-            ->with([
-                'user',
-                'timeSlot',
-                'clinic.city',
-                'visitReason',
-                'surgeryType',
-                'latestPayment',
+            // Keep the Inertia payload to fields consumed by the appointment list.
+            ->select([
+                'appointments.id',
+                'appointments.doctor_id',
+                'appointments.clinic_id',
+                'appointments.patient_name',
+                'appointments.patient_phone',
+                'appointments.status',
+                'appointments.appointment_date',
+                'appointments.appointment_time',
+                'appointments.visit_reason_id',
+                'appointments.surgery_type_id',
+                'appointments.surgery_date',
+                'appointments.description',
+                'appointments.visit_number',
             ])
-            ->withCount('payments')
+            ->where('appointments.doctor_id', $doctor->id)
+            ->whereIn('appointments.clinic_id', $clinicIds)
+            ->with([
+                'clinic:id,name',
+                'visitReason:id,title',
+                'surgeryType:id,title',
+                'latestPayment' => fn ($paymentQuery) => $paymentQuery->select([
+                    'appointment_payments.id',
+                    'appointment_payments.appointment_id',
+                    'appointment_payments.status',
+                ]),
+            ])
             ->orderByDesc('appointment_date')
             ->orderByDesc('appointment_time');
 
