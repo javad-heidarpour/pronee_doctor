@@ -99,6 +99,18 @@ final class PatientHealthAccessTest extends AuthTestCase
             $table->timestamps();
         });
 
+        Schema::create('patient_health_observations', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('patient_id');
+            $table->unsignedBigInteger('user_id');
+            $table->string('measurement_type', 32);
+            $table->decimal('value', 10, 2);
+            $table->string('unit', 16);
+            $table->timestamp('observed_at');
+            $table->string('note', 500)->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('security_audit_logs', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('actor_id')->nullable();
@@ -177,7 +189,7 @@ final class PatientHealthAccessTest extends AuthTestCase
             'doctor_id' => $doctor->id,
             'name' => 'Patient',
         ]);
-        PatientAccountAccess::query()->create([
+        $ownerAccess = PatientAccountAccess::query()->create([
             'patient_id' => $patient->id,
             'user_id' => $owner->id,
             'access_type' => 'owner',
@@ -186,6 +198,7 @@ final class PatientHealthAccessTest extends AuthTestCase
 
         $this->actingAs($owner, 'web')
             ->post(route('patient.health.caregivers.store'), [
+                'access_id' => $ownerAccess->id,
                 'email' => $inactiveCaregiver->email,
             ])
             ->assertUnprocessable();
@@ -228,7 +241,7 @@ final class PatientHealthAccessTest extends AuthTestCase
 
         $permissions = ['view_summary', 'view_records', 'view_appointments', 'view_followups', 'manage_caregivers'];
 
-        PatientAccountAccess::query()->create([
+        $ownerAccess = PatientAccountAccess::query()->create([
             'patient_id' => $patient->id,
             'user_id' => $owner->id,
             'access_type' => 'owner',
@@ -243,6 +256,7 @@ final class PatientHealthAccessTest extends AuthTestCase
 
         $this->actingAs($owner, 'web')
             ->post(route('patient.health.caregivers.store'), [
+                'access_id' => $ownerAccess->id,
                 'email' => $existingOwner->email,
             ])
             ->assertStatus(409);
@@ -376,6 +390,240 @@ final class PatientHealthAccessTest extends AuthTestCase
 
         $this->assertDatabaseMissing('security_audit_logs', [
             'event' => 'patient.portal.health.viewed',
+        ]);
+    }
+
+    public function test_owner_observation_is_written_to_the_explicitly_selected_patient_record(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Multi Record Owner',
+            'family' => 'Test',
+            'email' => 'multi-owner-observation@example.test',
+            'username' => 'multi-owner-observation',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+
+        $firstDoctor = Doctor::query()->create([
+            'name' => 'First Doctor',
+            'slug' => 'multi-owner-first-doctor',
+        ]);
+        $secondDoctor = Doctor::query()->create([
+            'name' => 'Second Doctor',
+            'slug' => 'multi-owner-second-doctor',
+        ]);
+        $firstPatient = Patient::query()->create([
+            'doctor_id' => $firstDoctor->id,
+            'name' => 'First Patient Record',
+        ]);
+        $secondPatient = Patient::query()->create([
+            'doctor_id' => $secondDoctor->id,
+            'name' => 'Second Patient Record',
+        ]);
+
+        PatientAccountAccess::query()->create([
+            'patient_id' => $firstPatient->id,
+            'user_id' => $user->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+        $selectedAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $secondPatient->id,
+            'user_id' => $user->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->post(route('patient.health.observations.store'), [
+                'access_id' => $selectedAccess->id,
+                'measurement_type' => 'weight',
+                'value' => 72.5,
+                'observed_at' => now()->subHour()->toDateTimeString(),
+                'note' => 'Before breakfast',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('patient_health_observations', [
+            'patient_id' => $secondPatient->id,
+            'user_id' => $user->id,
+            'measurement_type' => 'weight',
+        ]);
+        $this->assertDatabaseMissing('patient_health_observations', [
+            'patient_id' => $firstPatient->id,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_owner_cannot_submit_an_observation_for_another_users_access_grant(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner',
+            'family' => 'Test',
+            'email' => 'owner-foreign-access@example.test',
+            'username' => 'owner-foreign-access',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $foreignUser = User::query()->create([
+            'name' => 'Foreign Owner',
+            'family' => 'Test',
+            'email' => 'foreign-owner-access@example.test',
+            'username' => 'foreign-owner-access',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $doctor = Doctor::query()->create([
+            'name' => 'Foreign Access Doctor',
+            'slug' => 'foreign-access-doctor',
+        ]);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Foreign Access Patient',
+        ]);
+        $foreignAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $patient->id,
+            'user_id' => $foreignUser->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->post(route('patient.health.observations.store'), [
+                'access_id' => $foreignAccess->id,
+                'measurement_type' => 'weight',
+                'value' => 70,
+                'observed_at' => now()->subHour()->toDateTimeString(),
+            ])
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('patient_health_observations', 0);
+    }
+
+    public function test_observation_deletion_uses_the_patient_bound_to_the_observation_not_the_first_owner_grant(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Multi Record Deleter',
+            'family' => 'Test',
+            'email' => 'multi-owner-delete@example.test',
+            'username' => 'multi-owner-delete',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $firstDoctor = Doctor::query()->create([
+            'name' => 'First Doctor',
+            'slug' => 'multi-owner-delete-first',
+        ]);
+        $secondDoctor = Doctor::query()->create([
+            'name' => 'Second Doctor',
+            'slug' => 'multi-owner-delete-second',
+        ]);
+        $firstPatient = Patient::query()->create([
+            'doctor_id' => $firstDoctor->id,
+            'name' => 'First Patient',
+        ]);
+        $secondPatient = Patient::query()->create([
+            'doctor_id' => $secondDoctor->id,
+            'name' => 'Second Patient',
+        ]);
+        PatientAccountAccess::query()->create([
+            'patient_id' => $firstPatient->id,
+            'user_id' => $user->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+        PatientAccountAccess::query()->create([
+            'patient_id' => $secondPatient->id,
+            'user_id' => $user->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+        $observationId = DB::table('patient_health_observations')->insertGetId([
+            'patient_id' => $secondPatient->id,
+            'user_id' => $user->id,
+            'measurement_type' => 'weight',
+            'value' => 71,
+            'unit' => 'kg',
+            'observed_at' => now()->subHour(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->delete(route('patient.health.observations.destroy', $observationId))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('patient_health_observations', ['id' => $observationId]);
+    }
+
+    public function test_caregiver_grant_targets_the_selected_owner_record_when_multiple_are_linked(): void
+    {
+        $owner = User::query()->create([
+            'name' => 'Multi Record Owner',
+            'family' => 'Test',
+            'email' => 'multi-owner-caregiver@example.test',
+            'username' => 'multi-owner-caregiver',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $caregiver = User::query()->create([
+            'name' => 'Caregiver',
+            'family' => 'Test',
+            'email' => 'selected-caregiver@example.test',
+            'username' => 'selected-caregiver',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $firstDoctor = Doctor::query()->create([
+            'name' => 'First Doctor',
+            'slug' => 'multi-owner-caregiver-first',
+        ]);
+        $secondDoctor = Doctor::query()->create([
+            'name' => 'Second Doctor',
+            'slug' => 'multi-owner-caregiver-second',
+        ]);
+        $firstPatient = Patient::query()->create([
+            'doctor_id' => $firstDoctor->id,
+            'name' => 'First Patient',
+        ]);
+        $secondPatient = Patient::query()->create([
+            'doctor_id' => $secondDoctor->id,
+            'name' => 'Second Patient',
+        ]);
+        PatientAccountAccess::query()->create([
+            'patient_id' => $firstPatient->id,
+            'user_id' => $owner->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+        $selectedAccess = PatientAccountAccess::query()->create([
+            'patient_id' => $secondPatient->id,
+            'user_id' => $owner->id,
+            'access_type' => 'owner',
+            'permissions' => [],
+        ]);
+
+        $this->actingAs($owner, 'web')
+            ->post(route('patient.health.caregivers.store'), [
+                'access_id' => $selectedAccess->id,
+                'email' => $caregiver->email,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('patient_account_accesses', [
+            'patient_id' => $secondPatient->id,
+            'user_id' => $caregiver->id,
+            'access_type' => 'caregiver',
+        ]);
+        $this->assertDatabaseMissing('patient_account_accesses', [
+            'patient_id' => $firstPatient->id,
+            'user_id' => $caregiver->id,
         ]);
     }
 

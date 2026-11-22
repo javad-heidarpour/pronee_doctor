@@ -39,6 +39,18 @@ final class PatientMedicationPlanStateTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('patient_encounters', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('patient_id');
+            $table->string('status', 16);
+        });
+
+        Schema::create('patient_encounter_prescriptions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('encounter_id');
+            $table->unsignedSmallInteger('duration_days')->nullable();
+        });
+
         Schema::create('patient_medication_plans', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('patient_id');
@@ -75,29 +87,42 @@ final class PatientMedicationPlanStateTest extends TestCase
     {
         Schema::dropIfExists('patient_medication_doses');
         Schema::dropIfExists('patient_medication_plans');
+        Schema::dropIfExists('patient_encounter_prescriptions');
+        Schema::dropIfExists('patient_encounters');
         Schema::dropIfExists('patient_account_accesses');
 
         parent::tearDown();
     }
 
-    private function createPlan(string $status = 'active'): PatientMedicationPlan
+    private function createPlan(string $status = 'active', int $patientId = 41): PatientMedicationPlan
     {
         $scheduled = Carbon::now('Asia/Tehran')->subMinutes(5);
         $this->scheduledFor = $scheduled->format('Y-m-d H:i:s');
 
         DB::table('patient_account_accesses')->insert([
-            'id' => 71,
-            'patient_id' => 41,
-            'user_id' => $this->user->id,
-            'access_type' => 'owner',
-            'permissions' => json_encode([]),
-            'created_at' => now(),
-            'updated_at' => now(),
+            [
+                'id' => 71,
+                'patient_id' => 41,
+                'user_id' => $this->user->id,
+                'access_type' => 'owner',
+                'permissions' => json_encode([]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 72,
+                'patient_id' => 42,
+                'user_id' => $this->user->id,
+                'access_type' => 'owner',
+                'permissions' => json_encode([]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         DB::table('patient_medication_plans')->insert([
             'id' => 501,
-            'patient_id' => 41,
+            'patient_id' => $patientId,
             'user_id' => $this->user->id,
             'prescription_id' => 601,
             'start_date' => $scheduled->toDateString(),
@@ -119,6 +144,111 @@ final class PatientMedicationPlanStateTest extends TestCase
             'status' => 'taken',
             'note' => 'Patient-entered note',
         ]);
+    }
+
+    public function test_plan_creation_uses_the_explicitly_selected_owner_grant(): void
+    {
+        DB::table('patient_account_accesses')->insert([
+            [
+                'id' => 71,
+                'patient_id' => 41,
+                'user_id' => $this->user->id,
+                'access_type' => 'owner',
+                'permissions' => json_encode([]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 72,
+                'patient_id' => 42,
+                'user_id' => $this->user->id,
+                'access_type' => 'owner',
+                'permissions' => json_encode([]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('patient_encounters')->insert([
+            'id' => 601,
+            'patient_id' => 42,
+            'status' => 'signed',
+        ]);
+        DB::table('patient_encounter_prescriptions')->insert([
+            'id' => 601,
+            'encounter_id' => 601,
+            'duration_days' => 5,
+        ]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.medication.reminder_created', Mockery::type(PatientMedicationPlan::class));
+
+        $response = (new PatientMedicationController())->store(
+            Request::create('/my-health/medications', 'POST', [
+                'access_id' => 72,
+                'prescription_id' => 601,
+                'start_date' => now()->addDay()->toDateString(),
+                'end_date' => null,
+                'reminder_times' => ['08:00'],
+            ]),
+            $audit
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertDatabaseHas('patient_medication_plans', [
+            'patient_id' => 42,
+            'user_id' => $this->user->id,
+            'prescription_id' => 601,
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseMissing('patient_medication_plans', [
+            'patient_id' => 41,
+            'prescription_id' => 601,
+        ]);
+    }
+
+    public function test_dose_recording_uses_the_owner_grant_for_the_plan_patient_not_the_first_grant(): void
+    {
+        $plan = $this->createPlan('active', 42);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.medication.dose_recorded', $plan);
+
+        $response = (new PatientMedicationController())->recordDose(
+            $this->doseRequest(),
+            $plan,
+            $audit
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertDatabaseHas('patient_medication_doses', [
+            'plan_id' => $plan->id,
+            'status' => 'taken',
+            'recorded_by_user_id' => $this->user->id,
+        ]);
+    }
+
+    public function test_pausing_uses_the_owner_grant_for_the_plan_patient_not_the_first_grant(): void
+    {
+        $plan = $this->createPlan('active', 42);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.medication.reminder_paused', $plan);
+
+        $response = (new PatientMedicationController())->pause(
+            Request::create('/my-health/medications/501/pause', 'POST'),
+            $plan,
+            $audit
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame('paused', $plan->fresh()->status);
     }
 
     public function test_dose_is_rejected_when_a_stale_route_model_points_to_a_paused_plan(): void

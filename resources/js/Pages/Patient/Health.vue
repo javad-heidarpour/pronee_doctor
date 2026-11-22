@@ -8,7 +8,7 @@ const props = defineProps({
 })
 const linkForm = useForm({ national_code: '', phone: '' })
 const clinicToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-const medicationForm = useForm({ prescription_id: '', start_date: clinicToday(), end_date: '', reminder_times: ['08:00'] })
+const medicationForm = useForm({ access_id: props.selectedAccessId, prescription_id: '', start_date: clinicToday(), end_date: '', reminder_times: ['08:00'] })
 const saveMedicationPlan = () => medicationForm.transform(data => ({ ...data, end_date: data.end_date || null, reminder_times: data.reminder_times.filter(Boolean) })).post(route('patient.health.medications.store'), { onSuccess: () => medicationForm.reset('prescription_id', 'end_date') })
 const removeMedicationTime = index => medicationForm.reminder_times.splice(index, 1)
 const doseStatus = (plan, time) => plan.doses?.find(dose => new Intl.DateTimeFormat('en-GB', { timeZone: plan.timezone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(dose.scheduled_for)) === time)?.status
@@ -29,14 +29,14 @@ const localDateTime = () => {
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
   return date.toISOString().slice(0, 16)
 }
-const observationForm = useForm({ measurement_type: 'weight', value: '', observed_at: localDateTime(), note: '' })
+const observationForm = useForm({ access_id: props.selectedAccessId, measurement_type: 'weight', value: '', observed_at: localDateTime(), note: '' })
 const selectedObservation = computed(() => observationOptions.find(item => item.value === observationForm.measurement_type))
 const saveObservation = () => observationForm.post(route('patient.health.observations.store'), { onSuccess: () => observationForm.reset('value', 'note') })
 const deleteObservation = item => {
   if (window.confirm('این ثبت خانگی حذف شود؟')) router.delete(route('patient.health.observations.destroy', item.id))
 }
 const observationLabel = value => observationOptions.find(item => item.value === value)?.label || value
-const caregiverForm = useForm({ email: '' })
+const caregiverForm = useForm({ access_id: props.selectedAccessId, email: '' })
 const requestAccess = () => linkForm.post(route('patient.health.access.request'))
 const switchAccess = event => {
   const accessId = Number(event.target.value)
