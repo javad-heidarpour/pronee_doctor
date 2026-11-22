@@ -40,6 +40,12 @@ final class PatientMedicationController extends Controller
 
     public function store(Request $request, RecordSecurityAuditEventAction $audit)
     {
+        $authenticatedUser = Auth::guard('web')->user();
+        abort_unless(
+            $authenticatedUser && $authenticatedUser->role === 'user' && $authenticatedUser->is_active,
+            403
+        );
+
         $data = $request->validate([
             'access_id' => ['required', 'integer', 'min:1'],
             'prescription_id' => ['required', 'integer', 'exists:patient_encounter_prescriptions,id'],
