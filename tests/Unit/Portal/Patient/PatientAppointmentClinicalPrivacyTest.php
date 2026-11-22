@@ -130,6 +130,12 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
         $this->assertNull($appointment->surgery_type_id);
         $this->assertNull($appointment->surgery_date);
         $this->assertNull($appointment->getRelation('surgeryType'));
+
+        $props = $this->inertiaProps($response);
+        $serializedVisit = $props['appointments']['data'][0];
+        $this->assertNull($serializedVisit['description']);
+        $this->assertNull($serializedVisit['surgery_date']);
+        $this->assertNull($serializedVisit['surgery_type']);
     }
 
     public function test_secretary_without_clinical_view_permission_receives_no_visit_descriptions(): void

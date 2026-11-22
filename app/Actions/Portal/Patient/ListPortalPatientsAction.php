@@ -54,7 +54,6 @@ class ListPortalPatientsAction
             ->selectRaw("{$identityType} as patient_key_type")
             ->selectRaw("{$identityValue} as patient_key_value")
             ->selectRaw('MAX(appointments.patient_id) as patient_id')
-            ->selectRaw('MAX(appointments.patient_national_code) as patient_national_code')
             ->selectRaw('MAX(appointments.id) as fallback_appointment_id')
             ->selectRaw('MAX(appointments.patient_name) as patient_name')
             ->selectRaw('MAX(appointments.patient_phone) as patient_phone')

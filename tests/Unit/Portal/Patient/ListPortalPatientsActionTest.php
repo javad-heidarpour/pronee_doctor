@@ -92,7 +92,7 @@ final class ListPortalPatientsActionTest extends TestCase
     public function test_patient_id_precedes_national_code_and_legacy_rows_remain_separate(): void
     {
         $doctor = $this->doctor();
-        $linkedPatientVisit = $this->appointment($doctor, 10, '2026-11-10', '09:00', [
+        $this->appointment($doctor, 10, '2026-11-10', '09:00', [
             'patient_id' => 101,
             'patient_national_code' => '0012345678',
         ]);
@@ -119,7 +119,6 @@ final class ListPortalPatientsActionTest extends TestCase
         $this->assertSame($otherLinkedPatientVisit->id, (int) $rows['patient:202']->latest_appointment_id);
         $this->assertSame(1, (int) $rows['national_code:0012345678']->appointments_count);
         $this->assertSame($legacyVisit->id, (int) $rows['national_code:0012345678']->latest_appointment_id);
-        $this->assertNotSame($linkedPatientVisit->id, $latestLinkedPatientVisit->id);
     }
 
     public function test_it_searches_by_patient_identity_fields(): void
