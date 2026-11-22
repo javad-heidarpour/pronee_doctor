@@ -16,15 +16,38 @@ final class LoadPortalPatientRecordAction
     public function handle(Appointment $reference, array $accessibleClinicIds): Collection
     {
         $query = Appointment::query()
-            ->where('doctor_id', $reference->doctor_id)
-            ->whereIn('clinic_id', $accessibleClinicIds)
+            // Only serialize fields used by the patient timeline. In particular,
+            // do not send account, slot, or unrelated booking metadata to Inertia.
+            ->select([
+                'appointments.id',
+                'appointments.doctor_id',
+                'appointments.patient_id',
+                'appointments.clinic_id',
+                'appointments.patient_name',
+                'appointments.patient_phone',
+                'appointments.patient_national_code',
+                'appointments.status',
+                'appointments.appointment_date',
+                'appointments.appointment_time',
+                'appointments.description',
+                'appointments.visit_reason_id',
+                'appointments.surgery_type_id',
+                'appointments.surgery_date',
+            ])
+            ->where('appointments.doctor_id', $reference->doctor_id)
+            ->whereIn('appointments.clinic_id', $accessibleClinicIds)
             ->with([
                 'patient' => fn ($patientQuery) => $patientQuery
+                    ->select(['patients.id', 'patients.doctor_id', 'patients.name', 'patients.phone', 'patients.national_code'])
                     ->where('doctor_id', $reference->doctor_id),
-                'clinic',
-                'visitReason',
-                'latestPayment',
-                'surgeryType',
+                'clinic:id,name',
+                'visitReason:id,title',
+                'latestPayment' => fn ($paymentQuery) => $paymentQuery->select([
+                    'appointment_payments.id',
+                    'appointment_payments.appointment_id',
+                    'appointment_payments.status',
+                ]),
+                'surgeryType:id,title',
             ]);
 
         if ($reference->patient_id !== null) {

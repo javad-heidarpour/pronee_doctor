@@ -295,6 +295,60 @@ final class LoadPortalPatientRecordActionTest extends TestCase
         $this->assertCount(0, $details->patientHistory);
     }
 
+    public function test_patient_timeline_serializes_only_fields_needed_by_the_page(): void
+    {
+        $doctor = $this->doctor('doctor-minimal-patient-timeline');
+        DB::table('addresses')->insert([
+            'id' => 10,
+            'doctor_id' => $doctor->id,
+            'name' => 'Test Clinic',
+        ]);
+        DB::table('visit_reasons')->insert([
+            'id' => 1,
+            'title' => 'Consultation',
+        ]);
+        DB::table('surgery_types')->insert([
+            'id' => 1,
+            'title' => 'Procedure',
+        ]);
+
+        $reference = $this->visit($doctor, 10, '2026-11-17', '10:00', [
+            'patient_id' => 101,
+            'visit_reason_id' => 1,
+            'surgery_type_id' => 1,
+        ]);
+
+        DB::table('appointment_payments')->insert([
+            'appointment_id' => $reference->id,
+            'status' => 'paid',
+            'gateway_name' => 'sep',
+            'gateway_token' => 'private-token',
+            'ref_num' => 'private-reference',
+            'terminal_id' => 'private-terminal',
+            'gateway_result_message' => 'private gateway response',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $visit = app(LoadPortalPatientRecordAction::class)
+            ->handle($reference, [10])
+            ->firstOrFail();
+
+        $this->assertSame('Test Clinic', $visit->clinic->name);
+        $this->assertSame('Consultation', $visit->visitReason->title);
+        $this->assertSame('Procedure', $visit->surgeryType->title);
+        $this->assertSame('paid', $visit->latestPayment->status);
+        $this->assertArrayNotHasKey('user_id', $visit->getAttributes());
+        $this->assertArrayNotHasKey('time_slot_id', $visit->getAttributes());
+        $this->assertArrayNotHasKey('gateway_token', $visit->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('ref_num', $visit->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('terminal_id', $visit->latestPayment->getAttributes());
+        $this->assertArrayNotHasKey('gateway_result_message', $visit->latestPayment->getAttributes());
+        $this->assertSame(['id', 'name'], array_keys($visit->clinic->getAttributes()));
+        $this->assertSame(['id', 'title'], array_keys($visit->visitReason->getAttributes()));
+        $this->assertSame(['id', 'title'], array_keys($visit->surgeryType->getAttributes()));
+    }
+
     public function test_it_prefers_the_stable_patient_id_when_loading_a_patient_timeline(): void
     {
         $doctor = $this->doctor('doctor-stable-patient');
