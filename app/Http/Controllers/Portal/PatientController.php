@@ -87,6 +87,12 @@ class PatientController extends Controller
         $result = $action->handle($doctor, $clinicIds, $filters);
         $options = $optionsAction->handle($doctor, $clinicIds);
 
+        if (!$this->canViewClinicalNotes($doctor)) {
+            $result['appointments']->getCollection()->each(
+                fn (Appointment $appointment) => $this->redactClinicalNotes($appointment)
+            );
+        }
+
         // Appointment rows expose patient identifiers and visit context.
         // Record access without persisting search terms or patient values.
         $audit->handle('appointments.listed', null, ['doctor_id' => $doctor->id]);
@@ -383,6 +389,9 @@ class PatientController extends Controller
     protected function redactClinicalNotes(Appointment $appointment): void
     {
         $appointment->setAttribute('description', null);
+        $appointment->setAttribute('surgery_type_id', null);
+        $appointment->setAttribute('surgery_date', null);
+        $appointment->setRelation('surgeryType', null);
 
         if ($appointment->relationLoaded('patientHistory')) {
             $appointment->getRelation('patientHistory')->each(

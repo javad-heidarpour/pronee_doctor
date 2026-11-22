@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Portal\Appointment\LoadPortalAppointmentDetailsAction;
+use App\Actions\Portal\Appointment\BuildPatientIndexOptionsAction;
+use App\Actions\Portal\Appointment\ListPortalAppointmentsAction;
+use App\Http\Requests\Portal\ListPortalAppointmentsRequest;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientController;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\User;
+use App\Models\SurgeryType;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Response;
 use Mockery;
@@ -78,6 +83,53 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
         $request->headers->set('X-Inertia', 'true');
 
         return $response->toResponse($request)->getData(true)['props'];
+    }
+
+    public function test_appointments_index_redacts_visit_notes_and_surgery_details_without_clinical_access(): void
+    {
+        $controller = $this->controller();
+        $doctor = $controller->testDoctor;
+        $appointment = $this->appointment();
+        $appointment->surgery_type_id = 7;
+        $appointment->surgery_date = '2026-12-01';
+
+        $surgeryType = new SurgeryType();
+        $surgeryType->id = 7;
+        $surgeryType->title = 'Private procedure';
+        $appointment->setRelation('surgeryType', $surgeryType);
+
+        $paginator = new LengthAwarePaginator(collect([$appointment]), 1, 20, 1);
+        $request = Mockery::mock(ListPortalAppointmentsRequest::class);
+        $request->shouldReceive('validated')->once()->andReturn([]);
+
+        $action = Mockery::mock(ListPortalAppointmentsAction::class);
+        $action->shouldReceive('handle')
+            ->once()
+            ->with($doctor, [31], [])
+            ->andReturn(['appointments' => $paginator, 'stats' => []]);
+
+        $options = Mockery::mock(BuildPatientIndexOptionsAction::class);
+        $options->shouldReceive('handle')
+            ->once()
+            ->with($doctor, [31])
+            ->andReturn([
+                'clinics' => collect(),
+                'visitReasons' => collect(),
+                'surgeryTypes' => collect(),
+            ]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('appointments.listed', null, ['doctor_id' => 11]);
+
+        $response = $controller->index($request, $action, $options, $audit);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertNull($appointment->description);
+        $this->assertNull($appointment->surgery_type_id);
+        $this->assertNull($appointment->surgery_date);
+        $this->assertNull($appointment->getRelation('surgeryType'));
     }
 
     public function test_secretary_without_clinical_view_permission_receives_no_visit_descriptions(): void
