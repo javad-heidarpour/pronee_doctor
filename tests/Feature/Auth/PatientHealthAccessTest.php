@@ -627,6 +627,82 @@ final class PatientHealthAccessTest extends AuthTestCase
         ]);
     }
 
+    public function test_access_request_is_created_when_exactly_one_patient_identity_matches(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Access Request User',
+            'family' => 'Test',
+            'email' => 'access-request-single@example.test',
+            'username' => 'access-request-single',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $doctor = Doctor::query()->create([
+            'name' => 'Access Request Doctor',
+            'slug' => 'access-request-single-doctor',
+        ]);
+        $patient = Patient::query()->create([
+            'doctor_id' => $doctor->id,
+            'name' => 'Verified Patient Candidate',
+            'phone' => '09120000000',
+            'national_code' => '0012345678',
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->post(route('patient.health.access.request'), [
+                'national_code' => '0012345678',
+                'phone' => '09120000000',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('patient_access_requests', [
+            'user_id' => $user->id,
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_access_request_does_not_choose_arbitrarily_between_duplicate_patient_identity_matches(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ambiguous Access User',
+            'family' => 'Test',
+            'email' => 'access-request-ambiguous@example.test',
+            'username' => 'access-request-ambiguous',
+            'password' => 'password',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+        $firstDoctor = Doctor::query()->create([
+            'name' => 'First Candidate Doctor',
+            'slug' => 'access-request-ambiguous-first',
+        ]);
+        $secondDoctor = Doctor::query()->create([
+            'name' => 'Second Candidate Doctor',
+            'slug' => 'access-request-ambiguous-second',
+        ]);
+
+        foreach ([$firstDoctor, $secondDoctor] as $doctor) {
+            Patient::query()->create([
+                'doctor_id' => $doctor->id,
+                'name' => 'Duplicate Identity Candidate',
+                'phone' => '09120000000',
+                'national_code' => '0012345678',
+            ]);
+        }
+
+        $this->actingAs($user, 'web')
+            ->post(route('patient.health.access.request'), [
+                'national_code' => '0012345678',
+                'phone' => '09120000000',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseCount('patient_access_requests', 0);
+    }
+
     /**
      * @return array{0: User, 1: PatientAccountAccess}
      */

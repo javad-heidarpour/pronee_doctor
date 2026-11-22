@@ -273,8 +273,13 @@ final class PatientHealthController extends Controller
         };
 
         $submittedPhone = $normalizePhone($data['phone']);
-        $patient = Patient::query()->where('national_code', $nationalCode)->get()
-            ->first(fn (Patient $candidate) => $normalizePhone($candidate->phone) === $submittedPhone);
+        $matches = Patient::query()->where('national_code', $nationalCode)->get()
+            ->filter(fn (Patient $candidate) => $normalizePhone($candidate->phone) === $submittedPhone)
+            ->values();
+
+        // A duplicate identity match is ambiguous. Fail closed instead of linking
+        // the account to whichever doctor's patient row happens to be returned first.
+        $patient = $matches->count() === 1 ? $matches->first() : null;
 
         // Do not reveal whether a record exists; clinic staff must verify identity.
         if ($patient) {
