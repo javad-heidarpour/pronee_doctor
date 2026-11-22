@@ -18,43 +18,25 @@ use Illuminate\Validation\ValidationException;
 
 final class PatientMedicationController extends Controller
 {
-    private function owner(?int $patientId = null, ?int $accessId = null): array
+    private function owner(): array
     {
         $user = Auth::guard('web')->user();
         abort_unless($user && $user->role === 'user' && $user->is_active, 403);
-
-        $query = PatientAccountAccess::query()->active()
-            ->where('user_id', $user->id)
-            ->where('access_type', 'owner');
-
-        if ($patientId !== null) {
-            $query->where('patient_id', $patientId);
-        }
-
-        if ($accessId !== null) {
-            $query->whereKey($accessId);
-        }
-
-        return [$user, $query->firstOrFail()];
+        $access = PatientAccountAccess::query()->active()
+            ->where('user_id', $user->id)->where('access_type', 'owner')->firstOrFail();
+        return [$user, $access];
     }
 
     public function store(Request $request, RecordSecurityAuditEventAction $audit)
     {
-        $authenticatedUser = Auth::guard('web')->user();
-        abort_unless(
-            $authenticatedUser && $authenticatedUser->role === 'user' && $authenticatedUser->is_active,
-            403
-        );
-
+        [$user, $access] = $this->owner();
         $data = $request->validate([
-            'access_id' => ['required', 'integer', 'min:1'],
             'prescription_id' => ['required', 'integer', 'exists:patient_encounter_prescriptions,id'],
             'start_date' => ['required', 'date', 'after_or_equal:today', 'before_or_equal:'.now()->addYear()->toDateString()],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'reminder_times' => ['required', 'array', 'min:1', 'max:6'],
             'reminder_times.*' => ['required', 'date_format:H:i', 'distinct'],
         ]);
-        [$user, $access] = $this->owner(accessId: (int) $data['access_id']);
 
         $prescription = PatientEncounterPrescription::query()
             ->whereKey($data['prescription_id'])
@@ -84,8 +66,8 @@ final class PatientMedicationController extends Controller
 
     public function recordDose(Request $request, PatientMedicationPlan $plan, RecordSecurityAuditEventAction $audit)
     {
-        [$user, $access] = $this->owner(patientId: (int) $plan->patient_id);
-        abort_unless((int) $plan->user_id === (int) $user->id && $plan->status === 'active', 404);
+        [$user, $access] = $this->owner();
+        abort_unless((int) $plan->patient_id === (int) $access->patient_id && (int) $plan->user_id === (int) $user->id && $plan->status === 'active', 404);
 
         $data = $request->validate([
             'scheduled_for' => ['required', 'date'],
@@ -147,8 +129,8 @@ final class PatientMedicationController extends Controller
 
     public function pause(Request $request, PatientMedicationPlan $plan, RecordSecurityAuditEventAction $audit)
     {
-        [$user, $access] = $this->owner(patientId: (int) $plan->patient_id);
-        abort_unless((int) $plan->user_id === (int) $user->id, 404);
+        [$user, $access] = $this->owner();
+        abort_unless((int) $plan->patient_id === (int) $access->patient_id && (int) $plan->user_id === (int) $user->id, 404);
 
         DB::transaction(function () use ($plan, $user, $access): void {
             $lockedAccess = PatientAccountAccess::query()
