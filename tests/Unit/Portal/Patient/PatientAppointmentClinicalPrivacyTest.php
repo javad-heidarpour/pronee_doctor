@@ -71,6 +71,15 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
         return $appointment;
     }
 
+    /** @return array<string, mixed> */
+    private function inertiaProps(Response $response): array
+    {
+        $request = request();
+        $request->headers->set('X-Inertia', 'true');
+
+        return $response->toResponse($request)->getData(true)['props'];
+    }
+
     public function test_secretary_without_clinical_view_permission_receives_no_visit_descriptions(): void
     {
         $controller = $this->controller();
@@ -97,8 +106,8 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertNull($appointment->description);
         $this->assertNull($history->description);
-        $this->assertFalse($response->getProps()['canViewClinicalNotes']);
-        $this->assertFalse($response->getProps()['canEditVisitDetails']);
+        $this->assertFalse($this->inertiaProps($response)['canViewClinicalNotes']);
+        $this->assertFalse($this->inertiaProps($response)['canEditVisitDetails']);
     }
 
     public function test_secretary_with_existing_visit_edit_permissions_can_read_the_notes_they_can_edit(): void
@@ -121,8 +130,8 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame('Private diagnosis and treatment notes', $appointment->description);
-        $this->assertTrue($response->getProps()['canViewClinicalNotes']);
-        $this->assertTrue($response->getProps()['canEditVisitDetails']);
+        $this->assertTrue($this->inertiaProps($response)['canViewClinicalNotes']);
+        $this->assertTrue($this->inertiaProps($response)['canEditVisitDetails']);
     }
 
     public function test_secretary_with_clinical_view_permission_can_read_but_not_edit_visit_notes(): void
@@ -151,7 +160,7 @@ final class PatientAppointmentClinicalPrivacyTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame('Private diagnosis and treatment notes', $appointment->description);
         $this->assertSame('Earlier clinical note', $history->description);
-        $this->assertTrue($response->getProps()['canViewClinicalNotes']);
-        $this->assertFalse($response->getProps()['canEditVisitDetails']);
+        $this->assertTrue($this->inertiaProps($response)['canViewClinicalNotes']);
+        $this->assertFalse($this->inertiaProps($response)['canEditVisitDetails']);
     }
 }

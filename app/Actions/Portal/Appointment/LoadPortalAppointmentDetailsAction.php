@@ -12,7 +12,7 @@ class LoadPortalAppointmentDetailsAction
             'clinic:id,name',
             'visitReason:id,title',
             'surgeryType:id,title',
-            'latestPayment:id,appointment_id,status,gateway_name,amount_rial,paid_at',
+            'latestPayment:appointment_payments.id,appointment_payments.appointment_id,appointment_payments.status,appointment_payments.gateway_name,appointment_payments.amount_rial,appointment_payments.paid_at',
             'smsLogs:id,appointment_id,status,created_at',
         ]);
 
@@ -60,7 +60,7 @@ class LoadPortalAppointmentDetailsAction
                 ->with([
                     'clinic:id,name',
                     'visitReason:id,title',
-                    'latestPayment:id,appointment_id,status',
+                    'latestPayment:appointment_payments.id,appointment_payments.appointment_id,appointment_payments.status',
                 ])
                 ->orderByDesc('appointment_date')
                 ->orderByDesc('appointment_time')
