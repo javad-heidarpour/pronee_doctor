@@ -148,6 +148,27 @@ final class PatientMedicationPlanStateTest extends TestCase
 
     public function test_plan_creation_uses_the_explicitly_selected_owner_grant(): void
     {
+        DB::table('patient_account_accesses')->insert([
+            [
+                'id' => 71,
+                'patient_id' => 41,
+                'user_id' => $this->user->id,
+                'access_type' => 'owner',
+                'permissions' => json_encode([]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 72,
+                'patient_id' => 42,
+                'user_id' => $this->user->id,
+                'access_type' => 'owner',
+                'permissions' => json_encode([]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
         DB::table('patient_encounters')->insert([
             'id' => 601,
             'patient_id' => 42,
