@@ -201,17 +201,15 @@ final class PatientHealthController extends Controller
     {
         $user = $this->authenticatedPatient();
 
-        $ownerAccess = PatientAccountAccess::query()->active()
-            ->where('user_id', $user->id)
-            ->where('access_type', 'owner')
-            ->firstOrFail();
-
         $validated = $request->validate([
+            'access_id' => ['required', 'integer', 'min:1'],
             'measurement_type' => ['required', 'string', Rule::in(array_keys(PatientHealthObservation::MEASUREMENTS))],
             'value' => ['required', 'numeric'],
             'observed_at' => ['required', 'date', 'before_or_equal:now', 'after_or_equal:'.now()->subYears(2)->toDateTimeString()],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $ownerAccess = $this->ownedOwnerAccess($user, accessId: (int) $validated['access_id']);
 
         $definition = PatientHealthObservation::MEASUREMENTS[$validated['measurement_type']];
         abort_if(
@@ -240,16 +238,14 @@ final class PatientHealthController extends Controller
     {
         $user = $this->authenticatedPatient();
 
-        $ownerAccess = PatientAccountAccess::query()->active()
-            ->where('user_id', $user->id)
-            ->where('access_type', 'owner')
-            ->firstOrFail();
-
         $record = PatientHealthObservation::query()
             ->whereKey($observation)
-            ->where('patient_id', $ownerAccess->patient_id)
             ->where('user_id', $user->id)
             ->firstOrFail();
+
+        // Resolve ownership from the observation itself so a second linked
+        // patient record is not accidentally checked against the first grant.
+        $this->ownedOwnerAccess($user, patientId: (int) $record->patient_id);
 
         $record->delete();
         $audit->handle('patient.health_observation.deleted', $record);
@@ -306,10 +302,12 @@ final class PatientHealthController extends Controller
     public function grantCaregiver(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $user = $this->authenticatedPatient();
-        $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
+        $data = $request->validate([
+            'access_id' => ['required', 'integer', 'min:1'],
+            'email' => ['required', 'email', 'max:255'],
+        ]);
 
-        $ownerAccess = PatientAccountAccess::query()->active()
-            ->where('user_id', $user->id)->where('access_type', 'owner')->firstOrFail();
+        $ownerAccess = $this->ownedOwnerAccess($user, accessId: (int) $data['access_id']);
 
         $caregiver = User::query()->where('email', $data['email'])->where('role', 'user')->where('is_active', true)->first();
         abort_unless($caregiver && (int) $caregiver->id !== (int) $user->id, 422, 'حساب مراقب یافت نشد یا معتبر نیست.');
@@ -358,6 +356,26 @@ final class PatientHealthController extends Controller
 
         return back()->with('success', 'دسترسی مراقب لغو شد.');
     }
+    private function ownedOwnerAccess(
+        User $user,
+        ?int $accessId = null,
+        ?int $patientId = null
+    ): PatientAccountAccess {
+        $query = PatientAccountAccess::query()->active()
+            ->where('user_id', $user->id)
+            ->where('access_type', 'owner');
+
+        if ($accessId !== null) {
+            $query->whereKey($accessId);
+        }
+
+        if ($patientId !== null) {
+            $query->where('patient_id', $patientId);
+        }
+
+        return $query->firstOrFail();
+    }
+
     private function authenticatedPatient(): User
     {
         $user = Auth::guard('web')->user();
