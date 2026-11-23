@@ -43,11 +43,14 @@ final class PatientEncounterController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        $appointment->load('patient:id,name', 'clinic:id,name');
         $audit->handle('patient.encounters.listed', $appointment, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Encounters/Index', [
             'doctor' => $doctor,
-            'appointment' => $appointment->load('patient:id,name,phone,national_code', 'clinic:id,name'),
+            'appointment' => $this->appointmentPayload($appointment) + [
+                'patient' => $this->patientPayload($appointment->patient),
+            ],
             'encounters' => $encounters,
         ]);
     }
@@ -70,8 +73,8 @@ final class PatientEncounterController extends Controller
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,
-            'appointment' => $appointment->load('clinic:id,name'),
-            'patient' => $patient,
+            'appointment' => $this->appointmentPayload($appointment->load('clinic:id,name')),
+            'patient' => $this->patientPayload($patient),
             'context' => $context,
             'encounter' => null,
             'amendsEncounter' => null,
@@ -127,13 +130,27 @@ final class PatientEncounterController extends Controller
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeClinicalView($doctor);
 
-        $encounter->load(['patient', 'appointment', 'clinic', 'author:id,name,family', 'signer:id,name,family', 'prescriptions']);
+        // Resolve related records through the same doctor and clinic scope; do not
+        // serialize the full appointment or patient models into the clinical editor.
+        $encounter->load(['signer:id,name,family', 'prescriptions']);
+        $patient = Patient::query()
+            ->whereKey($encounter->patient_id)
+            ->where('doctor_id', $doctor->id)
+            ->firstOrFail();
+        $appointment = Appointment::query()
+            ->whereKey($encounter->appointment_id)
+            ->where('doctor_id', $doctor->id)
+            ->where('patient_id', $patient->id)
+            ->where('clinic_id', $encounter->clinic_id)
+            ->with('clinic:id,name')
+            ->firstOrFail();
+
         $audit->handle('patient.encounter.viewed', $encounter, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,
-            'appointment' => $encounter->appointment->load('clinic:id,name'),
-            'patient' => $encounter->patient,
+            'appointment' => $this->appointmentPayload($appointment),
+            'patient' => $this->patientPayload($patient),
             'context' => $encounter->clinical_snapshot ?? [],
             'encounter' => $encounter,
             'amendsEncounter' => null,
@@ -147,14 +164,26 @@ final class PatientEncounterController extends Controller
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         abort_unless($encounter->status === PatientEncounter::STATUS_SIGNED, 409);
-        $encounter->load(['patient', 'appointment', 'clinic', 'prescriptions']);
+        $encounter->load('prescriptions');
+        $patient = Patient::query()
+            ->whereKey($encounter->patient_id)
+            ->where('doctor_id', $doctor->id)
+            ->firstOrFail();
+        $appointment = Appointment::query()
+            ->whereKey($encounter->appointment_id)
+            ->where('doctor_id', $doctor->id)
+            ->where('patient_id', $patient->id)
+            ->where('clinic_id', $encounter->clinic_id)
+            ->with('clinic:id,name')
+            ->firstOrFail();
+
         $audit->handle('patient.encounter.amend_form_viewed', $encounter, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Encounters/Editor', [
             'doctor' => $doctor,
-            'appointment' => $encounter->appointment->load('clinic:id,name'),
-            'patient' => $encounter->patient,
-            'context' => $this->clinicalContext($encounter->patient, $doctor->id),
+            'appointment' => $this->appointmentPayload($appointment),
+            'patient' => $this->patientPayload($patient),
+            'context' => $this->clinicalContext($patient, $doctor->id),
             'encounter' => null,
             'amendsEncounter' => $encounter,
         ]);
@@ -202,6 +231,26 @@ final class PatientEncounterController extends Controller
         ]);
 
         return back()->with('success', 'یادداشت ویزیت نهایی و قفل شد.');
+    }
+
+
+    private function appointmentPayload(Appointment $appointment): array
+    {
+        return [
+            'id' => $appointment->id,
+            'clinic' => $appointment->clinic ? [
+                'id' => $appointment->clinic->id,
+                'name' => $appointment->clinic->name,
+            ] : null,
+        ];
+    }
+
+    private function patientPayload(Patient $patient): array
+    {
+        return [
+            'id' => $patient->id,
+            'name' => $patient->name,
+        ];
     }
 
     private function authorizeClinicalRole(): void
