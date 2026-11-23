@@ -33,7 +33,7 @@ class PatientFollowUpController extends Controller
             'scope' => ['nullable', Rule::in(['all', 'overdue', 'today', 'mine'])],
             'search' => ['nullable', 'string', 'max:100'],
             'patient_id' => ['nullable', 'integer'],
-            'appointment_id' => ['nullable', 'integer'],
+            'appointment_id' => ['nullable', 'integer', 'prohibited_without:patient_id'],
         ]);
 
         $clinicIds = $this->accessibleClinicIds($doctor);
@@ -61,6 +61,8 @@ class PatientFollowUpController extends Controller
         $query = PatientFollowUpTask::query()
             ->where('doctor_id', $doctor->id)
             ->whereIn('clinic_id', $clinicIds)
+            ->when($selectedPatientId !== null, fn ($q) => $q->where('patient_id', $selectedPatientId))
+            ->when($selectedAppointmentId !== null, fn ($q) => $q->where('appointment_id', $selectedAppointmentId))
             ->with(['patient:id,name,phone', 'clinic:id,name', 'assignee:id,name,family', 'appointment:id,appointment_date,appointment_time'])
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when(($filters['scope'] ?? null) === 'overdue', fn ($q) => $q->overdue())
