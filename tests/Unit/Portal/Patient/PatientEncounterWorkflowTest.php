@@ -212,6 +212,9 @@ final class PatientEncounterWorkflowTest extends TestCase
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
             ->once()
+            ->with('patient.encounters.listed', Mockery::type(Appointment::class), ['doctor_id' => 11]);
+        $audit->shouldReceive('handle')
+            ->once()
             ->with('patient.encounter.viewed', Mockery::type(PatientEncounter::class), ['doctor_id' => 11]);
         $audit->shouldReceive('handle')
             ->once()
@@ -256,6 +259,15 @@ final class PatientEncounterWorkflowTest extends TestCase
             'id' => $appointment->id,
             'clinic' => ['id' => 31, 'name' => 'Test Clinic'],
         ], $createProps['appointment']);
+
+        $list = $controller->index($appointment, $audit);
+        $listProps = $list->toResponse($request)->getData(true)['props'];
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $listProps['appointment']['patient']);
+        $this->assertArrayNotHasKey('phone', $listProps['appointment']['patient']);
+        $this->assertArrayNotHasKey('national_code', $listProps['appointment']['patient']);
+        $this->assertCount(1, $listProps['encounters']);
+        $this->assertSame(0, $listProps['encounters'][0]['prescriptions_count']);
+        $this->assertArrayNotHasKey('prescriptions', $listProps['encounters'][0]);
     }
 
 
