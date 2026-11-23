@@ -13,7 +13,7 @@
             <Link :href="route('portal.encounters.show', item.id)" class="rounded-xl border px-4 py-2 text-xs font-bold text-teal-800">{{ item.status === 'signed' ? 'مشاهده یادداشت' : 'ادامه پیش‌نویس' }}</Link>
           </div>
           <p v-if="item.assessment" class="mt-3 line-clamp-2 text-sm leading-7 text-slate-700">{{ item.assessment }}</p>
-          <p class="mt-2 text-xs text-slate-500">{{ item.prescriptions?.length || 0 }} قلم دارو · {{ item.clinic?.name || 'مطب' }}</p>
+          <p class="mt-2 text-xs text-slate-500">{{ item.prescriptions_count || 0 }} قلم دارو · {{ item.clinic?.name || 'مطب' }}</p>
         </article>
       </section>
     </main>

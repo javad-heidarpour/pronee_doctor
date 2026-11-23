@@ -14,6 +14,8 @@ use App\Models\Patient;
 use App\Models\PatientEncounter;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -65,6 +67,18 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('patient_id');
             $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('time_slot_id')->nullable();
+            $table->string('patient_name')->nullable();
+            $table->string('patient_phone')->nullable();
+            $table->string('patient_national_code')->nullable();
+            $table->string('visit_number')->nullable();
+            $table->unsignedBigInteger('fee_rial')->nullable();
+            $table->dateTime('reservation_expires_at')->nullable();
+            $table->unsignedBigInteger('visit_reason_id')->nullable();
+            $table->text('description')->nullable();
+            $table->unsignedBigInteger('surgery_type_id')->nullable();
+            $table->date('surgery_date')->nullable();
             $table->string('status');
             $table->timestamps();
         });
@@ -159,11 +173,20 @@ final class PatientEncounterWorkflowTest extends TestCase
         $patient = Patient::query()->create([
             'doctor_id' => 11,
             'name' => 'Audit Patient',
+            'phone' => '09120000000',
+            'national_code' => '0012345678',
         ]);
         $appointment = Appointment::query()->create([
             'doctor_id' => 11,
             'patient_id' => $patient->id,
             'clinic_id' => 31,
+            'user_id' => 1234,
+            'patient_name' => 'Audit Patient',
+            'patient_phone' => '09120000000',
+            'patient_national_code' => '0012345678',
+            'fee_rial' => 1250000,
+            'reservation_expires_at' => now()->addHour(),
+            'description' => 'Sensitive booking details',
             'status' => 'confirmed',
         ]);
         $encounter = PatientEncounter::query()->create([
@@ -189,6 +212,9 @@ final class PatientEncounterWorkflowTest extends TestCase
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
             ->once()
+            ->with('patient.encounters.listed', Mockery::type(Appointment::class), ['doctor_id' => 11]);
+        $audit->shouldReceive('handle')
+            ->once()
             ->with('patient.encounter.viewed', Mockery::type(PatientEncounter::class), ['doctor_id' => 11]);
         $audit->shouldReceive('handle')
             ->once()
@@ -198,10 +224,107 @@ final class PatientEncounterWorkflowTest extends TestCase
             ->with('patient.encounter.create_form_viewed', Mockery::type(Appointment::class), ['doctor_id' => 11]);
 
         $controller = new PatientEncounterController();
+        $request = Request::create('/portal/encounters', 'GET');
+        $request->headers->set('X-Inertia', 'true');
 
-        $this->assertInstanceOf(\Inertia\Response::class, $controller->show($encounter, $audit));
-        $this->assertInstanceOf(\Inertia\Response::class, $controller->amend($encounter, $audit));
-        $this->assertInstanceOf(\Inertia\Response::class, $controller->create($appointment, $audit));
+        $show = $controller->show($encounter, $audit);
+        $showProps = $show->toResponse($request)->getData(true)['props'];
+        $this->assertSame([
+            'id' => $appointment->id,
+            'clinic' => ['id' => 31, 'name' => 'Test Clinic'],
+        ], $showProps['appointment']);
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $showProps['patient']);
+        foreach (['doctor_id', 'patient_id', 'appointment_id', 'clinic_id', 'author_id', 'signed_by'] as $field) {
+            $this->assertArrayNotHasKey($field, $showProps['encounter']);
+        }
+        foreach (['patient', 'appointment', 'clinic', 'author'] as $relation) {
+            $this->assertArrayNotHasKey($relation, $showProps['encounter']);
+        }
+        $this->assertArrayNotHasKey('patient_phone', $showProps['appointment']);
+        $this->assertArrayNotHasKey('patient_national_code', $showProps['appointment']);
+        $this->assertArrayNotHasKey('user_id', $showProps['appointment']);
+        $this->assertArrayNotHasKey('fee_rial', $showProps['appointment']);
+        $this->assertArrayNotHasKey('description', $showProps['appointment']);
+
+        $amend = $controller->amend($encounter, $audit);
+        $amendProps = $amend->toResponse($request)->getData(true)['props'];
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $amendProps['patient']);
+        $this->assertArrayNotHasKey('patient_id', $amendProps['amendsEncounter']);
+        $this->assertArrayNotHasKey('appointment_id', $amendProps['amendsEncounter']);
+
+        $create = $controller->create($appointment, $audit);
+        $createProps = $create->toResponse($request)->getData(true)['props'];
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $createProps['patient']);
+        $this->assertSame([
+            'id' => $appointment->id,
+            'clinic' => ['id' => 31, 'name' => 'Test Clinic'],
+        ], $createProps['appointment']);
+
+        $list = $controller->index($appointment, $audit);
+        $listProps = $list->toResponse($request)->getData(true)['props'];
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $listProps['appointment']['patient']);
+        $this->assertArrayNotHasKey('phone', $listProps['appointment']['patient']);
+        $this->assertArrayNotHasKey('national_code', $listProps['appointment']['patient']);
+        $this->assertCount(1, $listProps['encounters']);
+        $this->assertSame(0, $listProps['encounters'][0]['prescriptions_count']);
+        $this->assertArrayNotHasKey('prescriptions', $listProps['encounters'][0]);
+    }
+
+
+    public function test_encounter_index_rejects_a_patient_record_owned_by_another_doctor(): void
+    {
+        $now = now();
+
+        DB::table('doctors')->insert([
+            [
+                'id' => 11,
+                'user_id' => 99,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'id' => 12,
+                'user_id' => 100,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $foreignPatient = Patient::query()->create([
+            'doctor_id' => 12,
+            'name' => 'Another Doctor Patient',
+        ]);
+
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $foreignPatient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        $this->expectException(ModelNotFoundException::class);
+
+        (new PatientEncounterController())->index($appointment, $audit);
     }
 
     public function test_it_creates_a_structured_draft_with_prescriptions_and_a_clinical_snapshot(): void
