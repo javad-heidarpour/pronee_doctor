@@ -172,7 +172,11 @@ class PatientFollowUpController extends Controller
 
         // Follow-up operators without clinical-note permission may update workflow state,
         // but must not write free-text clinical results.
-        if (!$this->canViewClinicalNotes($doctor)) {
+        // Viewing a clinical note is not permission to change it. Keep workflow
+        // updates available to patients.manage operators, but only allow free-text
+        // clinical results for clinical managers (or the existing appointment
+        // management compatibility grant).
+        if (!$this->canManageClinicalNotes($doctor)) {
             unset($data['result_notes']);
         }
 
@@ -266,6 +270,34 @@ class PatientFollowUpController extends Controller
 
         return back()->with('success', 'الگو غیرفعال شد؛ سوابق قبلی حفظ شدند.');
     }
+    private function canManageClinicalNotes(Doctor $doctor): bool
+    {
+        $user = Auth::guard('web')->user();
+
+        if (!$user || $user->role !== 'secretary') {
+            return true;
+        }
+
+        $assignment = $user->doctors()
+            ->where('doctors.id', $doctor->id)
+            ->first();
+
+        $permissions = $assignment?->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        if (!is_array($permissions)) {
+            return false;
+        }
+
+        return in_array('patients.clinical.manage', $permissions, true)
+            || (
+                in_array('appointments.manage', $permissions, true)
+                && in_array('patients.manage', $permissions, true)
+            );
+    }
+
     /**
      * Secretary follow-up screens need workflow metadata, not unrestricted clinical text.
      * Mirror the appointment-note permission rule used by the patient portal.
