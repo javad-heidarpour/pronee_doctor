@@ -46,13 +46,17 @@ final class PatientEncounterController extends Controller
             ->map(fn (PatientEncounter $item): array => $this->encounterListPayload($item))
             ->values();
 
-        $appointment->load('patient:id,name', 'clinic:id,name');
+        $patient = Patient::query()
+            ->whereKey($appointment->patient_id)
+            ->where('doctor_id', $doctor->id)
+            ->firstOrFail();
+        $appointment->load('clinic:id,name');
         $audit->handle('patient.encounters.listed', $appointment, ['doctor_id' => $doctor->id]);
 
         return Inertia::render('Portal/Encounters/Index', [
             'doctor' => $doctor,
             'appointment' => $this->appointmentPayload($appointment) + [
-                'patient' => $appointment->patient ? $this->patientPayload($appointment->patient) : null,
+                'patient' => $this->patientPayload($patient),
             ],
             'encounters' => $encounters,
         ]);
