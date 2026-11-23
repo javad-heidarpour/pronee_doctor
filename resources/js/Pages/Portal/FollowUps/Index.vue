@@ -94,7 +94,7 @@
                 <p class="mt-1 text-sm text-slate-600">{{ task.patient?.name }} · {{ task.patient?.phone || 'بدون شماره تماس' }}</p>
                 <p class="mt-1 text-xs text-slate-500">موعد: {{ formatDate(task.due_at) }} · مطب: {{ task.clinic?.name || 'ثبت نشده' }} · مسئول: {{ task.assignee ? (task.assignee.name + ' ' + (task.assignee.family || '')) : 'تعیین نشده' }}</p>
                 <p v-if="task.description" class="mt-2 text-sm text-slate-500">{{ task.description }}</p>
-                <p class="mt-1 text-[11px] text-slate-400">کد برنامه: {{ task.plan_uuid?.slice(0, 8) }} · {{ task.send_sms ? (task.sms_sent_at ? 'پیامک ارسال شده' : (task.last_sms_error ? 'خطای ارسال پیامک' : 'پیامک در صف بررسی')) : 'بدون پیامک' }}</p>
+                <p class="mt-1 text-[11px] text-slate-400">{{ task.send_sms ? (task.sms_sent_at ? 'پیامک ارسال شده' : (task.sms_failed ? 'خطای ارسال پیامک' : 'پیامک در صف بررسی')) : 'بدون پیامک' }}</p>
                 <p v-if="task.result_notes" class="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">نتیجه: {{ task.result_notes }}</p>
               </div>
               <span :class="statusClass(task)" class="rounded-lg px-3 py-2 text-xs font-bold">{{ statusLabel(task) }}</span>
@@ -102,7 +102,7 @@
             <form v-if="task.status === 'pending'" @submit.prevent="saveResult(task)" class="mt-4 grid gap-2 border-t pt-3 md:grid-cols-4">
               <select v-model="task._status" class="rounded-lg border-slate-300 text-sm"><option value="completed">انجام شد</option><option value="unsuccessful">تماس ناموفق</option><option value="pending">در انتظار</option><option value="cancelled">لغو</option></select>
               <select v-model="task._outcome" class="rounded-lg border-slate-300 text-sm"><option value="">نتیجه تماس</option><option value="reached">ارتباط برقرار شد</option><option value="no_answer">پاسخ نداد</option><option value="rescheduled">زمان جدید تعیین شد</option><option value="referred">ارجاع شد</option><option value="needs_visit">نیازمند مراجعه</option><option value="other">سایر</option></select>
-              <input v-model="task._notes" placeholder="شرح نتیجه یا اقدام بعدی" class="rounded-lg border-slate-300 text-sm" />
+              <input v-if="canViewClinicalNotes" v-model="task._notes" placeholder="شرح نتیجه یا اقدام بعدی" class="rounded-lg border-slate-300 text-sm" />
               <select v-model="task.assigned_to" class="rounded-lg border-slate-300 text-sm"><option value="">بدون مسئول مشخص</option><option v-for="secretary in secretaries" :key="secretary.id" :value="secretary.id">{{ secretary.name }} {{ secretary.family || '' }}</option></select>
               <input v-model="task._due_at" type="datetime-local" class="rounded-lg border-slate-300 text-sm" aria-label="زمان جدید پیگیری" />
               <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-bold text-white">ثبت نتیجه</button>
@@ -127,6 +127,7 @@ import PortalLayout from '@/Layouts/PortalLayout.vue'
 const props = defineProps({
   doctor: Object,
   userRole: String,
+  canViewClinicalNotes: Boolean,
   selectedPatientId: Number,
   selectedAppointmentId: Number,
   tasks: Object,
@@ -171,13 +172,16 @@ const applyTemplate = () => {
   Object.assign(form.steps[0], { title: selected.title, days: selected.default_days, contact_method: selected.contact_method, send_sms: selected.send_sms, sms_consent_confirmed: false })
 }
 const disableTemplate = (id) => router.delete(route('portal.follow-ups.templates.destroy', id), { preserveScroll: true })
-const saveResult = (task) => router.put(route('portal.follow-ups.update', task.id), {
-  status: task._status || 'completed',
-  outcome: task._outcome || null,
-  result_notes: task._notes || null,
-  assigned_to: task.assigned_to || null,
-  ...(task._due_at ? { due_at: task._due_at } : {}),
-}, { preserveScroll: true })
+const saveResult = (task) => {
+  const payload = {
+    status: task._status || 'completed',
+    outcome: task._outcome || null,
+    assigned_to: task.assigned_to || null,
+    ...(task._due_at ? { due_at: task._due_at } : {}),
+  }
+  if (props.canViewClinicalNotes) payload.result_notes = task._notes || null
+  router.put(route('portal.follow-ups.update', task.id), payload, { preserveScroll: true })
+}
 const applyFilters = () => router.get(route('portal.follow-ups.index'), filters, { preserveState: true, replace: true })
 const formatDate = (value) => new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const statusLabel = (task) => task.status === 'completed' ? 'انجام‌شده' : task.status === 'unsuccessful' ? 'ناموفق' : task.status === 'cancelled' ? 'لغوشده' : (new Date(task.due_at) < new Date() ? 'معوق' : 'در انتظار')
