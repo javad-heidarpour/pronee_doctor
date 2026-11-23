@@ -11,6 +11,7 @@ use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Http\Requests\Portal\StorePatientFollowUpRequest;
 use App\Models\Patient;
 use App\Models\PatientFollowUpTask;
+use App\Models\Doctor;
 use App\Models\PatientFollowUpTemplate;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -69,19 +70,32 @@ class PatientFollowUpController extends Controller
                 $q->whereHas('patient', fn ($patient) => $patient->where('name', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"));
             });
 
+        $canViewClinicalNotes = $this->canViewClinicalNotes($doctor);
         $tasks = $query->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('due_at')->paginate(20)->withQueryString();
+        $tasks->getCollection()->transform(
+            fn (PatientFollowUpTask $task): array => $this->serializeTask($task, $canViewClinicalNotes)
+        );
 
         $patients = Patient::query()
             ->where('doctor_id', $doctor->id)
             ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds))
             ->orderBy('name')->get(['id', 'name', 'phone']);
 
-        $templates = PatientFollowUpTemplate::query()
-            ->where('doctor_id', $doctor->id)->where('is_active', true)->orderBy('title')->get();
+        // Templates are only used by the doctor/admin editor and may contain free text.
+        $templates = Auth::guard('web')->user()?->role === 'secretary'
+            ? collect()
+            : PatientFollowUpTemplate::query()
+                ->where('doctor_id', $doctor->id)->where('is_active', true)->orderBy('title')->get();
 
+        // Do not serialize the doctor_user pivot (permissions and clinic assignments).
         $secretaries = $doctor->secretaries()->where('users.is_active', true)
-            ->orderBy('users.name')->get(['users.id', 'users.name', 'users.family']);
+            ->orderBy('users.name')->get(['users.id', 'users.name', 'users.family'])
+            ->map(fn (User $secretary): array => [
+                'id' => $secretary->id,
+                'name' => $secretary->name,
+                'family' => $secretary->family,
+            ])->values();
 
         $base = PatientFollowUpTask::query()->where('doctor_id', $doctor->id)->whereIn('clinic_id', $clinicIds);
 
@@ -94,6 +108,7 @@ class PatientFollowUpController extends Controller
             'selectedPatientId' => $selectedPatientId,
             'selectedAppointmentId' => $selectedAppointmentId,
             'tasks' => $tasks,
+            'canViewClinicalNotes' => $canViewClinicalNotes,
             'patients' => $patients,
             'templates' => $templates,
             'secretaries' => $secretaries,
@@ -144,6 +159,12 @@ class PatientFollowUpController extends Controller
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'due_at' => ['nullable', 'date'],
         ]);
+
+        // Follow-up operators without clinical-note permission may update workflow state,
+        // but must not write free-text clinical results.
+        if (!$this->canViewClinicalNotes($doctor)) {
+            unset($data['result_notes']);
+        }
 
         if (array_key_exists('assigned_to', $data) && $data['assigned_to'] !== null) {
             $secretary = $doctor->secretaries()->where('users.id', $data['assigned_to'])
@@ -235,4 +256,85 @@ class PatientFollowUpController extends Controller
 
         return back()->with('success', 'الگو غیرفعال شد؛ سوابق قبلی حفظ شدند.');
     }
+    /**
+     * Secretary follow-up screens need workflow metadata, not unrestricted clinical text.
+     * Mirror the appointment-note permission rule used by the patient portal.
+     */
+    private function canViewClinicalNotes(Doctor $doctor): bool
+    {
+        $user = Auth::guard('web')->user();
+
+        if (!$user || $user->role !== 'secretary') {
+            return true;
+        }
+
+        $assignment = $user->doctors()
+            ->where('doctors.id', $doctor->id)
+            ->first();
+
+        $permissions = $assignment?->pivot?->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        if (!is_array($permissions)) {
+            return false;
+        }
+
+        return in_array('patients.clinical.view', $permissions, true)
+            || in_array('patients.clinical.manage', $permissions, true)
+            || (
+                in_array('appointments.manage', $permissions, true)
+                && in_array('patients.manage', $permissions, true)
+            );
+    }
+
+    /**
+     * Explicit allow-list prevents internal SMS provider errors, retry metadata,
+     * pivot data and unneeded identifiers from reaching the browser.
+     */
+    private function serializeTask(PatientFollowUpTask $task, bool $canViewClinicalNotes): array
+    {
+        $payload = [
+            'id' => $task->id,
+            'title' => $canViewClinicalNotes ? $task->title : 'پیگیری بیمار',
+            'due_at' => $task->due_at?->toIso8601String(),
+            'priority' => $task->priority,
+            'contact_method' => $task->contact_method,
+            'send_sms' => (bool) $task->send_sms,
+            'sms_sent_at' => $task->sms_sent_at?->toIso8601String(),
+            'sms_failed' => $task->last_sms_error !== null && $task->last_sms_error !== '',
+            'status' => $task->status,
+            'outcome' => $task->outcome,
+            'assigned_to' => $task->assigned_to,
+            'completed_at' => $task->completed_at?->toIso8601String(),
+            'patient' => $task->patient ? [
+                'id' => $task->patient->id,
+                'name' => $task->patient->name,
+                'phone' => $task->patient->phone,
+            ] : null,
+            'clinic' => $task->clinic ? [
+                'id' => $task->clinic->id,
+                'name' => $task->clinic->name,
+            ] : null,
+            'assignee' => $task->assignee ? [
+                'id' => $task->assignee->id,
+                'name' => $task->assignee->name,
+                'family' => $task->assignee->family,
+            ] : null,
+            'appointment' => $task->appointment ? [
+                'id' => $task->appointment->id,
+                'appointment_date' => $task->appointment->appointment_date,
+                'appointment_time' => $task->appointment->appointment_time,
+            ] : null,
+        ];
+
+        if ($canViewClinicalNotes) {
+            $payload['description'] = $task->description;
+            $payload['result_notes'] = $task->result_notes;
+        }
+
+        return $payload;
+    }
+
 }
