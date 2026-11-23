@@ -119,7 +119,7 @@ final class PatientEncounterController extends Controller
         }
         $data['clinical_snapshot'] = $this->clinicalContext($patient, $doctor->id);
 
-        $encounter = $action->handle($doctor, Auth::guard('web')->user(), $appointment, $data);
+        $encounter = $action->handle($doctor, Auth::guard('web')->user(), $appointment, $data, $this->accessibleClinicIds($doctor));
 
         $audit->handle('patient.encounter.created', $encounter, [
             'doctor_id' => $doctor->id,
@@ -207,11 +207,12 @@ final class PatientEncounterController extends Controller
 
         $this->authorizeEncounter($encounter, $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $patient = $encounter->patient()->firstOrFail();
+        $patient = Patient::query()->whereKey($encounter->patient_id)
+            ->where('doctor_id', $doctor->id)->firstOrFail();
         $data = $request->validated();
         $data['clinical_snapshot'] = $this->clinicalContext($patient, $doctor->id);
 
-        $updated = $action->handle($encounter, $data);
+        $updated = $action->handle($encounter, $doctor, $this->accessibleClinicIds($doctor), $patient, $data);
         $audit->handle('patient.encounter.updated', $updated, [
             'doctor_id' => $doctor->id,
             'changed_fields' => ['clinical_note', 'prescriptions'],
@@ -231,7 +232,7 @@ final class PatientEncounterController extends Controller
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $this->authorizeDoctorOnly();
 
-        $signed = $action->handle($encounter, Auth::guard('web')->user());
+        $signed = $action->handle($encounter, Auth::guard('web')->user(), $doctor, $this->accessibleClinicIds($doctor));
         $audit->handle('patient.encounter.signed', $signed, [
             'doctor_id' => $doctor->id,
             'status_changed' => true,
