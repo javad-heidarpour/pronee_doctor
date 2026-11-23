@@ -52,7 +52,7 @@ final class PatientEncounterController extends Controller
         return Inertia::render('Portal/Encounters/Index', [
             'doctor' => $doctor,
             'appointment' => $this->appointmentPayload($appointment) + [
-                'patient' => $this->patientPayload($appointment->patient),
+                'patient' => $appointment->patient ? $this->patientPayload($appointment->patient) : null,
             ],
             'encounters' => $encounters,
         ]);
