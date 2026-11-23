@@ -472,4 +472,67 @@ final class PatientFollowUpListAuditTest extends TestCase
         Auth::guard('web')->setUser(User::query()->findOrFail(7));
         session(['active_doctor_id' => 11]);
     }
+
+    public function test_secretary_with_view_only_permission_cannot_write_follow_up_result_notes(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.manage', 'patients.clinical.view']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.follow_up.updated',
+                Mockery::type(PatientFollowUpTask::class),
+                [
+                    'doctor_id' => 11,
+                    'status_changed' => true,
+                    'changed_fields' => ['status', 'outcome'],
+                ]
+            );
+
+        $request = Request::create('/portal/follow-ups/61', 'PUT', [
+            'status' => 'completed',
+            'outcome' => 'reached',
+            'result_notes' => 'Unauthorized view-only clinical update',
+        ]);
+
+        (new PatientFollowUpController())->update($request, 61, $audit);
+
+        $this->assertSame(
+            'Sensitive outcome detail',
+            DB::table('patient_follow_up_tasks')->where('id', 61)->value('result_notes')
+        );
+    }
+
+    public function test_secretary_with_clinical_manage_permission_can_write_follow_up_result_notes(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.manage', 'patients.clinical.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.follow_up.updated',
+                Mockery::type(PatientFollowUpTask::class),
+                [
+                    'doctor_id' => 11,
+                    'status_changed' => true,
+                    'changed_fields' => ['status', 'outcome', 'result_notes'],
+                ]
+            );
+
+        $request = Request::create('/portal/follow-ups/61', 'PUT', [
+            'status' => 'completed',
+            'outcome' => 'reached',
+            'result_notes' => 'Authorized clinical outcome',
+        ]);
+
+        (new PatientFollowUpController())->update($request, 61, $audit);
+
+        $this->assertSame(
+            'Authorized clinical outcome',
+            DB::table('patient_follow_up_tasks')->where('id', 61)->value('result_notes')
+        );
+    }
+
 }
