@@ -85,6 +85,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->unsignedBigInteger('clinic_id');
             $table->unsignedBigInteger('patient_id');
             $table->unsignedBigInteger('appointment_id')->nullable();
+            $table->unsignedBigInteger('template_id')->nullable();
             $table->unsignedBigInteger('assigned_to')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->uuid('plan_uuid')->nullable();
