@@ -33,7 +33,15 @@ class PatientFollowUpController extends Controller
             'scope' => ['nullable', Rule::in(['all', 'overdue', 'today', 'mine'])],
             'search' => ['nullable', 'string', 'max:100'],
             'patient_id' => ['nullable', 'integer'],
-            'appointment_id' => ['nullable', 'integer', 'prohibited_without:patient_id'],
+            'appointment_id' => [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    if ($value !== null && $value !== '' && !$request->filled('patient_id')) {
+                        $fail('برای انتخاب نوبت، ابتدا بیمار را مشخص کنید.');
+                    }
+                },
+            ],
         ]);
 
         $clinicIds = $this->accessibleClinicIds($doctor);
