@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Portal\Patient;
 
+use App\Actions\Portal\Patient\CreatePatientFollowUpAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientFollowUpController;
 use App\Models\PatientFollowUpTask;
+use App\Http\Requests\Portal\StorePatientFollowUpRequest;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -83,6 +85,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->unsignedBigInteger('clinic_id');
             $table->unsignedBigInteger('patient_id');
             $table->unsignedBigInteger('appointment_id')->nullable();
+            $table->unsignedBigInteger('template_id')->nullable();
             $table->unsignedBigInteger('assigned_to')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->uuid('plan_uuid')->nullable();
@@ -532,6 +535,126 @@ final class PatientFollowUpListAuditTest extends TestCase
         $this->assertSame(
             'Authorized clinical outcome',
             DB::table('patient_follow_up_tasks')->where('id', 61)->value('result_notes')
+        );
+    }
+
+
+    public function test_secretary_without_clinical_write_permission_cannot_create_free_text_follow_up_descriptions(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.follow_up.created',
+                Mockery::type(PatientFollowUpTask::class),
+                [
+                    'doctor_id' => 11,
+                    'changed_fields' => ['follow_up_created'],
+                ]
+            );
+
+        $request = Mockery::mock(StorePatientFollowUpRequest::class);
+        $request->shouldReceive('validated')->once()->andReturn([
+            'patient_id' => 41,
+            'appointment_id' => 51,
+            'title' => 'پیگیری بعد از مراجعه',
+            'description' => 'Unauthorized clinical free text',
+            'due_at' => now()->addDay()->toDateTimeString(),
+            'priority' => 'normal',
+            'contact_method' => 'call',
+            'steps' => [[
+                'title' => 'تماس',
+                'days' => 0,
+                'contact_method' => 'call',
+            ]],
+        ]);
+
+        (new PatientFollowUpController())->store(
+            $request,
+            app(CreatePatientFollowUpAction::class),
+            $audit
+        );
+
+        $this->assertDatabaseHas('patient_follow_up_tasks', [
+            'doctor_id' => 11,
+            'patient_id' => 41,
+            'description' => null,
+        ]);
+    }
+
+    public function test_secretary_with_clinical_write_permission_can_create_follow_up_descriptions(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.manage', 'patients.clinical.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.follow_up.created',
+                Mockery::type(PatientFollowUpTask::class),
+                [
+                    'doctor_id' => 11,
+                    'changed_fields' => ['follow_up_created'],
+                ]
+            );
+
+        $request = Mockery::mock(StorePatientFollowUpRequest::class);
+        $request->shouldReceive('validated')->once()->andReturn([
+            'patient_id' => 41,
+            'appointment_id' => 51,
+            'title' => 'پیگیری بعد از مراجعه',
+            'description' => 'Authorized clinical follow-up detail',
+            'due_at' => now()->addDay()->toDateTimeString(),
+            'priority' => 'normal',
+            'contact_method' => 'call',
+            'steps' => [[
+                'title' => 'تماس',
+                'days' => 0,
+                'contact_method' => 'call',
+            ]],
+        ]);
+
+        (new PatientFollowUpController())->store(
+            $request,
+            app(CreatePatientFollowUpAction::class),
+            $audit
+        );
+
+        $this->assertDatabaseHas('patient_follow_up_tasks', [
+            'doctor_id' => 11,
+            'patient_id' => 41,
+            'description' => 'Authorized clinical follow-up detail',
+        ]);
+    }
+
+    public function test_secretary_cannot_select_a_hidden_doctor_follow_up_template(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.manage', 'patients.clinical.manage']);
+
+        $request = Mockery::mock(StorePatientFollowUpRequest::class);
+        $request->shouldReceive('validated')->once()->andReturn([
+            'patient_id' => 41,
+            'appointment_id' => 51,
+            'template_id' => 5,
+            'title' => null,
+            'due_at' => now()->addDay()->toDateTimeString(),
+            'priority' => 'normal',
+            'contact_method' => 'call',
+            'steps' => [[
+                'title' => 'تماس',
+                'days' => 0,
+                'contact_method' => 'call',
+            ]],
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+
+        (new PatientFollowUpController())->store(
+            $request,
+            app(CreatePatientFollowUpAction::class),
+            app(RecordSecurityAuditEventAction::class)
         );
     }
 
