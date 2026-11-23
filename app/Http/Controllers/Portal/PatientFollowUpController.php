@@ -141,7 +141,24 @@ class PatientFollowUpController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
 
-        $tasks = $action->handle($doctor, Auth::guard('web')->user(), $request->validated(), $this->accessibleClinicIds($doctor));
+        $actor = Auth::guard('web')->user();
+        $data = $request->validated();
+
+        // Templates are intentionally restricted to doctor/admin editors. A
+        // secretary must not bypass the hidden template list by posting an ID.
+        abort_if(
+            $actor?->role === 'secretary' && !empty($data['template_id']),
+            403,
+            'استفاده از الگوهای پیگیری فقط برای پزشک و مدیر مجاز است.'
+        );
+
+        // The follow-up description is free text and is redacted from operators
+        // without clinical write access, so those operators must not populate it.
+        if (!$this->canManageClinicalNotes($doctor)) {
+            unset($data['description']);
+        }
+
+        $tasks = $action->handle($doctor, $actor, $data, $this->accessibleClinicIds($doctor));
 
         foreach ($tasks as $task) {
             $audit->handle('patient.follow_up.created', $task, [
