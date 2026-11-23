@@ -39,9 +39,12 @@ final class PatientEncounterController extends Controller
             ->where('doctor_id', $doctor->id)
             ->where('patient_id', $appointment->patient_id)
             ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
-            ->with(['author:id,name,family', 'clinic:id,name', 'prescriptions', 'amendedFrom:id'])
+            ->with(['author:id,name,family', 'clinic:id,name', 'amendedFrom:id'])
+            ->withCount('prescriptions')
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->map(fn (PatientEncounter $item): array => $this->encounterListPayload($item))
+            ->values();
 
         $appointment->load('patient:id,name', 'clinic:id,name');
         $audit->handle('patient.encounters.listed', $appointment, ['doctor_id' => $doctor->id]);
@@ -152,7 +155,7 @@ final class PatientEncounterController extends Controller
             'appointment' => $this->appointmentPayload($appointment),
             'patient' => $this->patientPayload($patient),
             'context' => $encounter->clinical_snapshot ?? [],
-            'encounter' => $encounter,
+            'encounter' => $this->encounterPayload($encounter, true),
             'amendsEncounter' => null,
         ]);
     }
@@ -185,7 +188,7 @@ final class PatientEncounterController extends Controller
             'patient' => $this->patientPayload($patient),
             'context' => $this->clinicalContext($patient, $doctor->id),
             'encounter' => null,
-            'amendsEncounter' => $encounter,
+            'amendsEncounter' => $this->encounterPayload($encounter),
         ]);
     }
 
@@ -233,6 +236,71 @@ final class PatientEncounterController extends Controller
         return back()->with('success', 'یادداشت ویزیت نهایی و قفل شد.');
     }
 
+
+
+    private function encounterListPayload(PatientEncounter $encounter): array
+    {
+        return [
+            'id' => $encounter->id,
+            'diagnosis' => $encounter->diagnosis,
+            'note_type' => $encounter->note_type,
+            'status' => $encounter->status,
+            'created_at' => $encounter->created_at?->toIso8601String(),
+            'author' => $encounter->author ? [
+                'name' => $encounter->author->name,
+                'family' => $encounter->author->family,
+            ] : null,
+            'amended_from' => $encounter->amendedFrom ? [
+                'id' => $encounter->amendedFrom->id,
+            ] : null,
+            'assessment' => $encounter->assessment,
+            'clinic' => $encounter->clinic ? [
+                'id' => $encounter->clinic->id,
+                'name' => $encounter->clinic->name,
+            ] : null,
+            'prescriptions_count' => (int) $encounter->prescriptions_count,
+        ];
+    }
+
+    private function encounterPayload(PatientEncounter $encounter, bool $includeSigner = false): array
+    {
+        $payload = [
+            'id' => $encounter->id,
+            'status' => $encounter->status,
+            'note_type' => $encounter->note_type,
+            'subjective' => $encounter->subjective,
+            'objective' => $encounter->objective,
+            'assessment' => $encounter->assessment,
+            'plan' => $encounter->plan,
+            'diagnosis' => $encounter->diagnosis,
+            'diagnosis_code' => $encounter->diagnosis_code,
+            'reviewed_allergies' => (bool) $encounter->reviewed_allergies,
+            'reviewed_medications' => (bool) $encounter->reviewed_medications,
+            'reviewed_vitals' => (bool) $encounter->reviewed_vitals,
+            'signed_at' => $encounter->signed_at?->toIso8601String(),
+            'prescriptions' => $encounter->prescriptions->map(fn ($prescription): array => [
+                'id' => $prescription->id,
+                'medication_name' => $prescription->medication_name,
+                'strength' => $prescription->strength,
+                'dosage' => $prescription->dosage,
+                'route' => $prescription->route,
+                'frequency' => $prescription->frequency,
+                'duration_days' => $prescription->duration_days,
+                'quantity' => $prescription->quantity,
+                'instructions' => $prescription->instructions,
+            ])->values()->all(),
+        ];
+
+        if ($includeSigner) {
+            $payload['signer'] = $encounter->signer ? [
+                'id' => $encounter->signer->id,
+                'name' => $encounter->signer->name,
+                'family' => $encounter->signer->family,
+            ] : null;
+        }
+
+        return $payload;
+    }
 
     private function appointmentPayload(Appointment $appointment): array
     {
