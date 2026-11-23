@@ -52,12 +52,12 @@ final class CreatePatientFollowUpAction
             }
 
             if (!$appointment) {
-                throw ValidationException::withMessages([
-                    !empty($data['appointment_id']) ? 'appointment_id' : 'patient_id' =>
-                        !empty($data['appointment_id'])
-                            ? 'نوبت انتخاب‌شده متعلق به این بیمار و پزشک نیست یا در مطب مجاز قرار ندارد.'
-                            : 'برای این بیمار در مطب‌های مجاز شما سابقه مراجعه‌ای یافت نشد.',
-                ]);
+                $field = !empty($data['appointment_id']) ? 'appointment_id' : 'patient_id';
+                $message = !empty($data['appointment_id'])
+                    ? 'نوبت انتخاب‌شده متعلق به این بیمار و پزشک نیست یا در مطب مجاز قرار ندارد.'
+                    : 'برای این بیمار در مطب‌های مجاز شما سابقه مراجعه‌ای یافت نشد.';
+
+                throw ValidationException::withMessages([$field => $message]);
             }
 
             $clinicId = (int) $appointment->clinic_id;
