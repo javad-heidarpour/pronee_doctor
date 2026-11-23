@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Response;
+use Illuminate\Validation\ValidationException;
 use Mockery;
 use Tests\TestCase;
 
@@ -254,6 +255,129 @@ final class PatientFollowUpListAuditTest extends TestCase
             'Sensitive outcome detail',
             DB::table('patient_follow_up_tasks')->where('id', 61)->value('result_notes')
         );
+    }
+
+
+    public function test_patient_and_appointment_context_filters_limit_follow_up_results(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view']);
+        $now = now();
+
+        DB::table('patients')->insert([
+            'id' => 42,
+            'doctor_id' => 11,
+            'name' => 'Second Patient',
+            'phone' => '09121111111',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('appointments')->insert([
+            [
+                'id' => 52,
+                'doctor_id' => 11,
+                'patient_id' => 41,
+                'clinic_id' => 31,
+                'appointment_date' => today()->addDay()->toDateString(),
+                'appointment_time' => '10:00:00',
+                'status' => 'confirmed',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'id' => 53,
+                'doctor_id' => 11,
+                'patient_id' => 42,
+                'clinic_id' => 31,
+                'appointment_date' => today()->addDays(2)->toDateString(),
+                'appointment_time' => '11:00:00',
+                'status' => 'confirmed',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+
+        DB::table('patient_follow_up_tasks')->insert([
+            [
+                'id' => 62,
+                'doctor_id' => 11,
+                'clinic_id' => 31,
+                'patient_id' => 41,
+                'appointment_id' => 52,
+                'assigned_to' => 7,
+                'created_by' => 7,
+                'plan_uuid' => 'c5c7cde8-0a84-4c1b-b3e7-d75f7f77b4a9',
+                'title' => 'Second appointment follow-up',
+                'due_at' => $now->copy()->addDays(2),
+                'priority' => 'normal',
+                'contact_method' => 'call',
+                'send_sms' => false,
+                'sms_consent_confirmed' => false,
+                'status' => 'pending',
+                'sms_attempts' => 0,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'id' => 63,
+                'doctor_id' => 11,
+                'clinic_id' => 31,
+                'patient_id' => 42,
+                'appointment_id' => 53,
+                'assigned_to' => 7,
+                'created_by' => 7,
+                'plan_uuid' => 'd6d8dee9-1b95-4d2c-c4f8-e86a8a88c5b0',
+                'title' => 'Another patient follow-up',
+                'due_at' => $now->copy()->addDays(3),
+                'priority' => 'normal',
+                'contact_method' => 'call',
+                'send_sms' => false,
+                'sms_consent_confirmed' => false,
+                'status' => 'pending',
+                'sms_attempts' => 0,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->twice()
+            ->with('patient.follow_ups.listed', null, ['doctor_id' => 11]);
+
+        $controller = new PatientFollowUpController();
+
+        $appointmentRequest = Request::create('/portal/follow-ups', 'GET', [
+            'patient_id' => 41,
+            'appointment_id' => 51,
+        ]);
+        $appointmentRequest->headers->set('X-Inertia', 'true');
+        $appointmentPage = $controller->index($appointmentRequest, $audit)
+            ->toResponse($appointmentRequest)->getData(true)['props'];
+
+        $this->assertSame(41, (int) $appointmentPage['selectedPatientId']);
+        $this->assertSame(51, (int) $appointmentPage['selectedAppointmentId']);
+        $this->assertSame([61], array_map('intval', array_column($appointmentPage['tasks']['data'], 'id')));
+
+        $patientRequest = Request::create('/portal/follow-ups', 'GET', ['patient_id' => 41]);
+        $patientRequest->headers->set('X-Inertia', 'true');
+        $patientPage = $controller->index($patientRequest, $audit)
+            ->toResponse($patientRequest)->getData(true)['props'];
+
+        $this->assertSame([61, 62], array_map('intval', array_column($patientPage['tasks']['data'], 'id')));
+    }
+
+    public function test_appointment_filter_requires_a_patient_context(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view']);
+
+        $request = Request::create('/portal/follow-ups', 'GET', ['appointment_id' => 51]);
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        $this->expectException(ValidationException::class);
+
+        (new PatientFollowUpController())->index($request, $audit);
     }
 
     private function seedSecretaryFollowUpTask(array $permissions): void
