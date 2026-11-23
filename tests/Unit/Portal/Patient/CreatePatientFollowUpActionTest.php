@@ -6,6 +6,7 @@ namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Portal\Patient\CreatePatientFollowUpAction;
 use App\Models\Doctor;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Models\Patient;
 use App\Models\PatientFollowUpTask;
 use App\Models\User;
@@ -27,6 +28,14 @@ final class CreatePatientFollowUpActionTest extends TestCase
             $table->string('name');
             $table->string('phone')->nullable();
             $table->string('national_code')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('addresses', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
@@ -80,6 +89,15 @@ final class CreatePatientFollowUpActionTest extends TestCase
             'doctor_id' => $doctor->id,
             'name' => 'Test Patient',
             'phone' => '09120000000',
+        ]);
+
+        DB::table('addresses')->insert([
+            'id' => 41,
+            'doctor_id' => $doctor->id,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $appointmentId = DB::table('appointments')->insertGetId([
@@ -161,4 +179,96 @@ final class CreatePatientFollowUpActionTest extends TestCase
             ]],
         ], [41]);
     }
+
+    public function test_it_rejects_a_follow_up_when_its_clinic_is_no_longer_active(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 23;
+        $actor = new User();
+        $actor->id = 9;
+
+        DB::table('addresses')->insert([
+            'id' => 42,
+            'doctor_id' => 23,
+            'name' => 'Inactive Clinic',
+            'is_active' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $patient = Patient::query()->create(['doctor_id' => 23, 'name' => 'Patient']);
+        $appointmentId = DB::table('appointments')->insertGetId([
+            'doctor_id' => 23,
+            'patient_id' => $patient->id,
+            'clinic_id' => 42,
+            'appointment_date' => today()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            app(CreatePatientFollowUpAction::class)->handle($doctor, $actor, [
+                'patient_id' => $patient->id,
+                'appointment_id' => $appointmentId,
+                'due_at' => now()->addDay()->toDateTimeString(),
+                'priority' => 'normal',
+                'contact_method' => 'call',
+                'steps' => [[
+                    'title' => 'تماس',
+                    'days' => 1,
+                    'contact_method' => 'call',
+                ]],
+            ], [42]);
+            $this->fail('An inactive clinic must not receive a new patient follow-up.');
+        } catch (ModelNotFoundException) {
+            $this->assertDatabaseCount('patient_follow_up_tasks', 0);
+        }
+    }
+
+    public function test_it_rejects_an_appointment_linked_to_a_different_patient(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 24;
+        $actor = new User();
+        $actor->id = 10;
+
+        DB::table('addresses')->insert([
+            'id' => 43,
+            'doctor_id' => 24,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $requestedPatient = Patient::query()->create(['doctor_id' => 24, 'name' => 'Requested patient']);
+        $otherPatient = Patient::query()->create(['doctor_id' => 24, 'name' => 'Other patient']);
+        $appointmentId = DB::table('appointments')->insertGetId([
+            'doctor_id' => 24,
+            'patient_id' => $otherPatient->id,
+            'clinic_id' => 43,
+            'appointment_date' => today()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            app(CreatePatientFollowUpAction::class)->handle($doctor, $actor, [
+                'patient_id' => $requestedPatient->id,
+                'appointment_id' => $appointmentId,
+                'due_at' => now()->addDay()->toDateTimeString(),
+                'priority' => 'normal',
+                'contact_method' => 'call',
+                'steps' => [[
+                    'title' => 'تماس',
+                    'days' => 1,
+                    'contact_method' => 'call',
+                ]],
+            ], [43]);
+            $this->fail('An appointment belonging to another patient must be rejected.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('patient_follow_up_tasks', 0);
+        }
+    }
+
 }
