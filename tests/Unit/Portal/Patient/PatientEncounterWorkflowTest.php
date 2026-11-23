@@ -6,6 +6,7 @@ namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Portal\Patient\CreatePatientEncounterAction;
 use App\Actions\Portal\Patient\SignPatientEncounterAction;
+use App\Actions\Portal\Patient\UpdatePatientEncounterAction;
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientEncounterController;
 use App\Models\Appointment;
@@ -339,6 +340,11 @@ final class PatientEncounterWorkflowTest extends TestCase
             'name' => 'Test Patient',
         ]);
 
+        DB::table('addresses')->insert([
+            'id' => 31, 'doctor_id' => 11, 'name' => 'Test Clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         $appointment = Appointment::query()->create([
             'doctor_id' => 11,
             'patient_id' => $patient->id,
@@ -372,7 +378,8 @@ final class PatientEncounterWorkflowTest extends TestCase
                     'quantity' => '10 tablets',
                     'instructions' => 'After meals',
                 ]],
-            ]
+            ],
+            [31]
         );
 
         $this->assertSame(PatientEncounter::STATUS_DRAFT, $encounter->status);
@@ -396,7 +403,7 @@ final class PatientEncounterWorkflowTest extends TestCase
         ]);
 
         DB::table('addresses')->insert([
-            'id' => 32, 'name' => 'Test Clinic', 'created_at' => now(), 'updated_at' => now(),
+            'id' => 32, 'doctor_id' => 12, 'name' => 'Test Clinic', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
         $patient = Patient::query()->create(['doctor_id' => 12, 'name' => 'Patient']);
         $appointment = Appointment::query()->create([
@@ -411,14 +418,14 @@ final class PatientEncounterWorkflowTest extends TestCase
         ]);
 
         try {
-            app(SignPatientEncounterAction::class)->handle($encounter, $signer);
+            app(SignPatientEncounterAction::class)->handle($encounter, $signer, $doctor, [32]);
             $this->fail('Signing without allergy review must be rejected.');
         } catch (ValidationException) {
             $this->assertSame('draft', $encounter->fresh()->status);
         }
 
         $encounter->update(['reviewed_allergies' => true]);
-        $signed = app(SignPatientEncounterAction::class)->handle($encounter->fresh(), $signer);
+        $signed = app(SignPatientEncounterAction::class)->handle($encounter->fresh(), $signer, $doctor, [32]);
 
         $this->assertSame(PatientEncounter::STATUS_SIGNED, $signed->status);
         $this->assertSame(22, (int) $signed->signed_by);
@@ -440,6 +447,10 @@ final class PatientEncounterWorkflowTest extends TestCase
         $author = new User();
         $author->id = 23;
         $patient = Patient::query()->create(['doctor_id' => 13, 'name' => 'Patient']);
+        DB::table('addresses')->insert([
+            'id' => 33, 'doctor_id' => 13, 'name' => 'Test Clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $appointment = Appointment::query()->create([
             'doctor_id' => 13, 'patient_id' => $patient->id, 'clinic_id' => 33, 'status' => 'visited',
         ]);
@@ -464,12 +475,132 @@ final class PatientEncounterWorkflowTest extends TestCase
             'reviewed_vitals' => true,
             'clinical_snapshot' => [],
             'prescriptions' => [],
-        ]);
+        ], [33]);
 
         $this->assertSame($original->id, (int) $amendment->amends_encounter_id);
         $this->assertSame('draft', $amendment->status);
         $this->assertSame('Original assessment', $original->fresh()->assessment);
         $this->assertSame('signed', $original->fresh()->status);
+    }
+
+
+    public function test_creation_reloads_the_appointment_and_rejects_a_changed_tenant(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 14;
+        $author = new User();
+        $author->id = 24;
+
+        DB::table('addresses')->insert([
+            'id' => 34, 'doctor_id' => 14, 'name' => 'Test Clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $patient = Patient::query()->create(['doctor_id' => 14, 'name' => 'Patient']);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 14,
+            'patient_id' => $patient->id,
+            'clinic_id' => 34,
+            'status' => 'confirmed',
+        ]);
+        $staleAppointment = $appointment->fresh();
+
+        DB::table('appointments')->where('id', $appointment->id)->update(['doctor_id' => 99]);
+
+        try {
+            app(CreatePatientEncounterAction::class)->handle($doctor, $author, $staleAppointment, [
+                'note_type' => 'consultation',
+                'assessment' => 'Assessment',
+                'plan' => 'Plan',
+                'reviewed_allergies' => true,
+                'reviewed_medications' => true,
+                'reviewed_vitals' => true,
+                'clinical_snapshot' => [],
+                'prescriptions' => [],
+            ], [34]);
+            $this->fail('A stale appointment moved to another doctor must not create an encounter.');
+        } catch (ModelNotFoundException) {
+            $this->assertDatabaseMissing('patient_encounters', ['appointment_id' => $appointment->id]);
+        }
+    }
+
+    public function test_signing_revalidates_the_appointment_tenant_before_marking_it_visited(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 15;
+        $signer = new User();
+        $signer->id = 25;
+        DB::table('users')->insert([
+            'id' => 25, 'name' => 'Test', 'family' => 'Doctor',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('addresses')->insert([
+            'id' => 35, 'doctor_id' => 15, 'name' => 'Test Clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $patient = Patient::query()->create(['doctor_id' => 15, 'name' => 'Patient']);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 15, 'patient_id' => $patient->id, 'clinic_id' => 35, 'status' => 'confirmed',
+        ]);
+        $encounter = PatientEncounter::query()->create([
+            'doctor_id' => 15, 'patient_id' => $patient->id, 'appointment_id' => $appointment->id,
+            'clinic_id' => 35, 'author_id' => 25, 'note_type' => 'consultation', 'status' => 'draft',
+            'assessment' => 'Assessment', 'plan' => 'Plan',
+            'reviewed_allergies' => true, 'reviewed_medications' => true, 'reviewed_vitals' => true,
+        ]);
+
+        DB::table('appointments')->where('id', $appointment->id)->update(['doctor_id' => 99]);
+
+        try {
+            app(SignPatientEncounterAction::class)->handle($encounter, $signer, $doctor, [35]);
+            $this->fail('A cross-doctor appointment must not be marked visited.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame('confirmed', DB::table('appointments')->where('id', $appointment->id)->value('status'));
+            $this->assertSame(PatientEncounter::STATUS_DRAFT, $encounter->fresh()->status);
+        }
+    }
+
+    public function test_update_revalidates_the_locked_encounter_tenant_before_writing_clinical_data(): void
+    {
+        $doctor = new Doctor();
+        $doctor->id = 16;
+        DB::table('addresses')->insert([
+            'id' => 36, 'doctor_id' => 16, 'name' => 'Test Clinic', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $patient = Patient::query()->create(['doctor_id' => 16, 'name' => 'Patient']);
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 16, 'patient_id' => $patient->id, 'clinic_id' => 36, 'status' => 'confirmed',
+        ]);
+        $encounter = PatientEncounter::query()->create([
+            'doctor_id' => 16, 'patient_id' => $patient->id, 'appointment_id' => $appointment->id,
+            'clinic_id' => 36, 'note_type' => 'consultation', 'status' => 'draft',
+            'assessment' => 'Original assessment', 'plan' => 'Original plan',
+            'reviewed_allergies' => true, 'reviewed_medications' => true, 'reviewed_vitals' => true,
+        ]);
+
+        DB::table('patient_encounters')->where('id', $encounter->id)->update(['doctor_id' => 99]);
+
+        try {
+            app(UpdatePatientEncounterAction::class)->handle($encounter, $doctor, [36], $patient, [
+                'note_type' => 'consultation',
+                'assessment' => 'Unauthorized replacement',
+                'plan' => 'Unauthorized plan',
+                'reviewed_allergies' => true,
+                'reviewed_medications' => true,
+                'reviewed_vitals' => true,
+                'clinical_snapshot' => [],
+                'prescriptions' => [],
+            ]);
+            $this->fail('A stale encounter moved to another doctor must not be updated.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame(
+                'Original assessment',
+                DB::table('patient_encounters')->where('id', $encounter->id)->value('assessment')
+            );
+        }
     }
 
 }
