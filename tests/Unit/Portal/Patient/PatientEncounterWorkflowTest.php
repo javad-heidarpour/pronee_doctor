@@ -14,6 +14,7 @@ use App\Models\Patient;
 use App\Models\PatientEncounter;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -65,6 +66,18 @@ final class PatientEncounterWorkflowTest extends TestCase
             $table->unsignedBigInteger('doctor_id');
             $table->unsignedBigInteger('patient_id');
             $table->unsignedBigInteger('clinic_id');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('time_slot_id')->nullable();
+            $table->string('patient_name')->nullable();
+            $table->string('patient_phone')->nullable();
+            $table->string('patient_national_code')->nullable();
+            $table->string('visit_number')->nullable();
+            $table->unsignedBigInteger('fee_rial')->nullable();
+            $table->dateTime('reservation_expires_at')->nullable();
+            $table->unsignedBigInteger('visit_reason_id')->nullable();
+            $table->text('description')->nullable();
+            $table->unsignedBigInteger('surgery_type_id')->nullable();
+            $table->date('surgery_date')->nullable();
             $table->string('status');
             $table->timestamps();
         });
@@ -159,11 +172,20 @@ final class PatientEncounterWorkflowTest extends TestCase
         $patient = Patient::query()->create([
             'doctor_id' => 11,
             'name' => 'Audit Patient',
+            'phone' => '09120000000',
+            'national_code' => '0012345678',
         ]);
         $appointment = Appointment::query()->create([
             'doctor_id' => 11,
             'patient_id' => $patient->id,
             'clinic_id' => 31,
+            'user_id' => 1234,
+            'patient_name' => 'Audit Patient',
+            'patient_phone' => '09120000000',
+            'patient_national_code' => '0012345678',
+            'fee_rial' => 1250000,
+            'reservation_expires_at' => now()->addHour(),
+            'description' => 'Sensitive booking details',
             'status' => 'confirmed',
         ]);
         $encounter = PatientEncounter::query()->create([
@@ -198,10 +220,41 @@ final class PatientEncounterWorkflowTest extends TestCase
             ->with('patient.encounter.create_form_viewed', Mockery::type(Appointment::class), ['doctor_id' => 11]);
 
         $controller = new PatientEncounterController();
+        $request = Request::create('/portal/encounters', 'GET');
+        $request->headers->set('X-Inertia', 'true');
 
-        $this->assertInstanceOf(\Inertia\Response::class, $controller->show($encounter, $audit));
-        $this->assertInstanceOf(\Inertia\Response::class, $controller->amend($encounter, $audit));
-        $this->assertInstanceOf(\Inertia\Response::class, $controller->create($appointment, $audit));
+        $show = $controller->show($encounter, $audit);
+        $showProps = $show->toResponse($request)->getData(true)['props'];
+        $this->assertSame([
+            'id' => $appointment->id,
+            'clinic' => ['id' => 31, 'name' => 'Test Clinic'],
+        ], $showProps['appointment']);
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $showProps['patient']);
+        foreach (['doctor_id', 'patient_id', 'appointment_id', 'clinic_id', 'author_id', 'signed_by'] as $field) {
+            $this->assertArrayNotHasKey($field, $showProps['encounter']);
+        }
+        foreach (['patient', 'appointment', 'clinic', 'author'] as $relation) {
+            $this->assertArrayNotHasKey($relation, $showProps['encounter']);
+        }
+        $this->assertArrayNotHasKey('patient_phone', $showProps['appointment']);
+        $this->assertArrayNotHasKey('patient_national_code', $showProps['appointment']);
+        $this->assertArrayNotHasKey('user_id', $showProps['appointment']);
+        $this->assertArrayNotHasKey('fee_rial', $showProps['appointment']);
+        $this->assertArrayNotHasKey('description', $showProps['appointment']);
+
+        $amend = $controller->amend($encounter, $audit);
+        $amendProps = $amend->toResponse($request)->getData(true)['props'];
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $amendProps['patient']);
+        $this->assertArrayNotHasKey('patient_id', $amendProps['amendsEncounter']);
+        $this->assertArrayNotHasKey('appointment_id', $amendProps['amendsEncounter']);
+
+        $create = $controller->create($appointment, $audit);
+        $createProps = $create->toResponse($request)->getData(true)['props'];
+        $this->assertSame(['id' => $patient->id, 'name' => 'Audit Patient'], $createProps['patient']);
+        $this->assertSame([
+            'id' => $appointment->id,
+            'clinic' => ['id' => 31, 'name' => 'Test Clinic'],
+        ], $createProps['appointment']);
     }
 
     public function test_it_creates_a_structured_draft_with_prescriptions_and_a_clinical_snapshot(): void
