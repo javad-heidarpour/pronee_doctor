@@ -6,6 +6,7 @@ namespace Tests\Unit\Portal\Patient;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\PatientFollowUpController;
+use App\Models\PatientFollowUpTask;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -83,6 +84,7 @@ final class PatientFollowUpListAuditTest extends TestCase
             $table->unsignedBigInteger('appointment_id')->nullable();
             $table->unsignedBigInteger('assigned_to')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
+            $table->uuid('plan_uuid')->nullable();
             $table->string('title');
             $table->text('description')->nullable();
             $table->dateTime('due_at');
@@ -169,5 +171,181 @@ final class PatientFollowUpListAuditTest extends TestCase
         );
 
         $this->assertInstanceOf(Response::class, $response);
+    }
+
+
+    public function test_secretary_without_clinical_view_receives_only_workflow_follow_up_data(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.follow_ups.listed', null, ['doctor_id' => 11]);
+
+        $request = Request::create('/portal/follow-ups', 'GET');
+        $request->headers->set('X-Inertia', 'true');
+
+        $response = (new PatientFollowUpController())->index($request, $audit);
+        $page = $response->toResponse($request)->getData(true);
+        $task = $page['props']['tasks']['data'][0];
+
+        $this->assertFalse($page['props']['canViewClinicalNotes']);
+        $this->assertSame('پیگیری بیمار', $task['title']);
+        $this->assertArrayNotHasKey('description', $task);
+        $this->assertArrayNotHasKey('result_notes', $task);
+        $this->assertArrayNotHasKey('last_sms_error', $task);
+        $this->assertArrayNotHasKey('plan_uuid', $task);
+        $this->assertTrue($task['sms_failed']);
+        $this->assertSame([], $page['props']['templates']);
+        $this->assertArrayNotHasKey('pivot', $page['props']['secretaries'][0]);
+    }
+
+    public function test_secretary_with_clinical_view_can_read_follow_up_notes_but_not_provider_errors(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.clinical.view']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.follow_ups.listed', null, ['doctor_id' => 11]);
+
+        $request = Request::create('/portal/follow-ups', 'GET');
+        $request->headers->set('X-Inertia', 'true');
+
+        $response = (new PatientFollowUpController())->index($request, $audit);
+        $page = $response->toResponse($request)->getData(true);
+        $task = $page['props']['tasks']['data'][0];
+
+        $this->assertTrue($page['props']['canViewClinicalNotes']);
+        $this->assertSame('Diagnosis-specific follow-up', $task['title']);
+        $this->assertSame('Sensitive clinical follow-up detail', $task['description']);
+        $this->assertSame('Sensitive outcome detail', $task['result_notes']);
+        $this->assertArrayNotHasKey('last_sms_error', $task);
+        $this->assertArrayNotHasKey('plan_uuid', $task);
+    }
+
+    public function test_secretary_without_clinical_view_cannot_write_free_text_follow_up_results(): void
+    {
+        $this->seedSecretaryFollowUpTask(['patients.view', 'patients.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.follow_up.updated',
+                Mockery::type(PatientFollowUpTask::class),
+                [
+                    'doctor_id' => 11,
+                    'status_changed' => true,
+                    'changed_fields' => ['status', 'outcome'],
+                ]
+            );
+
+        $request = Request::create('/portal/follow-ups/61', 'PUT', [
+            'status' => 'completed',
+            'outcome' => 'reached',
+            'result_notes' => 'Unauthorized free-text clinical detail',
+        ]);
+
+        (new PatientFollowUpController())->update($request, 61, $audit);
+
+        $this->assertSame(
+            'Sensitive outcome detail',
+            DB::table('patient_follow_up_tasks')->where('id', 61)->value('result_notes')
+        );
+    }
+
+    private function seedSecretaryFollowUpTask(array $permissions): void
+    {
+        $now = now();
+
+        DB::table('doctors')->insert([
+            'id' => 11,
+            'user_id' => 99,
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('users')->insert([
+            'id' => 7,
+            'name' => 'Test Secretary',
+            'family' => 'Operator',
+            'role' => 'secretary',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('doctor_user')->insert([
+            'doctor_id' => 11,
+            'user_id' => 7,
+            'permissions' => json_encode($permissions),
+            'clinic_ids' => json_encode([31]),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('patients')->insert([
+            'id' => 41,
+            'doctor_id' => 11,
+            'name' => 'Test Patient',
+            'phone' => '09120000000',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('appointments')->insert([
+            'id' => 51,
+            'doctor_id' => 11,
+            'patient_id' => 41,
+            'clinic_id' => 31,
+            'appointment_date' => today()->toDateString(),
+            'appointment_time' => '09:00:00',
+            'status' => 'confirmed',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('patient_follow_up_tasks')->insert([
+            'id' => 61,
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => 41,
+            'appointment_id' => 51,
+            'assigned_to' => 7,
+            'created_by' => 7,
+            'plan_uuid' => 'b4b6bde7-9f73-4b0b-a2df-c64e6a66a3a8',
+            'title' => 'Diagnosis-specific follow-up',
+            'description' => 'Sensitive clinical follow-up detail',
+            'due_at' => $now->copy()->addDay(),
+            'priority' => 'normal',
+            'contact_method' => 'call',
+            'send_sms' => true,
+            'sms_consent_confirmed' => true,
+            'status' => 'pending',
+            'outcome' => null,
+            'result_notes' => 'Sensitive outcome detail',
+            'completed_at' => null,
+            'sms_sent_at' => null,
+            'sms_attempted_at' => $now,
+            'sms_attempts' => 2,
+            'last_sms_error' => 'Provider error containing private response details',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        Auth::guard('web')->setUser(User::query()->findOrFail(7));
+        session(['active_doctor_id' => 11]);
     }
 }
