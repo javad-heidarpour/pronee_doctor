@@ -14,6 +14,7 @@ use App\Models\Patient;
 use App\Models\PatientEncounter;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -255,6 +256,63 @@ final class PatientEncounterWorkflowTest extends TestCase
             'id' => $appointment->id,
             'clinic' => ['id' => 31, 'name' => 'Test Clinic'],
         ], $createProps['appointment']);
+    }
+
+
+    public function test_encounter_index_rejects_a_patient_record_owned_by_another_doctor(): void
+    {
+        $now = now();
+
+        DB::table('doctors')->insert([
+            [
+                'id' => 11,
+                'user_id' => 99,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'id' => 12,
+                'user_id' => 100,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $foreignPatient = Patient::query()->create([
+            'doctor_id' => 12,
+            'name' => 'Another Doctor Patient',
+        ]);
+
+        $appointment = Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $foreignPatient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        $this->expectException(ModelNotFoundException::class);
+
+        (new PatientEncounterController())->index($appointment, $audit);
     }
 
     public function test_it_creates_a_structured_draft_with_prescriptions_and_a_clinical_snapshot(): void
