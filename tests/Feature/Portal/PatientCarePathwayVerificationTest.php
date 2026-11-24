@@ -345,6 +345,40 @@ final class PatientCarePathwayVerificationTest extends TestCase
         $this->assertCount(1, $props['pathways']['data']);
     }
 
+
+    public function test_secretary_with_clinical_write_permission_can_manage_but_cannot_activate_pathways(): void
+    {
+        $this->seedDoctorAndClinic();
+        $patient = Patient::query()->create(['doctor_id' => 11, 'name' => 'Visible patient']);
+        Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+        PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => $patient->id,
+            'title' => 'Draft plan',
+            'status' => 'draft',
+        ]);
+        $this->authenticateSecretary(['patients.clinical.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.care_pathways.listed', null, ['doctor_id' => 11]);
+
+        $request = Request::create('/portal/care-pathways', 'GET');
+        $request->headers->set('X-Inertia', 'true');
+        $response = (new PatientCarePathwayController())->index($audit);
+        $props = $response->toResponse($request)->getData(true)['props'];
+
+        $this->assertTrue($props['canManageClinical']);
+        $this->assertFalse($props['canActivatePathway']);
+    }
+
     private function seedDoctorAndClinic(): void
     {
         DB::table('doctors')->insert([

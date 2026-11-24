@@ -31,6 +31,7 @@ final class PatientCarePathwayController extends Controller
             'مجوز مشاهده برنامه‌های مراقبتی برای شما فعال نیست.'
         );
         $canManageClinical = $this->secretaryHasPermission($doctor, 'patients.clinical.manage');
+        $canActivatePathway = Auth::guard('web')->user()?->role !== 'secretary';
         $clinicIds = $this->accessibleClinicIds($doctor);
         abort_if($clinicIds === [], 403);
         $base = PatientCarePathway::query()->where('doctor_id',$doctor->id)->whereIn('clinic_id',$clinicIds);
@@ -42,6 +43,7 @@ final class PatientCarePathwayController extends Controller
         return Inertia::render('Portal/CarePathways/Index', [
             'doctor'=>$doctor,'pathways'=>$pathways,'patients'=>$patients,'clinics'=>$clinics,
             'canManageClinical'=>$canManageClinical,
+            'canActivatePathway'=>$canActivatePathway,
             'stats'=>['draft'=>(clone $base)->where('status','draft')->count(),'active'=>(clone $base)->where('status','active')->count(),'completed'=>(clone $base)->where('status','completed')->count()],
         ]);
     }
