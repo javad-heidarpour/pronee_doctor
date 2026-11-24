@@ -37,6 +37,7 @@
         <p class="text-xs leading-6 text-slate-500">ذخیره برنامه آن را برای بیمار قابل مشاهده نمی‌کند. فقط پزشک می‌تواند پیش‌نویس را فعال کند.</p>
       </form>
       <p v-if="!canManageClinical" class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">مجوز ایجاد برنامه مراقبتی یا تأیید گام‌های آن برای حساب شما فعال نیست. امکان مشاهده برنامه‌های مجاز همچنان برقرار است.</p>
+      <p v-if="!canActivatePathway" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-6 text-slate-600">فعال‌سازی برنامه‌های مراقبتی فقط برای پزشک یا مدیر مجاز است.</p>
       <section class="space-y-3">
         <h2 class="font-black">برنامه‌های ثبت‌شده</h2>
         <article v-for="pathway in pathways.data" :key="pathway.id" class="rounded-2xl border bg-white p-4">
@@ -50,7 +51,7 @@
               <button v-if="canManageClinical && step.status === 'patient_reported'" @click="verify(step.id)" class="mt-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white">تأیید انجام گام</button>
             </div>
           </div>
-          <button v-if="pathway.status === 'draft'" @click="activate(pathway.id)" class="mt-3 rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white">تأیید پزشک و فعال‌سازی</button>
+          <button v-if="canActivatePathway && pathway.status === 'draft'" @click="activate(pathway.id)" class="mt-3 rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white">تأیید پزشک و فعال‌سازی</button>
         </article>
         <p v-if="!pathways.data?.length" class="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">هنوز برنامه مراقبتی ثبت نشده است.</p>
       </section>
@@ -62,7 +63,7 @@
 <script setup>
 import { useForm, router } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
-const props = defineProps({ doctor:Object, pathways:Object, patients:Array, clinics:Array, stats:Object, canManageClinical:Boolean })
+const props = defineProps({ doctor:Object, pathways:Object, patients:Array, clinics:Array, stats:Object, canManageClinical:Boolean, canActivatePathway:Boolean })
 const form = useForm({ patient_id:'', clinic_id:'', title:'', goal:'', description:'', starts_at:'', ends_at:'', steps:[{title:'',description:'',category:'general',due_at:''}] })
 const addStep = () => { if(form.steps.length<20) form.steps.push({title:'',description:'',category:'general',due_at:''}) }
 const removeStep = i => { if(form.steps.length>1) form.steps.splice(i,1) }
