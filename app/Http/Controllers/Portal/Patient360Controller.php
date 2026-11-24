@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
+use App\Actions\Portal\Patient\ListPatient360FollowUpsAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Patient;
@@ -12,7 +13,6 @@ use App\Models\Doctor;
 use App\Models\PatientCarePathway;
 use App\Models\PatientClinicalRecord;
 use App\Models\PatientEncounter;
-use App\Models\PatientFollowUpTask;
 use App\Models\PatientMedicationPlan;
 use App\Models\PatientVitalSign;
 use Illuminate\Support\Carbon;
@@ -24,7 +24,7 @@ final class Patient360Controller extends Controller
 {
     use HasActiveDoctor;
 
-    public function show(Patient $patient, RecordSecurityAuditEventAction $audit)
+    public function show(Patient $patient, ListPatient360FollowUpsAction $followUpsAction, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.view', $doctor);
@@ -79,12 +79,7 @@ final class Patient360Controller extends Controller
                 ->where('patient_id', $patient->id)
                 ->orderByDesc('measured_at')->limit(50)->get();
 
-            $followUps = PatientFollowUpTask::query()
-                ->where('doctor_id', $doctor->id)
-                ->where('patient_id', $patient->id)
-                ->where(fn ($query) => $query->whereIn('clinic_id', $clinicIds)->orWhereNull('clinic_id'))
-                ->orderByRaw("CASE WHEN status IN ('pending','in_progress') THEN 0 ELSE 1 END")
-                ->orderBy('due_at')->limit(30)->get();
+            $followUps = $followUpsAction->handle($user, $doctor, $patient, $clinicIds);
 
             $pathways = PatientCarePathway::query()
                 ->where('doctor_id', $doctor->id)
