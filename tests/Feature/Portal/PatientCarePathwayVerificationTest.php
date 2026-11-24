@@ -34,10 +34,20 @@ final class PatientCarePathwayVerificationTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('doctor_user', function (Blueprint $table): void {
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('user_id');
+            $table->json('permissions')->nullable();
+            $table->json('clinic_ids')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
             $table->string('name')->nullable();
             $table->string('family')->nullable();
+            $table->string('role')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamp('deleted_at')->nullable();
             $table->timestamps();
         });
@@ -109,6 +119,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
         Schema::dropIfExists('patient_care_pathways');
         Schema::dropIfExists('appointments');
         Schema::dropIfExists('patients');
+        Schema::dropIfExists('doctor_user');
         Schema::dropIfExists('users');
         Schema::dropIfExists('addresses');
         Schema::dropIfExists('doctors');
@@ -230,4 +241,155 @@ final class PatientCarePathwayVerificationTest extends TestCase
         $this->assertSame('verified', $step->fresh()->status);
         $this->assertSame('completed', $pathway->fresh()->status);
     }
+    
+    public function test_secretary_with_patient_management_only_cannot_create_clinical_care_pathway(): void
+    {
+        $this->seedDoctorAndClinic();
+        $patient = Patient::query()->create(['doctor_id' => 11, 'name' => 'Patient']);
+        Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+        $this->authenticateSecretary(['patients.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        $request = Request::create('/portal/care-pathways', 'POST', [
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'title' => 'Restricted clinical plan',
+            'steps' => [[
+                'title' => 'Clinical action',
+                'category' => 'general',
+            ]],
+        ]);
+
+        try {
+            (new PatientCarePathwayController())->store($request, $audit);
+            $this->fail('A secretary without clinical write permission must be denied.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+
+        $this->assertSame(0, PatientCarePathway::query()->count());
+    }
+
+    public function test_secretary_with_patient_management_only_cannot_verify_a_clinical_step(): void
+    {
+        $this->seedDoctorAndClinic();
+        $pathway = PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => 41,
+            'title' => 'Restricted pathway',
+            'status' => 'active',
+        ]);
+        $step = $pathway->steps()->create([
+            'title' => 'Reported clinical action',
+            'category' => 'measurement',
+            'status' => 'patient_reported',
+        ]);
+        $this->authenticateSecretary(['patients.manage']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        try {
+            (new PatientCarePathwayController())->verifyStep(
+                Request::create('/portal/care-pathway-steps/'.$step->id.'/verify', 'POST'),
+                $step->id,
+                $audit
+            );
+            $this->fail('A secretary without clinical write permission must be denied.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+
+        $this->assertSame('patient_reported', $step->fresh()->status);
+        $this->assertNull($step->fresh()->verified_at);
+    }
+
+    public function test_secretary_with_clinical_view_but_without_write_permission_gets_read_only_page(): void
+    {
+        $this->seedDoctorAndClinic();
+        $patient = Patient::query()->create(['doctor_id' => 11, 'name' => 'Visible patient']);
+        Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+        PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => $patient->id,
+            'title' => 'Visible plan',
+            'status' => 'active',
+        ]);
+        $this->authenticateSecretary(['patients.clinical.view']);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('patient.care_pathways.listed', null, ['doctor_id' => 11]);
+
+        $request = Request::create('/portal/care-pathways', 'GET');
+        $request->headers->set('X-Inertia', 'true');
+        $response = (new PatientCarePathwayController())->index($audit);
+        $props = $response->toResponse($request)->getData(true)['props'];
+
+        $this->assertFalse($props['canManageClinical']);
+        $this->assertCount(1, $props['pathways']['data']);
+    }
+
+    private function seedDoctorAndClinic(): void
+    {
+        DB::table('doctors')->insert([
+            'id' => 11,
+            'user_id' => 99,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test Clinic',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function authenticateSecretary(array $permissions): void
+    {
+        DB::table('users')->insert([
+            'id' => 77,
+            'name' => 'Secretary',
+            'family' => 'Test',
+            'role' => 'secretary',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('doctor_user')->insert([
+            'doctor_id' => 11,
+            'user_id' => 77,
+            'permissions' => json_encode($permissions),
+            'clinic_ids' => json_encode([31]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = new User();
+        $user->id = 77;
+        $user->role = 'secretary';
+        $user->is_active = true;
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+    }
+
 }

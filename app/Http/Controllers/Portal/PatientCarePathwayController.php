@@ -24,7 +24,13 @@ final class PatientCarePathwayController extends Controller
     public function index(RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
+        abort_unless(
+            $this->secretaryHasPermission($doctor, 'patients.clinical.view') ||
+            $this->secretaryHasPermission($doctor, 'patients.clinical.manage'),
+            403,
+            'مجوز مشاهده برنامه‌های مراقبتی برای شما فعال نیست.'
+        );
+        $canManageClinical = $this->secretaryHasPermission($doctor, 'patients.clinical.manage');
         $clinicIds = $this->accessibleClinicIds($doctor);
         abort_if($clinicIds === [], 403);
         $base = PatientCarePathway::query()->where('doctor_id',$doctor->id)->whereIn('clinic_id',$clinicIds);
@@ -35,6 +41,7 @@ final class PatientCarePathwayController extends Controller
 
         return Inertia::render('Portal/CarePathways/Index', [
             'doctor'=>$doctor,'pathways'=>$pathways,'patients'=>$patients,'clinics'=>$clinics,
+            'canManageClinical'=>$canManageClinical,
             'stats'=>['draft'=>(clone $base)->where('status','draft')->count(),'active'=>(clone $base)->where('status','active')->count(),'completed'=>(clone $base)->where('status','completed')->count()],
         ]);
     }
@@ -42,7 +49,7 @@ final class PatientCarePathwayController extends Controller
     public function store(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $data = $request->validate([
             'patient_id'=>['required','integer'],'clinic_id'=>['required','integer',Rule::in($clinicIds)],
@@ -87,7 +94,7 @@ final class PatientCarePathwayController extends Controller
     public function verifyStep(Request $request, int $step, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
-        $this->authorizeSecretaryPermission('patients.manage', $doctor);
+        $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
         $data = $request->validate(['verification_note'=>['nullable','string','max:1000']]);
         $item = PatientCarePathwayStep::query()->whereKey($step)->whereHas('pathway',fn($q)=>$q
             ->where('doctor_id',$doctor->id)->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->where('status','active'))->firstOrFail();
@@ -104,4 +111,22 @@ final class PatientCarePathwayController extends Controller
         $audit->handle('patient.care_pathway.step_verified',$item,['pathway_id'=>$pathway->id]);
         return back()->with('success','گام برنامه بررسی و تأیید شد.');
     }
+    private function secretaryHasPermission(\App\Models\Doctor $doctor, string $permission): bool
+    {
+        $user = Auth::guard('web')->user();
+
+        if (!$user || $user->role !== 'secretary') {
+            return true;
+        }
+
+        $assignment = $user->doctors()->where('doctors.id', $doctor->id)->first();
+        $permissions = $assignment?->pivot?->permissions ?? [];
+
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        return is_array($permissions) && in_array($permission, $permissions, true);
+    }
+
 }
