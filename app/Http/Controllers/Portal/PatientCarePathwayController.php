@@ -97,22 +97,63 @@ final class PatientCarePathwayController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $data = $request->validate(['verification_note'=>['nullable','string','max:1000']]);
-        $item = PatientCarePathwayStep::query()->whereKey($step)->whereHas('pathway',fn($q)=>$q
-            ->where('doctor_id',$doctor->id)->whereIn('clinic_id',$this->accessibleClinicIds($doctor))->where('status','active'))->firstOrFail();
-        abort_unless($item->status === 'patient_reported', 422, 'این گام هنوز توسط بیمار گزارش نشده است.');
-        $pathway = DB::transaction(function () use ($item, $data) {
-            $item->update(['status'=>'verified','verified_at'=>now(),'verified_by'=>Auth::guard('web')->id(),'verification_note'=>$data['verification_note'] ?? null]);
-            $pathway = $item->pathway()->with('steps')->lockForUpdate()->firstOrFail();
-            if (app(PatientCarePathwayProgress::class)->isComplete($pathway->steps)) {
-                $pathway->update(['status'=>'completed','completed_at'=>now()]);
+        $data = $request->validate(['verification_note' => ['nullable', 'string', 'max:1000']]);
+        $clinicIds = $this->accessibleClinicIds($doctor);
+
+        abort_if($clinicIds === [], 403);
+
+        DB::transaction(function () use ($step, $doctor, $clinicIds, $data, $audit): void {
+            // Lock the parent first so patient reports and staff verification
+            // serialize on the same pathway before either step is changed.
+            $pathway = PatientCarePathway::query()
+                ->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)
+                ->where('status', 'active')
+                ->whereHas('steps', fn ($query) => $query->whereKey($step))
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $item = PatientCarePathwayStep::query()
+                ->whereKey($step)
+                ->where('pathway_id', $pathway->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless(
+                $item->status === 'patient_reported',
+                422,
+                'این گام هنوز توسط بیمار گزارش نشده است.'
+            );
+
+            $item->update([
+                'status' => 'verified',
+                'verified_at' => now(),
+                'verified_by' => Auth::guard('web')->id(),
+                'verification_note' => $data['verification_note'] ?? null,
+            ]);
+
+            $steps = PatientCarePathwayStep::query()
+                ->where('pathway_id', $pathway->id)
+                ->orderBy('sort_order')
+                ->lockForUpdate()
+                ->get();
+
+            if (app(PatientCarePathwayProgress::class)->isComplete($steps)) {
+                $pathway->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
             }
 
-            return $pathway;
-        });
-        $audit->handle('patient.care_pathway.step_verified',$item,['pathway_id'=>$pathway->id]);
-        return back()->with('success','گام برنامه بررسی و تأیید شد.');
+            // Keep the clinical transition and its audit event atomic.
+            $audit->handle('patient.care_pathway.step_verified', $item, [
+                'pathway_id' => $pathway->id,
+            ]);
+        }, 3);
+
+        return back()->with('success', 'گام برنامه بررسی و تأیید شد.');
     }
+
     private function secretaryHasPermission(\App\Models\Doctor $doctor, string $permission): bool
     {
         $user = Auth::guard('web')->user();
