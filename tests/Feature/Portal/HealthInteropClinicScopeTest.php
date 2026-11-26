@@ -162,6 +162,39 @@ final class HealthInteropClinicScopeTest extends TestCase
         ));
     }
 
+    public function test_doctor_can_check_an_owned_patient_before_the_first_appointment(): void
+    {
+        $this->authenticateDoctor();
+        $patient = $this->createPatient(41);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('health_interop.patient_identity.checked', $patient, ['doctor_id' => 11]);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('health_interop.insurance_verification.created', Mockery::type(\App\Models\PatientInsuranceVerification::class), ['doctor_id' => 11]);
+
+        $identityResponse = (new HealthInteropController())->validateIdentity(
+            Request::create('/portal/health-interop/patients/41/identity-check', 'POST'),
+            $patient,
+            $audit
+        );
+
+        $insuranceResponse = (new HealthInteropController())->verifyInsurance(
+            Request::create('/portal/health-interop/patients/41/insurance-check', 'POST', [
+                'payer_code' => 'tamin',
+            ]),
+            $patient,
+            $audit
+        );
+
+        $this->assertSame(200, $identityResponse->getStatusCode());
+        $this->assertSame(202, $insuranceResponse->getStatusCode());
+        $this->assertSame(1, DB::table('patient_insurance_verifications')->count());
+        $this->assertNull(DB::table('patient_insurance_verifications')->value('appointment_id'));
+    }
+
     public function test_secretary_cannot_create_insurance_check_for_an_appointment_outside_assigned_clinic(): void
     {
         $this->authenticateSecretary(['patients.clinical.manage']);
@@ -286,6 +319,41 @@ final class HealthInteropClinicScopeTest extends TestCase
 
         $this->assertEqualsCanonicalizing([501, 503], $messageIds);
         $this->assertSame([601], $insuranceIds);
+    }
+
+    private function authenticateDoctor(): void
+    {
+        DB::table('users')->insert([
+            'id' => 99,
+            'name' => 'Test Doctor',
+            'family' => 'User',
+            'role' => 'doctor',
+            'is_active' => true,
+            'deleted_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('doctors')->insert([
+            'id' => 11,
+            'user_id' => 99,
+            'is_active' => true,
+            'deleted_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Assigned clinic',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        Auth::guard('web')->setUser(User::query()->findOrFail(99));
+        session(['active_doctor_id' => 11]);
     }
 
     private function authenticateSecretary(array $permissions): void
