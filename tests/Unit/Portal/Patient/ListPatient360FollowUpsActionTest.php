@@ -96,6 +96,24 @@ final class ListPatient360FollowUpsActionTest extends TestCase
         $this->assertNotContains($otherClinic->id, $tasks->pluck('id')->all());
     }
 
+    public function test_secretary_retention_aggregates_only_follow_ups_from_assigned_clinics(): void
+    {
+        $this->createTask(31, 'Assigned clinic follow-up');
+        $this->createTask(32, 'Other clinic follow-up');
+        $this->createTask(null, 'Unassigned legacy follow-up');
+
+        $counts = PatientFollowUpTask::query()
+            ->forAccessibleClinics(11, [31], false)
+            ->whereIn('patient_id', [41])
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->selectRaw('patient_id, COUNT(*) as aggregate')
+            ->groupBy('patient_id')
+            ->pluck('aggregate', 'patient_id');
+
+        $this->assertSame(1, (int) $counts->get(41));
+        $this->assertCount(1, $counts);
+    }
+
     public function test_follow_up_scope_fails_closed_when_no_clinics_are_accessible(): void
     {
         $this->createTask(null, 'Unassigned legacy task');
