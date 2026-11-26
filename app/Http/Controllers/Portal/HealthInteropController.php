@@ -53,6 +53,7 @@ final class HealthInteropController extends Controller
                     }))
                     ->orWhere(function ($appointmentOnly) use ($doctor, $clinicIds): void {
                         $appointmentOnly->whereNull('encounter_id')
+                            ->where('event_type', 'appointment.booked')
                             ->whereHas('appointment', fn ($appointment) => $appointment
                                 ->where('doctor_id', $doctor->id)
                                 ->whereIn('clinic_id', $clinicIds)
