@@ -83,31 +83,45 @@ final class ClinicIntelligenceController extends Controller
             ->whereHas('appointments', fn ($q) => $q->whereIn('clinic_id', $clinicIds)->whereNotIn('status', ['cancelled', 'failed', 'rejected']))
             ->orderBy('name')->get(['id', 'name', 'phone']) : collect();
 
-        $scenarios = $user->role === 'doctor' ? DB::table('clinic_economic_scenarios')
-            ->where('doctor_id', $doctor->id)->latest()->limit(10)->get() : collect();
+        if ($user->role === 'doctor') {
+            $scenarios = DB::table('clinic_economic_scenarios')
+                ->where('doctor_id', $doctor->id)->latest()->limit(10)->get();
 
-        $appointments = DB::table('appointments')->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)->whereBetween('appointment_date', [now()->subDays(90)->toDateString(), today()->toDateString()])
-            ->whereNotIn('status', ['cancelled', 'rejected']);
-        $appointmentCount = (clone $appointments)->count();
-        $paidPayments = DB::table('appointment_payments as payments')
-            ->join('appointments as a', 'a.id', '=', 'payments.appointment_id')
-            ->where('a.doctor_id', $doctor->id)->whereIn('a.clinic_id', $clinicIds)
-            ->where('payments.status', 'paid')->whereNotNull('payments.paid_at')
-            ->where('payments.paid_at', '>=', now()->subDays(90));
-        $revenue = (int) (clone $paidPayments)->sum('payments.amount_rial');
-        $paidAppointmentCount = (int) (clone $paidPayments)->distinct('a.id')->count('a.id');
-        $expenses = (int) DB::table('clinic_expenses')->where('doctor_id', $doctor->id)
-            ->whereIn('clinic_id', $clinicIds)->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())->sum('amount');
-        $ownedOrganizationIds = DB::table('clinic_organizations')
-            ->where('owner_user_id', $user->id)->where('status', 'active')->pluck('id');
-        $paidPayroll = (int) DB::table('clinic_staff_payrolls')
-            ->whereIn('organization_id', $ownedOrganizationIds)->where('status', 'paid')
-            ->whereDate('period_end', '>=', now()->subDays(90)->toDateString())->sum('net_amount');
+            $appointments = DB::table('appointments')->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)->whereBetween('appointment_date', [now()->subDays(90)->toDateString(), today()->toDateString()])
+                ->whereNotIn('status', ['cancelled', 'rejected']);
+            $appointmentCount = (clone $appointments)->count();
+            $paidPayments = DB::table('appointment_payments as payments')
+                ->join('appointments as a', 'a.id', '=', 'payments.appointment_id')
+                ->where('a.doctor_id', $doctor->id)->whereIn('a.clinic_id', $clinicIds)
+                ->where('payments.status', 'paid')->whereNotNull('payments.paid_at')
+                ->where('payments.paid_at', '>=', now()->subDays(90));
+            $revenue = (int) (clone $paidPayments)->sum('payments.amount_rial');
+            $paidAppointmentCount = (int) (clone $paidPayments)->distinct('a.id')->count('a.id');
+            $expenses = (int) DB::table('clinic_expenses')->where('doctor_id', $doctor->id)
+                ->whereIn('clinic_id', $clinicIds)->whereDate('expense_date', '>=', now()->subDays(90)->toDateString())->sum('amount');
+            $ownedOrganizationIds = DB::table('clinic_organizations')
+                ->where('owner_user_id', $user->id)->where('status', 'active')->pluck('id');
+            $paidPayroll = (int) DB::table('clinic_staff_payrolls')
+                ->whereIn('organization_id', $ownedOrganizationIds)->where('status', 'paid')
+                ->whereDate('period_end', '>=', now()->subDays(90)->toDateString())->sum('net_amount');
+            $baseline = [
+                'appointments_90d' => $appointmentCount,
+                'monthly_appointments' => round($appointmentCount / 3, 1),
+                'monthly_revenue' => (int) round($revenue / 3),
+                'monthly_expenses' => (int) round(($expenses + $paidPayroll) / 3),
+                'average_fee' => $paidAppointmentCount > 0 ? (int) round($revenue / $paidAppointmentCount) : 0,
+            ];
+        } else {
+            $scenarios = collect();
+            $baseline = [
+                'appointments_90d' => 0, 'monthly_appointments' => 0,
+                'monthly_revenue' => 0, 'monthly_expenses' => 0, 'average_fee' => 0,
+            ];
+        }
 
         $audit->handle('clinic.intelligence.viewed', null, [
-            'doctor_id' => $doctor->id,
-            'clinic_count' => count($clinicIds),
+            'doctor_id' => $doctor->id, 'clinic_count' => count($clinicIds),
         ]);
 
         return Inertia::render('Portal/ClinicIntelligence/Index', [
@@ -124,13 +138,7 @@ final class ClinicIntelligenceController extends Controller
                 'health' => $canHealth, 'health_manage' => $canManageHealth,
                 'simulator' => $user->role === 'doctor',
             ],
-            'baseline' => [
-                'appointments_90d' => $appointmentCount,
-                'monthly_appointments' => round($appointmentCount / 3, 1),
-                'monthly_revenue' => (int) round($revenue / 3),
-                'monthly_expenses' => (int) round(($expenses + $paidPayroll) / 3),
-                'average_fee' => $paidAppointmentCount > 0 ? (int) round($revenue / $paidAppointmentCount) : 0,
-            ],
+            'baseline' => $baseline,
         ]);
     }
 
@@ -235,22 +243,18 @@ final class ClinicIntelligenceController extends Controller
         $this->authorizeHealthManagement($doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
-
         $updated = DB::transaction(function () use ($membership, $doctor, $clinicIds, $isSecretary): int {
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
-
             return DB::table('clinic_health_memberships')->where('id', $membership)
                 ->where('doctor_id', $doctor->id)->where('status', 'active')
                 ->update(['last_checkup_at' => now(), 'updated_at' => now()]);
         }, 3);
         abort_unless($updated === 1, 404);
-
         $audit->handle('clinic.health_membership.checkup_recorded', null, [
             'doctor_id' => $doctor->id, 'status_changed' => true,
         ]);
-
         return back()->with('success', 'تاریخ آخرین چکاپ ثبت شد و موعد بعدی محاسبه می‌شود.');
     }
 
@@ -260,22 +264,18 @@ final class ClinicIntelligenceController extends Controller
         $this->authorizeHealthManagement($doctor);
         $clinicIds = $this->accessibleClinicIds($doctor);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
-
         $updated = DB::transaction(function () use ($membership, $doctor, $clinicIds, $isSecretary): int {
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
-
             return DB::table('clinic_health_memberships')->where('id', $membership)
                 ->where('doctor_id', $doctor->id)->where('status', 'active')
                 ->update(['status' => 'withdrawn', 'updated_at' => now()]);
         }, 3);
         abort_unless($updated === 1, 404);
-
         $audit->handle('clinic.health_membership.withdrawn', null, [
             'doctor_id' => $doctor->id, 'status_changed' => true,
         ]);
-
         return back()->with('success', 'عضویت و یادآوری‌های این برنامه متوقف شد.');
     }
 
@@ -295,7 +295,6 @@ final class ClinicIntelligenceController extends Controller
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
-
             $points = match ($data['activity_key']) {
                 'education_completed' => 5,
                 'self_care_goal_completed' => 10,
@@ -305,7 +304,6 @@ final class ClinicIntelligenceController extends Controller
                 ->where('doctor_id', $doctor->id)->where('patient_id', $row->patient_id)
                 ->whereDate('created_at', today())->sum('points');
             abort_if($alreadyToday + $points > 20, 422, 'سقف امتیاز روزانه رعایت شده است.');
-
             DB::table('clinic_health_points')->insertOrIgnore([
                 'membership_id' => $membership, 'doctor_id' => $doctor->id,
                 'patient_id' => $row->patient_id, 'points' => $points,
@@ -424,24 +422,29 @@ final class ClinicIntelligenceController extends Controller
             ->where('p.doctor_id', $doctor->id)
             ->where('g.doctor_id', $doctor->id);
 
-        $appointmentScope = static function (QueryBuilder $appointments): void {
-            $appointments->selectRaw('1')->from('appointments as a')
-                ->whereColumn('a.doctor_id', 'm.doctor_id')
-                ->whereColumn('a.patient_id', 'm.patient_id')
-                ->whereColumn('a.clinic_id', 'g.clinic_id')
-                ->whereNotIn('a.status', ['cancelled', 'failed', 'rejected']);
-        };
-
         if ($isSecretary) {
             return $query->whereIn('g.clinic_id', $clinicIds)
-                ->whereExists($appointmentScope);
+                ->whereExists(function (QueryBuilder $appointments): void {
+                    $appointments->selectRaw('1')->from('appointments as a')
+                        ->whereColumn('a.doctor_id', 'm.doctor_id')
+                        ->whereColumn('a.patient_id', 'm.patient_id')
+                        ->whereColumn('a.clinic_id', 'g.clinic_id')
+                        ->whereNotIn('a.status', ['cancelled', 'failed', 'rejected']);
+                });
         }
 
-        return $query->where(function (QueryBuilder $scope) use ($clinicIds, $appointmentScope): void {
+        return $query->where(function (QueryBuilder $scope) use ($clinicIds): void {
             $scope->whereNull('g.clinic_id');
             if ($clinicIds !== []) {
-                $scope->orWhere(function (QueryBuilder $clinicScope) use ($clinicIds, $appointmentScope): void {
-                    $clinicScope->whereIn('g.clinic_id', $clinicIds)->whereExists($appointmentScope);
+                $scope->orWhere(function (QueryBuilder $clinicScope) use ($clinicIds): void {
+                    $clinicScope->whereIn('g.clinic_id', $clinicIds)
+                        ->whereExists(function (QueryBuilder $appointments): void {
+                            $appointments->selectRaw('1')->from('appointments as a')
+                                ->whereColumn('a.doctor_id', 'm.doctor_id')
+                                ->whereColumn('a.patient_id', 'm.patient_id')
+                                ->whereColumn('a.clinic_id', 'g.clinic_id')
+                                ->whereNotIn('a.status', ['cancelled', 'failed', 'rejected']);
+                        });
                 });
             }
         });
