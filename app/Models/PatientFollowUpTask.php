@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -67,6 +68,38 @@ class PatientFollowUpTask extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Restrict follow-up records to a doctor's clinics.
+     *
+     * Unassigned legacy tasks are only visible to doctor/admin accounts because
+     * they cannot be safely attributed to a secretary's clinic assignment.
+     */
+    public function scopeForAccessibleClinics(
+        Builder $query,
+        int $doctorId,
+        array $clinicIds,
+        bool $includeLegacyUnassigned = false
+    ): Builder {
+        $clinicIds = array_values(array_unique(array_filter(
+            array_map('intval', $clinicIds),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        $query->where('doctor_id', $doctorId);
+
+        if ($clinicIds === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $clinicQuery) use ($clinicIds, $includeLegacyUnassigned): void {
+            $clinicQuery->whereIn('clinic_id', $clinicIds);
+
+            if ($includeLegacyUnassigned) {
+                $clinicQuery->orWhereNull('clinic_id');
+            }
+        });
     }
 
     public function scopeOverdue($query)
