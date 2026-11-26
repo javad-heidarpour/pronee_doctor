@@ -29,10 +29,9 @@ final class HealthInteropController extends Controller
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
 
-        $clinicIds = $this->accessibleClinicIds($doctor);
-        abort_if($clinicIds === [], 403, 'هیچ مطب فعالی برای تبادل اطلاعات در دسترس نیست.');
-
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
+        $clinicIds = $this->accessibleClinicIds($doctor);
+        abort_if($isSecretary && $clinicIds === [], 403, 'هیچ مطب فعالی برای تبادل اطلاعات در دسترس نیست.');
 
         // The dashboard contains patient insurance and exchange status; audit access without payload data.
         $audit->handle('health_interop.dashboard.viewed', null, ['doctor_id' => $doctor->id]);
@@ -202,9 +201,14 @@ final class HealthInteropController extends Controller
 
     private function authorizePatientClinicAccess(Patient $patient, Doctor $doctor, array $clinicIds): void
     {
+        abort_unless((int) $patient->doctor_id === (int) $doctor->id, 404);
+
+        if (Auth::guard('web')->user()?->role !== 'secretary') {
+            return;
+        }
+
         abort_unless(
             $clinicIds !== [] &&
-            (int) $patient->doctor_id === (int) $doctor->id &&
             Appointment::query()
                 ->where('doctor_id', $doctor->id)
                 ->where('patient_id', $patient->id)
