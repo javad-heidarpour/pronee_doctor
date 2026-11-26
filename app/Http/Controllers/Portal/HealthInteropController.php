@@ -47,7 +47,11 @@ final class HealthInteropController extends Controller
                 $query->whereHas('encounter', fn ($encounter) => $encounter
                     ->where('doctor_id', $doctor->id)
                     ->whereIn('clinic_id', $clinicIds)
-                    ->whereColumn('patient_encounters.patient_id', 'health_exchange_messages.patient_id'))
+                    ->whereColumn('patient_encounters.patient_id', 'health_exchange_messages.patient_id')
+                    ->where(function ($appointmentLink): void {
+                        $appointmentLink->whereNull('health_exchange_messages.appointment_id')
+                            ->orWhereColumn('patient_encounters.appointment_id', 'health_exchange_messages.appointment_id');
+                    }))
                     ->orWhere(function ($appointmentOnly) use ($doctor, $clinicIds): void {
                         $appointmentOnly->whereNull('encounter_id')
                             ->whereHas('appointment', fn ($appointment) => $appointment
