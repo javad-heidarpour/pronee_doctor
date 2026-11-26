@@ -9,6 +9,7 @@ use App\Models\PatientFollowUpTask;
 use App\Services\PatientRetention\RetentionSegment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 final class PatientRetentionController extends Controller
 {
@@ -35,8 +36,11 @@ final class PatientRetentionController extends Controller
         if($search!=='') $query->where(fn($q)=>$q->where('name','like','%'.$search.'%')->orWhere('phone','like','%'.$search.'%'));
         $patients=$query->orderBy('name')->paginate(30)->withQueryString();
         $ids=$patients->getCollection()->pluck('id');
-        $followUps=$ids->isEmpty()?collect():PatientFollowUpTask::query()->where('doctor_id',$doctor->id)->whereIn('patient_id',$ids)
-            ->where(fn($q)=>$q->whereIn('clinic_id',$clinicIds)->orWhereNull('clinic_id'))->whereIn('status',['pending','in_progress'])
+        $includeLegacyFollowUps=Auth::guard('web')->user()?->role !== 'secretary';
+        $followUps=$ids->isEmpty()?collect():PatientFollowUpTask::query()
+            ->forAccessibleClinics($doctor->id,$clinicIds,$includeLegacyFollowUps)
+            ->whereIn('patient_id',$ids)
+            ->whereIn('status',['pending','in_progress'])
             ->selectRaw('patient_id, COUNT(*) as aggregate')->groupBy('patient_id')->pluck('aggregate','patient_id');
         $rows=$patients->getCollection()->map(function(Patient $patient) use($segmenter,$today,$followUps,$threshold){
             $last=$patient->last_appointment_at?Carbon::parse($patient->last_appointment_at):null;
