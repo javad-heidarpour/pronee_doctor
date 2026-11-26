@@ -96,10 +96,38 @@ final class ListPatient360FollowUpsActionTest extends TestCase
         $this->assertNotContains($otherClinic->id, $tasks->pluck('id')->all());
     }
 
-    private function createTask(?int $clinicId, string $title): PatientFollowUpTask
+    public function test_follow_up_scope_fails_closed_when_no_clinics_are_accessible(): void
+    {
+        $this->createTask(null, 'Unassigned legacy task');
+        $this->createTask(31, 'Clinic task');
+
+        $ids = PatientFollowUpTask::query()
+            ->forAccessibleClinics(11, [], true)
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([], $ids);
+    }
+
+    public function test_follow_up_scope_always_enforces_doctor_ownership(): void
+    {
+        $visible = $this->createTask(31, 'Visible task');
+        $otherDoctor = $this->createTask(31, 'Other doctor task', 12);
+
+        $ids = PatientFollowUpTask::query()
+            ->forAccessibleClinics(11, [31], false)
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$visible->id], $ids);
+        $this->assertNotContains($otherDoctor->id, $ids);
+    }
+
+    private function createTask(?int $clinicId, string $title, int $doctorId = 11): PatientFollowUpTask
     {
         return PatientFollowUpTask::query()->create([
-            'doctor_id' => 11,
+            'doctor_id' => $doctorId,
             'patient_id' => 41,
             'clinic_id' => $clinicId,
             'title' => $title,
