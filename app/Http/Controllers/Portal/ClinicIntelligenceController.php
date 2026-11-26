@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Portal;
 
+use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\HasActiveDoctor;
 use App\Models\Address;
@@ -185,11 +186,11 @@ final class ClinicIntelligenceController extends Controller
             'consent' => ['accepted'],
         ]);
 
-        $clinicIds = $this->accessibleClinicIds($doctor);
-        $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
         $userId = Auth::guard('web')->id();
 
-        DB::transaction(function () use ($doctor, $data, $clinicIds, $isSecretary, $userId): void {
+        $clinicCount = DB::transaction(function () use ($doctor, $data, $userId): int {
+            $clinicIds = $this->currentHealthClinicIds($doctor);
+            $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
             $program = DB::table('clinic_health_programs')->where('id', $data['program_id'])
                 ->where('doctor_id', $doctor->id)->where('is_active', true)->lockForUpdate()->first();
             abort_unless($program, 404);
@@ -228,10 +229,12 @@ final class ClinicIntelligenceController extends Controller
                     'patient_id' => $patient->id, 'program_id' => $program->id, 'created_at' => now(),
                 ]);
             }
+
+            return count($clinicIds);
         }, 3);
 
         $audit->handle('clinic.health_membership.enrolled', null, [
-            'doctor_id' => $doctor->id, 'clinic_count' => count($clinicIds),
+            'doctor_id' => $doctor->id, 'clinic_count' => $clinicCount,
         ]);
 
         return back()->with('success', 'عضویت داوطلبانه بیمار با ثبت رضایت ایجاد شد.');
@@ -241,9 +244,9 @@ final class ClinicIntelligenceController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeHealthManagement($doctor);
-        $clinicIds = $this->accessibleClinicIds($doctor);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
-        $updated = DB::transaction(function () use ($membership, $doctor, $clinicIds, $isSecretary): int {
+        $updated = DB::transaction(function () use ($membership, $doctor, $isSecretary): int {
+            $clinicIds = $this->currentHealthClinicIds($doctor);
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
@@ -262,9 +265,9 @@ final class ClinicIntelligenceController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeHealthManagement($doctor);
-        $clinicIds = $this->accessibleClinicIds($doctor);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
-        $updated = DB::transaction(function () use ($membership, $doctor, $clinicIds, $isSecretary): int {
+        $updated = DB::transaction(function () use ($membership, $doctor, $isSecretary): int {
+            $clinicIds = $this->currentHealthClinicIds($doctor);
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
@@ -288,10 +291,10 @@ final class ClinicIntelligenceController extends Controller
             'description' => ['required', 'string', 'max:180'],
             'source_key' => ['required', 'string', 'max:120'],
         ]);
-        $clinicIds = $this->accessibleClinicIds($doctor);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
 
-        DB::transaction(function () use ($doctor, $membership, $data, $clinicIds, $isSecretary): void {
+        DB::transaction(function () use ($doctor, $membership, $data, $isSecretary): void {
+            $clinicIds = $this->currentHealthClinicIds($doctor);
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
@@ -403,6 +406,52 @@ final class ClinicIntelligenceController extends Controller
     {
         $this->authorizeSecretaryPermission('patients.manage', $doctor);
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
+    }
+
+    /**
+     * Re-read the secretary grant under the write transaction so a revoked
+     * clinic assignment or clinical permission cannot be used by a stale request.
+     */
+    private function currentHealthClinicIds(Doctor $doctor): array
+    {
+        $user = Auth::guard('web')->user();
+        if ($user?->role !== 'secretary') {
+            return $this->accessibleClinicIds($doctor);
+        }
+
+        $assignment = DB::table('doctor_user')
+            ->where('doctor_id', $doctor->id)
+            ->where('user_id', $user->id)
+            ->lockForUpdate()
+            ->first();
+
+        abort_unless($assignment, 403);
+
+        $permissions = is_array($assignment->permissions)
+            ? $assignment->permissions
+            : (json_decode((string) $assignment->permissions, true) ?: []);
+        abort_unless(
+            in_array('patients.manage', $permissions, true)
+            && in_array('patients.clinical.manage', $permissions, true),
+            403
+        );
+
+        $clinicIds = is_array($assignment->clinic_ids)
+            ? $assignment->clinic_ids
+            : (json_decode((string) $assignment->clinic_ids, true) ?: []);
+
+        if (!is_array($clinicIds) || $clinicIds === []) {
+            return [];
+        }
+
+        return Address::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereIn('id', array_map('intval', $clinicIds))
+            ->where('is_active', true)
+            ->lockForUpdate()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     private function accessibleMembershipQuery(int $membership, Doctor $doctor, array $clinicIds, bool $isSecretary): QueryBuilder
