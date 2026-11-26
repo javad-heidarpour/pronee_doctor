@@ -30,7 +30,7 @@ final class HealthInteropController extends Controller
         $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
 
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
-        $clinicIds = $this->accessibleClinicIds($doctor);
+        $clinicIds = $isSecretary ? $this->accessibleClinicIds($doctor) : [];
         abort_if($isSecretary && $clinicIds === [], 403, 'هیچ مطب فعالی برای تبادل اطلاعات در دسترس نیست.');
 
         // The dashboard contains patient insurance and exchange status; audit access without payload data.
@@ -86,7 +86,9 @@ final class HealthInteropController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.view', $doctor);
-        $this->authorizePatientClinicAccess($patient, $doctor, $this->accessibleClinicIds($doctor));
+        $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
+        $clinicIds = $isSecretary ? $this->accessibleClinicIds($doctor) : [];
+        $this->authorizePatientClinicAccess($patient, $doctor, $clinicIds);
         $valid = filled($patient->national_code) && IranianNationalCode::isValid($patient->national_code);
         $audit->handle('health_interop.patient_identity.checked', $patient, ['doctor_id' => $doctor->id]);
 
@@ -103,9 +105,9 @@ final class HealthInteropController extends Controller
     {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('patients.clinical.manage', $doctor);
-        $clinicIds = $this->accessibleClinicIds($doctor);
-        $this->authorizePatientClinicAccess($patient, $doctor, $clinicIds);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
+        $clinicIds = $isSecretary ? $this->accessibleClinicIds($doctor) : [];
+        $this->authorizePatientClinicAccess($patient, $doctor, $clinicIds);
 
         $data = $request->validate([
             'payer_code' => ['required', 'string', Rule::in(['tamin', 'salamat', 'armed_forces', 'other'])],
@@ -115,11 +117,13 @@ final class HealthInteropController extends Controller
             'appointment_id' => [$isSecretary ? 'required' : 'nullable', 'integer', 'exists:appointments,id'],
         ]);
         if (!empty($data['appointment_id'])) {
+            $appointmentClinicIds = $isSecretary ? $clinicIds : $this->accessibleClinicIds($doctor);
+
             Appointment::query()
                 ->whereKey($data['appointment_id'])
                 ->where('doctor_id', $doctor->id)
                 ->where('patient_id', $patient->id)
-                ->whereIn('clinic_id', $clinicIds)
+                ->whereIn('clinic_id', $appointmentClinicIds)
                 ->firstOrFail();
         }
 
