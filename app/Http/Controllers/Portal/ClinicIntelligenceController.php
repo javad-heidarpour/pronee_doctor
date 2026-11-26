@@ -429,7 +429,8 @@ final class ClinicIntelligenceController extends Controller
 
         $permissions = is_array($assignment->permissions)
             ? $assignment->permissions
-            : (json_decode((string) $assignment->permissions, true) ?: []);
+            : json_decode((string) $assignment->permissions, true);
+        $permissions = is_array($permissions) ? $permissions : [];
         abort_unless(
             in_array('patients.manage', $permissions, true)
             && in_array('patients.clinical.manage', $permissions, true),
@@ -438,15 +439,18 @@ final class ClinicIntelligenceController extends Controller
 
         $clinicIds = is_array($assignment->clinic_ids)
             ? $assignment->clinic_ids
-            : (json_decode((string) $assignment->clinic_ids, true) ?: []);
+            : json_decode((string) $assignment->clinic_ids, true);
+        $clinicIds = is_array($clinicIds)
+            ? array_values(array_unique(array_filter(array_map('intval', $clinicIds), static fn (int $id): bool => $id > 0)))
+            : [];
 
-        if (!is_array($clinicIds) || $clinicIds === []) {
+        if ($clinicIds === []) {
             return [];
         }
 
         return Address::query()
             ->where('doctor_id', $doctor->id)
-            ->whereIn('id', array_map('intval', $clinicIds))
+            ->whereIn('id', $clinicIds)
             ->where('is_active', true)
             ->lockForUpdate()
             ->pluck('id')
