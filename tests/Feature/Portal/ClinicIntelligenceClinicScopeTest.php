@@ -214,6 +214,11 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
         $request = Request::create('/portal/intelligence', 'GET');
         $request->headers->set('X-Inertia', 'true');
 
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
         $response = (new ClinicIntelligenceController())->index(
             $request,
             Mockery::mock(InventoryDemandForecaster::class),
@@ -240,6 +245,23 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
             collect($props['patients'])->pluck('id')->map(fn ($id) => (int) $id)->all()
         );
         $this->assertFalse($props['permissions']['health_manage']);
+        $this->assertSame([
+            'appointments_90d' => 0,
+            'monthly_appointments' => 0,
+            'monthly_revenue' => 0,
+            'monthly_expenses' => 0,
+            'average_fee' => 0,
+        ], $props['baseline']);
+        $this->assertFalse(
+            collect($queries)->contains(fn (string $sql): bool =>
+                str_contains($sql, 'appointment_payments')
+                || str_contains($sql, 'clinic_expenses')
+                || str_contains($sql, 'clinic_staff_payrolls')
+                || str_contains($sql, 'clinic_organizations')
+                || str_contains($sql, 'clinic_economic_scenarios')
+            ),
+            'Secretaries must not query or receive doctor-only financial aggregates.'
+        );
         $this->assertNotContains($otherMembership, collect($props['memberships'])->pluck('id')->all());
         $this->assertNotContains($misattributedMembership, collect($props['memberships'])->pluck('id')->all());
         $this->assertNotContains($doctorWideMembership, collect($props['memberships'])->pluck('id')->all());
