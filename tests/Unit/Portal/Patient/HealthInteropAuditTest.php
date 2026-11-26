@@ -36,6 +36,34 @@ final class HealthInteropAuditTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('addresses', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('patients', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->string('name');
+            $table->string('phone')->nullable();
+            $table->string('national_code')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('appointments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('patient_id')->nullable();
+            $table->unsignedBigInteger('clinic_id');
+            $table->string('status');
+            $table->date('appointment_date')->nullable();
+            $table->string('appointment_time')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('health_exchange_messages', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -76,6 +104,9 @@ final class HealthInteropAuditTest extends TestCase
     {
         Schema::dropIfExists('patient_insurance_verifications');
         Schema::dropIfExists('health_exchange_messages');
+        Schema::dropIfExists('appointments');
+        Schema::dropIfExists('patients');
+        Schema::dropIfExists('addresses');
         Schema::dropIfExists('doctors');
 
         parent::tearDown();
@@ -86,6 +117,14 @@ final class HealthInteropAuditTest extends TestCase
         DB::table('doctors')->insert([
             'id' => 11,
             'user_id' => 99,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('addresses')->insert([
+            'id' => 31,
+            'doctor_id' => 11,
+            'name' => 'Test clinic',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -164,17 +203,27 @@ final class HealthInteropAuditTest extends TestCase
     {
         $this->authenticatePortalUser();
 
-        $patient = new Patient();
-        $patient->id = 41;
-        $patient->name = 'Patient';
-        $patient->national_code = '0000000000';
-
-        $appointment = new Appointment();
-        $appointment->id = 501;
-        $appointment->doctor_id = 11;
-        $appointment->patient_id = 41;
-        $appointment->clinic_id = 31;
-        $appointment->status = 'confirmed';
+        DB::table('patients')->insert([
+            'id' => 41,
+            'doctor_id' => 11,
+            'name' => 'Patient',
+            'national_code' => '0000000000',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('appointments')->insert([
+            'id' => 501,
+            'doctor_id' => 11,
+            'patient_id' => 41,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+            'appointment_date' => today(),
+            'appointment_time' => '10:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $patient = Patient::query()->findOrFail(41);
+        $appointment = Appointment::query()->findOrFail(501);
         $appointment->setRelation('patient', $patient);
 
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
@@ -201,17 +250,27 @@ final class HealthInteropAuditTest extends TestCase
     {
         $this->authenticatePortalUser();
 
-        $patient = new Patient();
-        $patient->id = 41;
-        $patient->name = 'Patient';
-        $patient->national_code = '0000000000';
-
-        $appointment = new Appointment();
-        $appointment->id = 501;
-        $appointment->doctor_id = 11;
-        $appointment->patient_id = 41;
-        $appointment->clinic_id = 31;
-        $appointment->status = 'visited';
+        DB::table('patients')->insert([
+            'id' => 41,
+            'doctor_id' => 11,
+            'name' => 'Patient',
+            'national_code' => '0000000000',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('appointments')->insert([
+            'id' => 501,
+            'doctor_id' => 11,
+            'patient_id' => 41,
+            'clinic_id' => 31,
+            'status' => 'visited',
+            'appointment_date' => today(),
+            'appointment_time' => '10:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $patient = Patient::query()->findOrFail(41);
+        $appointment = Appointment::query()->findOrFail(501);
         $appointment->setRelation('patient', $patient);
 
         $encounter = new PatientEncounter();

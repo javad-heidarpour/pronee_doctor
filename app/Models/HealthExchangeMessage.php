@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class HealthExchangeMessage extends Model
 {
@@ -26,4 +27,19 @@ final class HealthExchangeMessage extends Model
         'available_at' => 'datetime',
         'sent_at' => 'datetime',
     ];
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
+    }
+
+    public function encounter(): BelongsTo
+    {
+        return $this->belongsTo(PatientEncounter::class);
+    }
+
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class);
+    }
 }
