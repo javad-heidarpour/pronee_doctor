@@ -89,11 +89,8 @@ final class Patient360Controller extends Controller
                 ->orderByDesc('created_at')->limit(15)->get();
 
             $medicationPlans = PatientMedicationPlan::query()
+                ->forAccessibleClinics($doctor->id, $clinicIds)
                 ->where('patient_id', $patient->id)
-                ->whereHas('prescription.encounter', fn ($query) => $query
-                    ->where('doctor_id', $doctor->id)
-                    ->where('patient_id', $patient->id)
-                    ->whereIn('clinic_id', $clinicIds))
                 ->with(['prescription.encounter:id,clinic_id,created_at'])
                 ->orderByDesc('created_at')->limit(20)->get();
 

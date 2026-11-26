@@ -8,7 +8,6 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\PatientFollowUpTask;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 final class ListPatient360FollowUpsAction
@@ -29,15 +28,8 @@ final class ListPatient360FollowUpsAction
         }
 
         return PatientFollowUpTask::query()
-            ->where('doctor_id', $doctor->id)
+            ->forAccessibleClinics($doctor->id, $clinicIds, $user->role !== 'secretary')
             ->where('patient_id', $patient->id)
-            ->where(function (Builder $query) use ($clinicIds, $user): void {
-                $query->whereIn('clinic_id', $clinicIds);
-
-                if ($user->role !== 'secretary') {
-                    $query->orWhereNull('clinic_id');
-                }
-            })
             ->orderByRaw("CASE WHEN status IN ('pending','in_progress') THEN 0 ELSE 1 END")
             ->orderBy('due_at')
             ->limit(30)
