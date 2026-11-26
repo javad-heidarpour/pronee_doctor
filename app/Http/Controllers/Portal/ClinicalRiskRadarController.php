@@ -13,6 +13,7 @@ use App\Models\PatientHealthObservation;
 use App\Models\PatientMedicationPlan;
 use App\Services\ClinicalRiskRadar;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 final class ClinicalRiskRadarController extends Controller
@@ -49,11 +50,10 @@ final class ClinicalRiskRadarController extends Controller
         if ($patientIds->isEmpty()) {
             $results = collect();
         } else {
+            $includeLegacyFollowUps = Auth::guard('web')->user()?->role !== 'secretary';
+
             $followUps = PatientFollowUpTask::query()
-                ->where('doctor_id', $doctor->id)
-                ->where(function ($query) use ($clinicIds): void {
-                    $query->whereIn('clinic_id', $clinicIds)->orWhereNull('clinic_id');
-                })
+                ->forAccessibleClinics($doctor->id, $clinicIds, $includeLegacyFollowUps)
                 ->whereIn('patient_id', $patientIds)
                 ->whereIn('status', ['pending', 'in_progress'])
                 ->orderBy('due_at')
@@ -68,6 +68,7 @@ final class ClinicalRiskRadarController extends Controller
                 ->groupBy('patient_id');
 
             $medicationPlans = PatientMedicationPlan::query()
+                ->forAccessibleClinics($doctor->id, $clinicIds)
                 ->whereIn('patient_id', $patientIds)
                 ->where('status', 'active')
                 ->with(['doses' => fn ($query) => $query
