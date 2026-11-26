@@ -298,6 +298,7 @@ final class HealthInteropClinicScopeTest extends TestCase
         $this->createMessage(505, 41, null, null);
         $this->createMessage(506, 99, 701, null);
         $this->createMessage(507, 41, 702, 801);
+        $this->createMessage(508, 41, 701, null, 'encounter.signed');
 
         $this->createInsuranceCheck(601, 41, 701);
         $this->createInsuranceCheck(602, 41, 702);
@@ -448,7 +449,7 @@ final class HealthInteropClinicScopeTest extends TestCase
         return PatientEncounter::query()->findOrFail($id);
     }
 
-    private function createMessage(int $id, int $patientId, ?int $appointmentId, ?int $encounterId): void
+    private function createMessage(int $id, int $patientId, ?int $appointmentId, ?int $encounterId, ?string $eventType = null): void
     {
         DB::table('health_exchange_messages')->insert([
             'id' => $id,
@@ -457,7 +458,7 @@ final class HealthInteropClinicScopeTest extends TestCase
             'appointment_id' => $appointmentId,
             'encounter_id' => $encounterId,
             'destination' => 'sepas',
-            'event_type' => $encounterId ? 'encounter.signed' : 'appointment.booked',
+            'event_type' => $eventType ?? ($encounterId ? 'encounter.signed' : 'appointment.booked'),
             'idempotency_key' => hash('sha256', 'message-'.$id),
             'status' => 'pending',
             'payload' => 'encrypted-payload',
