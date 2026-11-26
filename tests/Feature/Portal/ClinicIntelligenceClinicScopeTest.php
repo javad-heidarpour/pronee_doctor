@@ -221,7 +221,7 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
 
         $response = (new ClinicIntelligenceController())->index(
             $request,
-            Mockery::mock(InventoryDemandForecaster::class),
+            new InventoryDemandForecaster(),
             $audit
         );
 
@@ -277,7 +277,7 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
 
         $this->assertHttpStatus(fn () => (new ClinicIntelligenceController())->index(
             Request::create('/portal/intelligence', 'GET'),
-            Mockery::mock(InventoryDemandForecaster::class),
+            new InventoryDemandForecaster(),
             $audit
         ), 403);
     }
