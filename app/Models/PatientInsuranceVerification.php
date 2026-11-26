@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class PatientInsuranceVerification extends Model
 {
@@ -22,4 +23,14 @@ final class PatientInsuranceVerification extends Model
         'policy_number' => 'encrypted',
         'member_number' => 'encrypted',
     ];
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
+    }
+
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class);
+    }
 }
