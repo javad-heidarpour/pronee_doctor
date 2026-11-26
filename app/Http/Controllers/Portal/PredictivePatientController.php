@@ -12,6 +12,7 @@ use App\Models\PatientFollowUpTask;
 use App\Models\PatientVitalSign;
 use App\Services\PredictivePatientEngine;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 final class PredictivePatientController extends Controller
@@ -45,10 +46,11 @@ final class PredictivePatientController extends Controller
             ->get(['id', 'patient_id', 'measurement_type', 'value', 'unit', 'measured_at'])
             ->groupBy('patient_id');
 
+        $includeLegacyFollowUps = Auth::guard('web')->user()?->role !== 'secretary';
+
         $followUps = $ids->isEmpty() ? collect() : PatientFollowUpTask::query()
-            ->where('doctor_id', $doctor->id)
+            ->forAccessibleClinics($doctor->id, $clinicIds, $includeLegacyFollowUps)
             ->whereIn('patient_id', $ids)
-            ->where(fn ($q) => $q->whereIn('clinic_id', $clinicIds)->orWhereNull('clinic_id'))
             ->whereIn('status', ['pending', 'in_progress'])
             ->get(['id', 'patient_id', 'title', 'due_at', 'status'])
             ->groupBy('patient_id');
