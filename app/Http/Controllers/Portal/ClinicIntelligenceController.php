@@ -369,7 +369,7 @@ final class ClinicIntelligenceController extends Controller
         return back()->with('success', 'امتیاز فعالیت آموزشی/پیشگیرانه ثبت شد.');
     }
 
-    public function simulateEconomics(Request $request)
+    public function simulateEconomics(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
