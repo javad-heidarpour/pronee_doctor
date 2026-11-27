@@ -79,6 +79,15 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('clinic_inventory_items', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('clinic_id');
+            $table->unsignedSmallInteger('lead_time_days')->default(7);
+            $table->unsignedSmallInteger('safety_stock_days')->default(7);
+            $table->string('preferred_supplier', 180)->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('clinic_health_programs', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('doctor_id');
@@ -140,6 +149,18 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
             $table->string('status');
         });
 
+        Schema::create('clinic_economic_scenarios', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('doctor_id');
+            $table->unsignedBigInteger('clinic_id')->nullable();
+            $table->unsignedBigInteger('created_by');
+            $table->string('scenario_type', 32);
+            $table->string('name', 180);
+            $table->json('inputs');
+            $table->json('results');
+            $table->timestamps();
+        });
+
         Schema::create('clinic_staff_payrolls', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('organization_id');
@@ -153,6 +174,8 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
     {
         foreach ([
             'clinic_staff_payrolls',
+            'clinic_economic_scenarios',
+            'clinic_inventory_items',
             'clinic_organizations',
             'clinic_expenses',
             'appointment_payments',
@@ -475,6 +498,134 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
         $this->assertSame(4, DB::table('clinic_health_points')->where('membership_id', $membership)->count());
         $this->assertSame(20, (int) DB::table('clinic_health_points')
             ->where('membership_id', $membership)->sum('points'));
+    }
+
+    public function test_doctor_can_create_health_program_with_privacy_safe_audit(): void
+    {
+        $this->authenticateDoctor();
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('clinic.health_program.created', null, Mockery::on(
+                fn (array $metadata): bool => array_keys($metadata) === ['doctor_id', 'program_id', 'status_changed']
+                    && $metadata['doctor_id'] === 11
+                    && $metadata['program_id'] > 0
+                    && $metadata['status_changed'] === true
+            ));
+
+        (new ClinicIntelligenceController())->storeProgram(
+            Request::create('/portal/intelligence/health/programs', 'POST', [
+                'clinic_id' => 31,
+                'title' => 'Diabetes prevention',
+                'category' => 'diabetes',
+                'description' => 'Program description stays out of audit metadata.',
+                'interval_days' => 90,
+            ]),
+            $audit
+        );
+
+        $this->assertSame(1, DB::table('clinic_health_programs')->count());
+    }
+
+    public function test_health_program_creation_rolls_back_when_audit_recording_fails(): void
+    {
+        $this->authenticateDoctor();
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->andThrow(new RuntimeException('Audit storage unavailable.'));
+
+        try {
+            (new ClinicIntelligenceController())->storeProgram(
+                Request::create('/portal/intelligence/health/programs', 'POST', [
+                    'clinic_id' => 31,
+                    'title' => 'Diabetes prevention',
+                    'category' => 'diabetes',
+                    'description' => 'Not persisted without an audit event.',
+                    'interval_days' => 90,
+                ]),
+                $audit
+            );
+            $this->fail('Program creation must fail when its audit event cannot be stored.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('clinic_health_programs')->count());
+    }
+
+    public function test_inventory_settings_update_is_audited_without_supplier_values(): void
+    {
+        $this->authenticateDoctor();
+        DB::table('clinic_inventory_items')->insert([
+            'id' => 501,
+            'clinic_id' => 31,
+            'lead_time_days' => 7,
+            'safety_stock_days' => 7,
+            'preferred_supplier' => 'Old supplier',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('clinic.inventory.settings_updated', Mockery::type(ClinicInventoryItem::class), [
+                'doctor_id' => 11,
+                'inventory_item_id' => 501,
+                'status_changed' => true,
+            ]);
+
+        (new ClinicIntelligenceController())->updateInventorySettings(
+            Request::create('/portal/intelligence/inventory/501', 'PUT', [
+                'lead_time_days' => 14,
+                'safety_stock_days' => 10,
+                'preferred_supplier' => 'New supplier',
+            ]),
+            $audit,
+            501
+        );
+
+        $this->assertDatabaseHas('clinic_inventory_items', [
+            'id' => 501,
+            'lead_time_days' => 14,
+            'safety_stock_days' => 10,
+            'preferred_supplier' => 'New supplier',
+        ]);
+    }
+
+    public function test_economic_scenario_is_audited_without_financial_inputs_or_results(): void
+    {
+        $this->authenticateDoctor();
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with('clinic.economic_scenario.created', null, Mockery::on(
+                fn (array $metadata): bool => array_keys($metadata) === ['doctor_id', 'scenario_id', 'status_changed']
+                    && $metadata['doctor_id'] === 11
+                    && $metadata['scenario_id'] > 0
+                    && $metadata['status_changed'] === true
+            ));
+
+        (new ClinicIntelligenceController())->simulateEconomics(
+            Request::create('/portal/intelligence/economics', 'POST', [
+                'scenario_type' => 'fee_change',
+                'name' => 'Fee adjustment scenario',
+                'extra_appointments_month' => 0,
+                'average_fee' => 0,
+                'monthly_fixed_cost' => 0,
+                'one_time_cost' => 0,
+                'fee_change_percent' => 10,
+                'volume_change_percent' => 0,
+                'capacity_monthly' => 0,
+            ]),
+            $audit
+        );
+
+        $this->assertSame(1, DB::table('clinic_economic_scenarios')->count());
     }
 
     public function test_doctor_can_enroll_patient_in_doctor_wide_program(): void
