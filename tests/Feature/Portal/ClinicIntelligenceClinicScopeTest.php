@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Response;
 use Mockery;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
