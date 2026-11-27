@@ -399,6 +399,84 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
         ]);
     }
 
+    public function test_duplicate_wellness_award_is_idempotent_even_when_daily_cap_is_reached(): void
+    {
+        $this->authenticateSecretary(['patients.manage', 'patients.clinical.manage']);
+        $patient = $this->createPatient(41, 'Assigned patient');
+        $this->createAppointment($patient->id, 31);
+        $program = $this->createProgram(31, 'Assigned clinic program');
+        $membership = $this->createMembership($patient->id, $program);
+
+        $now = now();
+        DB::table('clinic_health_points')->insert([
+            [
+                'membership_id' => $membership,
+                'doctor_id' => 11,
+                'patient_id' => $patient->id,
+                'points' => 5,
+                'activity_key' => 'education_completed',
+                'description' => 'Education completed',
+                'source_key' => 'duplicate-event',
+                'awarded_by' => 101,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'membership_id' => $membership,
+                'doctor_id' => 11,
+                'patient_id' => $patient->id,
+                'points' => 5,
+                'activity_key' => 'education_completed',
+                'description' => 'Education completed',
+                'source_key' => 'event-two',
+                'awarded_by' => 101,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'membership_id' => $membership,
+                'doctor_id' => 11,
+                'patient_id' => $patient->id,
+                'points' => 5,
+                'activity_key' => 'education_completed',
+                'description' => 'Education completed',
+                'source_key' => 'event-three',
+                'awarded_by' => 101,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'membership_id' => $membership,
+                'doctor_id' => 11,
+                'patient_id' => $patient->id,
+                'points' => 5,
+                'activity_key' => 'education_completed',
+                'description' => 'Education completed',
+                'source_key' => 'event-four',
+                'awarded_by' => 101,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldNotReceive('handle');
+
+        (new ClinicIntelligenceController())->awardWellnessPoints(
+            Request::create('/portal/intelligence/health/points', 'POST', [
+                'activity_key' => 'education_completed',
+                'description' => 'Education completed',
+                'source_key' => 'duplicate-event',
+            ]),
+            $membership,
+            $audit
+        );
+
+        $this->assertSame(4, DB::table('clinic_health_points')->where('membership_id', $membership)->count());
+        $this->assertSame(20, (int) DB::table('clinic_health_points')
+            ->where('membership_id', $membership)->sum('points'));
+    }
+
     public function test_doctor_can_enroll_patient_in_doctor_wide_program(): void
     {
         $this->authenticateDoctor();
