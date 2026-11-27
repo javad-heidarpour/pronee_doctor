@@ -40,13 +40,21 @@ final class RecordSecurityAuditEventActionTest extends TestCase
                 'phone' => '09120000000',
                 'diagnosis' => 'Sensitive diagnosis',
                 'doctor_id' => 7,
+                'program_id' => 8,
+                'scenario_id' => 9,
+                'inventory_item_id' => 10,
             ]
         );
 
         $log = SecurityAuditLog::query()->firstOrFail();
 
         $this->assertSame('patient.portal.health.viewed', $log->event);
-        $this->assertSame(['doctor_id' => 7], $log->metadata);
+        $this->assertSame([
+            'doctor_id' => 7,
+            'program_id' => 8,
+            'scenario_id' => 9,
+            'inventory_item_id' => 10,
+        ], $log->metadata);
         $this->assertArrayNotHasKey('patient_id', $log->metadata);
         $this->assertArrayNotHasKey('diagnosis', $log->metadata);
     }
