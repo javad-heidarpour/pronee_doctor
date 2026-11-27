@@ -143,8 +143,11 @@ final class ClinicIntelligenceController extends Controller
         ]);
     }
 
-    public function updateInventorySettings(Request $request, int $item)
-    {
+    public function updateInventorySettings(
+        Request $request,
+        RecordSecurityAuditEventAction $audit,
+        int $item
+    ) {
         $doctor = $this->currentDoctor();
         $this->authorizeSecretaryPermission('inventory.manage', $doctor);
         $data = $request->validate([
@@ -152,13 +155,27 @@ final class ClinicIntelligenceController extends Controller
             'safety_stock_days' => ['required', 'integer', 'min:0', 'max:180'],
             'preferred_supplier' => ['nullable', 'string', 'max:180'],
         ]);
-        $row = ClinicInventoryItem::query()->whereKey($item)
-            ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))->firstOrFail();
-        $row->update($data);
+
+        DB::transaction(function () use ($doctor, $item, $data, $audit): void {
+            // Re-read the grant and clinic scope inside the write transaction.
+            $this->authorizeSecretaryPermission('inventory.manage', $doctor);
+            $row = ClinicInventoryItem::query()->whereKey($item)
+                ->whereIn('clinic_id', $this->accessibleClinicIds($doctor))
+                ->lockForUpdate()
+                ->firstOrFail();
+            $row->update($data);
+
+            $audit->handle('clinic.inventory.settings_updated', $row, [
+                'doctor_id' => $doctor->id,
+                'inventory_item_id' => $row->id,
+                'status_changed' => true,
+            ]);
+        }, 3);
+
         return back()->with('success', 'زمان تأمین و ذخیره احتیاطی کالا ذخیره شد.');
     }
 
-    public function storeProgram(Request $request)
+    public function storeProgram(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
@@ -169,10 +186,21 @@ final class ClinicIntelligenceController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'interval_days' => ['required', 'integer', 'min:30', 'max:1095'],
         ]);
-        DB::table('clinic_health_programs')->insert($data + [
-            'doctor_id' => $doctor->id, 'is_active' => true,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+
+        DB::transaction(function () use ($doctor, $data, $audit): void {
+            $programId = DB::table('clinic_health_programs')->insertGetId($data + [
+                'doctor_id' => $doctor->id, 'is_active' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+
+            // Audit only the event and record reference, never the program description.
+            $audit->handle('clinic.health_program.created', null, [
+                'doctor_id' => $doctor->id,
+                'program_id' => $programId,
+                'status_changed' => true,
+            ]);
+        }, 3);
+
         return back()->with('success', 'برنامه پیشگیری سلامت ایجاد شد.');
     }
 
@@ -341,7 +369,7 @@ final class ClinicIntelligenceController extends Controller
         return back()->with('success', 'امتیاز فعالیت آموزشی/پیشگیرانه ثبت شد.');
     }
 
-    public function simulateEconomics(Request $request)
+    public function simulateEconomics(Request $request, RecordSecurityAuditEventAction $audit)
     {
         $doctor = $this->currentDoctor();
         $this->authorizeDoctorOnly();
@@ -409,13 +437,22 @@ final class ClinicIntelligenceController extends Controller
             'assumption' => 'برآورد سناریویی بر اساس داده ۹۰ روز اخیر و ورودی‌های مدیر؛ تضمین درآمد یا توصیه قطعی سرمایه‌گذاری نیست.',
         ];
 
-        DB::table('clinic_economic_scenarios')->insert([
-            'doctor_id' => $doctor->id, 'clinic_id' => $data['clinic_id'] ?? null,
-            'created_by' => Auth::guard('web')->id(), 'scenario_type' => $data['scenario_type'],
-            'name' => $data['name'], 'inputs' => json_encode($data, JSON_UNESCAPED_UNICODE),
-            'results' => json_encode($results, JSON_UNESCAPED_UNICODE),
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+        DB::transaction(function () use ($doctor, $data, $results, $audit): void {
+            $scenarioId = DB::table('clinic_economic_scenarios')->insertGetId([
+                'doctor_id' => $doctor->id, 'clinic_id' => $data['clinic_id'] ?? null,
+                'created_by' => Auth::guard('web')->id(), 'scenario_type' => $data['scenario_type'],
+                'name' => $data['name'], 'inputs' => json_encode($data, JSON_UNESCAPED_UNICODE),
+                'results' => json_encode($results, JSON_UNESCAPED_UNICODE),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+
+            // Financial inputs/results stay out of audit metadata.
+            $audit->handle('clinic.economic_scenario.created', null, [
+                'doctor_id' => $doctor->id,
+                'scenario_id' => $scenarioId,
+                'status_changed' => true,
+            ]);
+        }, 3);
 
         return back()->with('success', 'سناریوی اقتصادی محاسبه و ذخیره شد.');
     }

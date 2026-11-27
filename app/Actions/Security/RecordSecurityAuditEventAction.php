@@ -36,6 +36,9 @@ class RecordSecurityAuditEventAction
             'password_changed',
             'reconciliation_status',
             'changed_fields',
+            'program_id',
+            'scenario_id',
+            'inventory_item_id',
         ]));
 
         SecurityAuditLog::create([
