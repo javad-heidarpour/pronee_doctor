@@ -293,11 +293,24 @@ final class ClinicIntelligenceController extends Controller
         ]);
         $isSecretary = Auth::guard('web')->user()?->role === 'secretary';
 
-        DB::transaction(function () use ($doctor, $membership, $data, $isSecretary): void {
+        $inserted = DB::transaction(function () use ($doctor, $membership, $data, $isSecretary): bool {
             $clinicIds = $this->currentHealthClinicIds($doctor);
             $row = $this->accessibleMembershipQuery($membership, $doctor, $clinicIds, $isSecretary)
                 ->where('m.status', 'active')->lockForUpdate()->first();
             abort_unless($row && $row->consent_at, 404);
+
+            // Idempotency must be checked before the daily cap: a retry of an
+            // already-recorded activity is not a new award and must not fail as
+            // though the patient were requesting additional points.
+            $alreadyRecorded = DB::table('clinic_health_points')
+                ->where('membership_id', $membership)
+                ->where('source_key', $data['source_key'])
+                ->exists();
+
+            if ($alreadyRecorded) {
+                return false;
+            }
+
             $points = match ($data['activity_key']) {
                 'education_completed' => 5,
                 'self_care_goal_completed' => 10,
@@ -307,14 +320,19 @@ final class ClinicIntelligenceController extends Controller
                 ->where('doctor_id', $doctor->id)->where('patient_id', $row->patient_id)
                 ->whereDate('created_at', today())->sum('points');
             abort_if($alreadyToday + $points > 20, 422, 'سقف امتیاز روزانه رعایت شده است.');
-            DB::table('clinic_health_points')->insertOrIgnore([
+
+            return DB::table('clinic_health_points')->insertOrIgnore([
                 'membership_id' => $membership, 'doctor_id' => $doctor->id,
                 'patient_id' => $row->patient_id, 'points' => $points,
                 'activity_key' => $data['activity_key'], 'description' => $data['description'],
                 'source_key' => $data['source_key'], 'awarded_by' => Auth::guard('web')->id(),
                 'created_at' => now(), 'updated_at' => now(),
-            ]);
+            ]) === 1;
         }, 3);
+
+        if (!$inserted) {
+            return back()->with('info', 'این فعالیت قبلاً ثبت شده است.');
+        }
 
         $audit->handle('clinic.health_membership.points_awarded', null, [
             'doctor_id' => $doctor->id, 'status_changed' => true,
