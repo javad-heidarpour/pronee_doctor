@@ -70,6 +70,13 @@ jobs:
       - name: Run isolated portal regression tests
         run: php artisan test tests/Feature/Portal
 
+      # These route-level security tests do not require the full production database schema.
+      - name: Run signed visit route security tests
+        run: php artisan test tests/Feature/Visit
+
+      - name: Run SMS route security tests
+        run: php artisan test tests/Feature/Sms
+
   frontend:
     name: Frontend validation
     runs-on: ubuntu-latest
