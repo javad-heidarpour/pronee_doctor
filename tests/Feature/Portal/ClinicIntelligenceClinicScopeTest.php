@@ -6,6 +6,7 @@ namespace Tests\Feature\Portal;
 
 use App\Actions\Security\RecordSecurityAuditEventAction;
 use App\Http\Controllers\Portal\ClinicIntelligenceController;
+use App\Models\ClinicInventoryItem;
 use App\Models\User;
 use App\Services\ClinicIntelligence\InventoryDemandForecaster;
 use Illuminate\Database\Schema\Blueprint;
@@ -579,7 +580,7 @@ final class ClinicIntelligenceClinicScopeTest extends TestCase
             ]);
 
         (new ClinicIntelligenceController())->updateInventorySettings(
-            Request::create('/portal/intelligence/inventory/501', 'PUT', [
+            Request::create('/portal/intelligence/inventory/501/settings', 'POST', [
                 'lead_time_days' => 14,
                 'safety_stock_days' => 10,
                 'preferred_supplier' => 'New supplier',
