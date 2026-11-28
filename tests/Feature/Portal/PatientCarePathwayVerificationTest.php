@@ -574,6 +574,178 @@ final class PatientCarePathwayVerificationTest extends TestCase
         $this->assertSame('active', $pathway->fresh()->status);
     }
 
+    public function test_care_pathway_creation_and_audit_are_atomic(): void
+    {
+        $this->seedDoctorAndClinic();
+        $patient = Patient::query()->create(['doctor_id' => 11, 'name' => 'Patient']);
+        Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        $user->is_active = true;
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.care_pathway.created',
+                Mockery::type(PatientCarePathway::class),
+                ['doctor_id' => 11, 'step_count' => 1]
+            );
+
+        $response = (new PatientCarePathwayController())->store(
+            Request::create('/portal/care-pathways', 'POST', [
+                'patient_id' => $patient->id,
+                'clinic_id' => 31,
+                'title' => 'Prevention plan',
+                'description' => 'Clinical details are not copied into audit metadata.',
+                'steps' => [[
+                    'title' => 'Follow-up measurement',
+                    'category' => 'measurement',
+                ]],
+            ]),
+            $audit
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame(1, PatientCarePathway::query()->count());
+        $this->assertSame(1, PatientCarePathwayStep::query()->count());
+    }
+
+    public function test_care_pathway_creation_rolls_back_when_audit_recording_fails(): void
+    {
+        $this->seedDoctorAndClinic();
+        $patient = Patient::query()->create(['doctor_id' => 11, 'name' => 'Patient']);
+        Appointment::query()->create([
+            'doctor_id' => 11,
+            'patient_id' => $patient->id,
+            'clinic_id' => 31,
+            'status' => 'confirmed',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        $user->is_active = true;
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->andThrow(new RuntimeException('audit unavailable'));
+
+        try {
+            (new PatientCarePathwayController())->store(
+                Request::create('/portal/care-pathways', 'POST', [
+                    'patient_id' => $patient->id,
+                    'clinic_id' => 31,
+                    'title' => 'Prevention plan',
+                    'description' => 'This pathway must not persist without its audit event.',
+                    'steps' => [[
+                        'title' => 'Follow-up measurement',
+                        'category' => 'measurement',
+                    ]],
+                ]),
+                $audit
+            );
+            $this->fail('A failed audit write must roll back the pathway and all its steps.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('audit unavailable', $exception->getMessage());
+        }
+
+        $this->assertSame(0, PatientCarePathway::query()->count());
+        $this->assertSame(0, PatientCarePathwayStep::query()->count());
+    }
+
+    public function test_pathway_activation_and_audit_are_atomic(): void
+    {
+        $this->seedDoctorAndClinic();
+        $pathway = PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => 41,
+            'title' => 'Draft plan',
+            'status' => 'draft',
+        ]);
+        $pathway->steps()->create([
+            'title' => 'Initial review',
+            'category' => 'general',
+            'status' => 'pending',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        $user->is_active = true;
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->andThrow(new RuntimeException('audit unavailable'));
+
+        try {
+            (new PatientCarePathwayController())->activate($pathway->id, $audit);
+            $this->fail('A failed audit write must roll back pathway activation.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('audit unavailable', $exception->getMessage());
+        }
+
+        $this->assertSame('draft', $pathway->fresh()->status);
+        $this->assertNull($pathway->fresh()->approved_by);
+        $this->assertNull($pathway->fresh()->activated_at);
+    }
+
+    public function test_doctor_can_activate_a_valid_pathway_with_audit_recorded(): void
+    {
+        $this->seedDoctorAndClinic();
+        $pathway = PatientCarePathway::query()->create([
+            'doctor_id' => 11,
+            'clinic_id' => 31,
+            'patient_id' => 41,
+            'title' => 'Draft plan',
+            'status' => 'draft',
+        ]);
+        $pathway->steps()->create([
+            'title' => 'Initial review',
+            'category' => 'general',
+            'status' => 'pending',
+        ]);
+
+        $user = new User();
+        $user->id = 99;
+        $user->role = 'doctor';
+        $user->is_active = true;
+        Auth::guard('web')->setUser($user);
+        session(['active_doctor_id' => 11]);
+
+        $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
+        $audit->shouldReceive('handle')
+            ->once()
+            ->with(
+                'patient.care_pathway.activated',
+                Mockery::type(PatientCarePathway::class),
+                ['doctor_id' => 11]
+            );
+
+        $response = (new PatientCarePathwayController())->activate($pathway->id, $audit);
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame('active', $pathway->fresh()->status);
+        $this->assertSame(99, $pathway->fresh()->approved_by);
+        $this->assertNotNull($pathway->fresh()->activated_at);
+    }
+
     private function seedDoctorAndClinic(): void
     {
         DB::table('doctors')->insert([
