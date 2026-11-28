@@ -641,7 +641,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
             ->once()
-            ->andThrow(new RuntimeException('audit unavailable'));
+            ->andThrow(new \\RuntimeException('audit unavailable'));
 
         try {
             (new PatientCarePathwayController())->store(
@@ -658,7 +658,7 @@ final class PatientCarePathwayVerificationTest extends TestCase
                 $audit
             );
             $this->fail('A failed audit write must roll back the pathway and all its steps.');
-        } catch (RuntimeException $exception) {
+        } catch (\\RuntimeException $exception) {
             $this->assertSame('audit unavailable', $exception->getMessage());
         }
 
@@ -692,12 +692,12 @@ final class PatientCarePathwayVerificationTest extends TestCase
         $audit = Mockery::mock(RecordSecurityAuditEventAction::class);
         $audit->shouldReceive('handle')
             ->once()
-            ->andThrow(new RuntimeException('audit unavailable'));
+            ->andThrow(new \\RuntimeException('audit unavailable'));
 
         try {
             (new PatientCarePathwayController())->activate($pathway->id, $audit);
             $this->fail('A failed audit write must roll back pathway activation.');
-        } catch (RuntimeException $exception) {
+        } catch (\\RuntimeException $exception) {
             $this->assertSame('audit unavailable', $exception->getMessage());
         }
 
